@@ -30,6 +30,9 @@ Personas:
 - **Build:** .devcontainer; preflight.ps1 (tools, versions, `az login`, subscription, resource providers, role checks,
   quota, region); docs/requests/identity-request.md listing exactly what an identity administrator must create or consent.
 - **Show:** preflight passes; the identity request is clear enough to send as is.
+- **Preparation now available:** EN/FR workspace choice, pinned dev container configuration, common tool checks,
+  private stable random participant suffix, and a mock-tested Terraform resource-group foundation.
+  Container runtime, full preflight/identity request and fresh-subscription validation remain pending.
 
 ## 01 — Discover MCP (no Azure)
 - **Take:** MCP specification: https://modelcontextprotocol.io/specification (revision 2026-07-28 verified on 2026-10-14: architecture, tools, transports, authorization);
@@ -128,8 +131,8 @@ The selected upstream files, versions, licenses, updates, and exclusions are in 
 
 ### Target repository tree
 
-Only the existing scaffold, source assessment, and build board are present now. The following is the intended
-tree to create in subsequent module sessions. Every module has the same README contract and its own
+The scaffold, board, workstation preparation and resource-group foundation are present now. The following is the
+complete intended tree; runtime modules still need implementation. Every module has the same README contract and its own
 `validate.ps1`, `validate.sh`, `cleanup.ps1`, and `cleanup.sh`. Shared Terraform lives in two roots, not one
 copy per module. Module folders contain only module-specific assets and instructions.
 
@@ -142,11 +145,11 @@ copy per module. Module folders contain only module-specific assets and instruct
   copilot-instructions.md
   skills/workshop-module-builder/SKILL.md
   extensions/workshop-build-board/
-    extension.mjs, progress.mjs, server.mjs, board.html, progress.test.mjs
+    extension.mjs, progress.mjs, journey.mjs, server.mjs, board.html, progress.test.mjs
 .vscode/mcp.json
 .mcp.json
 docs/
-  BUILD-PLAN.md, PROGRESS.md, COPILOT-RUNBOOK.md, sources.md
+  BUILD-PLAN.md, PROGRESS.md, COPILOT-RUNBOOK.md, PRACTICE.md, sources.md
   requests/identity-request.md
   concepts/token-chain.md
   concepts/scopes-and-app-roles.md
@@ -195,7 +198,7 @@ README.md, LICENSE, AGENTS.md, setup-workshop-mcp.ps1
 |---|---|---|
 | Runtime | .NET 10 isolated worker; Functions host v4; ordinary MCP tool trigger extension 1.5.0 as the upstream starting point | Confirm deployed runtime support, restore and test the minimal tool project. Do not import the sample's Apps/QR/preview SDK dependencies unnecessarily. |
 | Local introduction | C# SDK 2.2.0, minimal stdio tool, synthetic arguments | Pin its package and hosting dependencies; send logs to stderr. No weather API or model subscription needed. |
-| Inspector | Published 2.11.0, Node.js >= 22.19.0 | Test both local and gateway connections. Learn still recommends 0.9.0 in older APIM tips; do not adopt it blindly. Keep tokens in memory or an OS keychain, not plaintext container storage. |
+| Inspector | GitHub 2.11.0 source candidate; practice launch pins the registry-available 2.9.0, Node.js >= 22.19.0 | Launch testing found no 2.11.0 package in the configured npm registry. Check availability before launch; test both local and gateway connections. Learn still recommends 0.9.0 in older APIM tips; do not adopt it blindly. Keep tokens in memory or an OS keychain, not plaintext container storage. |
 | Protocol | Teach current 2026-07-28 terminology and explicitly explain legacy negotiation | Verify what each pinned client/server actually supports. APIM documents a minimum of 2025-06-18, not proof of every 2026 feature. |
 | Terraform | Candidate exact pins: azurerm 5.9.0, azuread 3.10.0, azapi 2.13.0 | Versions exist in the registry; compatibility is not deployment-tested. Commit lock files after module validation, with no state/tfvars. |
 | Resource model | AzureRM for Flex, storage, identities, private networking, and supported gateway settings; AzAPI for missing properties and MCP APIs/policies at `2025-09-01-preview` (**Preview**) | Use `Microsoft.ApiManagement/service/apis` with `type: mcp`, `transportType: streamable` and the real Function endpoint `/runtime/webhooks/mcp`. Existing-server proxying does not need REST tool subresources. |

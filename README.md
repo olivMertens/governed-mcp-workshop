@@ -17,6 +17,30 @@ A self-paced, end-to-end workshop that takes one Model Context Protocol (MCP) se
 and developers who are new to agents and MCP.
 **Goal:** every participant can deploy, verify and destroy every module alone, in a non-production Azure subscription.
 
+## Start here: choose your workspace
+
+Read [the start guide](docs/GETTING-STARTED.md) or [le guide français](docs/fr/GETTING-STARTED.md).
+Choose **VS Code dev container**, **local terminal**, or optional Codespaces at the start of the board (`#/start`).
+The same tool-check and preparation scripts serve every route. You can also follow the Markdown without Copilot.
+The container configuration is published locally, but its runtime build is not yet validated.
+
+Prepare one ignored private participant file. A random suffix is generated once and reused across Terraform runs.
+The [workload foundation](infra/workload/README.md) creates one dedicated resource group, or reads an
+administrator-provided group without managing it. It currently deploys no MCP service.
+Unique names reduce collisions; **they do not increase or reset Azure quotas**.
+
+## Public landing site or internal hosting
+
+The same bilingual portal can run outside Copilot as a static GitHub Pages site.
+Build it with `node scripts/build-site.mjs`; only allowlisted public content goes into ignored `site-dist`.
+The manually triggered [Pages workflow](.github/workflows/workshop-pages.yml) publishes that directory,
+not the repository. No site has been published yet.
+Read [hosting and publication](docs/HOSTING.md) or [le guide français](docs/fr/HOSTING.md).
+
+The public portal never collects Azure keys or deploys into a visitor's tenant.
+App Service and Azure Container Apps are separate optional hosting targets requiring an exact selection and approval.
+Participants still authenticate and run reviewed Terraform in their own approved environment.
+
 ## Target architecture
 
 ```mermaid
@@ -58,7 +82,8 @@ The workshop is written "as code" with the GitHub Copilot app:
 | [`.github/agents/workshop-builder.agent.md`](.github/agents/workshop-builder.agent.md) | Custom agent that applies the skill |
 | [`docs/COPILOT-RUNBOOK.md`](docs/COPILOT-RUNBOOK.md) | Step-by-step guide: sessions, modes and prompts |
 
-Start with [`docs/COPILOT-RUNBOOK.md`](docs/COPILOT-RUNBOOK.md).
+Participants start with [`docs/GETTING-STARTED.md`](docs/GETTING-STARTED.md).
+Workshop authors use [`docs/COPILOT-RUNBOOK.md`](docs/COPILOT-RUNBOOK.md).
 
 The [P1 recommendations](docs/BUILD-PLAN.md#p1-recommendations-design-only) describe the target tree,
 networking and identity decisions. The [source assessment](docs/sources.md) selects the useful parts of official
@@ -66,8 +91,34 @@ samples, pins upstream snapshots, and records updates, licensing boundaries and 
 **Modules are not implemented yet.** No Azure deployment has been validated.
 
 The project includes a **Workshop build board** canvas under `.github/extensions/workshop-build-board/`.
-In the Copilot app, ask: "Show the workshop build board." It reads and updates `docs/PROGRESS.md`.
-The canvas SDK is **Preview**. Saving progress does not run module validation.
+In the Copilot app, ask: "Show the workshop build board." Its responsive single-page application (SPA) is a
+read-only workshop route: browse modules, participant guides, expected outcomes and verified sources, without
+progress-entry forms. Hash routes support back, forward and direct module links. Unpublished modules show
+clearly labeled design outlines from the build plan, not invented deployment steps. Published module READMEs
+appear automatically after refreshing.
+The agent still records build status and actual validation evidence in `docs/PROGRESS.md`.
+The canvas SDK is **Preview**. Browsing does not run commands, deploy resources or change progress.
+
+Use **Try your MCP** for Codespaces setup, local launch commands, an endpoint-only connection helper,
+Inspector launch commands, and prompts for discovery, reads and preparing an approval-gated synthetic write.
+Per-module hints explain the intended control, expected denials and common mistakes. The actual calls run in
+your chosen MCP client, not through the canvas. No credential is accepted and no connection setting is saved.
+Validation commands appear only when the module guide and script exist. See [the practice guide](docs/PRACTICE.md).
+
+Switch **EN / FR** in the board. The French route is `?lang=fr#/overview`; language selection stays in the URL,
+not a tracking profile. The route, call hints, starter prompts, governance guide, reference library and deployment
+preparation have authored French versions. Repository decisions/evidence retain their explicitly labeled original text.
+A missing future `README.fr.md` is reported rather than silently presenting an English guide as translated.
+
+Each module includes an [editable architecture diagram](assets/architecture/README.md) with EN/FR SVG and PNG
+exports, security-flow explanations, accessible tip/important/warning icons, and a contextual next step.
+The core route goes from 06 to cleanup 99; 07 remains optional. Microsoft product imagery identifies technologies,
+not endorsement; see the asset usage and trademark notices.
+The [governance guide](docs/LEARNING-GUIDE.md) explains scopes, roles, OBO, app-only, private ingress and metadata-only logs.
+The [Azure context guide](docs/DEPLOYMENT.md) and its [French version](docs/fr/DEPLOYMENT.md) prepare **your** approved
+test tenant/subscription using fail-fast context selectors. Tool checks and the resource-group foundation are partial
+module 00 preparation, not a validated module, runtime deployment or permission grant.
+Run the real module only after its guide is published and the plan, identity changes and costs are explicitly approved.
 
 ## Safety
 

@@ -3,122 +3,794 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
   <title>Workshop build board</title>
   <style>
-    body { margin: 0; padding: 24px; background: var(--background-color-default, #fff); color: var(--text-color-default, #1f2328); font-family: var(--font-sans, system-ui); font-size: var(--text-body-medium, 14px); line-height: 1.5; }
-    h1 { font-size: var(--text-title-large, 26px); margin: 0; }
-    .muted { color: var(--text-color-muted, #59636e); }
-    #modules { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 16px; }
-    article { border: 1px solid var(--border-color-default, #d1d9e0); border-radius: 12px; padding: 16px; }
-    label { display: block; margin-top: 12px; }
-    input, select, textarea, button { box-sizing: border-box; font: inherit; color: inherit; background: var(--background-color-default, #fff); border: 1px solid var(--border-color-default, #d1d9e0); border-radius: 6px; padding: 8px; }
-    input, select, textarea { width: 100%; }
-    textarea { resize: vertical; }
-    button { cursor: pointer; margin-top: 12px; }
-    button:disabled { cursor: wait; opacity: .6; }
-    :focus-visible { outline: 2px solid var(--color-focus-outline, #0969da); outline-offset: 2px; }
-    #message { min-height: 24px; white-space: pre-wrap; }
-    #message.error { color: var(--true-color-red, #b42318); }
-    #decisions { white-space: pre-wrap; }
+    :root { color-scheme: light; --paper: #f5f8fd; --surface: #fff; --ink: #172c48; --muted: #526783; --line: #d5dfed; --blue: #1659dc; --indigo: #383ba4; --wash: #eaf0ff; --gold: #ffe38c; --success: #14704b; --error: #b32336; font-family: "Segoe UI", "Helvetica Neue", sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--paper); color: var(--ink); font-size: 15px; line-height: 1.65; }
+    a { color: var(--blue); text-underline-offset: 3px; }
+    button { font: inherit; cursor: pointer; }
+    :focus-visible { outline: 3px solid var(--blue); outline-offset: 4px; }
+    .skip { position: fixed; top: -80px; left: 20px; z-index: 5; padding: 10px; background: var(--surface); }
+    .skip:focus { top: 12px; }
+    .shell { display: grid; grid-template-columns: 255px minmax(0, 1fr); min-height: 100vh; }
+    .rail { position: sticky; top: 0; height: 100vh; overflow-y: auto; padding: 30px 22px; background: var(--surface); border-right: 1px solid var(--line); }
+    .brand { display: flex; gap: 12px; align-items: center; color: var(--ink); text-decoration: none; font-weight: 650; line-height: 1.3; }
+    .brand-mark { display: grid; place-items: center; width: 39px; height: 43px; background: var(--indigo); color: white; clip-path: polygon(0 0, 100% 0, 100% 72%, 50% 100%, 0 72%); flex-shrink: 0; font-size: 18px; padding-bottom: 6px; }
+    .brand small { display: block; font-size: 12px; font-weight: 400; margin-top: 5px; color: var(--muted); }
+    .nav-label { color: var(--muted); font-size: 12px; margin: 30px 10px 12px; }
+    nav a { display: flex; align-items: center; gap: 12px; color: var(--ink); text-decoration: none; padding: 10px; border-radius: 8px; line-height: 1.3; font-size: 13px; margin-bottom: 4px; }
+    nav a:hover { background: var(--paper); }
+    nav a[aria-current="page"] { background: var(--wash); color: var(--blue); font-weight: 650; }
+    .module-id { width: 28px; flex-shrink: 0; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .nav-title { flex: 1; }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--line); flex-shrink: 0; }
+    .dot.validated { background: var(--success); }
+    .dot.in-progress { background: var(--blue); }
+    .dot.blocked { background: var(--error); }
+    .rail-footer { border-top: 1px solid var(--line); padding-top: 20px; margin-top: 26px; font-size: 12px; color: var(--muted); }
+    .stage { min-width: 0; }
+    .toolbar { padding: 18px 40px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+    .refresh { background: transparent; color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; white-space: nowrap; }
+    #message { padding: 0 40px; margin: 0; font-size: 13px; }
+    #message:not(:empty) { padding-top: 12px; }
+    #message.error { color: var(--error); }
+    main { max-width: 1120px; margin: auto; padding: 48px 40px 64px; }
+    h1 { font-size: clamp(30px, 4.8vw, 58px); font-weight: 650; line-height: 1.08; letter-spacing: -.045em; max-width: 720px; margin: 0 0 24px; text-wrap: balance; }
+    h2 { font-size: 24px; line-height: 1.25; letter-spacing: -.025em; margin: 32px 0 14px; }
+    h3 { font-size: 18px; margin: 24px 0 12px; }
+    .lead { max-width: 620px; font-size: 17px; color: var(--muted); margin-bottom: 26px; }
+    .intro { display: flex; gap: 24px; align-items: flex-start; }
+    .chapter { font-size: clamp(60px, 9vw, 100px); line-height: 1; letter-spacing: -.07em; color: var(--blue); font-weight: 300; }
+    .intro h1 { font-size: clamp(28px, 3.8vw, 44px); margin-top: 4px; }
+    .pill { display: inline-block; font-size: 12px; border: 1px solid var(--line); border-radius: 4px; padding: 3px 9px; margin-bottom: 12px; color: var(--muted); }
+    .boundary { position: relative; margin: 36px 0 32px; background: var(--indigo); color: white; padding: 28px; border-radius: 4px 28px 4px 4px; }
+    .boundary h2 { color: white; margin: 0 0 24px; font-size: 18px; }
+    .chain { display: grid; grid-template-columns: 1fr 24px 1fr 24px 1fr; align-items: center; gap: 8px; }
+    .node { min-height: 104px; padding: 16px; border: 1px solid #9294e2; background: #ffffff0d; }
+    .node.gateway { border-color: var(--gold); color: var(--gold); }
+    .node strong { display: block; font-size: 16px; }
+    .node span { display: block; margin-top: 7px; font-size: 12px; color: #e4e5ff; }
+    .connector { height: 1px; background: #b5b7f2; position: relative; }
+    .connector::after { content: ""; width: 6px; height: 6px; border-top: 1px solid #b5b7f2; border-right: 1px solid #b5b7f2; transform: rotate(45deg); position: absolute; right: 0; top: -3px; }
+    .boundary p { font-size: 12px; margin: 20px 0 0; color: #e4e5ff; }
+    .primary { display: inline-flex; color: white; background: var(--blue); text-decoration: none; padding: 11px 18px; border-radius: 6px; font-weight: 600; }
+    .notice { border-left: 3px solid var(--blue); background: var(--wash); padding: 16px 20px; margin: 24px 0; font-size: 14px; max-width: 760px; }
+    .notice strong { display: block; margin-bottom: 5px; }
+    .route-list { margin-top: 30px; border-top: 1px solid var(--line); }
+    .route-item { display: grid; grid-template-columns: 42px 1fr auto; align-items: center; gap: 16px; padding: 18px 0; border-bottom: 1px solid var(--line); color: var(--ink); text-decoration: none; }
+    .route-item:hover .route-title { color: var(--blue); }
+    .route-number { color: var(--blue); font-size: 24px; font-weight: 300; }
+    .route-title { font-weight: 600; font-size: 15px; }
+    .route-meta { display: block; color: var(--muted); font-size: 12px; font-weight: 400; margin-top: 3px; }
+    .availability { color: var(--muted); font-size: 12px; }
+    .document { background: var(--surface); border: 1px solid var(--line); padding: 12px 30px 28px; border-radius: 8px; overflow-wrap: anywhere; }
+    .document p, .document li { max-width: 76ch; }
+    .document li { margin: 8px 0; }
+    .document h1 { font-size: 30px; margin-top: 22px; }
+    .document pre { padding: 18px; overflow-x: auto; background: var(--paper); border: 1px solid var(--line); border-radius: 6px; font-size: 12px; line-height: 1.7; }
+    code { font-family: Consolas, "SFMono-Regular", monospace; font-size: .9em; }
+    :not(pre) > code { padding: 2px 4px; background: var(--wash); border-radius: 3px; }
+    .table-scroll { overflow-x: auto; }
+    table { border-collapse: collapse; font-size: 13px; min-width: 100%; }
+    td, th { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+    th { font-weight: 600; }
+    .source { font-size: 12px; color: var(--muted); margin: 20px 0; overflow-wrap: anywhere; }
+    .pager { display: flex; justify-content: space-between; gap: 20px; margin-top: 32px; font-size: 14px; }
+    .action-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 18px 0; }
+    .secondary { display: inline-flex; padding: 10px 16px; border: 1px solid var(--line); border-radius: 6px; text-decoration: none; background: var(--surface); color: var(--ink); }
+    .launch-panel { padding: 24px; margin: 24px 0; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+    .launch-panel h2 { margin-top: 0; }
+    .launch-panel p { max-width: 76ch; }
+    .connection-label { display: block; font-weight: 600; margin-top: 20px; }
+    .endpoint { display: block; width: 100%; margin-top: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); color: var(--ink); font: inherit; }
+    .field-message { margin: 8px 0 18px; color: var(--muted); font-size: 13px; }
+    .field-message.error { color: var(--error); }
+    .command { margin: 20px 0; min-width: 0; }
+    .command-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 8px; font-weight: 600; font-size: 13px; }
+    .command pre { margin: 0; padding: 16px; background: var(--paper); border: 1px solid var(--line); border-radius: 6px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; line-height: 1.7; }
+    .copy { font-size: 12px; background: var(--surface); color: var(--blue); border: 1px solid var(--line); border-radius: 5px; padding: 5px 10px; flex-shrink: 0; }
+    .exercise { border-top: 2px solid var(--blue); padding-top: 4px; margin: 28px 0; }
+    .exercise details { color: var(--ink); margin: 16px 0; }
+    .exercise summary { font-weight: 600; font-size: 15px; }
+    .exercise details .document { margin-top: 16px; }
+    .toolbar-actions, .languages { display: flex; align-items: center; gap: 8px; }
+    .languages button { padding: 5px 9px; border: 1px solid var(--line); border-radius: 5px; color: var(--ink); background: var(--surface); font-size: 12px; }
+    .languages button[aria-pressed="true"] { background: var(--wash); color: var(--blue); border-color: var(--blue); font-weight: 650; }
+    .symbol { width: 19px; height: 19px; flex-shrink: 0; vertical-align: middle; }
+    .notice strong { display: flex; align-items: center; gap: 10px; }
+    .notice.warning, .notice.caution { border-left-color: var(--error); }
+    .notice.warning strong, .notice.caution strong { color: var(--error); }
+    .notice.tip { border-left-color: var(--success); }
+    .notice.tip strong { color: var(--success); }
+    .notice p { margin: 6px 0 0; }
+    .architecture { margin: 28px 0; min-width: 0; }
+    .architecture h2 { margin-bottom: 8px; }
+    .diagram-scroll { overflow-x: auto; border: 1px solid var(--line); background: #fff; }
+    .diagram-scroll img { display: block; width: 100%; min-width: 900px; height: auto; }
+    .architecture figcaption { font-size: 13px; color: var(--muted); margin-top: 10px; }
+    .next-step { margin-top: 32px; padding: 24px; border: 1px solid var(--line); background: var(--wash); border-radius: 8px; }
+    .next-step h2 { margin-top: 0; }
+    .workspace-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 12px; margin: 18px 0; }
+    .workspace-option { display: block; padding: 18px; border: 1px solid var(--line); border-radius: 8px; text-decoration: none; background: var(--surface); }
+    .workspace-option strong, .workspace-option span { display: block; }
+    .workspace-option span { margin-top: 8px; color: var(--muted); font-size: 13px; }
+    .brands { display: flex; flex-wrap: wrap; align-items: center; gap: 18px; margin: 24px 0; font-size: 13px; }
+    .product { display: inline-flex; align-items: center; gap: 8px; }
+    .product img { width: 30px; height: 30px; object-fit: contain; padding: 2px; background: white; }
+    details { margin-top: 24px; color: var(--muted); font-size: 13px; }
+    summary { cursor: pointer; }
+    details p { white-space: pre-wrap; overflow-wrap: anywhere; }
+    @media (prefers-color-scheme: dark) {
+      :root { color-scheme: dark; --paper: #172339; --surface: #1e2d45; --ink: #eef3ff; --muted: #b1c1db; --line: #405474; --blue: #8fbaff; --wash: #273f64; --success: #7cddb0; --error: #ff9fa8; }
+      .primary { background: #245ed2; color: #fff; }
+    }
+    @media (max-width: 850px) { .shell { grid-template-columns: 210px minmax(0, 1fr); } .rail { padding: 24px 12px; } main { padding: 32px 24px; } .toolbar { padding: 16px 24px; } #message { padding-left: 24px; padding-right: 24px; } .chain { grid-template-columns: 1fr; } .connector { width: 1px; height: 16px; margin-left: 20px; } .connector::after { right: -3px; top: 10px; transform: rotate(135deg); } .node { min-height: auto; } }
+    @media (max-width: 570px) { .shell { display: block; } .rail { position: static; height: auto; padding: 20px; border-right: 0; border-bottom: 1px solid var(--line); } .brand small, .rail-footer, .nav-label { display: none; } #module-nav { display: flex; overflow-x: auto; margin: 16px -4px 0; padding: 4px; } #module-nav a { flex-shrink: 0; padding: 10px; margin: 0 4px 0 0; } #module-nav .nav-title { display: none; } #resource-nav { display: flex; flex-wrap: wrap; margin-top: 12px; } #resource-nav a { font-size: 12px; padding: 6px 10px; } main { padding: 28px 20px; } .toolbar { padding: 12px 20px; } .toolbar span { max-width: 200px; } .intro { gap: 16px; } .document { padding: 8px 18px 22px; } .route-item { grid-template-columns: 32px 1fr; gap: 12px; } .availability { grid-column: 2; } }
+    @media (max-width: 570px) { .launch-panel { padding: 18px; } .command-head { flex-direction: column; align-items: flex-start; gap: 8px; } }
+    @media (max-width: 570px) { .toolbar { flex-wrap: wrap; } .toolbar-actions { flex-wrap: wrap; } .next-step { padding: 18px; } }
   </style>
 </head>
 <body>
-  <h1>Workshop build board</h1>
-  <p class="muted">Preview: Copilot extension canvas API. Progress is stored only in docs/PROGRESS.md.</p>
-  <p>A validated status requires the module's actual PASS evidence on a fresh test subscription. Saving here does not run validation. Never enter tokens, real identifiers, or confidential notes.</p>
-  <button id="refresh" type="button">Refresh progress</button>
-  <p id="message" role="status" aria-live="polite"></p>
-  <main id="modules"></main>
-  <h2>Open decisions</h2>
-  <div id="decisions"></div>
+  <a href="#content" class="skip">Skip to content</a>
+  <div class="shell">
+    <aside class="rail">
+      <a class="brand" href="#/overview"><span class="brand-mark" aria-hidden="true">GM</span><span>Governed MCP<small>A hands-on Azure workshop</small></span></a>
+      <p class="nav-label">Your route</p>
+      <nav id="module-nav" aria-label="Workshop modules"></nav>
+      <p class="nav-label">Reference desk</p>
+      <nav id="resource-nav" aria-label="Workshop references">
+        <a href="#/overview">Workshop overview</a>
+        <a href="#/practice">Try your MCP</a>
+        <a href="#/runbook">Build runbook</a>
+        <a href="#/sources">Verified sources</a>
+        <a href="#/decisions">Build decisions</a>
+      </nav>
+      <p class="rail-footer">Copilot canvas SDK: Preview.<br>Read the steps. Run locally. Validate before continuing.</p>
+    </aside>
+    <div class="stage">
+      <header class="toolbar"><span>Workshop build board / self-paced guide</span><div class="toolbar-actions"><div class="languages" role="group" aria-label="Language / Langue"><button id="language-en" type="button" lang="en" aria-label="English">EN</button><button id="language-fr" type="button" lang="fr" aria-label="Français">FR</button></div><button class="refresh" id="refresh" type="button">Refresh content</button></div></header>
+      <p id="message" role="status" aria-live="polite"></p>
+      <main id="content" tabindex="-1" aria-label="Workshop content"><h1>Loading the workshop.</h1></main>
+    </div>
+  </div>
+  <script src="locale-fr.js"></script>
   <script>
     const key = "__BOARD_KEY__";
+    const staticSite = "__STATIC_SITE__" === "true";
+    let state;
+    let rawState;
+    let language = new URL(location.href).searchParams.get("lang") === "fr" ? "fr" : "en";
+    let loading = false;
+    const content = document.getElementById("content");
     const message = document.getElementById("message");
-    const statuses = ["todo", "in-progress", "validated", "blocked"];
-    let saving = false;
-    async function request(path, input) {
-      const response = await fetch(path, {
-        method: input ? "POST" : "GET",
-        headers: { "x-board-key": key, ...(input ? { "Content-Type": "application/json" } : {}) },
-        ...(input ? { body: JSON.stringify(input) } : {})
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error);
-      return result;
+    const labels = { todo: "Not built", "in-progress": "Being built", validated: "Validated", blocked: "Build blocked" };
+    function t(text) { return language === "fr" && Object.hasOwn(french, text) ? french[text] : text; }
+    function element(tag, text, className) {
+      const node = document.createElement(tag);
+      if (text !== undefined) node.textContent = tag === "code" ? text : t(text);
+      if (className) node.className = className;
+      return node;
     }
-    function notify(text, error = false) {
-      message.className = error ? "error" : "";
-      message.textContent = text;
+    function symbol(name) {
+      const paths = {
+        route: "M3 5h12l-3-3m3 3-3 3M17 15H5l3-3m-3 3 3 3",
+        book: "M2 3h6l2 2 2-2h6v14h-6l-2 2-2-2H2zM10 5v14",
+        shield: "M10 1 18 4v6c0 4-4 7-8 9-4-2-8-5-8-9V4zM6 10l3 3 5-6",
+        terminal: "M2 3h16v14H2zM5 7l3 3-3 3m5 0h4",
+        tip: "M6 13c-5-5-2-11 4-11s9 6 4 11l-1 3H7zM7 19h6",
+        warning: "M10 2 19 18H1zM10 7v5m0 3v1",
+        important: "M10 2a8 8 0 1 0 0 16 8 8 0 1 0 0-16M10 6v5m0 3v1",
+      };
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.setAttribute("viewBox", "0 0 20 20");
+      svg.setAttribute("class", "symbol");
+      svg.setAttribute("aria-hidden", "true");
+      const path = document.createElementNS(svg.namespaceURI, "path");
+      path.setAttribute("d", paths[name] || paths.book);
+      path.setAttribute("fill", "none");
+      path.setAttribute("stroke", "currentColor");
+      path.setAttribute("stroke-width", "1.5");
+      path.setAttribute("stroke-linejoin", "round");
+      svg.append(path);
+      return svg;
     }
-    function field(form, title, tag, value) {
-      const label = document.createElement("label");
-      label.textContent = title;
-      const control = document.createElement(tag);
-      control.value = value;
-      label.append(control);
-      form.append(label);
-      return control;
+    function link(text, href, className) {
+      const node = element("a", text, className);
+      node.href = href;
+      return node;
     }
-    function render(state) {
-      const list = document.getElementById("modules");
-      list.replaceChildren();
-      document.getElementById("decisions").textContent = state.openDecisions;
-      for (const module of state.modules) {
-        const card = document.createElement("article");
-        const heading = document.createElement("h2");
-        heading.textContent = `${module.module} - ${module.title}`;
-        card.append(heading);
-        const form = document.createElement("form");
-        const status = field(form, "Status", "select", "");
-        for (const value of statuses) {
-          const option = document.createElement("option");
-          option.value = option.textContent = value;
-          status.append(option);
+    function inline(node, text, path) {
+      const tokens = /(\[[^\]]+\]\([^\s)]+\)|`[^`]+`|\*\*[^*]+\*\*|https?:\/\/[^\s<>)]+)/g;
+      let end = 0;
+      for (const match of text.matchAll(tokens)) {
+        node.append(document.createTextNode(text.slice(end, match.index)));
+        const token = match[0];
+        if (token.startsWith("`")) node.append(element("code", token.slice(1, -1)));
+        else if (token.startsWith("**")) node.append(element("strong", token.slice(2, -2)));
+        else {
+          const parts = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(token);
+          const target = parts ? parts[2] : token.replace(/[.,;:]+$/, "");
+          const label = parts ? parts[1] : target;
+          const url = new URL(target, `https://github.com/olivMertens/workshop-mcp/blob/main/${path}`);
+          if (["https:", "http:"].includes(url.protocol)) {
+            const repositoryPath = decodeURIComponent(url.pathname).replace(/^\/olivMertens\/workshop-mcp\/blob\/main\//, "");
+            const local = Object.entries(state.documents).find(([, doc]) => doc.sourcePath === repositoryPath);
+            const anchor = link(label, local && !url.hash ? `#/${local[0]}` : url.href);
+            if (!local || url.hash) {
+              anchor.target = "_blank";
+              anchor.rel = "noopener noreferrer";
+            }
+            node.append(anchor);
+          } else node.append(document.createTextNode(label));
+          if (!parts) node.append(document.createTextNode(token.slice(target.length)));
         }
-        status.value = module.status;
-        const date = field(form, "Validated on (only when validated)", "input", module.validatedOn);
-        date.type = "date";
-        const evidence = field(form, "Evidence (one line, no pipe character)", "input", module.evidence);
-        evidence.maxLength = 2000;
-        const notes = field(form, "Notes (one line, no pipe character)", "textarea", module.notes);
-        notes.maxLength = 2000;
-        const save = document.createElement("button");
-        save.type = "submit";
-        save.textContent = "Save module";
-        form.append(save);
-        form.addEventListener("submit", async (event) => {
-          event.preventDefault();
-          if (saving) return;
-          saving = true;
-          save.disabled = true;
-          try {
-            const input = { module: module.module, status: status.value, evidence: evidence.value,
-              notes: notes.value, revision: state.revision };
-            if (status.value === "validated") input.validatedOn = date.value;
-            const updated = await request("/update", input);
-            render(updated);
-            notify(`Module ${module.module} saved to PROGRESS.md.`);
-          } catch (error) {
-            notify(error.message, true);
-          } finally {
-            saving = false;
-            save.disabled = false;
+        end = match.index + token.length;
+      }
+      node.append(document.createTextNode(text.slice(end)));
+    }
+    function markdown(text, path) {
+      const body = element("div", undefined, "document");
+      const lines = text.split(/\r?\n/);
+      for (let i = 0; i < lines.length;) {
+        const line = lines[i];
+        if (!line.trim()) { i++; continue; }
+        const callout = /^> \[!(TIP|NOTE|IMPORTANT|WARNING|CAUTION)\]\s*$/.exec(line);
+        if (callout) {
+          const text = [];
+          i++;
+          while (i < lines.length && /^>/.test(lines[i])) text.push(lines[i++].replace(/^> ?/, ""));
+          const types = { TIP: "Tip", NOTE: "Note", IMPORTANT: "Important", WARNING: "Warning", CAUTION: "Danger" };
+          const box = notice(types[callout[1]], "", callout[1].toLowerCase());
+          const paragraph = element("p");
+          inline(paragraph, text.join(" "), path);
+          box.append(paragraph);
+          body.append(box);
+          continue;
+        }
+        if (/^\s*```/.test(line)) {
+          const code = [];
+          i++;
+          while (i < lines.length && !/^\s*```/.test(lines[i])) code.push(lines[i++]);
+          i++;
+          const pre = element("pre");
+          pre.append(element("code", code.join("\n")));
+          body.append(pre);
+          continue;
+        }
+        if (line.startsWith("|") && /^\|[\s:|-]+\|$/.test(lines[i + 1] || "")) {
+          const wrapper = element("div", undefined, "table-scroll");
+          const table = element("table");
+          let header = true;
+          while (i < lines.length && lines[i].startsWith("|")) {
+            if (/^\|[\s:|-]+\|$/.test(lines[i])) { i++; continue; }
+            const row = element("tr");
+            for (const cell of lines[i].split("|").slice(1, -1)) {
+              const td = element(header ? "th" : "td");
+              if (header) td.scope = "col";
+              inline(td, cell.trim(), path);
+              row.append(td);
+            }
+            table.append(row);
+            header = false;
+            i++;
           }
-        });
-        card.append(form);
-        list.append(card);
+          wrapper.append(table);
+          body.append(wrapper);
+          continue;
+        }
+        const heading = /^(#{1,6}) (.+)$/.exec(line);
+        if (heading) {
+          const node = element(`h${Math.min(heading[1].length + 1, 6)}`);
+          inline(node, heading[2], path);
+          body.append(node);
+          i++;
+          continue;
+        }
+        const list = /^\s*(?:- |\d+\. )/.test(line);
+        const ordered = /^\s*\d+\. /.test(line);
+        const node = element(list ? ordered ? "ol" : "ul" : "p");
+        if (list) {
+          if (ordered) node.start = Number(line.match(/\d+/)[0]);
+          while (i < lines.length && (ordered ? /^\s*\d+\. / : /^\s*- /).test(lines[i])) {
+            let text = lines[i++].replace(/^\s*(?:- |\d+\. )/, "");
+            while (i < lines.length && /^\s+\S/.test(lines[i]) && !/^\s*(?:- |\d+\. |```)/.test(lines[i])) text += " " + lines[i++].trim();
+            const item = element("li");
+            inline(item, text, path);
+            node.append(item);
+          }
+        } else {
+          let text = lines[i++].replace(/^> ?/, "");
+          while (i < lines.length && lines[i].trim() && !/^(#|```|\||- |\d+\. )/.test(lines[i])) text += " " + lines[i++].trim().replace(/^> ?/, "");
+          inline(node, text, path);
+        }
+        body.append(node);
+      }
+      return body;
+    }
+    function notice(title, description, type = "important") {
+      const node = element("div", undefined, `notice ${type}`);
+      const heading = element("strong");
+      heading.append(symbol(type === "tip" ? "tip" : ["warning", "caution"].includes(type) ? "warning" : "important"),
+        document.createTextNode(t(title)));
+      node.append(heading, document.createTextNode(t(description)));
+      return node;
+    }
+    function moduleLink(module, className) {
+      return link(module.title, `#/module/${module.module}`, className);
+    }
+    function externalLink(text, href, className) {
+      const anchor = link(text, href, className);
+      anchor.target = "_blank";
+      anchor.rel = "noopener noreferrer";
+      return anchor;
+    }
+    function commandBlock(title, text, copyLabel = "Copy command") {
+      text = t(text);
+      const section = element("section", undefined, "command");
+      const heading = element("div", undefined, "command-head");
+      const copy = element("button", copyLabel, "copy");
+      copy.type = "button";
+      copy.setAttribute("aria-label", `${t(copyLabel)}: ${t(title)}`);
+      copy.addEventListener("click", async () => {
+        try {
+          if (!navigator.clipboard?.writeText) throw new Error("Clipboard access is unavailable.");
+          await navigator.clipboard.writeText(text);
+          message.className = "";
+          message.textContent = t("Copied. Nothing has been executed or sent to your MCP server.");
+        } catch {
+          message.className = "error";
+          message.textContent = t("Clipboard access was denied or is unavailable. Select the text below and copy it manually.");
+        }
+      });
+      heading.append(element("span", title), copy);
+      const pre = element("pre");
+      pre.append(element("code", text));
+      section.append(heading, pre);
+      return section;
+    }
+    function connectionCommands(value) {
+      if (/\s/.test(value)) throw new Error("Use a single HTTPS URL without spaces or credentials.");
+      let url;
+      try { url = new URL(value); }
+      catch (error) {
+        if (!(error instanceof TypeError)) throw error;
+        throw new Error("Enter the complete HTTPS endpoint from your deployment outputs.");
+      }
+      if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash ||
+          value.includes("?") || value.includes("#")) {
+        throw new Error("Use HTTPS without credentials, query strings or fragments. Never paste a key or token here.");
+      }
+      const psUrl = url.href.replaceAll("'", "''");
+      const bashUrl = url.href.replaceAll("'", "'\\''");
+      return {
+        powershell: "if ((npm view @modelcontextprotocol/inspector@2.9.0 version) -ne '2.9.0') { throw 'Pinned Inspector unavailable in your configured npm registry.' }\n" +
+          "$env:MCP_INSPECTOR_SECRET_STORE = 'memory'\n$env:MCP_INSPECTOR_PERSIST_TOKENS = 'none'\n$env:HOST = '127.0.0.1'\n" +
+          `npx @modelcontextprotocol/inspector@2.9.0 --server-url '${psUrl}' --transport http --protocol-era auto`,
+        bash: "npm view @modelcontextprotocol/inspector@2.9.0 version && \\\n" +
+          "MCP_INSPECTOR_SECRET_STORE=memory MCP_INSPECTOR_PERSIST_TOKENS=none HOST=127.0.0.1 \\\n" +
+          `  npx @modelcontextprotocol/inspector@2.9.0 --server-url '${bashUrl}' --transport http --protocol-era auto`,
+        configuration: JSON.stringify({ servers: { workshop: { type: "http", url: url.href } } }, null, 2),
+      };
+    }
+    function validationCommands(module) {
+      const section = element("div");
+      const paths = module.validation;
+      if (!paths.powershell && !paths.bash) {
+        section.append(element("p", "Module validation is not published yet. No runnable validator is offered.", "field-message"));
+        return section;
+      }
+      section.append(element("p", "From the repository root, after reviewing the module guide and approvals. This can make real calls and create synthetic test data.", "field-message"));
+      if (paths.powershell) section.append(commandBlock(`Module ${module.module} validation / PowerShell`,
+        `pwsh -NoProfile -File .\\${paths.powershell.replaceAll("/", "\\")}`));
+      if (paths.bash) section.append(commandBlock(`Module ${module.module} validation / bash`, `bash ./${paths.bash}`));
+      return section;
+    }
+      function workspaceChoices() {
+        const section = element("section", undefined, "workspace-choice");
+        section.append(element("h2", "Choose your workspace first"),
+          element("p", "Dev container or local terminal: the same scripts, private participant file and Terraform root. No progression form or cloud action."));
+        const options = element("div", undefined, "workspace-options");
+        for (const [mode, title, description] of [
+          ["devcontainer", "VS Code dev container", "Use the checked-in container configuration. Requires an approved, reachable Linux container engine."],
+          ["local", "Local terminal", "Use your existing tools without a container. Check them in the terminal you will actually use."],
+          ["codespaces", "Codespaces (optional)", "Use the same container in GitHub after publication. Review branch, quota, costs and private forwarding."],
+        ]) {
+          const anchor = link("", `#/start/${mode}`, "workspace-option");
+          anchor.append(element("strong", title), element("span", description));
+          options.append(anchor);
+        }
+        section.append(options);
+        return section;
+      }
+      function showStart(mode) {
+        content.append(element("h1", "Your workspace. Your resources."), workspaceChoices());
+        if (mode === "devcontainer") {
+          content.append(element("h2", "VS Code dev container"),
+            commandBlock("Open your existing local checkout in VS Code", "code ."),
+            element("p", "In VS Code, run Dev Containers: Reopen in Container. Read the startup log and resolve every failed check. Do not mount host Azure credentials or expose Inspector ports publicly."),
+            notice("Container runtime still needs verification.", "The configuration and registry pins were checked, but no reachable engine was available here. Your build and module 00 checks are required.", "warning"));
+        } else if (mode === "local") {
+          content.append(element("h2", "Local terminal"),
+            element("p", "Install the officially documented tools using your approved process. No script installs workstation tools automatically. Run from this checkout."));
+        } else if (mode === "codespaces") {
+          content.append(element("h2", "Codespaces (optional)"),
+            externalLink("Open Codespaces setup", "https://codespaces.new/olivMertens/workshop-mcp", "secondary"),
+            element("p", "Codespaces opens GitHub's creation flow. Review quota, costs and the published branch before creating a machine. Local unpushed changes are not included."));
+        }
+        if (mode && state.environment.tools) content.append(
+          commandBlock("Check tools / PowerShell", "& .\\scripts\\check-tools.ps1"),
+          commandBlock("Check tools / bash", "bash ./scripts/check-tools.sh"));
+        content.append(notice("Stable random names, not extra quota.",
+          "Prepare one private participant file before Terraform. Reuse its suffix and state through cleanup. A new resource group does not reset subscription or regional quotas."),
+          markdown(state.documents.gettingStarted.content, state.documents.gettingStarted.sourcePath),
+          link("Your Azure context", "#/deployment", "secondary"), link("Explore module 00", "#/module/00", "primary"));
+      }
+      function deploymentContext() {
+        const section = element("section", undefined, "launch-panel");
+        section.append(element("h2", "Your deployment, not a shared demo tenant."),
+          element("p", "Choose and verify your approved non-production tenant and subscription in your own terminal. Keep IDs out of the board. These context helpers do not deploy or validate a workshop module."),
+          link("Read the context and permission guide", "#/deployment", "secondary"));
+        if (state.environment.context.powershell) section.append(commandBlock("Select Azure context / PowerShell",
+          `& .\\${state.environment.context.powershell.replaceAll("/", "\\")}${language === "fr" ? " -Language fr" : ""}`));
+        if (state.environment.context.bash) section.append(commandBlock("Select Azure context / bash",
+          `source ./${state.environment.context.bash} ${language}`));
+        section.append(element("p", "Read the script first. Run it in the same terminal used for the real module. No credentials or IDs are collected here.", "field-message"));
+        return section;
+      }
+      function architecture(module) {
+        const figure = element("figure", undefined, "architecture");
+        figure.append(element("h2", "Architecture and security flow"),
+          element("span", "Planned target - not deployed or validated", "pill"));
+        const scroll = element("div", undefined, "diagram-scroll");
+        scroll.tabIndex = 0;
+        scroll.setAttribute("role", "region");
+        scroll.setAttribute("aria-label", `${t("Architecture and security flow")}: ${module.title}`);
+        const image = element("img");
+        image.src = module.diagram.svg;
+        image.alt = `${module.module} / ${module.title}. ${t("Planned target - not deployed or validated")}. ` +
+          (module.learning.match(/\*\*(?:Diagram|Schéma)\s?:\*\* ([\s\S]+?)(?=\n\n)/)?.[1].replaceAll("\n", " ") || "");
+        image.addEventListener("error", () => {
+          image.hidden = true;
+          scroll.append(notice("Warning", "Diagram unavailable. Check the published assets and refresh; no deployment is implied.", "warning"));
+        }, { once: true });
+        scroll.append(image);
+        const caption = element("figcaption", "Scroll the diagram or open its full-size SVG.");
+        const actions = element("div", undefined, "action-row");
+        actions.append(externalLink("Open SVG", module.diagram.svg, "secondary"),
+          externalLink("Open PNG", module.diagram.png, "secondary"),
+          externalLink("Editable draw.io source", module.diagram.editable, "secondary"));
+        figure.append(scroll, caption, actions);
+        return figure;
+      }
+      function nextStep(module) {
+        const section = element("section", undefined, "next-step");
+        section.append(element("h2", "Next step"));
+        if (module.module === "99") {
+          section.append(element("p", "Cleanup first, then repeat only with a new approved environment and prefix."),
+            link("Workshop overview", "#/overview", "primary"));
+        } else {
+          section.append(element("p", "This is navigation, not a claim that the current stage passed. Run the published validator before continuing."));
+          const index = state.modules.indexOf(module);
+          const next = state.modules.find((item) => item.module === "99" && module.module === "06") || state.modules[index + 1];
+          const anchor = moduleLink(next, "primary");
+          anchor.prepend(document.createTextNode(`${next.module} / `));
+          section.append(anchor);
+          if (module.module === "06") section.append(element("p", "Core path: clean up"),
+            link("Optional: explore other clients first", "#/module/07", "secondary"));
+        }
+        return section;
+      }
+    function showPractice() {
+      content.append(element("h1", "Make the call. Understand the boundary."),
+        element("p", "Connect your own deployed MCP server in a real client. Discover a tool, make a controlled call, then compare what happened with what should happen.", "lead"),
+        notice("No credentials in this page.",
+          "Only the endpoint goes here, in page memory. The canvas does not call your server, save connection details or run code. Commands and prompts must be reviewed and run by you."));
+      content.append(deploymentContext());
+      content.append(link("Choose your workspace", "#/start", "secondary"));
+      const launch = element("section", undefined, "launch-panel");
+      launch.append(element("h2", "Start your workspace"));
+      const actions = element("div", undefined, "action-row");
+      actions.append(externalLink("Open Codespaces setup", "https://codespaces.new/olivMertens/workshop-mcp", "primary"),
+        externalLink("Open repository", "https://github.com/olivMertens/workshop-mcp", "secondary"));
+      launch.append(actions, element("p", "Codespaces opens GitHub's creation flow. Review quota, costs and the published branch before creating a machine. Local unpushed changes are not included.", "field-message"));
+      launch.append(notice(state.environment.devcontainer ? "Dev container configuration found." : "Workshop dev container not published yet.",
+        state.environment.devcontainer ? "A configuration file is not evidence that its tools have been validated. Follow module 00." :
+          "Codespaces can use its default image, but the workshop prerequisites are not preconfigured or validated."));
+      launch.append(commandBlock("Open your existing local checkout in VS Code", "code ."));
+      launch.append(element("p", "Run this from your repository folder. If you do not have a checkout, clone the repository first. This page does not open a terminal or execute commands for you.", "field-message"));
+      const clone = element("details");
+      clone.append(element("summary", "No local checkout yet?"),
+        commandBlock("Clone a new checkout / PowerShell",
+          "git clone https://github.com/olivMertens/workshop-mcp.git\nif ($LASTEXITCODE -ne 0) { throw 'Clone failed. Use an existing checkout or choose an empty destination.' }\ncode .\\workshop-mcp"),
+        commandBlock("Clone a new checkout / bash",
+          "git clone https://github.com/olivMertens/workshop-mcp.git && code ./workshop-mcp"));
+      launch.append(clone);
+      if (state.environment.preflight) launch.append(commandBlock("Preflight / PowerShell",
+        `pwsh -NoProfile -File .\\${state.environment.preflight.replaceAll("/", "\\")}`));
+      else launch.append(element("p", "Module 00 preflight is not published yet.", "field-message"));
+      content.append(launch);
+      const connection = element("section", undefined, "launch-panel");
+      connection.append(element("h2", "Prepare your client connection"),
+        element("p", "Remote servers use Streamable HTTP. From module 04 onward, use only the API Management endpoint. Module 01 uses stdio instead: follow its local startup guide."));
+      const label = element("label", "Your deployed HTTPS MCP endpoint", "connection-label");
+      label.htmlFor = "mcp-endpoint";
+      const input = element("input", undefined, "endpoint");
+      input.id = "mcp-endpoint";
+      input.type = "url";
+      input.autocomplete = "off";
+      input.spellcheck = false;
+      input.placeholder = "https://your-gateway.example.com/mcp";
+      input.setAttribute("aria-describedby", "endpoint-feedback");
+      const feedback = element("p", "Enter only the endpoint. No tokens, keys or query parameters.", "field-message");
+      feedback.id = "endpoint-feedback";
+      feedback.setAttribute("aria-live", "polite");
+      const commands = element("div");
+      commands.id = "connection-commands";
+      input.addEventListener("input", () => {
+        commands.replaceChildren();
+        feedback.className = "field-message";
+        input.removeAttribute("aria-invalid");
+        if (!input.value) {
+          feedback.textContent = t("Enter only the endpoint. No tokens, keys or query parameters.");
+          return;
+        }
+        let prepared;
+        try { prepared = connectionCommands(input.value); }
+        catch (error) {
+          feedback.className = "field-message error";
+          feedback.textContent = t(error.message);
+          input.setAttribute("aria-invalid", "true");
+          return;
+        }
+        feedback.textContent = t("Commands prepared locally. No network test has run; nothing has been saved.");
+        commands.append(
+          commandBlock("Start Inspector / PowerShell", prepared.powershell),
+          commandBlock("Start Inspector / bash", prepared.bash),
+          commandBlock("VS Code user configuration / URL only", prepared.configuration, "Copy configuration"));
+      });
+      connection.append(label, input, feedback, commands,
+        element("p", "Requires Node.js 22.19.0 or newer. Inspect the npx installation prompt. Open Inspector's printed local URL; keep its private launch token to yourself. For VS Code, use MCP: Add Server and a private user configuration.", "field-message"),
+        notice("Sign-in still needs the right client.",
+          "Microsoft Entra requires an approved public client ID, exact redirect URI and scopes. VS Code approval does not authorize Inspector. Use browser sign-in and no client secret. For module 02, follow its secure system-key input flow; this URL-only configuration cannot authenticate it."),
+        element("p", "In a browser-only codespace, OAuth callbacks can differ. Prefer VS Code desktop with private local port forwarding for authenticated Inspector sessions. Never expose Inspector publicly or disable its authentication.", "field-message"));
+      connection.append(element("p", "Practice launcher: Inspector 2.9.0, verified installable here. The GitHub 2.11.0 source candidate is not yet available from the configured registry. Commands stop if the pinned package is unavailable; they never switch registry or silently choose another version.", "field-message"));
+      content.append(connection, element("h2", "Not sure what to ask?"));
+      content.append(commandBlock("Discover without invoking a tool",
+        "Use only my connected workshop MCP server. List its available tools and describe their input schemas and read/write effects. Do not invoke any tool. If the server is not connected, say so; do not invent results.", "Copy prompt"));
+      content.append(commandBlock("Make one read-only call",
+        "Use only my connected workshop MCP server. If get_service_health is advertised, call it once with synthetic arguments that match its input schema. Show whether a real tool invocation succeeded or returned an MCP error. If it is not available, stop. Do not call any write tool.", "Copy prompt"));
+      content.append(commandBlock("Prepare a write, but do not execute it",
+        "For my synthetic workshop environment only, inspect the advertised create_ticket schema and prepare one schema-valid synthetic request. Explain its side effect and required app role. Do not invoke it. Wait for my explicit approval of this individual call; keep the client's approval control enabled.", "Copy prompt"));
+      content.append(element("h2", "What to verify, and why"),
+        markdown(state.documents.practice.content, state.documents.practice.sourcePath));
+    }
+    function overview() {
+      content.append(element("h1", "From open tools to governed access."),
+        element("p", "Build one Model Context Protocol (MCP) server. Add identity, enforce permissions, then see who called what. Follow the modules in order, at your own pace.", "lead"));
+      content.append(workspaceChoices());
+      const brands = element("div", undefined, "brands");
+      brands.append(element("span", "Technologies covered"));
+      for (const [name, asset] of [["Microsoft", "microsoft"], ["Azure", "azure"], ["Microsoft Entra ID", "entra"]]) {
+        const product = element("span", undefined, "product");
+        const image = element("img");
+        image.src = `assets/icons/${asset}.svg`;
+        image.alt = "";
+        product.append(image, document.createTextNode(name));
+        brands.append(product);
+      }
+      content.append(brands, element("p", "Independent training. Product marks identify technologies, not endorsement.", "field-message"),
+        architecture(state.modules.find((module) => module.module === "04")));
+      if (state.modules.some((module) => module.guide === null)) content.append(notice("The workshop is being built.",
+        "Modules without a published guide show their design outline, not runnable participant steps. Build status is shared repository evidence, not your personal completion."));
+      const next = state.modules.find((module) => module.status !== "validated" && module.module !== "07") || state.modules[0];
+      const start = moduleLink(next, "primary");
+      start.textContent = `${language === "fr" ? "Explorer le module" : "Explore module"} ${next.module}`;
+      const actions = element("div", undefined, "action-row");
+      actions.append(start, link("Try your deployed MCP", "#/practice", "secondary"),
+        link("Your Azure context", "#/deployment", "secondary"),
+        link("Understand governance", "#/governance", "secondary"));
+      content.append(actions, element("h2", "The route"));
+      const route = element("div", undefined, "route-list");
+      for (const module of state.modules) {
+        const row = link("", `#/module/${module.module}`, "route-item");
+        const title = element("span", module.title, "route-title");
+        title.append(element("span", module.module === "07" ? "Optional facilitator demo" : module.module === "99" ? "Remove workshop-owned resources" : labels[module.status], "route-meta"));
+        row.append(element("span", module.module, "route-number"), title,
+          element("span", module.guide === null ? "Design outline" : "Participant guide", "availability"));
+        route.append(row);
+      }
+      content.append(route);
+    }
+    function showModule(module) {
+      const intro = element("div", undefined, "intro");
+      const title = element("div");
+      title.append(element("span", module.module === "07" ? "Optional / facilitator demo" : module.module === "99" ? "Cleanup" : "Workshop module", "pill"),
+        element("h1", module.title));
+      intro.append(element("span", module.module, "chapter"), title);
+      content.append(intro);
+      if (module.guide === null) content.append(notice("Design outline - participant guide not published.",
+        "These are the planned outcomes and requirements. Do not treat them as deployment instructions. The complete steps, commands, validation and cleanup will appear here when the module README is added."));
+      else content.append(element("p", "Follow the guide in order. Run its validation before continuing. Use only non-production resources.", "lead"));
+      content.append(architecture(module));
+      if (module.module === "00") content.append(deploymentContext());
+      if (module.originalGuide) {
+        content.append(notice("Important", "French participant guide not published. Read the original English guide before executing its commands."));
+        const original = element("details");
+        const body = markdown(module.originalGuide.content, module.originalGuide.sourcePath);
+        body.lang = "en";
+        original.append(element("summary", "Read the original English participant guide"),
+          body);
+        content.append(original);
+      }
+      const exercise = element("section", undefined, "exercise");
+      exercise.append(element("h2", "Try this stage"),
+        link("Open the call workspace", "#/practice", "secondary"), validationCommands(module));
+      const hints = element("details");
+      hints.append(element("summary", "Need a hint? Understand what this stage proves."),
+        markdown(module.hints, module.hintsSourcePath));
+      exercise.append(hints);
+      content.append(exercise);
+      content.append(markdown(module.guide ?? module.outline, module.sourcePath));
+      const concepts = element("details");
+      concepts.append(element("summary", "Why this boundary matters"), markdown(module.learning, module.learningSourcePath),
+        link("Read the full governance guide", "#/governance", "secondary"));
+      content.append(concepts);
+      const source = element("p", undefined, "source");
+      source.append(document.createTextNode("Source: "), element("code", module.sourcePath));
+      content.append(source);
+      const details = element("details");
+      details.append(element("summary", "Repository build status and evidence"));
+      if (language === "fr") details.append(element("p", "Original repository decisions and evidence remain in English."));
+      details.append(element("p", `${t(labels[module.status])}${module.validatedOn ? ` / ${module.validatedOn}` : ""}`),
+        element("p", module.evidence || "No validation evidence recorded."),
+        element("p", module.notes || "No build notes."));
+      content.append(details);
+      const index = state.modules.indexOf(module);
+      const pager = element("nav", undefined, "pager");
+      pager.setAttribute("aria-label", "Previous and next module");
+      if (index > 0) {
+        const target = module.module === "99" ? state.modules.find((item) => item.module === "06") : state.modules[index - 1];
+        const previous = moduleLink(target);
+        previous.textContent = `${language === "fr" ? "Précédent" : "Previous"}: ${target.module} / ${target.title}`;
+        pager.append(previous);
+      } else pager.append(link("Workshop overview", "#/overview"));
+      content.append(pager, nextStep(module));
+    }
+    function render(focus = false) {
+      if (!state) return;
+      content.replaceChildren();
+      const route = location.hash || "#/start";
+      const module = state.modules.find((item) => route === `#/module/${item.module}`);
+      if (["#/start", "#/start/devcontainer", "#/start/local", "#/start/codespaces"].includes(route)) showStart(route.split("/")[2]);
+      else if (module) showModule(module);
+      else if (route === "#/practice") showPractice();
+      else if (route === "#/decisions") {
+        content.append(element("h1", "Build decisions."),
+          element("p", "Implementation choices still to resolve. These do not require participant input in this interface.", "lead"),
+          markdown(state.openDecisions, "docs/PROGRESS.md"));
+        if (language === "fr") content.prepend(notice("Note", "Original repository decisions and evidence remain in English."));
+      } else if (Object.hasOwn(state.documents, route.slice(2))) {
+        const doc = state.documents[route.slice(2)];
+        if (route === "#/deployment") content.append(deploymentContext());
+        const body = markdown(doc.content, doc.sourcePath);
+        if (language === "fr" && route.startsWith("#/original")) body.lang = "en";
+        content.append(element("h1", doc.title), body);
+      } else if (route === "#/overview" || route === "#content") overview();
+      else {
+        content.append(element("h1", "Page not found."),
+          element("p", "Choose a module from the route, or return to the workshop overview."),
+          link("Workshop overview", "#/overview", "primary"));
+      }
+      for (const anchor of document.querySelectorAll(".rail nav a")) {
+        if (anchor.getAttribute("href") === route) anchor.setAttribute("aria-current", "page");
+        else anchor.removeAttribute("aria-current");
+      }
+      document.title = `${content.querySelector("h1").textContent} | ${staticSite ? "Governed MCP on Azure" : "Workshop build board"}`;
+      if (focus) content.focus({ preventScroll: true });
+      window.scrollTo(0, 0);
+    }
+    function activateLanguage() {
+      document.documentElement.lang = language;
+      if (rawState) state = language === "fr" ? { ...rawState, ...rawState.translations.fr } : rawState;
+      for (const [selector, text] of [
+        [".skip", "Skip to content"], [".brand small", "A hands-on Azure workshop"],
+        [".toolbar > span", staticSite ? "Governed MCP / self-paced workshop" : "Workshop build board / self-paced guide"], ["#refresh", "Refresh content"],
+      ]) document.querySelector(selector).textContent = t(text);
+      const captions = document.querySelectorAll(".nav-label");
+      captions[0].textContent = t("Your route");
+      captions[1].textContent = t("Reference desk");
+      document.querySelector(".rail-footer").textContent = staticSite ?
+        t("Read the steps. Run in your own environment. No credentials or deployment in this website.") :
+        language === "fr" ? "SDK canvas Copilot : Preview. Lire les étapes, exécuter localement, valider avant de poursuivre." :
+          "Copilot canvas SDK: Preview. Read the steps. Run locally. Validate before continuing.";
+      for (const [id, text] of [["module-nav", "Workshop modules"], ["resource-nav", "Workshop references"], ["content", "Workshop content"]]) {
+        document.getElementById(id).setAttribute("aria-label", t(text));
+      }
+      for (const code of ["en", "fr"]) document.getElementById(`language-${code}`).setAttribute("aria-pressed", String(language === code));
+      const resources = document.getElementById("resource-nav");
+      resources.replaceChildren();
+      for (const [route, title, icon] of [
+        ["start", "Choose your workspace", "terminal"],
+        ["overview", "Workshop overview", "route"], ["practice", "Try your MCP", "terminal"],
+        ["deployment", "Your Azure context", "shield"], ["governance", "Understand governance", "shield"],
+        ["sources", "Verified sources", "book"], ["runbook", "Build runbook", "book"],
+        ["architecture", "Diagrams and icons", "route"], ["decisions", "Build decisions", "important"],
+        ["hosting", "Publish or host the guides", "book"],
+      ]) {
+        const anchor = link("", `#/${route}`);
+        anchor.append(symbol(icon), element("span", title));
+        resources.append(anchor);
+      }
+      const nav = document.getElementById("module-nav");
+      nav.replaceChildren();
+      for (const module of state?.modules || []) {
+        const anchor = link("", `#/module/${module.module}`);
+        anchor.setAttribute("aria-label", `Module ${module.module}: ${module.title}`);
+        anchor.append(element("span", module.module, "module-id"), element("span", module.title, "nav-title"));
+        const dot = element("span", undefined, `dot ${module.status}`);
+        dot.setAttribute("aria-hidden", "true");
+        dot.title = t(labels[module.status]);
+        anchor.append(dot);
+        nav.append(anchor);
       }
     }
     async function refresh() {
-      if (saving) return;
+      if (loading) return;
+      loading = true;
+      const button = document.getElementById("refresh");
+      button.disabled = true;
+      message.className = "";
+      message.textContent = t("Loading workshop content...");
       try {
-        render(await request("/progress"));
-        notify("Progress loaded. Refresh discards unsaved form edits.");
+        const response = staticSite ? await fetch("journey.json") :
+          await fetch("/journey", { headers: { "x-board-key": key } });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || `Content request failed (${response.status}).`);
+        if (!result.translations?.fr) throw new Error("French workshop content is unavailable.");
+        rawState = result;
+        activateLanguage();
+        render();
+        message.textContent = "";
       } catch (error) {
-        notify(error.message, true);
+        message.className = "error";
+        const recovery = staticSite ? t("Use Refresh content to retry. If it persists, contact the site maintainer.") :
+          language === "fr" ? "Utilisez Actualiser pour réessayer. Consultez le journal de l'extension si l'erreur persiste." :
+            "Use Refresh content to retry. If it persists, inspect the extension log.";
+        message.textContent = `${error.message} ${recovery}`;
+        if (!state) {
+          content.replaceChildren(element("h1", "Content is unavailable."),
+            element("p", staticSite ? "The published workshop content could not be loaded. No credentials are needed." :
+              "The local workshop documents could not be loaded. No progress has been changed."));
+        }
+      } finally {
+        loading = false;
+        button.disabled = false;
       }
     }
     document.getElementById("refresh").addEventListener("click", refresh);
+    for (const code of ["en", "fr"]) document.getElementById(`language-${code}`).addEventListener("click", () => {
+      if (language === code) return;
+      language = code;
+      const url = new URL(location.href);
+      url.searchParams.set("lang", code);
+      history.pushState(null, "", url);
+      activateLanguage();
+      render(true);
+      message.textContent = "";
+    });
+    document.querySelector(".skip").addEventListener("click", (event) => {
+      event.preventDefault();
+      content.focus();
+    });
+    window.addEventListener("hashchange", () => render(true));
+    window.addEventListener("popstate", () => {
+      language = new URL(location.href).searchParams.get("lang") === "fr" ? "fr" : "en";
+      activateLanguage();
+      render(true);
+    });
+    activateLanguage();
     refresh();
   </script>
 </body>

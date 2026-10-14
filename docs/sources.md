@@ -13,6 +13,33 @@ Keep the five synthetic tools and one identity story throughout the workshop.
 Translate useful infrastructure concepts to Terraform and participant steps to PowerShell first, then bash.
 Do not import notebooks, external data sources, model deployments, complete catalogs, or unrelated agent demos.
 
+## Workstation choice and participant isolation
+
+Last verified: 2026-10-14. [Start guide](GETTING-STARTED.md), [French guide](fr/GETTING-STARTED.md).
+Take the official container workflow, not a second deployment implementation.
+Both workstation routes call the same PowerShell tool checks and private parameter generator.
+The Terraform foundation uses the already selected AzureRM 5.9.0 provider; it does not import sample code.
+Provider-mocked plans are local evidence only. Container builds and fresh-subscription checks remain pending.
+
+| Source | Useful guidance and workshop decision |
+|---|---|
+| [VS Code Dev Containers](https://code.visualstudio.com/docs/devcontainers/containers) | Reopen a checkout in a reviewed Linux container; use the startup log and the same checks as the local route. This is VS Code, not Visual Studio IDE. |
+| [Alternative engines](https://code.visualstudio.com/remote/advancedcontainers/docker-options) | Podman 5+ can be selected explicitly through the Docker Path setting; CLI presence is not daemon reachability or full support. No automatic engine switch or VM creation. |
+| [Official Features](https://github.com/devcontainers/features) and [JSON specification](https://containers.dev/implementors/json_reference/) | Pin base/Features by immutable digest, select exact tool versions, avoid credential/socket mounts and keep creation hooks free of cloud sign-in/deployment. |
+| [Azure naming](https://learn.microsoft.com/azure/azure-resource-manager/management/resource-name-rules) | Group uniqueness is subscription-scoped; service names such as Storage have global constraints. Use a saved cryptographic suffix and service-specific valid names. |
+| [Azure quota limits](https://learn.microsoft.com/azure/azure-resource-manager/management/azure-subscription-service-limits) | Random groups do not reset subscription, regional or service capacity. Plan cohort capacity separately. |
+| [AzureRM group](https://registry.terraform.io/providers/hashicorp/azurerm/5.9.0/docs/resources/resource_group) and [existing group](https://registry.terraform.io/providers/hashicorp/azurerm/5.9.0/docs/data-sources/resource_group) | Manage only a dedicated workshop group, or read an administrator-provided group. Keep nonempty-group deletion protection and disable automatic provider registration. |
+| [Terraform mocks](https://developer.hashicorp.com/terraform/language/tests/mocking) and [state](https://developer.hashicorp.com/terraform/language/state) | Prove plan shape and ownership boundaries without Azure calls; preserve private parameters and one isolated state across modules/workstations. |
+
+Verified public OCI selections:
+`mcr.microsoft.com/devcontainers/base:ubuntu-24.04@sha256:d94c97dd9cacf183d0a6fd12a8e87b526e9e928307674ae9c94139139c0c6eae`.
+Feature digests are in `.devcontainer/devcontainer.json`; exact published tags were checked for Azure CLI 1.3.0,
+Terraform 1.5.0, .NET 2.5.0, PowerShell 2.0.3 and Node 2.1.1.
+Tools: Azure CLI 2.88.0, Terraform 1.16.5, .NET 10.0.402, PowerShell 7.6.6, Node 22.22.0,
+Functions Core Tools 4.14.0. These are preparation selections, not a tested container/runtime combination.
+The base index includes linux/amd64 and linux/arm64; that does not prove every feature/tool runs on both.
+No engine was reachable on the Windows ARM64 authoring host. No engine or machine was started.
+
 ## Upstream snapshots
 
 | Upstream | Selected snapshot | What was inspected | License and reuse boundary |
@@ -115,7 +142,63 @@ references used to resolve design choices.
 | 07 | [Foundry MCP authentication](https://learn.microsoft.com/azure/foundry/agents/how-to/mcp-authentication) | Agent/project identity versus individual OAuth. Recheck selected feature availability before demo. |
 | 07 | [Copilot Studio existing MCP server](https://learn.microsoft.com/microsoft-copilot-studio/mcp-add-existing-server-to-agent) | Streamable HTTP and wizard authentication; manual-secret conflict remains unresolved. |
 
-## Remaining evidence gates
+## Practice workspace sources
+
+Last verified: 2026-10-14. The [practice guide](PRACTICE.md) adds client launch and call-check help, not a deployed
+MCP client or completed module.
+
+| Source | Use and boundary |
+|---|---|
+| [VS Code MCP setup](https://code.visualstudio.com/docs/agent-customization/mcp-servers) | HTTP server setup, private user configuration, tool selection and the real tool-call record. No automatic approval or credentials in workspace configuration. |
+| [Inspector web client](https://modelcontextprotocol.io/docs/2026-07-28/tools/inspector/web) | Ad-hoc server, printed private launch URL, tools/list and explicit Call Tool. A connected badge is not a validation result. |
+| [Inspector configuration](https://modelcontextprotocol.io/docs/2026-07-28/tools/inspector/configuration) | Force memory secret store and no token persistence. Header values are not moved into its secret store: never save or export credential-bearing headers. |
+| [Inspector authorization](https://modelcontextprotocol.io/docs/2026-07-28/tools/inspector/authorization) | Web callback follows its actual origin. Register the exact redirect and approved public client; Entra has no dynamic client registration. No client-secret fallback. |
+| [Inspector 2.9.0](https://github.com/modelcontextprotocol/inspector/tree/ae865a19178ddf6f375780a02e9c77c4cf4da184) and its [secret-store implementation](https://github.com/modelcontextprotocol/inspector/blob/2.9.0/core/auth/node/secret-store-selection.ts) | The configured npm registry resolves and runs 2.9.0; 2.11.0 returns no matching version despite its GitHub release. Practice commands explicitly pin 2.9.0, check availability and use protocol-era negotiation. The source-assessment candidate 2.11.0 is not an installability guarantee. No registry override or silent fallback. |
+| [Create a codespace](https://docs.github.com/en/codespaces/developing-in-a-codespace/creating-a-codespace-for-a-repository) | User reviews branch, payer and quota before creating a machine. No automatic provisioning from the canvas; unpushed changes are not included. |
+| [Codespaces port forwarding](https://docs.github.com/en/codespaces/developing-in-a-codespace/forwarding-ports-in-your-codespace) | Prefer private local forwarding through VS Code desktop. Do not follow the page's token-printing example or expose Inspector publicly. |
+| [App Service MCP authorization](https://learn.microsoft.com/azure/app-service/configure-authentication-mcp) | PRM is **Preview**; consent/preauthorization applies to a particular client. Separate downstream tokens remain mandatory. |
+
+## Bilingual learning board and architecture sources
+
+Last verified: 2026-10-14. The [learning guide](LEARNING-GUIDE.md), [deployment-context guide](DEPLOYMENT.md),
+[French reference guide](fr/REFERENCES.md) and [diagram provenance](../assets/architecture/README.md) are authored
+workshop explanations, not copies of external documentation. The latter records every exact icon URL and usage boundary.
+
+- [Azure CLI subscription/tenant selection](https://learn.microsoft.com/cli/azure/manage-azure-subscriptions-azure-cli):
+  interactive `az login --tenant`, explicit subscription selection and verification. Do not copy its password sign-in example.
+- [Interactive Azure CLI sign-in](https://learn.microsoft.com/cli/azure/authenticate-azure-cli-interactively):
+  participant browser/multifactor flow; no client secret or token capture.
+- [Resource role assignment authority](https://learn.microsoft.com/azure/role-based-access-control/role-assignments-cli):
+  separate assignment authority, scoped to the exact resource.
+- [Terraform destroy](https://developer.hashicorp.com/terraform/cli/commands/destroy):
+  review ownership and the destroy plan before explicit approval.
+- [Azure icon pack/terms](https://learn.microsoft.com/azure/architecture/icons/) and
+  [Entra architecture icons/terms](https://learn.microsoft.com/entra/architecture/architecture-icons):
+  verify community-mirrored service identities and permitted documentation use.
+- [Microsoft trademark guidelines](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks):
+  corporate logos are separate brand assets, not covered by this repository's MIT license.
+
+## Public portal hosting
+
+Last verified: 2026-10-14. The [EN hosting guide](HOSTING.md) and [French hosting guide](fr/HOSTING.md)
+separate static documentation publication from participant-owned Azure deployment.
+
+- [Custom Pages workflow](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages):
+  upload only the allowlisted static output, separate build/deploy jobs, environment and minimum deployment permissions.
+- [Pages source selection](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site):
+  repository administrator chooses GitHub Actions; manual workflow execution does not implicitly change that setting.
+- [GitHub OIDC with Azure](https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/configuring-openid-connect-in-azure):
+  possible future participant-owned federation, not configured by this portal or required for Pages.
+- [App Service authentication](https://learn.microsoft.com/azure/app-service/overview-authentication-authorization)
+  and [ACA authentication](https://learn.microsoft.com/azure/container-apps/authentication):
+  different optional hosting services; authentication alone does not grant tenant access or authorize a workload deployment.
+  The ACA example creates a client secret; do not adopt it. A supported secretless private-portal sign-in path
+  remains to be proven for the exact target, not inferred from deployment-pipeline OIDC support.
+
+The prepared workflow pins checkout v6, setup-node v6, configure-pages v5, upload-pages-artifact v4
+and deploy-pages v4 to their verified release commits. No publication or Azure hosting has run.
+
+## Remaining deployment evidence gates
 
 - No Azure subscription was inspected and no runtime deployment compatibility was claimed.
 - Region, quota, cost, consent, restricted deployment connectivity and optional client flows require module-specific

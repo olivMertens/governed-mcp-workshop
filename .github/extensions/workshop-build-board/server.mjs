@@ -1,18 +1,46 @@
 import { createServer } from "node:http";
 import { randomBytes } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { lstatSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { BoardError } from "./progress.mjs";
 
 const html = readFileSync(new URL("./board.html", import.meta.url), "utf8");
+const french = readFileSync(new URL("./locale-fr.js", import.meta.url));
+const defaultAssets = fileURLToPath(new URL("../../../assets/", import.meta.url));
 
-export async function startServer(store) {
+function publicAsset(url, root) {
+    let type;
+    if (/^\/assets\/icons\/(?:azure|microsoft|entra|apim|functions|storage|insights|api-center|subscription)\.svg$/.test(url) ||
+        /^\/assets\/architecture\/(?:00|01|02|03|04|05|06|07|99)\.(?:en|fr)\.svg$/.test(url)) type = "image/svg+xml";
+    else if (/^\/assets\/architecture\/(?:00|01|02|03|04|05|06|07|99)\.(?:en|fr)\.png$/.test(url)) type = "image/png";
+    else if (url === "/assets/architecture/workshop.drawio") type = "application/xml";
+    else throw new BoardError("not_found", "Unknown public asset.", 404);
+    const parts = url.slice("/assets/".length).split("/");
+    for (let index = 0; index <= parts.length; index++) {
+        let entry;
+        try { entry = lstatSync(join(root, ...parts.slice(0, index))); }
+        catch (error) {
+            if (error.code === "ENOENT") throw new BoardError("not_found", "Public asset is not published.", 404);
+            throw error;
+        }
+        if (entry.isSymbolicLink() || (index < parts.length ? !entry.isDirectory() : !entry.isFile())) {
+            throw new BoardError("invalid_asset", "Public assets must be regular repository files.", 403);
+        }
+    }
+    return { type, body: readFileSync(join(root, ...parts)) };
+}
+
+export async function startServer(store, readJourney, assetsRoot = defaultAssets) {
     const key = randomBytes(32).toString("base64url");
     let origin;
     const server = createServer(async (req, res) => {
         res.setHeader("Cache-Control", "no-store");
         res.setHeader("X-Content-Type-Options", "nosniff");
+        res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
+        res.setHeader("Referrer-Policy", "no-referrer");
         res.setHeader("Content-Security-Policy",
-            "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'none'");
+            "default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'");
         function json(status, value) {
             res.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
             res.end(JSON.stringify(value));
@@ -21,9 +49,20 @@ export async function startServer(store) {
             if (req.headers.host !== new URL(origin).host) {
                 throw new BoardError("invalid_host", "Unexpected host.", 403);
             }
-            if (req.method === "GET" && req.url === "/") {
+            if (req.method === "GET" && /^\/(?:\?lang=(?:en|fr))?$/.test(req.url)) {
                 res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
                 res.end(html.replace("__BOARD_KEY__", key));
+                return;
+            }
+            if (req.method === "GET" && req.url === "/locale-fr.js") {
+                res.writeHead(200, { "Content-Type": "text/javascript; charset=utf-8" });
+                res.end(french);
+                return;
+            }
+            if (req.method === "GET" && req.url.startsWith("/assets/")) {
+                const asset = publicAsset(req.url, assetsRoot);
+                res.writeHead(200, { "Content-Type": asset.type });
+                res.end(asset.body);
                 return;
             }
             if (req.headers["x-board-key"] !== key || (req.headers.origin && req.headers.origin !== origin)) {
@@ -31,6 +70,10 @@ export async function startServer(store) {
             }
             if (req.method === "GET" && req.url === "/progress") {
                 json(200, store.read());
+                return;
+            }
+            if (req.method === "GET" && req.url === "/journey" && readJourney) {
+                json(200, readJourney());
                 return;
             }
             if (req.method !== "POST" || req.url !== "/update") {
@@ -59,7 +102,7 @@ export async function startServer(store) {
                 json(error.status, { code: error.code, error: error.message });
             } else {
                 process.stderr.write(`Workshop board error: ${error.message}\n`);
-                json(500, { code: "board_error", error: "Could not read or save progress. Inspect the extension log." });
+                json(500, { code: "board_error", error: "Could not load workshop content or save progress. Inspect the extension log." });
             }
         }
     });
