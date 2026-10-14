@@ -2,8 +2,10 @@ import { fileURLToPath } from "node:url";
 import { joinSession, createCanvas, CanvasError } from "@github/copilot-sdk/extension";
 import { createProgressStore, BoardError, updateSchema } from "./progress.mjs";
 import { startServer } from "./server.mjs";
+import { readJourney } from "./journey.mjs";
 
-const store = createProgressStore(fileURLToPath(new URL("../../../", import.meta.url)));
+const root = fileURLToPath(new URL("../../../", import.meta.url));
+const store = createProgressStore(root);
 const servers = new Map();
 
 function action(handler) {
@@ -22,8 +24,15 @@ await joinSession({
         createCanvas({
             id: "workshop-build-board",
             displayName: "Workshop build board",
-            description: "Read workshop progress and decisions; edit module status, evidence, and notes in PROGRESS.md.",
-            inputSchema: { type: "object", properties: {}, additionalProperties: false },
+            description: "Follow the EN/FR workshop with architecture diagrams, governance, own-subscription preparation and safe client launch recipes.",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    view: { type: "string", enum: ["start", "overview", "practice", "deployment", "governance", "sources"] },
+                    language: { type: "string", enum: ["en", "fr"] },
+                },
+                additionalProperties: false,
+            },
             actions: [
                 {
                     name: "get_progress",
@@ -48,10 +57,10 @@ await joinSession({
                 store.read();
                 let entry = servers.get(ctx.instanceId);
                 if (!entry) {
-                    entry = await startServer(store);
+                    entry = await startServer(store, () => readJourney(root, store.read()));
                     servers.set(ctx.instanceId, entry);
                 }
-                return { title: "Workshop build board", url: entry.url };
+                return { title: "Workshop build board", url: `${entry.url}?lang=${ctx.input?.language ?? "en"}#/${ctx.input?.view ?? "start"}` };
             },
             onClose: async (ctx) => {
                 const entry = servers.get(ctx.instanceId);

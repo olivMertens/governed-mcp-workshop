@@ -1,0 +1,158 @@
+# Choose your workspace first
+
+Use **Visual Studio Code (VS Code)** with a dev container, or use your own terminal.
+These are two routes to the same scripts, private participant parameters and Terraform root.
+Visual Studio IDE is a different product; the container instructions here use the VS Code Dev Containers extension.
+No Copilot subscription or canvas is required to read the Markdown guides or run the scripts.
+
+## 1. Pick one route
+
+| Route | What you need | Start here |
+|---|---|---|
+| VS Code dev container | VS Code, Dev Containers extension, approved reachable Linux container engine, internet for public packages | Open this checkout with `code .`, then **Dev Containers: Reopen in Container**. |
+| Local terminal | Git, PowerShell 7.4+, Azure CLI, Terraform, .NET SDK, Node.js, Functions Core Tools | Keep the checkout local. Install the tools below using your organization's approved process. |
+| Codespaces (optional) | GitHub access, quota and cost approval | [Choose branch and machine](https://codespaces.new/olivMertens/workshop-mcp). It uses the same `.devcontainer`, but only after these files are published. |
+
+The container mounts the checkout. It does **not** mount your host Azure credential directory or engine socket,
+sign you into Azure, or provision resources. Review feature install scripts and VS Code's Git credential sharing
+before trusting a repository. The engine itself is a privileged trust boundary.
+Keep Inspector ports private; use VS Code desktop/private forwarding, never public forwarded ports.
+
+### Dev container details
+
+The Ubuntu 24.04 base and official Dev Container Features are pinned by digest in
+`.devcontainer/devcontainer.json`. Tool selections are Azure CLI 2.88.0, Terraform 1.16.5,
+.NET SDK 10.0.402, PowerShell 7.6.6, Node.js 22.22.0 and Functions Core Tools 4.14.0.
+The creation hook installs the pinned Core Tools package and runs the **same** `check-tools.ps1` as the local route.
+Package repositories, package dependencies and editor extensions can change; image/feature digests do not make
+every downloaded dependency immutable. Review pins regularly and rebuild deliberately.
+
+Docker must answer `docker version` and `docker info`, not merely be installed.
+For Podman 5+, use the [VS Code alternative-engine guidance](https://code.visualstudio.com/remote/advancedcontainers/docker-options):
+verify `podman version`, `podman info` and, on Windows/macOS, `podman machine list`;
+then set **Dev Containers: Docker Path** to `podman` yourself. Do not create a new machine, change sockets,
+or expose a TCP API as a workaround. VS Code does not officially support every Docker-compatible CLI.
+The container does not use Compose or nested containers.
+
+**Verification boundary:** configuration and public registry pins were checked, but no reachable container engine
+was available on the authoring machine. A container build, both Linux architectures and Codespaces runtime still
+need the module 00 validation gate. A file being present is not proof that your engine or corporate network works.
+If the build fails, inspect **Dev Containers: Show Container Log**. Resolve the actual registry/proxy/platform error;
+do not bypass certificate validation or quietly switch tools/engines. Use the local route if approved.
+
+### Local installation guidance
+
+| Tool | Accepted by the shared check | Official installation guide |
+|---|---|---|
+| Git | 2+ | [Git downloads](https://git-scm.com/downloads) |
+| PowerShell | 7.4+ | [Install PowerShell](https://learn.microsoft.com/powershell/scripting/install/installing-powershell) |
+| Azure CLI | 2.88.0+ | [Install Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) |
+| Terraform | 1.16.5+, below 2 | [Install Terraform](https://developer.hashicorp.com/terraform/install) |
+| .NET SDK | 10 installed | [.NET download](https://dotnet.microsoft.com/download/dotnet/10.0) |
+| Node.js | 22.19.0+ | [Node.js download](https://nodejs.org/en/download) |
+| Functions Core Tools | 4.5.0+, below 5 | [Core Tools installation](https://learn.microsoft.com/azure/azure-functions/functions-run-local) |
+
+Use Core Tools v4, not the separate **Preview** Functions CLI v5. Some npm Core Tools wrappers download their
+binary on the first invocation. Allow that approved download to finish; a package entry alone proves nothing.
+No script in this repository installs workstation tools or changes your engine automatically.
+
+## 2. Check the terminal you will actually use
+
+Run inside the container if you chose it; otherwise run on the host. A host check does not validate a container.
+From the repository root, PowerShell:
+
+```powershell
+& .\scripts\check-tools.ps1
+```
+
+Or bash (PowerShell remains a prerequisite, including on macOS/Linux):
+
+```bash
+bash ./scripts/check-tools.sh
+```
+
+Resolve every `FAIL`. These checks execute only local tool version commands.
+They do not check Azure permissions, service availability, policies, quota, or deployed behavior.
+
+## 3. Prepare private, isolated participant names
+
+Review the script. Choose a participant label, approved region, non-sensitive owner label and short cleanup date.
+The next example uses synthetic labels, not a prescribed region or account.
+
+```powershell
+$expiry = [datetime]::UtcNow.AddDays(1).ToString('yyyy-MM-dd')
+& .\scripts\prepare-workshop.ps1 -ParticipantPrefix p01 -Location westeurope -Owner alice -Expiry $expiry
+```
+
+```bash
+read -r -p 'Approved cleanup date (yyyy-MM-dd): ' expiry
+bash ./scripts/prepare-workshop.sh -ParticipantPrefix p01 -Location westeurope -Owner alice -Expiry "$expiry"
+```
+
+The script creates `.workshop/participant.tfvars.json`, ignored by Git, with a cryptographically random
+10-hex-character suffix. It never contacts Azure. Repeating the same command reuses the exact saved file;
+conflicting settings fail instead of silently changing names. Keep this file and Terraform state through cleanup.
+The expiry is a tag, **not automatic resource deletion**.
+
+New groups use `rg-mcp-<participant>-<suffix>`. Future global names include the same suffix:
+Storage uses `stmcp<participant><suffix>` (at most 23 lowercase letters/digits); Functions and API Management
+use their own service prefix. The Terraform output contains **planned names**, not endpoints or deployed services.
+Randomness makes accidental collisions unlikely, not impossible; validate global availability before deployment.
+Never regenerate the suffix to repair a quota error or an existing deployment.
+
+If an administrator already supplied an approved group, add `-ExistingResourceGroupName` with its exact name
+to the **first** preparation command. Terraform reads that group through a data source. It does not import,
+rename, tag or delete the group. Child resources will still use the participant suffix.
+A new group requires separately approved subscription-level group-creation rights; resource-group Contributor
+alone cannot create a sibling group. Prefer the existing-group route rather than widening participant roles.
+
+> [!WARNING]
+> A new name or resource group does not reset subscription, regional or service quotas.
+> Check shared workshop capacity, policy, global name availability and provisioned API Management costs separately.
+> If a service denies a name, investigate before the first apply. Never rename an already deployed group casually.
+
+## 4. Understand the Terraform boundary
+
+`infra/workload` currently contains **only a resource-group foundation** and future naming outputs.
+It does not deploy Functions, networking, API Management, identities, or an MCP server.
+The rest of the module instructions and Azure validation remain unpublished.
+
+Select your approved context with the [Azure context guide](DEPLOYMENT.md), **in the same terminal** as Terraform.
+Then, only in an approved deployment session, review the actual foundation plan:
+
+```powershell
+terraform -chdir=infra/workload init -lockfile=readonly
+if ($LASTEXITCODE -ne 0) { throw 'Terraform init failed.' }
+terraform -chdir=infra/workload plan -var-file=../../.workshop/participant.tfvars.json -out=../../.workshop/workload.tfplan
+if ($LASTEXITCODE -ne 0) { throw 'Terraform plan failed.' }
+```
+
+```bash
+terraform -chdir=infra/workload init -lockfile=readonly &&
+terraform -chdir=infra/workload plan -var-file=../../.workshop/participant.tfvars.json -out=../../.workshop/workload.tfplan
+```
+
+Plan can read Azure. Neither command is run by the board. Do not apply until the exact plan, ownership, permissions,
+quota and costs are approved. No `-auto-approve`. Provider registration is disabled; an administrator registers
+the exact required providers separately. Azure role assignments and Entra administration are separate permissions.
+Never substitute a broad Owner assignment, client secret or production subscription.
+
+Use one checkout/state location for the whole deployment. Switching local/container within the same mounted
+checkout preserves files, but a different clone or codespace has different local state. Do not redeploy there:
+restore the private parameters and state securely, or configure an approved isolated remote backend first.
+Do not commit, upload to the board or share state, saved plans, CLI credentials or participant files.
+
+Continue with module 00 and its publication/validation gates, then module 01's local MCP exercise.
+After paid stages, follow module 99. Review destroy against the same state; preserve existing groups and identities.
+Do not delete an entire group to bypass an incomplete Terraform cleanup.
+
+## Sources
+
+- [VS Code Dev Containers](https://code.visualstudio.com/docs/devcontainers/containers) and [alternative engines](https://code.visualstudio.com/remote/advancedcontainers/docker-options).
+- [Official Dev Container Features](https://github.com/devcontainers/features), [specification](https://containers.dev/implementors/json_reference/).
+- [Azure naming rules](https://learn.microsoft.com/azure/azure-resource-manager/management/resource-name-rules) and [quotas](https://learn.microsoft.com/azure/azure-resource-manager/management/azure-subscription-service-limits).
+- [AzureRM group resource](https://registry.terraform.io/providers/hashicorp/azurerm/5.9.0/docs/resources/resource_group) and [existing group data source](https://registry.terraform.io/providers/hashicorp/azurerm/5.9.0/docs/data-sources/resource_group).
+- [Terraform provider mocks](https://developer.hashicorp.com/terraform/language/tests/mocking) and [state](https://developer.hashicorp.com/terraform/language/state).
+- [MCP practice](PRACTICE.md), [governance](LEARNING-GUIDE.md) and [source assessment](sources.md).
+
+Last verified: 2026-10-14. Local/mock verification is not a container build or Azure deployment validation.

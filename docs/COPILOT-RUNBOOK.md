@@ -2,6 +2,10 @@
 
 This runbook drives the build from this scaffold to a validated workshop: one module per session, one branch and one pull request per module.
 
+Participants do not need this authoring workflow. Start with [workspace choice](GETTING-STARTED.md):
+VS Code dev container or local terminal, common tool checks, private participant suffix and the Terraform group foundation.
+The board opens `#/start` by default. No module is validated by choosing an environment.
+
 ## 1. Before you start
 
 - **GitHub Copilot app** installed and signed in. With Copilot Business or Enterprise, your organization must allow it.
@@ -55,7 +59,8 @@ creating an extra public repository.
 | `docs/BUILD-PLAN.md` | What to take, in which order, what each module must show and validate |
 | `docs/PROGRESS.md` | Status of each module, validation evidence, open decisions |
 | `docs/sources.md` | Verified upstream snapshots, useful elements, updates, exclusions and license boundaries |
-| `.github/extensions/workshop-build-board/` | Project-scoped progress canvas (**Preview** SDK), backed only by PROGRESS.md |
+| `docs/PRACTICE.md` | Client launch recipes, call expectations, per-module hints and safety implications |
+| `.github/extensions/workshop-build-board/` | Read-only workshop SPA (**Preview** canvas SDK), backed by repository guides and build progress |
 | `.github/skills/workshop-module-builder/SKILL.md` | The procedure the agent follows for every module |
 | `.github/agents/workshop-builder.agent.md` | Optional custom agent that applies the skill |
 | `AGENTS.md` | Entry point for any coding agent |
@@ -165,11 +170,60 @@ The project-scoped canvas is already implemented in `.github/extensions/workshop
 Ask: "Show the workshop build board." Reload project extensions if discovery has not picked it up.
 The Copilot canvas SDK is **Preview**; it is separate from Azure or Foundry agent infrastructure.
 
-The board shows one card per module, its status, validation date, evidence, notes, and the open decisions.
-It writes only `docs/PROGRESS.md`; no separate progress database exists.
-Use **Refresh progress** after an external edit. Refresh discards unsaved form edits.
-Conflicting saves are refused, rather than overwriting a newer version. Evidence and notes must be single-line
-Markdown table cells without pipe characters.
+The board is a responsive single-page application (SPA) with a module route, a target architecture overview,
+participant guides, the build runbook, verified sources and open decisions. There are no status-entry forms,
+personal completion checkboxes or participant accounts. Professionals follow the instructions and run the
+module's validation themselves.
+
+The **EN / FR** switch changes both the interface and authored learning content. `?lang=fr#/module/04` is a
+French deep link. Language selection is URL state, not participant tracking. A future missing `README.fr.md`
+is reported explicitly, with the original English participant guide available separately.
+Repository evidence and open decisions remain explicitly labeled original English text.
+The **Understand governance**, **Your Azure context**, and **Diagrams and icons** pages contain deep dives,
+tenant/subscription selection, cost/permission boundaries and diagram provenance. Each module shows a planned
+EN/FR diagram and a next step; 06 offers cleanup 99 with 07 as an optional branch.
+See [the French runbook](fr/COPILOT-RUNBOOK.md) for French session prompts.
+
+Context selectors are preparation helpers, not the module 00 preflight. They verify the participant-selected
+tenant/subscription using Azure CLI, then set Terraform context in the current shell only. They never create
+cloud resources, assign roles or save IDs into the board. Read [DEPLOYMENT.md](DEPLOYMENT.md) before running them.
+
+Hash routes such as `#/module/00` support direct links and browser back/forward navigation.
+The board reads a published module's README when it exists. Otherwise it shows a clearly labeled design outline
+from `docs/BUILD-PLAN.md`; an outline is not a runnable participant procedure. No module is currently implemented.
+Use **Refresh content** after changing repository documents. Repository status and evidence are available in
+an optional disclosure, separate from the participant instructions.
+
+The interface never writes progress or executes commands. Agent actions still update only `docs/PROGRESS.md`;
+no separate progress database exists. Conflicting agent updates are refused rather than overwriting a newer version.
+Evidence and notes must be single-line Markdown table cells without pipe characters.
+
+### Practice with your deployed server
+
+Open **Try your MCP** (`#/practice`) for Codespaces setup, local VS Code launch, and client connection help.
+Or ask Copilot: "Open the workshop build board on its practice view."
+Enter only an HTTPS endpoint with no credentials, query or fragment. This field is held in page memory only:
+the board never sends it to its server, saves it or makes an MCP request with it.
+Copy buttons prepare commands, a URL-only VS Code user configuration and starter prompts; they do not run them.
+If clipboard access is blocked by the host, select the text and copy it manually.
+
+Inspector launch commands pin the registry-available 2.9.0, keep credentials in memory, disable token
+persistence, negotiate the protocol era and bind to loopback. The GitHub 2.11.0 source candidate was not yet
+available from the configured npm registry during launch testing. Commands fail if the pinned package is
+unavailable; they do not change the registry or silently fall back.
+Keep its authentication enabled, use its printed private local URL, and do not export credential-bearing headers
+or transcripts. Entra requires a separately approved public client, exact redirect URI and delegated scopes;
+VS Code preauthorization is not Inspector preauthorization. Never add a client secret.
+
+The Codespaces link opens a creation flow for the published repository. It does not include unpushed local
+changes or create a machine automatically. Review costs before creating it. Until module 00 publishes its
+dev container, no preconfigured or validated workshop environment is promised. For authenticated Inspector
+tests, prefer local desktop or private local forwarding through VS Code desktop, not public browser ports.
+
+Every module has a **Need a hint?** disclosure explaining what its boundary proves and what to check next.
+Module validation commands appear only when both the README and the script exist. Running them remains an
+explicit participant action with the approvals required by the module. No live test result is inferred from
+a connected badge, generated command or example. See [PRACTICE.md](PRACTICE.md) for the full scenarios.
 
 Agent capabilities:
 
@@ -195,10 +249,15 @@ In a session, type `/create-canvas`, choose the **project** scope (the canvas is
 and versioned with the repository), then paste:
 
 ```text
-Create a canvas named "Workshop build board". It shows docs/PROGRESS.md as one card per module (status,
-validated date, evidence, notes) plus the open decisions. I can change a status or add a note from the canvas.
+Create a canvas named "Workshop build board". Build a responsive, read-only SPA with hash-route module
+navigation, participant instructions from each module README, an overview, verified sources and open decisions.
+Remove progress-entry forms. For an unpublished module, show a clearly labeled outline from docs/BUILD-PLAN.md
+instead of inventing runnable steps. Show repository status and evidence in a secondary disclosure.
+Add a Try your MCP page with Codespaces setup and local launch links, endpoint-only in-memory command preparation,
+safe Inspector launch commands and copyable prompts. Calls run in the official client, never through the board.
+Read per-module hints from docs/PRACTICE.md. Offer validators only when the README and script actually exist.
 Give the agent three capabilities: get_progress, set_module_status(module, status, evidence) and list_open_decisions.
-docs/PROGRESS.md stays the only source of truth: the canvas reads and writes that file and nothing else.
+docs/PROGRESS.md stays the only progress source of truth. Only agent actions update it; browsing is read-only.
 ```
 
 Then ask in any session: "Show the workshop build board and start the next module."

@@ -50,7 +50,9 @@ Build order, sources and expected results are in docs/BUILD-PLAN.md. Read it bef
 - Environment: .devcontainer (also used by Codespaces) and Azure Cloud Shell instructions;
   corporate laptops may block local tools.
 - Naming: deterministic names from a participant prefix (p01, p02…) and a suffix, so URLs are known
-  before deployment. Tag everything: workshop, owner, expiry.
+  before deployment. Generate a cryptographically random suffix once in ignored private participant parameters;
+  reuse it and the same state through cleanup. Default to a dedicated group, or read an administrator-provided group
+  without managing/deleting it. Random names do not reset quotas. Tag workshop-owned resources: workshop, owner, expiry.
 
 ## Module contract (modules/NN-name/)
 README sections in this order: Goal · Why it matters · What you deploy · Prerequisites and required roles ·
