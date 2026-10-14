@@ -2,7 +2,8 @@
 
 Ce guide s'adresse aux personnes qui construisent l'atelier, pas aux participants qui suivent les exercices.
 **Un module = une session = une branche = une pull request (PR).** Fusionnez avant le module suivant.
-Le module 00 est implémenté localement ; aucun module n'est encore validé dans Azure.
+La préparation du module 00 et l'exercice MCP local du module 01 sont implémentés.
+Aucun de ces modules n'est encore entièrement validé.
 
 Les participants peuvent travailler sans ce processus de construction :
 [choisir leur environnement](GETTING-STARTED.md), VS Code avec un conteneur de développement ou un terminal local,
