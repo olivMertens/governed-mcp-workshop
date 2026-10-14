@@ -791,6 +791,7 @@
         ["sources", "Verified sources", "book"], ["runbook", "Build runbook", "book"],
         ["decisions", "Build decisions", "important"],
         ["hosting", "Publish or host the guides", "book"],
+        ...(state?.documents.presenter ? [["presenter", "Presenter guide", "book"]] : []),
       ]) {
         const anchor = link("", `#/${route}`);
         anchor.append(symbol(icon), element("span", title));

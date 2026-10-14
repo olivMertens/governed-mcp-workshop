@@ -1,5 +1,10 @@
 # Choose your workspace first
 
+**Participant:** use the portal link your presenter sends, choose EN/FR, then start at module 00.
+You do not need another App Service or the presenter's administrator account.
+Without a portal, follow these Markdown guides.
+**Presenter:** use the separate [publishing how-to](PRESENTER.md).
+
 Use **Visual Studio Code (VS Code)** with a dev container, or use your own terminal.
 These are two routes to the same scripts, private participant parameters and Terraform root.
 Visual Studio IDE is a different product; the container instructions here use the VS Code Dev Containers extension.
@@ -150,7 +155,7 @@ Then, only in an approved deployment session, review the actual foundation plan:
 ```powershell
 terraform -chdir=infra/workload init -lockfile=readonly
 if ($LASTEXITCODE -ne 0) { throw 'Terraform init failed.' }
-terraform -chdir=infra/workload plan -var-file=../../.workshop/participant.tfvars.json -out=../../.workshop/workload.tfplan
+terraform '-chdir=infra\workload' plan '-var-file=..\..\.workshop\participant.tfvars.json' '-out=..\..\.workshop\workload.tfplan'
 if ($LASTEXITCODE -ne 0) { throw 'Terraform plan failed.' }
 ```
 

@@ -106,6 +106,9 @@ export function readJourney(root, progress) {
                     sourcePath: [...base, "LEARNING-GUIDE.md"].join("/"), content: learning },
                 deployment: document(french ? "Votre contexte Azure" : "Your Azure context", "DEPLOYMENT.md"),
                 hosting: document(french ? "Publier ou héberger les guides" : "Publish or host the guides", "HOSTING.md"),
+                ...(available([...base, "PRESENTER.md"]) ? {
+                    presenter: document(french ? "Guide présentateur" : "Presenter guide", "PRESENTER.md"),
+                } : {}),
                 ...(available(["docs", "requests", "identity-request.md"]) ? {
                     [french ? "originalIdentityRequest" : "identityRequest"]:
                         document(french ? "Demande à l'administrateur (version anglaise)" : "Identity administrator request",

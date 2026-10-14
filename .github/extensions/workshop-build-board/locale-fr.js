@@ -1,4 +1,5 @@
 const french = {
+  "Presenter guide": "Guide présentateur",
   "Governed MCP / self-paced workshop": "MCP sur Azure / parcours autonome",
   "Publish or host the guides": "Publier ou héberger les guides",
   "Use Refresh content to retry. If it persists, contact the site maintainer.": "Utilisez Actualiser pour réessayer. Si l'erreur persiste, contactez le responsable du site.",

@@ -36,6 +36,17 @@ A module is `validated` only when its validate script passes on a fresh subscrip
   group; accept an approved existing group without managing it. Shared quotas still require cohort capacity checks.
 
 ## Deviations from the build plan
+- Presenter preparation (2026-10-14): separate EN/FR presenter how-to and participant entry points.
+  Live local-terminal foundation preflight passed on an explicitly resolved private test target:
+  `PASS subscription region (expected HTTP 200; availability is not a capacity reservation)`;
+  `PASS required ARM permission grants (expected HTTP 200; deny assignments, policy and deployment approval remain separate)`;
+  `PASS resource group capacity (expected HTTP 200; below the documented 980-group limit)`;
+  `PASS module 00 foundation environment checks.`
+  Terraform 1.16.6/AzureRM 5.9.0 initialized, schema/format checks passed and a real foundation plan proposes
+  one new resource group. The plan has NOT been applied. Private target IDs, account, suffix and plan remain ignored.
+  Fixed unsupported CLI subscription argument during region discovery and Windows CMD parsing of quota queries;
+  synthetic tests now cover malformed region/group arrays. PowerShell Terraform examples quote file arguments.
+  This is not a fresh-subscription/container validation or a deployed portal; module 00 remains in-progress.
 - Agent 365 integration clarification (2026-10-14): README and EN/FR module 06 learning panels explicitly mark
   the integration and AI Gateway tier **Preview**. The board reads these panels directly.
   This remains a planned facilitator demo, not implemented infrastructure. Tenant-wide policy-write consent
