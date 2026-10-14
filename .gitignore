@@ -1,0 +1,43 @@
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# .NET and Azure Functions
+bin/
+obj/
+local.settings.json
+*.user
+.vs/
+
+# Node.js
+node_modules/
+
+# Azure Developer CLI
+.azure/
+
+# Secrets and local files
+**/confidential/
+.env
+*.env
+*.pfx
+*.pem
+*.key
+*.log
+coverage/
+
+# OS
+.DS_Store
+Thumbs.db

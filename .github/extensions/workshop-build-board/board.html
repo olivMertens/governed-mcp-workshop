@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Workshop build board</title>
+  <style>
+    body { margin: 0; padding: 24px; background: var(--background-color-default, #fff); color: var(--text-color-default, #1f2328); font-family: var(--font-sans, system-ui); font-size: var(--text-body-medium, 14px); line-height: 1.5; }
+    h1 { font-size: var(--text-title-large, 26px); margin: 0; }
+    .muted { color: var(--text-color-muted, #59636e); }
+    #modules { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 16px; }
+    article { border: 1px solid var(--border-color-default, #d1d9e0); border-radius: 12px; padding: 16px; }
+    label { display: block; margin-top: 12px; }
+    input, select, textarea, button { box-sizing: border-box; font: inherit; color: inherit; background: var(--background-color-default, #fff); border: 1px solid var(--border-color-default, #d1d9e0); border-radius: 6px; padding: 8px; }
+    input, select, textarea { width: 100%; }
+    textarea { resize: vertical; }
+    button { cursor: pointer; margin-top: 12px; }
+    button:disabled { cursor: wait; opacity: .6; }
+    :focus-visible { outline: 2px solid var(--color-focus-outline, #0969da); outline-offset: 2px; }
+    #message { min-height: 24px; white-space: pre-wrap; }
+    #message.error { color: var(--true-color-red, #b42318); }
+    #decisions { white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>Workshop build board</h1>
+  <p class="muted">Preview: Copilot extension canvas API. Progress is stored only in docs/PROGRESS.md.</p>
+  <p>A validated status requires the module's actual PASS evidence on a fresh test subscription. Saving here does not run validation. Never enter tokens, real identifiers, or confidential notes.</p>
+  <button id="refresh" type="button">Refresh progress</button>
+  <p id="message" role="status" aria-live="polite"></p>
+  <main id="modules"></main>
+  <h2>Open decisions</h2>
+  <div id="decisions"></div>
+  <script>
+    const key = "__BOARD_KEY__";
+    const message = document.getElementById("message");
+    const statuses = ["todo", "in-progress", "validated", "blocked"];
+    let saving = false;
+    async function request(path, input) {
+      const response = await fetch(path, {
+        method: input ? "POST" : "GET",
+        headers: { "x-board-key": key, ...(input ? { "Content-Type": "application/json" } : {}) },
+        ...(input ? { body: JSON.stringify(input) } : {})
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error);
+      return result;
+    }
+    function notify(text, error = false) {
+      message.className = error ? "error" : "";
+      message.textContent = text;
+    }
+    function field(form, title, tag, value) {
+      const label = document.createElement("label");
+      label.textContent = title;
+      const control = document.createElement(tag);
+      control.value = value;
+      label.append(control);
+      form.append(label);
+      return control;
+    }
+    function render(state) {
+      const list = document.getElementById("modules");
+      list.replaceChildren();
+      document.getElementById("decisions").textContent = state.openDecisions;
+      for (const module of state.modules) {
+        const card = document.createElement("article");
+        const heading = document.createElement("h2");
+        heading.textContent = `${module.module} - ${module.title}`;
+        card.append(heading);
+        const form = document.createElement("form");
+        const status = field(form, "Status", "select", "");
+        for (const value of statuses) {
+          const option = document.createElement("option");
+          option.value = option.textContent = value;
+          status.append(option);
+        }
+        status.value = module.status;
+        const date = field(form, "Validated on (only when validated)", "input", module.validatedOn);
+        date.type = "date";
+        const evidence = field(form, "Evidence (one line, no pipe character)", "input", module.evidence);
+        evidence.maxLength = 2000;
+        const notes = field(form, "Notes (one line, no pipe character)", "textarea", module.notes);
+        notes.maxLength = 2000;
+        const save = document.createElement("button");
+        save.type = "submit";
+        save.textContent = "Save module";
+        form.append(save);
+        form.addEventListener("submit", async (event) => {
+          event.preventDefault();
+          if (saving) return;
+          saving = true;
+          save.disabled = true;
+          try {
+            const input = { module: module.module, status: status.value, evidence: evidence.value,
+              notes: notes.value, revision: state.revision };
+            if (status.value === "validated") input.validatedOn = date.value;
+            const updated = await request("/update", input);
+            render(updated);
+            notify(`Module ${module.module} saved to PROGRESS.md.`);
+          } catch (error) {
+            notify(error.message, true);
+          } finally {
+            saving = false;
+            save.disabled = false;
+          }
+        });
+        card.append(form);
+        list.append(card);
+      }
+    }
+    async function refresh() {
+      if (saving) return;
+      try {
+        render(await request("/progress"));
+        notify("Progress loaded. Refresh discards unsaved form edits.");
+      } catch (error) {
+        notify(error.message, true);
+      }
+    }
+    document.getElementById("refresh").addEventListener("click", refresh);
+    refresh();
+  </script>
+</body>
+</html>
