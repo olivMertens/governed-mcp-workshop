@@ -10,6 +10,56 @@ These are two routes to the same scripts, private participant parameters and Ter
 Visual Studio IDE is a different product; the container instructions here use the VS Code Dev Containers extension.
 No Copilot subscription or canvas is required to read the Markdown guides or run the scripts.
 
+## 0. Get the repository onto your computer
+
+For a local terminal or VS Code dev container, start with a checkout.
+For Codespaces, skip to the workspace choice below.
+
+**On Windows, if Git and PowerShell 7 are missing**, run these commands one at a time
+in your terminal, using your organization's approved installation process:
+
+```powershell
+winget install --id Git.Git --exact
+winget install --id Microsoft.PowerShell --exact
+```
+
+Close the terminal and open **PowerShell 7** (`pwsh`), not Windows PowerShell 5.1.
+If WinGet is unavailable or blocked, use the official installers linked below.
+Do not bypass workstation policies.
+
+**Clone `main`** into a folder under your user profile:
+
+```powershell
+$ErrorActionPreference = 'Stop'
+New-Item -ItemType Directory -Path "$HOME\source" -Force | Out-Null
+Set-Location "$HOME\source"
+git clone --branch main https://github.com/olivMertens/workshop-mcp.git
+if ($LASTEXITCODE -ne 0) { throw 'Clone failed. Do not continue in another directory.' }
+Set-Location .\workshop-mcp
+```
+
+**Expected:** `README.md`, `scripts` and `infra` are in the current folder.
+Run the following commands from this folder. If VS Code is installed, open it with `code .`.
+Each participant needs their own checkout. Cloning this public repository needs no GitHub account or GitHub CLI.
+
+<details>
+<summary>Already have a checkout? Find it and update it</summary>
+
+Return to **your original checkout**, especially if you have deployed resources.
+Use `git branch --show-current` to confirm that you are on `main`.
+When tracked files have no local changes:
+
+```powershell
+if (git status --porcelain) { throw 'Preserve your local changes before updating.' }
+git pull --ff-only
+if ($LASTEXITCODE -ne 0) { throw 'Update refused. Do not force a merge.' }
+```
+
+Keep `.workshop` and Terraform state private. Do not delete them, clone again to
+"start over", or use `git clean` to fix an update problem.
+
+</details>
+
 ## 1. Pick one route
 
 | Route | What you need | Start here |
@@ -46,6 +96,23 @@ If the build fails, inspect **Dev Containers: Show Container Log**. Resolve the 
 do not bypass certificate validation or quietly switch tools/engines. Use the local route if approved.
 
 ### Local installation guidance
+
+The dev container and Codespaces provide their own installation path; do not install everything twice.
+On Windows, install only missing or outdated tools. Run each command separately, check its result,
+and follow your organization's approval process.
+
+| Tool | Windows command or installer |
+|---|---|
+| Azure CLI, to connect to Azure | `winget install --id Microsoft.AzureCLI --exact` |
+| Terraform, to plan deployments | `winget install --id Hashicorp.Terraform --exact` |
+| .NET SDK 10, for the C# server | `winget install --id Microsoft.DotNet.SDK.10 --exact` |
+| Node.js, a supported LTS release | `winget install --id OpenJS.NodeJS.LTS --exact` |
+| Azure Functions Core Tools **v4** | [Official Windows installers](https://learn.microsoft.com/azure/azure-functions/functions-run-local#install-the-azure-functions-core-tools): choose the version for your platform. |
+
+After installation, close and reopen **PowerShell 7**, then return to the repository folder.
+WinGet installs versions from its catalog; step 2 checks the accepted minimums below.
+If a version is too old, use the official installer or ask your administrator.
+On macOS/Linux, use the official installation guide for your operating system.
 
 | Tool | Accepted by the shared check | Official installation guide |
 |---|---|---|
@@ -149,6 +216,27 @@ It does not deploy Functions, networking, API Management, identities, or an MCP 
 The [module 00 guide](../modules/00-prerequisites/README.md), read-only preflight and administrator request are available.
 Run its real environment checks before the foundation plan. Azure/container validation is still pending.
 
+### Sign into your test tenant
+
+After preparing the parameters in step 3, use **the same PowerShell 7 terminal**:
+
+```powershell
+$ErrorActionPreference = 'Stop'
+& .\scripts\select-azure-context.ps1 -Language en
+& .\modules\00-prerequisites\validate.ps1 `
+    -TenantId $env:ARM_TENANT_ID `
+    -SubscriptionId $env:ARM_SUBSCRIPTION_ID
+```
+
+The selector asks for your **approved** tenant and subscription IDs and the confirmation `NONPROD`.
+It runs `az login --tenant`, selects the subscription with `az account set`, and verifies the context.
+`ARM_TENANT_ID` and `ARM_SUBSCRIPTION_ID` stay in this terminal for Terraform.
+Get these IDs privately from your administrator; do not post them to GitHub or the portal.
+
+**Expected:** a verified context followed by `PASS module 00 foundation environment checks.`
+Signing in does not grant new permissions, and the validator creates no resources.
+On failure, stop and use the [Azure context guide](DEPLOYMENT.md).
+
 Select your approved context with the [Azure context guide](DEPLOYMENT.md), **in the same terminal** as Terraform.
 Then, only in an approved deployment session, review the actual foundation plan:
 
@@ -180,6 +268,8 @@ Do not delete an entire group to bypass an incomplete Terraform cleanup.
 
 ## Sources
 
+- [Azure CLI on Windows](https://learn.microsoft.com/cli/azure/install-azure-cli-windows) and [.NET SDK on Windows](https://learn.microsoft.com/dotnet/core/install/windows).
+- [PowerShell installation](https://learn.microsoft.com/powershell/scripting/install/installing-powershell), [Terraform](https://developer.hashicorp.com/terraform/install) and [Functions Core Tools v4](https://learn.microsoft.com/azure/azure-functions/functions-run-local).
 - [VS Code Dev Containers](https://code.visualstudio.com/docs/devcontainers/containers) and [alternative engines](https://code.visualstudio.com/remote/advancedcontainers/docker-options).
 - [Official Dev Container Features](https://github.com/devcontainers/features), [specification](https://containers.dev/implementors/json_reference/).
 - [Azure naming rules](https://learn.microsoft.com/azure/azure-resource-manager/management/resource-name-rules) and [quotas](https://learn.microsoft.com/azure/azure-resource-manager/management/azure-subscription-service-limits).
