@@ -18,6 +18,57 @@ Take one MCP server from **open** to **governed** on Azure, alone, in **your own
 | 4️⃣ | ▶️ **Do** | Follow the module steps, one module at a time. | The result written under "What you should see". |
 | 5️⃣ | ✅ **Validate, then clean up** | Run the published module's validator. Review cleanup before deleting anything. | Offline `PASS` does not prove Azure deployment. Module 00 preflight creates nothing. |
 
+### 💻 PowerShell: run module 00
+
+Open **PowerShell 7.4+** in the repository root, locally or in your chosen development container.
+Missing a tool? Follow the [installation guide](docs/GETTING-STARTED.md)
+([français](docs/fr/GETTING-STARTED.md)). Stop if any command fails.
+
+**1. Check the installed tools.** No Azure access:
+
+```powershell
+$ErrorActionPreference = 'Stop'
+& .\scripts\check-tools.ps1
+```
+
+**2. Prepare your private parameters once.** Replace the example labels and region with approved values:
+
+```powershell
+$expiry = [datetime]::UtcNow.AddDays(1).ToString('yyyy-MM-dd')
+& .\scripts\prepare-workshop.ps1 -ParticipantPrefix p01 -Location westeurope -Owner alice -Expiry $expiry
+```
+
+Expected: `PASS private participant parameters created with a stable random suffix.`
+The ignored `.workshop\participant.tfvars.json` stores your names. Keep it and your Terraform state through cleanup.
+On later visits, reuse this file; do not regenerate the suffix or rerun preparation with a different expiry.
+For an administrator-provided resource group, add `-ExistingResourceGroupName` on this first preparation command.
+The expiry is a tag, **not automatic deletion**.
+
+**3. Choose your approved test tenant and subscription.** Keep the same terminal open:
+
+```powershell
+& .\scripts\select-azure-context.ps1 -Language en
+```
+
+For French prompts, use `-Language fr`. Enter your approved tenant and subscription IDs **in the terminal only**,
+then type `NONPROD`. The script signs in and selects that subscription; it creates no resources.
+Expected: `PASS context: tenant and subscription verified.`
+
+**4. Run the read-only Azure checks:**
+
+```powershell
+& .\modules\00-prerequisites\validate.ps1 `
+    -TenantId $env:ARM_TENANT_ID `
+    -SubscriptionId $env:ARM_SUBSCRIPTION_ID
+```
+
+Expected: `PASS module 00 foundation environment checks.`
+If a check fails, use [module 00 troubleshooting](modules/00-prerequisites/README.md#troubleshooting);
+do not register providers or widen permissions as a workaround.
+These commands do not deploy a resource group, MCP server, Entra identity or gateway.
+The [module 00 guide](modules/00-prerequisites/README.md) also covers offline checks and cleanup.
+**Stop here for now: modules 01–07 and 99 are not implemented.**
+
 📸 This is the module 00 guide, not a deployed Azure result:
 
 ![Module 00 page with its architecture and security flow](assets/screenshots/module-00.en.png)
