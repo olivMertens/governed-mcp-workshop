@@ -21,7 +21,7 @@ Keep Inspector ports private; use VS Code desktop/private forwarding, never publ
 ### Dev container details
 
 The Ubuntu 24.04 base and official Dev Container Features are pinned by digest in
-`.devcontainer/devcontainer.json`. Tool selections are Azure CLI 2.88.0, Terraform 1.16.5,
+`.devcontainer/devcontainer.json`. Tool selections are Azure CLI 2.88.0, Terraform 1.16.6,
 .NET SDK 10.0.402, PowerShell 7.6.6, Node.js 22.22.0 and Functions Core Tools 4.14.0.
 The creation hook installs the pinned Core Tools package and runs the **same** `check-tools.ps1` as the local route.
 Package repositories, package dependencies and editor extensions can change; image/feature digests do not make
@@ -47,13 +47,14 @@ do not bypass certificate validation or quietly switch tools/engines. Use the lo
 | Git | 2+ | [Git downloads](https://git-scm.com/downloads) |
 | PowerShell | 7.4+ | [Install PowerShell](https://learn.microsoft.com/powershell/scripting/install/installing-powershell) |
 | Azure CLI | 2.88.0+ | [Install Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) |
-| Terraform | 1.16.5+, below 2 | [Install Terraform](https://developer.hashicorp.com/terraform/install) |
+| Terraform | 1.16.6+, below 2 | [Install Terraform](https://developer.hashicorp.com/terraform/install) |
 | .NET SDK | 10 installed | [.NET download](https://dotnet.microsoft.com/download/dotnet/10.0) |
 | Node.js | 22.19.0+ | [Node.js download](https://nodejs.org/en/download) |
 | Functions Core Tools | 4.5.0+, below 5 | [Core Tools installation](https://learn.microsoft.com/azure/azure-functions/functions-run-local) |
 
 Use Core Tools v4, not the separate **Preview** Functions CLI v5. Some npm Core Tools wrappers download their
-binary on the first invocation. Allow that approved download to finish; a package entry alone proves nothing.
+binary on the first invocation. The checker refuses incomplete known npm shims instead of starting a download.
+Finish the approved installation separately; a package entry alone proves nothing.
 No script in this repository installs workstation tools or changes your engine automatically.
 
 ## 2. Check the terminal you will actually use
@@ -113,9 +114,11 @@ alone cannot create a sibling group. Prefer the existing-group route rather than
 
 ## 4. Understand the Terraform boundary
 
-`infra/workload` currently contains **only a resource-group foundation** and future naming outputs.
+`infra/workload` contains the resource-group foundation, future MCP names and an **optional public App Service**.
+The paid portal is disabled by default; [hosting](HOSTING.md) documents explicit persistent opt-in and deployment.
 It does not deploy Functions, networking, API Management, identities, or an MCP server.
-The rest of the module instructions and Azure validation remain unpublished.
+The [module 00 guide](../modules/00-prerequisites/README.md), read-only preflight and administrator request are available.
+Run its real environment checks before the foundation plan. Azure/container validation is still pending.
 
 Select your approved context with the [Azure context guide](DEPLOYMENT.md), **in the same terminal** as Terraform.
 Then, only in an approved deployment session, review the actual foundation plan:

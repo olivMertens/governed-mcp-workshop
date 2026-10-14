@@ -6,7 +6,7 @@ A module is `validated` only when its validate script passes on a fresh subscrip
 
 | Module | Title | Status | Validated on | Evidence (PASS lines or PR) | Notes |
 |---|---|---|---|---|---|
-| 00 | Prerequisites and environment | todo |  |  | Partial preparation: workstation choice, tool checks, container config and Terraform group foundation. Container runtime/full preflight/Azure validation pending. |
+| 00 | Prerequisites and environment | in-progress |  | Offline only: script/HTTP checks and 5 mock plans; not fresh-subscription evidence. | EN/FR guide, explicit read-only preflight, identity request and optional public B1 hosting implemented. Container and approved Azure target/plan still pending. |
 | 01 | Discover MCP (no Azure) | todo | | | |
 | 02 | An "open" MCP server (level 0) | todo | | | |
 | 03 | Identity with Microsoft Entra (level 1) | todo | | | |
@@ -36,8 +36,9 @@ A module is `validated` only when its validate script passes on a fresh subscrip
   group; accept an approved existing group without managing it. Shared quotas still require cohort capacity checks.
 
 ## Deviations from the build plan
-- P1 preparation only: source assessment, updated architecture recommendations, and the project build board.
-  No module has been built or validated. No Azure or Microsoft Entra resource has been changed.
+- Initial P1 preparation: source assessment, architecture recommendations and build board.
+  Module 00 is now implemented locally as described below, but no module is Azure-validated.
+  No Azure or Microsoft Entra resource has been changed.
 - Prefer current Inspector 2.11.0 as a compatibility-test candidate over the older APIM documentation's 0.9.0 tip.
 - Upstream Functions sample now targets .NET 10; the Learn quickstarts still show .NET 8. Use the pinned project
   as the runtime starting point and verify Azure runtime support before deployment.
@@ -61,4 +62,26 @@ A module is `validated` only when its validate script passes on a fresh subscrip
   persistent connection storage or progress mutation. These are website checks, not module validation.
   Source review/merge is required before site publication; no Pages activation, workflow dispatch or Azure/Entra
   change was performed.
-  The complete MCP deployment and the exact optional App Service/ACA hosting target remain unresolved.
+  The complete MCP deployment and the exact optional Azure hosting target remain unresolved.
+- Module 00 local implementation (2026-10-14): EN/FR guide, validator/cleanup wrappers and identity-administrator
+  request. Read-only preflight requires explicit tenant/subscription, rejects mixed authentication overrides,
+  verifies provider registration, region, effective grant pagination and stage-specific capacity evidence.
+  Its future MCP baseline is not a complete runtime/Policy permission proof.
+- Optional public SPA: Linux B1 App Service, default off and persistently opted in without changing suffix/state.
+  TLS enforced, FTP/SCM basic publishing disabled, Node 22 explicit startup and read-only package.
+  Exact 52-file ZIP, local HTTP server and guarded Entra deployment script; no visitor credentials or MCP API.
+  ACA/private visitor sign-in remain unimplemented. B1 costs and actual deployment require separate approval.
+- Offline evidence: `PASS local script/HTTP checks (expected HTTP N/A; no Azure access)`;
+  `PASS Terraform schema and mock-only plans (expected HTTP N/A; no live plan/apply)`;
+  `PASS offline checks only. Module 00 is NOT Azure-validated by this result.`
+  Five Terraform 1.16.6/AzureRM 5.9.0 mock plans pass. Synthetic cases cover read-only failures,
+  permission pagination, stale/wrong quota evidence, ownership/TLS/runtime checks, WhatIf and exact ZIP contents.
+  Combined board/workspace/hosting suite: 29 tests pass. Edge checks pass for EN/FR Pages-prefix routes,
+  the real local App Service server, module 00/administrator links, all diagrams and 320/390/1366 layouts.
+  Browser traffic remains local GET-only, without credential headers or persistent connection state.
+  A fresh Windows checkout with `core.autocrlf=true` also passes offline validation, locked local-provider
+  initialization, diagram provenance and the exact portal integrity check, leaving a clean Git tree.
+- Authoring tool boundary: ordinary installation had Terraform 1.16.5 and an incomplete npm Core Tools shim.
+  Official-checksum-verified Terraform 1.16.6 and Core Tools 4.14.0 ARM64 were installed in session scope for checks,
+  not substituted globally. Container execution and fresh-subscription preflight/real plan/apply remain unverified.
+  Module 01 must not start before real module 00 validation.

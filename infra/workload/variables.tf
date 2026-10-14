@@ -56,3 +56,10 @@ variable "existing_resource_group_name" {
     error_message = "Use a 1-90 character resource group name without a trailing period."
   }
 }
+
+variable "public_portal_enabled" {
+  type        = bool
+  default     = false
+  nullable    = false
+  description = "Explicit opt-in to a paid B1 Linux App Service for public documentation only. Not an MCP server or tenant deployment control plane."
+}

@@ -38,7 +38,9 @@ not the repository. No site has been published yet.
 Read [hosting and publication](docs/HOSTING.md) or [le guide français](docs/fr/HOSTING.md).
 
 The public portal never collects Azure keys or deploys into a visitor's tenant.
-App Service and Azure Container Apps are separate optional hosting targets requiring an exact selection and approval.
+Optional Linux App Service B1 Terraform and an Entra-authenticated ZIP deployment script are available,
+disabled by default. A paid deployment still requires an exact approved target and reviewed plan.
+Azure Container Apps and private visitor authentication are not implemented.
 Participants still authenticate and run reviewed Terraform in their own approved environment.
 
 ## Target architecture
@@ -57,7 +59,7 @@ flowchart LR
 
 | # | Module |
 |---|---|
-| 00 | Prerequisites and environment |
+| 00 | [Prerequisites and environment](modules/00-prerequisites/README.md) |
 | 01 | Discover MCP (no Azure) |
 | 02 | An "open" MCP server (level 0) |
 | 03 | Identity with Microsoft Entra (level 1) |
@@ -88,7 +90,9 @@ Workshop authors use [`docs/COPILOT-RUNBOOK.md`](docs/COPILOT-RUNBOOK.md).
 The [P1 recommendations](docs/BUILD-PLAN.md#p1-recommendations-design-only) describe the target tree,
 networking and identity decisions. The [source assessment](docs/sources.md) selects the useful parts of official
 samples, pins upstream snapshots, and records updates, licensing boundaries and unresolved compatibility gates.
-**Modules are not implemented yet.** No Azure deployment has been validated.
+**Module 00 is implemented locally, but not Azure-validated.** Its EN/FR guide, read-only preflight,
+identity request and optional public hosting have offline evidence. Later MCP modules remain unimplemented.
+No Azure deployment has been validated; no cloud resource or identity has been changed.
 
 The project includes a **Workshop build board** canvas under `.github/extensions/workshop-build-board/`.
 In the Copilot app, ask: "Show the workshop build board." Its responsive single-page application (SPA) is a

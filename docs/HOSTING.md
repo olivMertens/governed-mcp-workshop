@@ -7,7 +7,8 @@ accept a shared deployment key, or obtain access to their tenant.
 | Component | Recommended location | Identity boundary |
 |---|---|---|
 | Public EN/FR guides, diagrams and workspace choices | GitHub Pages | Public static content. No Azure connection or deployment authority. |
-| Optional internal copy of the guides | An explicitly selected App Service **or** Azure Container Apps application | Review its hosting, single-tenant access policy and costs separately. |
+| Optional public Azure copy | Participant-owned Linux App Service B1, explicit Terraform opt-in | Public guides only. Entra authorizes deployment, not visitor access. |
+| Optional internal copy | An explicitly selected App Service **or** Azure Container Apps application | Separate design; secretless visitor sign-in is not implemented here. |
 | Participant MCP workload | The participant's approved non-production Azure subscription/resource group | Participant runs the reviewed Terraform plan in their own authenticated terminal. |
 
 Azure App Service and Azure Container Apps (ACA) are different services, not one hosting target.
@@ -81,6 +82,160 @@ a supported secretless private-portal sign-in path has not been established here
 Do not add tenant IDs or app credentials to this public repository. Resolve and verify the selected target in
 the private deployment session. This preparation does not use the author's Azure CLI login or discover/modify apps.
 
+## Optional public App Service deployment
+
+This implemented path serves the **same public SPA** (single-page application), not an internal authenticated site.
+It uses Linux App Service Basic B1 with Node.js 22 LTS (long-term support). It needs no container registry,
+image build, client secret, publish profile or deployment key. ACA is not implemented in this iteration.
+The preflight/module guide is [module 00](../modules/00-prerequisites/README.md).
+Only one `infra/workload` root and state are used. The opt-in is saved in private participant parameters,
+so a later ordinary plan cannot silently disable the portal.
+
+**Cost:** B1 runs a paid dedicated worker continuously. Review regional pricing and subscription policy.
+Stopping the web app does not stop plan charges. HTTPS and Transport Layer Security (TLS) 1.2+ are enforced;
+File Transfer Protocol (FTP) and basic publishing are disabled. The read-only server logs no request bodies,
+queries, credentials or access payloads. It exposes only 50 public assets and `/health`, never the canvas API.
+GitHub Pages remains the simpler choice for a shared public workshop.
+
+### Prepare and review locally
+
+First finish the approved **foundation-only** deployment from the [start guide](GETTING-STARTED.md),
+with the portal still disabled, or use an administrator-provided existing group. Review and approve that
+saved plan separately before applying it. The portal preflight requires this group to exist.
+
+From the same approved terminal, add `-EnablePublicPortal` to your original preparation command,
+with exactly the same region, owner, expiry, prefix and existing-group argument. This is also safe for an
+existing foundation parameter file: only the explicit opt-in changes, not its saved suffix or state.
+Do not regenerate parameters or move to another clone/state.
+
+```powershell
+# Repeat your original prepare-workshop.ps1 command, adding -EnablePublicPortal.
+node scripts/build-portal.mjs
+if ($LASTEXITCODE -ne 0) { throw 'Public bundle build failed.' }
+node scripts/portal-server.mjs --verify portal-dist
+if ($LASTEXITCODE -ne 0) { throw 'Public bundle verification failed.' }
+node portal-dist/server.mjs
+```
+
+```bash
+# Repeat your original preparation command with -EnablePublicPortal.
+node scripts/build-portal.mjs &&
+node scripts/portal-server.mjs --verify portal-dist &&
+node portal-dist/server.mjs
+```
+
+The last command serves loopback port 8080. Inspect EN/FR routes and diagrams, then stop it with Ctrl+C.
+The new `portal-dist` contains 52 exact files: the public static allowlist, a hash manifest and the reviewed
+stdlib-only server. The builder refuses an existing destination; choose a fresh `--output` directory when rebuilding.
+The server honors App Service's `PORT` and listens externally only when it is set.
+
+### Review capacity privately
+
+For this optional stage the group must already exist: first review/apply the **foundation-only** plan from the
+[start guide](GETTING-STARTED.md), before enabling the portal. Obtain approval separately before that apply.
+If the administrator supplied the group, do not create or import it.
+
+An administrator must register `Microsoft.Web` separately if needed.
+Review Basic Linux B1 availability, regional worker quota, policy and the cost of one worker.
+For future `-Stage mcp`, inspect **Diagnose and solve problems > Flex Consumption Quota** and review
+the sum of all participant maximum memory allocations. Random names never reset quota.
+The `mcp` stage checks the live Flex region and isolated .NET 10 runtime list; it does not implement later modules.
+
+Keep evidence in ignored `.workshop/capacity-review.json`, not the portal or Git. This example intentionally
+**fails** until a real reviewer supplies the correct target, available capacity, current UTC time and approval:
+
+```json
+{
+  "subscriptionId": "<approved private subscription>",
+  "location": "<approved region code>",
+  "stage": "portal",
+  "unit": "workers",
+  "availableUnits": 0,
+  "checkedAtUtc": "<yyyy-MM-ddTHH:mm:ssZ>",
+  "costApproved": false
+}
+```
+
+Use `MB` and `stage: "mcp"` for Flex. The default reviewed ceiling is 2048 MB times 10 instances;
+pass the exact planned `-FlexMemoryMB` and `-FlexMaximumInstances` to `scripts/preflight.ps1` if different.
+Evidence expires after 24 hours, rejects future timestamps and must match subscription, region and stage.
+This is a **human-reviewed quota/cost gate**, not an automatic quota API result or capacity reservation.
+API Management/network/telemetry capacity and policy still require the later module's actual plan.
+
+### Plan, approve, deploy
+
+The following commands can read the approved Azure target. They do not sign in, change subscription, register
+providers or grant roles. Supply the exact context selected privately in the same terminal.
+
+```powershell
+$ErrorActionPreference = 'Stop'
+& .\scripts\preflight.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID `
+    -Stage portal -CapacityReviewPath .\.workshop\capacity-review.json
+terraform -chdir=infra/workload init -lockfile=readonly
+if ($LASTEXITCODE -ne 0) { throw 'Terraform init failed.' }
+terraform -chdir=infra/workload plan -var-file=../../.workshop/participant.tfvars.json -out=../../.workshop/portal.tfplan
+if ($LASTEXITCODE -ne 0) { throw 'Terraform plan failed.' }
+terraform -chdir=infra/workload show ../../.workshop/portal.tfplan
+if ($LASTEXITCODE -ne 0) { throw 'Terraform plan review failed.' }
+# STOP: obtain explicit approval of this exact saved plan, target and B1 cost.
+# Only after approval:
+terraform -chdir=infra/workload apply ../../.workshop/portal.tfplan
+if ($LASTEXITCODE -ne 0) { throw 'Terraform apply failed.' }
+& .\scripts\deploy-portal.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID `
+    -CapacityReviewPath .\.workshop\capacity-review.json
+```
+
+```bash
+bash ./scripts/preflight.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId "$ARM_SUBSCRIPTION_ID" \
+  -Stage portal -CapacityReviewPath ./.workshop/capacity-review.json &&
+terraform -chdir=infra/workload init -lockfile=readonly &&
+terraform -chdir=infra/workload plan -var-file=../../.workshop/participant.tfvars.json -out=../../.workshop/portal.tfplan &&
+terraform -chdir=infra/workload show ../../.workshop/portal.tfplan
+# STOP: obtain separate approval of the exact saved plan, target and B1 cost.
+# Only after approval:
+terraform -chdir=infra/workload apply ../../.workshop/portal.tfplan &&
+bash ./scripts/deploy-portal.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId "$ARM_SUBSCRIPTION_ID" \
+  -CapacityReviewPath ./.workshop/capacity-review.json
+```
+
+Applying a saved plan has no second Terraform approval prompt: **do not paste the whole example before approval**.
+The code deployment separately asks before replacing the documentation on the specifically named participant app.
+`-WhatIf` performs read checks but creates no package and uploads nothing.
+The script verifies target, ownership tags, plan, runtime, TLS and disabled basic publishing, then creates
+a private ZIP and uses `az webapp deploy` with Entra authentication. It never retrieves publishing credentials.
+It refuses to overwrite an existing ZIP; choose a new private `-PackagePath` on repeat deployments.
+Use the saved previous approved bundle with a fresh package path to roll back, through the same review and checks.
+
+Check `terraform output public_portal_url`, its HTTPS `/health` (200 with `{"status":"ok"}`),
+start page, both languages, diagrams and client preparation on the real host before sharing it.
+No real Azure plan/apply/upload or deployed-site verification was performed during authoring.
+Only Terraform schema/mock plans, local server and synthetic deployment checks are evidence so far.
+
+## Clean up
+
+Preflight creates nothing. If you applied this iteration's shared root, review a destroy plan against the
+**same state and parameters**. This removes all workshop-owned resources currently tracked by that root,
+not just the portal. Do not run it once later modules share that state unless full workshop teardown is intended.
+
+```powershell
+terraform -chdir=infra/workload plan -destroy -var-file=../../.workshop/participant.tfvars.json -out=../../.workshop/destroy.tfplan
+if ($LASTEXITCODE -ne 0) { throw 'Destroy plan failed.' }
+terraform -chdir=infra/workload show ../../.workshop/destroy.tfplan
+# STOP: review exactly what is deleted and obtain separate approval.
+# Only after approval:
+terraform -chdir=infra/workload apply ../../.workshop/destroy.tfplan
+if ($LASTEXITCODE -ne 0) { throw 'Destroy failed.' }
+```
+
+```bash
+terraform -chdir=infra/workload plan -destroy -var-file=../../.workshop/participant.tfvars.json -out=../../.workshop/destroy.tfplan &&
+terraform -chdir=infra/workload show ../../.workshop/destroy.tfplan
+# STOP: obtain separate deletion approval before applying this exact plan.
+```
+
+An existing administrator group is a data source, never a destroy target. Nonempty dedicated groups remain protected.
+Preserve private state/parameters until deletion is verified; do not delete a whole group to hide untracked resources.
+
 ## Deploy the participant workload
 
 Start with [workspace choice](GETTING-STARTED.md) and [Azure context](DEPLOYMENT.md).
@@ -89,7 +244,7 @@ suffix/private state, and reviews a plan targeting their own resource group. Azu
 An optional participant-owned automation pipeline requires its own narrowly scoped federation and approval;
 the public portal must never become a cross-tenant deployment control plane.
 
-Only the Terraform resource-group foundation currently exists. Full Functions, identity, gateway and observability
+The Terraform group foundation and optional public App Service now exist. Full Functions, identity, gateway and observability
 modules are not implemented or validated. Do not offer a one-click complete deployment or fabricate endpoint/key outputs.
 The short-lived module 02 system key is entered only in the participant's client at runtime, never in the portal,
 URL, chat, public output or saved client configuration.
@@ -100,7 +255,12 @@ URL, chat, public output or saved client configuration.
 - [Pages publishing source](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site).
 - [GitHub OIDC for Azure](https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/configuring-openid-connect-in-azure).
 - [App Service built-in authentication](https://learn.microsoft.com/azure/app-service/overview-authentication-authorization).
+- [Node.js on App Service](https://learn.microsoft.com/azure/app-service/configure-language-nodejs).
+- [Secretless ZIP deployment support](https://learn.microsoft.com/azure/app-service/deploy-authentication-types).
+- [Run from package](https://learn.microsoft.com/azure/app-service/deploy-run-package).
+- [App Service pricing](https://azure.microsoft.com/pricing/details/app-service/linux/).
+- [Flex capacity](https://learn.microsoft.com/azure/azure-functions/flex-consumption-plan).
 - [ACA authentication](https://learn.microsoft.com/azure/container-apps/authentication).
 - [Source register](sources.md), [image usage notices](../assets/architecture/README.md).
 
-Last verified: 2026-10-14. Static build preparation only; no public-site or Azure deployment performed.
+Last verified: 2026-10-14. Local preparation only; no public-site or Azure deployment performed.

@@ -1,7 +1,7 @@
 # Parcours prévu - Governed MCP on Azure
 
 Version pédagogique française. Le [plan technique original](../BUILD-PLAN.md) reste la référence de construction.
-Un module par session, branche et PR. Aucun module n'est encore implémenté ou validé.
+Un module par session, branche et PR. Le module 00 est implémenté localement ; aucun module n'est validé dans Azure.
 Une conception n'est pas une commande de déploiement. Lire le guide publié et valider avant de poursuivre.
 
 ## 00 - Prérequis et environnement
@@ -9,9 +9,11 @@ Une conception n'est pas une commande de déploiement. Lire le guide publié et 
 **Préparer :** outils épinglés, dev container, précontrôle, région, quotas, budget et demande d'identité.
 Choisir tenant et abonnement de test ; distinguer administration Entra, création de ressources et attribution de rôles.
 **À démontrer :** vrai précontrôle réussi et demande exploitable par l'administrateur d'identité.
-**Préparation partielle disponible :** choix du poste, configuration dev container épinglée, contrôles d'outils communs,
-suffixe aléatoire privé conservé et socle Terraform du groupe testé avec un provider simulé.
-Construction du conteneur, précontrôle complet et validation Azure restent à effectuer.
+**Implémentation disponible :** guide EN/FR, précontrôle en lecture seule avec contexte explicite,
+demande d'identité, versions d'outils épinglées et paramètres privés stables.
+Le socle Terraform ajoute un App Service public B1 facultatif, désactivé par défaut.
+Les tests locaux de schéma, plans simulés, scripts et serveur sont distincts de la validation Azure et
+de la construction du conteneur, toujours en attente. Aucun runtime MCP ni racine Entra n'est implémenté.
 
 ## 01 - Découvrir MCP sans Azure
 

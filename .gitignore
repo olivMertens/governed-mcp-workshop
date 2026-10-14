@@ -1,6 +1,7 @@
 # Terraform
 .workshop/
 site-dist/
+portal-dist/
 **/.terraform/*
 *.tfstate
 *.tfstate.*

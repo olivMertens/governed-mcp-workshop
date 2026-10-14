@@ -32,6 +32,10 @@ Dernière vérification : 2026-10-14. Aucun moteur accessible pour valider l'ex�
 
 ## 00 - Environnement, tenant et abonnement
 
+- [Module 00 publié](../../modules/00-prerequisites/README.fr.md), [hébergement public facultatif](HOSTING.md) et [demande administrateur](../requests/identity-request.md).
+- [Terraform 1.16.6](https://releases.hashicorp.com/terraform/1.16.6/) : binaire de test vérifié par empreinte officielle ; conteneur toujours à construire.
+- [Autorisations effectives ARM](https://learn.microsoft.com/rest/api/authorization/permissions/list-for-resource-group) : actions moins exclusions par enregistrement, pagination limitée au même périmètre.
+- [Node App Service](https://learn.microsoft.com/azure/app-service/configure-language-nodejs), [déploiement Entra](https://learn.microsoft.com/azure/app-service/deploy-authentication-types), [package en lecture seule](https://learn.microsoft.com/azure/app-service/deploy-run-package) : B1 facultatif, publication basique désactivée, aucune clé.
 - [Choisir tenant et abonnement](https://learn.microsoft.com/cli/azure/manage-azure-subscriptions-azure-cli) : contexte Azure CLI.
 - [Connexion interactive](https://learn.microsoft.com/cli/azure/authenticate-azure-cli-interactively) : navigateur et multifacteur, jamais mot de passe dans une commande.
 - [Attribution de rôles Azure](https://learn.microsoft.com/azure/role-based-access-control/role-assignments-cli) : autorité distincte et portée minimale.

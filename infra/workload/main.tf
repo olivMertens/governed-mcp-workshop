@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.16.5, < 2.0.0"
+  required_version = ">= 1.16.6, < 2.0.0"
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
@@ -50,7 +50,7 @@ output "resource_group_name" {
 }
 
 output "resource_names" {
-  description = "Planned service names only. This foundation creates no service or MCP endpoint."
+  description = "Planned MCP service names only. No MCP endpoint is created. The separate public portal is optional."
   value       = local.names
 }
 

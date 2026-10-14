@@ -139,7 +139,7 @@ $files['.devcontainer/devcontainer.json'] = @'
       "version": "2.88.0"
     },
     "ghcr.io/devcontainers/features/terraform:1.5.0@sha256:bc9eaf21aaba050bace59f411c282cb58058535a48232c059e60c19f86caa8f5": {
-      "version": "1.16.5",
+      "version": "1.16.6",
       "tflint": "none",
       "terragrunt": "none"
     },
@@ -491,10 +491,18 @@ $files['.github/extensions/workshop-build-board/board.html'] = @'
           const label = parts ? parts[1] : target;
           const url = new URL(target, `https://github.com/olivMertens/workshop-mcp/blob/main/${path}`);
           if (["https:", "http:"].includes(url.protocol)) {
-            const repositoryPath = decodeURIComponent(url.pathname).replace(/^\/olivMertens\/workshop-mcp\/blob\/main\//, "");
+            const repositoryUrl = url.origin === "https://github.com" &&
+              url.pathname.startsWith("/olivMertens/workshop-mcp/blob/main/");
+            const repositoryPath = repositoryUrl ?
+              decodeURIComponent(url.pathname).replace(/^\/olivMertens\/workshop-mcp\/blob\/main\//, "") : null;
             const local = Object.entries(state.documents).find(([, doc]) => doc.sourcePath === repositoryPath);
-            const anchor = link(label, local && !url.hash ? `#/${local[0]}` : url.href);
-            if (!local || url.hash) {
+            const asset = repositoryPath && (
+              /^assets\/architecture\/(?:00|01|02|03|04|05|06|07|99)\.(?:en|fr)\.(?:svg|png)$/.test(repositoryPath) ||
+              repositoryPath === "assets/architecture/workshop.drawio" ||
+              /^assets\/icons\/(?:azure|microsoft|entra|apim|functions|storage|insights|api-center|subscription)\.svg$/.test(repositoryPath));
+            const anchor = link(label, local ? `#/${local[0]}` :
+              asset ? `${staticSite ? "" : "/"}${repositoryPath}` : url.href);
+            if (!local) {
               anchor.target = "_blank";
               anchor.rel = "noopener noreferrer";
             }
@@ -1251,6 +1259,11 @@ export function readJourney(root, progress) {
                     sourcePath: [...base, "LEARNING-GUIDE.md"].join("/"), content: learning },
                 deployment: document(french ? "Votre contexte Azure" : "Your Azure context", "DEPLOYMENT.md"),
                 hosting: document(french ? "Publier ou héberger les guides" : "Publish or host the guides", "HOSTING.md"),
+                ...(available(["docs", "requests", "identity-request.md"]) ? {
+                    [french ? "originalIdentityRequest" : "identityRequest"]:
+                        document(french ? "Demande administrateur (original anglais)" : "Identity administrator request",
+                            "identity-request.md", ["docs", "requests"]),
+                } : {}),
                 architecture: document(french ? "Schémas et icônes" : "Diagrams and icons", french ? "README.fr.md" : "README.md", ["assets", "architecture"]),
                 plan: document(french ? "Parcours prévu" : "Technical build plan", "BUILD-PLAN.md"),
                 ...(french ? {
@@ -2158,6 +2171,7 @@ $files['.gitignore'] = @'
 # Terraform
 .workshop/
 site-dist/
+portal-dist/
 **/.terraform/*
 *.tfstate
 *.tfstate.*
@@ -3804,9 +3818,11 @@ Personas:
 - **Build:** .devcontainer; preflight.ps1 (tools, versions, `az login`, subscription, resource providers, role checks,
   quota, region); docs/requests/identity-request.md listing exactly what an identity administrator must create or consent.
 - **Show:** preflight passes; the identity request is clear enough to send as is.
-- **Preparation now available:** EN/FR workspace choice, pinned dev container configuration, common tool checks,
-  private stable random participant suffix, and a mock-tested Terraform resource-group foundation.
-  Container runtime, full preflight/identity request and fresh-subscription validation remain pending.
+- **Implementation now available:** EN/FR module 00 guide, read-only explicit-context preflight, administrator
+  identity request, pinned workstation configuration and private stable participant parameters.
+  The shared root supports the group foundation and a default-off public B1 App Service.
+  Offline schema/mock/script/server evidence is separate from container and fresh-subscription validation,
+  which remain pending. No MCP runtime or Entra root has been implemented.
 
 ## 01 — Discover MCP (no Azure)
 - **Take:** MCP specification: https://modelcontextprotocol.io/specification (revision 2026-07-28 verified on 2026-10-14: architecture, tools, transports, authorization);
@@ -4301,7 +4317,8 @@ $files['docs/DEPLOYMENT.md'] = @'
 The Model Context Protocol (MCP) server belongs in your approved **non-production** environment.
 This page prepares a deployment context. It is not a deployment procedure, and it does not certify your permissions.
 Start by [choosing dev container or local tools](GETTING-STARTED.md).
-Only the Terraform resource-group foundation is available; runtime infrastructure and module validators are not published yet.
+Module 00's read-only preflight, validator and identity request are available.
+Terraform contains the resource-group foundation and an optional public App Service; no MCP runtime is implemented.
 
 > [!IMPORTANT]
 > A Microsoft Entra tenant holds identities, applications and consent. An Azure subscription holds billed resources.
@@ -4361,7 +4378,8 @@ variables would disappear with the child process. Authentication and context che
 1. Complete module 00's published prerequisite/permission checks, then module 01's local MCP exercise.
    Context selection alone does not validate either module.
 2. Prepare the private participant file using the start guide. Keep its random suffix and the same Terraform state.
-   `infra/workload` currently manages only a dedicated group or reads an approved existing group, not an MCP server.
+   `infra/workload` manages a dedicated group or reads an approved existing group; the public portal is an explicit paid opt-in.
+   Neither creates an MCP server.
    Wait for each runtime module's real guide, validation and cleanup. There is no enabled Deploy button in the board.
 3. In the same terminal, review the actual `infra/workload` provider configuration and its subscription/tenant.
    Check AzureRM and AzAPI target the selected subscription, and AzureAD targets the approved tenant.
@@ -4412,7 +4430,7 @@ $files['docs/fr/BUILD-PLAN.md'] = @'
 # Parcours prévu - Governed MCP on Azure
 
 Version pédagogique française. Le [plan technique original](../BUILD-PLAN.md) reste la référence de construction.
-Un module par session, branche et PR. Aucun module n'est encore implémenté ou validé.
+Un module par session, branche et PR. Le module 00 est implémenté localement ; aucun module n'est validé dans Azure.
 Une conception n'est pas une commande de déploiement. Lire le guide publié et valider avant de poursuivre.
 
 ## 00 - Prérequis et environnement
@@ -4420,9 +4438,11 @@ Une conception n'est pas une commande de déploiement. Lire le guide publié et 
 **Préparer :** outils épinglés, dev container, précontrôle, région, quotas, budget et demande d'identité.
 Choisir tenant et abonnement de test ; distinguer administration Entra, création de ressources et attribution de rôles.
 **À démontrer :** vrai précontrôle réussi et demande exploitable par l'administrateur d'identité.
-**Préparation partielle disponible :** choix du poste, configuration dev container épinglée, contrôles d'outils communs,
-suffixe aléatoire privé conservé et socle Terraform du groupe testé avec un provider simulé.
-Construction du conteneur, précontrôle complet et validation Azure restent à effectuer.
+**Implémentation disponible :** guide EN/FR, précontrôle en lecture seule avec contexte explicite,
+demande d'identité, versions d'outils épinglées et paramètres privés stables.
+Le socle Terraform ajoute un App Service public B1 facultatif, désactivé par défaut.
+Les tests locaux de schéma, plans simulés, scripts et serveur sont distincts de la validation Azure et
+de la construction du conteneur, toujours en attente. Aucun runtime MCP ni racine Entra n'est implémenté.
 
 ## 01 - Découvrir MCP sans Azure
 
@@ -4661,7 +4681,8 @@ $files['docs/fr/DEPLOYMENT.md'] = @'
 Le serveur Model Context Protocol (MCP) doit être déployé dans **votre environnement de test approuvé**.
 Cette page prépare le contexte de déploiement. Elle ne déploie rien et ne certifie pas vos permissions.
 Commencez par [choisir dev container ou outils locaux](GETTING-STARTED.md).
-Seul le socle Terraform groupe de ressources est disponible ; infrastructure MCP et validations des modules restent à publier.
+Le preflight en lecture seule, le validateur et la demande d'identité du module 00 sont disponibles.
+Terraform contient le socle groupe et le portail App Service public facultatif ; aucun runtime MCP n'est implémenté.
 
 > [!IMPORTANT]
 > Le tenant Microsoft Entra contient les identités, applications et consentements. L'abonnement Azure porte les
@@ -4803,7 +4824,7 @@ Gardez les ports Inspector privés, via VS Code desktop et un transfert privé, 
 ### Dans le dev container
 
 L'image Ubuntu 24.04 et les Features officielles sont fixées par empreinte dans `.devcontainer/devcontainer.json`.
-Versions choisies : Azure CLI 2.88.0, Terraform 1.16.5, SDK .NET 10.0.402, PowerShell 7.6.6,
+Versions choisies : Azure CLI 2.88.0, Terraform 1.16.6, SDK .NET 10.0.402, PowerShell 7.6.6,
 Node.js 22.22.0 et Functions Core Tools 4.14.0. Le script de création installe Core Tools puis lance
 le **même** `check-tools.ps1` que le chemin local. Les dépendances téléchargées et extensions éditeur peuvent
 évoluer : ces empreintes ne figent pas tous les dépôts de paquets. Révisez les versions délibérément.
@@ -4830,14 +4851,15 @@ Installez les versions compatibles avec votre système depuis les sources offici
 | Git | 2+ | [Téléchargements Git](https://git-scm.com/downloads) |
 | PowerShell | 7.4+ | [Installation](https://learn.microsoft.com/powershell/scripting/install/installing-powershell) |
 | Azure CLI | 2.88.0+ | [Installation](https://learn.microsoft.com/cli/azure/install-azure-cli) |
-| Terraform | 1.16.5+, inférieur à 2 | [Installation](https://developer.hashicorp.com/terraform/install) |
+| Terraform | 1.16.6+, inférieur à 2 | [Installation](https://developer.hashicorp.com/terraform/install) |
 | SDK .NET | 10 installé | [Téléchargement .NET](https://dotnet.microsoft.com/download/dotnet/10.0) |
 | Node.js | 22.19.0+ | [Téléchargement](https://nodejs.org/en/download) |
 | Functions Core Tools | 4.5.0+, inférieur à 5 | [Installation officielle](https://learn.microsoft.com/azure/azure-functions/functions-run-local) |
 
 Choisissez Core Tools v4, pas la CLI Functions v5 distincte en **Preview**.
-Certains lanceurs npm téléchargent le binaire au premier appel. Laissez finir ce téléchargement approuvé ;
-un paquet listé ne prouve pas que son binaire fonctionne. Aucun script ne modifie automatiquement votre poste ou moteur.
+Certains lanceurs npm téléchargent le binaire au premier appel. Le contrôle refuse les wrappers incomplets connus
+au lieu de lancer ce téléchargement. Terminez séparément l'installation approuvée ; un paquet listé ne prouve
+pas que son binaire fonctionne. Aucun script ne modifie automatiquement votre poste ou moteur.
 
 ## 2. Vérifier le terminal réellement utilisé
 
@@ -4893,9 +4915,12 @@ ne permet pas de créer un groupe voisin. Préférez le chemin groupe existant p
 
 ## 4. Comprendre le périmètre Terraform
 
-`infra/workload` contient pour l'instant **seulement le socle groupe de ressources** et les futurs noms.
+`infra/workload` contient le socle groupe, les futurs noms MCP et un **App Service public facultatif**.
+Le portail payant est désactivé par défaut ; [le guide](HOSTING.md) explique activation persistante et déploiement.
 Il ne déploie ni Functions, réseau, API Management, identité ni serveur MCP.
-Les procédures complètes et validations Azure des modules restent à publier.
+Le [module 00](../../modules/00-prerequisites/README.fr.md), le preflight en lecture seule et la demande
+administrateur sont disponibles. Exécutez les contrôles réels avant le plan du groupe.
+Les validations Azure et du conteneur restent à réaliser.
 
 Suivez [le guide de contexte Azure](DEPLOYMENT.md) dans **le même terminal** que Terraform.
 Ensuite, uniquement dans une session de déploiement approuvée, examinez le plan réel :
@@ -4947,7 +4972,8 @@ de déploiement partagée et ne reçoit aucun accès aux tenants participants.
 | Élément | Hébergement conseillé | Frontière d'identité |
 |---|---|---|
 | Guides EN/FR, schémas et choix d'environnement | GitHub Pages | Contenu statique public, sans connexion Azure ni droit de déploiement. |
-| Copie interne facultative des guides | Une application App Service **ou** Azure Container Apps désignée | Hébergement, accès mono-tenant et coûts à examiner séparément. |
+| Copie publique Azure facultative | App Service Linux B1 du participant, activé explicitement dans Terraform | Guides publics. Entra autorise le déploiement, pas l'accès visiteur. |
+| Copie interne facultative | App Service **ou** Azure Container Apps désigné | Conception distincte ; connexion visiteur sans secret non implémentée ici. |
 | Ressources MCP participant | Abonnement et groupe non-production approuvés du participant | Terraform exécuté depuis son terminal authentifié, après revue du plan. |
 
 App Service et Azure Container Apps (ACA) sont des services différents.
@@ -5017,6 +5043,163 @@ Un parcours de connexion au portail privé sans secret n'est pas encore établi 
 Les identifiants réels et la résolution de cible restent dans la session privée de déploiement, pas ce dépôt public.
 Aucune connexion Azure de l'auteur ni découverte/modification d'applications pendant cette préparation.
 
+## Portail public facultatif sur App Service
+
+Ce chemin implémenté héberge la **même application monopage (SPA) publique**, pas un site interne authentifié.
+Il utilise App Service Linux Basic B1 et Node.js 22 LTS (support longue durée).
+Ni registre de conteneurs, construction d'image, secret client, profil de publication ou clé de déploiement.
+ACA n'est pas implémenté dans cette itération. Suivez d'abord le
+[module 00](../../modules/00-prerequisites/README.fr.md).
+Une seule racine `infra/workload` et un seul état. L'activation reste dans les paramètres privés ;
+un prochain plan ordinaire ne désactive pas implicitement le portail.
+
+**Coût :** le worker B1 dédié est facturé en continu. Vérifiez prix régionaux et règles de l'abonnement.
+Arrêter le site ne supprime pas la facturation du plan. HTTPS et Transport Layer Security (TLS) 1.2+ sont imposés ;
+File Transfer Protocol (FTP) et publication basique sont désactivés.
+Le serveur en lecture seule n'enregistre ni corps, paramètres de requête, identifiants ou résultats.
+Il expose seulement 50 fichiers publics et `/health`, jamais l'API du canvas.
+GitHub Pages reste le choix le plus simple pour un workshop public partagé.
+
+### Préparer et examiner localement
+
+Terminez d'abord le déploiement du **socle seul** du [guide de démarrage](GETTING-STARTED.md),
+portail encore désactivé, ou utilisez le groupe fourni par l'administrateur.
+Examinez et approuvez séparément le plan sauvegardé avant de l'appliquer.
+Le preflight du portail exige que ce groupe existe.
+
+Répétez votre commande initiale `prepare-workshop.ps1`, avec **les mêmes** préfixe, région, propriétaire,
+date et éventuel groupe existant, en ajoutant `-EnablePublicPortal`.
+Cette activation explicite peut enrichir un fichier de paramètres du socle existant : suffixe et état sont conservés.
+Ne régénérez pas les noms et ne changez pas de copie ou d'état.
+
+```powershell
+node scripts/build-portal.mjs
+if ($LASTEXITCODE -ne 0) { throw 'Public bundle build failed.' }
+node scripts/portal-server.mjs --verify portal-dist
+if ($LASTEXITCODE -ne 0) { throw 'Public bundle verification failed.' }
+node portal-dist/server.mjs
+```
+
+```bash
+node scripts/build-portal.mjs &&
+node scripts/portal-server.mjs --verify portal-dist &&
+node portal-dist/server.mjs
+```
+
+Le serveur local écoute sur la boucle locale, port 8080. Examinez les deux langues et les schémas ;
+arrêtez-le avec Ctrl+C. `portal-dist`, ignoré par Git, contient exactement 52 fichiers :
+les 50 éléments publics, le manifeste d'empreintes et le serveur sans dépendance externe.
+Le constructeur refuse un dossier existant ; choisissez un nouveau `--output` pour reconstruire.
+En App Service, le serveur respecte `PORT` et n'écoute extérieurement que lorsque cette variable est définie.
+
+### Vérifier capacité et coût en privé
+
+Le groupe doit déjà exister pour le preflight du portail : examinez/appliquez d'abord le plan du
+[socle seul](GETTING-STARTED.md), **avant** d'activer le portail, avec son approbation distincte.
+Un groupe fourni par l'administrateur n'est ni créé ni importé.
+
+L'administrateur examine séparément l'enregistrement de `Microsoft.Web` si nécessaire.
+Vérifiez disponibilité B1 Linux, quota régional de workers, règles et coût d'un worker.
+Pour le futur `-Stage mcp`, consultez **Diagnose and solve problems > Flex Consumption Quota** :
+la demande maximale en mémoire est partagée entre participants. Les noms aléatoires ne changent pas les quotas.
+Le contrôle `mcp` lit les régions Flex et le runtime .NET 10 isolé ; il ne construit pas les modules suivants.
+
+Conservez la preuve dans `.workshop/capacity-review.json`, ignoré par Git, jamais dans le tableau.
+Cet exemple **échoue volontairement** jusqu'à la vraie revue de la cible, de la capacité, de l'heure UTC et du coût :
+
+```json
+{
+  "subscriptionId": "<abonnement prive approuve>",
+  "location": "<code de region approuve>",
+  "stage": "portal",
+  "unit": "workers",
+  "availableUnits": 0,
+  "checkedAtUtc": "<yyyy-MM-ddTHH:mm:ssZ>",
+  "costApproved": false
+}
+```
+
+Pour Flex, utilisez `stage: "mcp"` et `unit: "MB"`. Plafond par défaut : 2048 Mo fois 10 instances.
+Passez les vrais `-FlexMemoryMB` et `-FlexMaximumInstances` à `scripts/preflight.ps1` si le plan diffère.
+La preuve doit correspondre à abonnement, région et étape, dater de moins de 24 heures et jamais du futur.
+C'est une **revue humaine de quota/coût**, pas une lecture automatique du quota ni une réservation.
+Les capacités API Management/réseau/télémétrie et les règles attendent le vrai plan du module concerné.
+
+### Planifier, approuver, déployer
+
+Ces commandes lisent la cible approuvée sans connexion, changement d'abonnement, enregistrement ou attribution.
+Conservez le contexte sélectionné en privé dans le même terminal.
+
+```powershell
+$ErrorActionPreference = 'Stop'
+& .\scripts\preflight.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID `
+    -Stage portal -CapacityReviewPath .\.workshop\capacity-review.json
+terraform -chdir=infra/workload init -lockfile=readonly
+if ($LASTEXITCODE -ne 0) { throw 'Terraform init failed.' }
+terraform -chdir=infra/workload plan -var-file=../../.workshop/participant.tfvars.json -out=../../.workshop/portal.tfplan
+if ($LASTEXITCODE -ne 0) { throw 'Terraform plan failed.' }
+terraform -chdir=infra/workload show ../../.workshop/portal.tfplan
+if ($LASTEXITCODE -ne 0) { throw 'Terraform plan review failed.' }
+# STOP : obtenir l'approbation du plan exact, de la cible et du cout B1.
+# Seulement apres approbation :
+terraform -chdir=infra/workload apply ../../.workshop/portal.tfplan
+if ($LASTEXITCODE -ne 0) { throw 'Terraform apply failed.' }
+& .\scripts\deploy-portal.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID `
+    -CapacityReviewPath .\.workshop\capacity-review.json
+```
+
+```bash
+bash ./scripts/preflight.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId "$ARM_SUBSCRIPTION_ID" \
+  -Stage portal -CapacityReviewPath ./.workshop/capacity-review.json &&
+terraform -chdir=infra/workload init -lockfile=readonly &&
+terraform -chdir=infra/workload plan -var-file=../../.workshop/participant.tfvars.json -out=../../.workshop/portal.tfplan &&
+terraform -chdir=infra/workload show ../../.workshop/portal.tfplan
+# STOP : obtenir l'approbation distincte du plan exact, de la cible et du cout B1.
+# Seulement apres approbation :
+terraform -chdir=infra/workload apply ../../.workshop/portal.tfplan &&
+bash ./scripts/deploy-portal.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId "$ARM_SUBSCRIPTION_ID" \
+  -CapacityReviewPath ./.workshop/capacity-review.json
+```
+
+Un plan sauvegardé s'applique sans nouvelle question Terraform : **ne collez pas le bloc entier avant approbation**.
+L'envoi du code demande une confirmation distincte pour l'application participant nommée.
+`-WhatIf` réalise les lectures, mais ne crée pas de ZIP et ne transfère rien.
+Le script vérifie cible, étiquettes, plan, runtime, TLS et publication basique désactivée.
+Il crée ensuite un ZIP privé et utilise `az webapp deploy` avec Entra, sans récupérer d'identifiants de publication.
+Il refuse un ZIP existant : choisissez un nouveau `-PackagePath` privé lors d'une nouvelle publication.
+Pour revenir en arrière, utilisez le précédent bundle approuvé avec un nouveau chemin ZIP et les mêmes contrôles.
+
+Vérifiez `terraform output public_portal_url`, `/health` HTTPS (200 et `{"status":"ok"}`),
+accueil, deux langues, schémas et préparation du client sur le vrai site avant de partager l'adresse.
+Aucun plan Azure réel, apply, transfert ou contrôle de site déployé n'a été exécuté pendant la création.
+Les preuves actuelles sont locales : schéma Terraform, plans simulés, serveur et déploiement synthétique.
+
+## Clean up
+
+Le preflight ne crée rien. Si cette racine a été appliquée, examinez destroy contre les **mêmes paramètres et état**.
+Il retire toutes les ressources workshop de cet état, pas seulement le portail.
+Après ajout de modules ultérieurs dans le même état, ne l'utilisez que pour une suppression complète voulue.
+
+```powershell
+terraform -chdir=infra/workload plan -destroy -var-file=../../.workshop/participant.tfvars.json -out=../../.workshop/destroy.tfplan
+if ($LASTEXITCODE -ne 0) { throw 'Destroy plan failed.' }
+terraform -chdir=infra/workload show ../../.workshop/destroy.tfplan
+# STOP : examiner les suppressions et obtenir une approbation distincte.
+# Seulement apres approbation :
+terraform -chdir=infra/workload apply ../../.workshop/destroy.tfplan
+if ($LASTEXITCODE -ne 0) { throw 'Destroy failed.' }
+```
+
+```bash
+terraform -chdir=infra/workload plan -destroy -var-file=../../.workshop/participant.tfvars.json -out=../../.workshop/destroy.tfplan &&
+terraform -chdir=infra/workload show ../../.workshop/destroy.tfplan
+# STOP : obtenir une approbation de suppression distincte avant d'appliquer ce plan.
+```
+
+Le groupe existant administrateur reste une source de données, jamais une cible destroy.
+Le groupe dédié non vide reste protégé. Conservez paramètres et état privés jusqu'à vérification de la suppression.
+Ne supprimez pas un groupe entier pour masquer des ressources non suivies.
+
 ## Ressources du participant
 
 Suivez [le choix d'environnement](GETTING-STARTED.md) puis [le contexte Azure](DEPLOYMENT.md).
@@ -5025,7 +5208,7 @@ puis examine le plan destiné à son groupe. Rôles Azure et consentement Entra 
 Une automatisation propre au participant nécessite sa fédération limitée et ses approbations ;
 le portail public ne devient pas une console de déploiement multi-tenant.
 
-Seul le socle Terraform groupe de ressources existe actuellement. Functions, identité, passerelle et observabilité
+Le socle Terraform groupe et l'App Service public facultatif existent maintenant. Functions, identité, passerelle et observabilité
 ne sont pas encore implémentés ni validés. Aucun bouton « tout déployer » ni fausse sortie de clé/adresse.
 La clé système temporaire du module 02 est saisie uniquement dans le client, à l'exécution :
 jamais dans le portail, URL, chat, sortie publique ou configuration sauvegardée.
@@ -5036,9 +5219,14 @@ jamais dans le portail, URL, chat, sortie publique ou configuration sauvegardée
 - [Source de publication Pages](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site).
 - [OIDC GitHub vers Azure](https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/configuring-openid-connect-in-azure).
 - [Authentification App Service](https://learn.microsoft.com/azure/app-service/overview-authentication-authorization), [authentification ACA](https://learn.microsoft.com/azure/container-apps/authentication).
+- [Node.js App Service](https://learn.microsoft.com/azure/app-service/configure-language-nodejs).
+- [Déploiement ZIP avec Entra](https://learn.microsoft.com/azure/app-service/deploy-authentication-types).
+- [Exécution du package](https://learn.microsoft.com/azure/app-service/deploy-run-package).
+- [Prix App Service Linux](https://azure.microsoft.com/pricing/details/app-service/linux/).
+- [Capacité Flex](https://learn.microsoft.com/azure/azure-functions/flex-consumption-plan).
 - [Références](REFERENCES.md), [droits sur les images](../../assets/architecture/README.fr.md).
 
-Dernière vérification : 2026-10-14. Préparation statique uniquement, sans publication ni déploiement Azure.
+Dernière vérification : 2026-10-14. Préparation locale uniquement, sans publication ni déploiement Azure.
 '@
 
 $files['docs/fr/LEARNING-GUIDE.md'] = @'
@@ -5452,6 +5640,10 @@ Dernière vérification : 2026-10-14. Aucun moteur accessible pour valider l'ex�
 
 ## 00 - Environnement, tenant et abonnement
 
+- [Module 00 publié](../../modules/00-prerequisites/README.fr.md), [hébergement public facultatif](HOSTING.md) et [demande administrateur](../requests/identity-request.md).
+- [Terraform 1.16.6](https://releases.hashicorp.com/terraform/1.16.6/) : binaire de test vérifié par empreinte officielle ; conteneur toujours à construire.
+- [Autorisations effectives ARM](https://learn.microsoft.com/rest/api/authorization/permissions/list-for-resource-group) : actions moins exclusions par enregistrement, pagination limitée au même périmètre.
+- [Node App Service](https://learn.microsoft.com/azure/app-service/configure-language-nodejs), [déploiement Entra](https://learn.microsoft.com/azure/app-service/deploy-authentication-types), [package en lecture seule](https://learn.microsoft.com/azure/app-service/deploy-run-package) : B1 facultatif, publication basique désactivée, aucune clé.
 - [Choisir tenant et abonnement](https://learn.microsoft.com/cli/azure/manage-azure-subscriptions-azure-cli) : contexte Azure CLI.
 - [Connexion interactive](https://learn.microsoft.com/cli/azure/authenticate-azure-cli-interactively) : navigateur et multifacteur, jamais mot de passe dans une commande.
 - [Attribution de rôles Azure](https://learn.microsoft.com/azure/role-based-access-control/role-assignments-cli) : autorité distincte et portée minimale.
@@ -5550,7 +5742,7 @@ Keep Inspector ports private; use VS Code desktop/private forwarding, never publ
 ### Dev container details
 
 The Ubuntu 24.04 base and official Dev Container Features are pinned by digest in
-`.devcontainer/devcontainer.json`. Tool selections are Azure CLI 2.88.0, Terraform 1.16.5,
+`.devcontainer/devcontainer.json`. Tool selections are Azure CLI 2.88.0, Terraform 1.16.6,
 .NET SDK 10.0.402, PowerShell 7.6.6, Node.js 22.22.0 and Functions Core Tools 4.14.0.
 The creation hook installs the pinned Core Tools package and runs the **same** `check-tools.ps1` as the local route.
 Package repositories, package dependencies and editor extensions can change; image/feature digests do not make
@@ -5576,13 +5768,14 @@ do not bypass certificate validation or quietly switch tools/engines. Use the lo
 | Git | 2+ | [Git downloads](https://git-scm.com/downloads) |
 | PowerShell | 7.4+ | [Install PowerShell](https://learn.microsoft.com/powershell/scripting/install/installing-powershell) |
 | Azure CLI | 2.88.0+ | [Install Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) |
-| Terraform | 1.16.5+, below 2 | [Install Terraform](https://developer.hashicorp.com/terraform/install) |
+| Terraform | 1.16.6+, below 2 | [Install Terraform](https://developer.hashicorp.com/terraform/install) |
 | .NET SDK | 10 installed | [.NET download](https://dotnet.microsoft.com/download/dotnet/10.0) |
 | Node.js | 22.19.0+ | [Node.js download](https://nodejs.org/en/download) |
 | Functions Core Tools | 4.5.0+, below 5 | [Core Tools installation](https://learn.microsoft.com/azure/azure-functions/functions-run-local) |
 
 Use Core Tools v4, not the separate **Preview** Functions CLI v5. Some npm Core Tools wrappers download their
-binary on the first invocation. Allow that approved download to finish; a package entry alone proves nothing.
+binary on the first invocation. The checker refuses incomplete known npm shims instead of starting a download.
+Finish the approved installation separately; a package entry alone proves nothing.
 No script in this repository installs workstation tools or changes your engine automatically.
 
 ## 2. Check the terminal you will actually use
@@ -5642,9 +5835,11 @@ alone cannot create a sibling group. Prefer the existing-group route rather than
 
 ## 4. Understand the Terraform boundary
 
-`infra/workload` currently contains **only a resource-group foundation** and future naming outputs.
+`infra/workload` contains the resource-group foundation, future MCP names and an **optional public App Service**.
+The paid portal is disabled by default; [hosting](HOSTING.md) documents explicit persistent opt-in and deployment.
 It does not deploy Functions, networking, API Management, identities, or an MCP server.
-The rest of the module instructions and Azure validation remain unpublished.
+The [module 00 guide](../modules/00-prerequisites/README.md), read-only preflight and administrator request are available.
+Run its real environment checks before the foundation plan. Azure/container validation is still pending.
 
 Select your approved context with the [Azure context guide](DEPLOYMENT.md), **in the same terminal** as Terraform.
 Then, only in an approved deployment session, review the actual foundation plan:
@@ -5697,7 +5892,8 @@ accept a shared deployment key, or obtain access to their tenant.
 | Component | Recommended location | Identity boundary |
 |---|---|---|
 | Public EN/FR guides, diagrams and workspace choices | GitHub Pages | Public static content. No Azure connection or deployment authority. |
-| Optional internal copy of the guides | An explicitly selected App Service **or** Azure Container Apps application | Review its hosting, single-tenant access policy and costs separately. |
+| Optional public Azure copy | Participant-owned Linux App Service B1, explicit Terraform opt-in | Public guides only. Entra authorizes deployment, not visitor access. |
+| Optional internal copy | An explicitly selected App Service **or** Azure Container Apps application | Separate design; secretless visitor sign-in is not implemented here. |
 | Participant MCP workload | The participant's approved non-production Azure subscription/resource group | Participant runs the reviewed Terraform plan in their own authenticated terminal. |
 
 Azure App Service and Azure Container Apps (ACA) are different services, not one hosting target.
@@ -5771,6 +5967,160 @@ a supported secretless private-portal sign-in path has not been established here
 Do not add tenant IDs or app credentials to this public repository. Resolve and verify the selected target in
 the private deployment session. This preparation does not use the author's Azure CLI login or discover/modify apps.
 
+## Optional public App Service deployment
+
+This implemented path serves the **same public SPA** (single-page application), not an internal authenticated site.
+It uses Linux App Service Basic B1 with Node.js 22 LTS (long-term support). It needs no container registry,
+image build, client secret, publish profile or deployment key. ACA is not implemented in this iteration.
+The preflight/module guide is [module 00](../modules/00-prerequisites/README.md).
+Only one `infra/workload` root and state are used. The opt-in is saved in private participant parameters,
+so a later ordinary plan cannot silently disable the portal.
+
+**Cost:** B1 runs a paid dedicated worker continuously. Review regional pricing and subscription policy.
+Stopping the web app does not stop plan charges. HTTPS and Transport Layer Security (TLS) 1.2+ are enforced;
+File Transfer Protocol (FTP) and basic publishing are disabled. The read-only server logs no request bodies,
+queries, credentials or access payloads. It exposes only 50 public assets and `/health`, never the canvas API.
+GitHub Pages remains the simpler choice for a shared public workshop.
+
+### Prepare and review locally
+
+First finish the approved **foundation-only** deployment from the [start guide](GETTING-STARTED.md),
+with the portal still disabled, or use an administrator-provided existing group. Review and approve that
+saved plan separately before applying it. The portal preflight requires this group to exist.
+
+From the same approved terminal, add `-EnablePublicPortal` to your original preparation command,
+with exactly the same region, owner, expiry, prefix and existing-group argument. This is also safe for an
+existing foundation parameter file: only the explicit opt-in changes, not its saved suffix or state.
+Do not regenerate parameters or move to another clone/state.
+
+```powershell
+# Repeat your original prepare-workshop.ps1 command, adding -EnablePublicPortal.
+node scripts/build-portal.mjs
+if ($LASTEXITCODE -ne 0) { throw 'Public bundle build failed.' }
+node scripts/portal-server.mjs --verify portal-dist
+if ($LASTEXITCODE -ne 0) { throw 'Public bundle verification failed.' }
+node portal-dist/server.mjs
+```
+
+```bash
+# Repeat your original preparation command with -EnablePublicPortal.
+node scripts/build-portal.mjs &&
+node scripts/portal-server.mjs --verify portal-dist &&
+node portal-dist/server.mjs
+```
+
+The last command serves loopback port 8080. Inspect EN/FR routes and diagrams, then stop it with Ctrl+C.
+The new `portal-dist` contains 52 exact files: the public static allowlist, a hash manifest and the reviewed
+stdlib-only server. The builder refuses an existing destination; choose a fresh `--output` directory when rebuilding.
+The server honors App Service's `PORT` and listens externally only when it is set.
+
+### Review capacity privately
+
+For this optional stage the group must already exist: first review/apply the **foundation-only** plan from the
+[start guide](GETTING-STARTED.md), before enabling the portal. Obtain approval separately before that apply.
+If the administrator supplied the group, do not create or import it.
+
+An administrator must register `Microsoft.Web` separately if needed.
+Review Basic Linux B1 availability, regional worker quota, policy and the cost of one worker.
+For future `-Stage mcp`, inspect **Diagnose and solve problems > Flex Consumption Quota** and review
+the sum of all participant maximum memory allocations. Random names never reset quota.
+The `mcp` stage checks the live Flex region and isolated .NET 10 runtime list; it does not implement later modules.
+
+Keep evidence in ignored `.workshop/capacity-review.json`, not the portal or Git. This example intentionally
+**fails** until a real reviewer supplies the correct target, available capacity, current UTC time and approval:
+
+```json
+{
+  "subscriptionId": "<approved private subscription>",
+  "location": "<approved region code>",
+  "stage": "portal",
+  "unit": "workers",
+  "availableUnits": 0,
+  "checkedAtUtc": "<yyyy-MM-ddTHH:mm:ssZ>",
+  "costApproved": false
+}
+```
+
+Use `MB` and `stage: "mcp"` for Flex. The default reviewed ceiling is 2048 MB times 10 instances;
+pass the exact planned `-FlexMemoryMB` and `-FlexMaximumInstances` to `scripts/preflight.ps1` if different.
+Evidence expires after 24 hours, rejects future timestamps and must match subscription, region and stage.
+This is a **human-reviewed quota/cost gate**, not an automatic quota API result or capacity reservation.
+API Management/network/telemetry capacity and policy still require the later module's actual plan.
+
+### Plan, approve, deploy
+
+The following commands can read the approved Azure target. They do not sign in, change subscription, register
+providers or grant roles. Supply the exact context selected privately in the same terminal.
+
+```powershell
+$ErrorActionPreference = 'Stop'
+& .\scripts\preflight.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID `
+    -Stage portal -CapacityReviewPath .\.workshop\capacity-review.json
+terraform -chdir=infra/workload init -lockfile=readonly
+if ($LASTEXITCODE -ne 0) { throw 'Terraform init failed.' }
+terraform -chdir=infra/workload plan -var-file=../../.workshop/participant.tfvars.json -out=../../.workshop/portal.tfplan
+if ($LASTEXITCODE -ne 0) { throw 'Terraform plan failed.' }
+terraform -chdir=infra/workload show ../../.workshop/portal.tfplan
+if ($LASTEXITCODE -ne 0) { throw 'Terraform plan review failed.' }
+# STOP: obtain explicit approval of this exact saved plan, target and B1 cost.
+# Only after approval:
+terraform -chdir=infra/workload apply ../../.workshop/portal.tfplan
+if ($LASTEXITCODE -ne 0) { throw 'Terraform apply failed.' }
+& .\scripts\deploy-portal.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID `
+    -CapacityReviewPath .\.workshop\capacity-review.json
+```
+
+```bash
+bash ./scripts/preflight.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId "$ARM_SUBSCRIPTION_ID" \
+  -Stage portal -CapacityReviewPath ./.workshop/capacity-review.json &&
+terraform -chdir=infra/workload init -lockfile=readonly &&
+terraform -chdir=infra/workload plan -var-file=../../.workshop/participant.tfvars.json -out=../../.workshop/portal.tfplan &&
+terraform -chdir=infra/workload show ../../.workshop/portal.tfplan
+# STOP: obtain separate approval of the exact saved plan, target and B1 cost.
+# Only after approval:
+terraform -chdir=infra/workload apply ../../.workshop/portal.tfplan &&
+bash ./scripts/deploy-portal.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId "$ARM_SUBSCRIPTION_ID" \
+  -CapacityReviewPath ./.workshop/capacity-review.json
+```
+
+Applying a saved plan has no second Terraform approval prompt: **do not paste the whole example before approval**.
+The code deployment separately asks before replacing the documentation on the specifically named participant app.
+`-WhatIf` performs read checks but creates no package and uploads nothing.
+The script verifies target, ownership tags, plan, runtime, TLS and disabled basic publishing, then creates
+a private ZIP and uses `az webapp deploy` with Entra authentication. It never retrieves publishing credentials.
+It refuses to overwrite an existing ZIP; choose a new private `-PackagePath` on repeat deployments.
+Use the saved previous approved bundle with a fresh package path to roll back, through the same review and checks.
+
+Check `terraform output public_portal_url`, its HTTPS `/health` (200 with `{"status":"ok"}`),
+start page, both languages, diagrams and client preparation on the real host before sharing it.
+No real Azure plan/apply/upload or deployed-site verification was performed during authoring.
+Only Terraform schema/mock plans, local server and synthetic deployment checks are evidence so far.
+
+## Clean up
+
+Preflight creates nothing. If you applied this iteration's shared root, review a destroy plan against the
+**same state and parameters**. This removes all workshop-owned resources currently tracked by that root,
+not just the portal. Do not run it once later modules share that state unless full workshop teardown is intended.
+
+```powershell
+terraform -chdir=infra/workload plan -destroy -var-file=../../.workshop/participant.tfvars.json -out=../../.workshop/destroy.tfplan
+if ($LASTEXITCODE -ne 0) { throw 'Destroy plan failed.' }
+terraform -chdir=infra/workload show ../../.workshop/destroy.tfplan
+# STOP: review exactly what is deleted and obtain separate approval.
+# Only after approval:
+terraform -chdir=infra/workload apply ../../.workshop/destroy.tfplan
+if ($LASTEXITCODE -ne 0) { throw 'Destroy failed.' }
+```
+
+```bash
+terraform -chdir=infra/workload plan -destroy -var-file=../../.workshop/participant.tfvars.json -out=../../.workshop/destroy.tfplan &&
+terraform -chdir=infra/workload show ../../.workshop/destroy.tfplan
+# STOP: obtain separate deletion approval before applying this exact plan.
+```
+
+An existing administrator group is a data source, never a destroy target. Nonempty dedicated groups remain protected.
+Preserve private state/parameters until deletion is verified; do not delete a whole group to hide untracked resources.
+
 ## Deploy the participant workload
 
 Start with [workspace choice](GETTING-STARTED.md) and [Azure context](DEPLOYMENT.md).
@@ -5779,7 +6129,7 @@ suffix/private state, and reviews a plan targeting their own resource group. Azu
 An optional participant-owned automation pipeline requires its own narrowly scoped federation and approval;
 the public portal must never become a cross-tenant deployment control plane.
 
-Only the Terraform resource-group foundation currently exists. Full Functions, identity, gateway and observability
+The Terraform group foundation and optional public App Service now exist. Full Functions, identity, gateway and observability
 modules are not implemented or validated. Do not offer a one-click complete deployment or fabricate endpoint/key outputs.
 The short-lived module 02 system key is entered only in the participant's client at runtime, never in the portal,
 URL, chat, public output or saved client configuration.
@@ -5790,10 +6140,15 @@ URL, chat, public output or saved client configuration.
 - [Pages publishing source](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site).
 - [GitHub OIDC for Azure](https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/configuring-openid-connect-in-azure).
 - [App Service built-in authentication](https://learn.microsoft.com/azure/app-service/overview-authentication-authorization).
+- [Node.js on App Service](https://learn.microsoft.com/azure/app-service/configure-language-nodejs).
+- [Secretless ZIP deployment support](https://learn.microsoft.com/azure/app-service/deploy-authentication-types).
+- [Run from package](https://learn.microsoft.com/azure/app-service/deploy-run-package).
+- [App Service pricing](https://azure.microsoft.com/pricing/details/app-service/linux/).
+- [Flex capacity](https://learn.microsoft.com/azure/azure-functions/flex-consumption-plan).
 - [ACA authentication](https://learn.microsoft.com/azure/container-apps/authentication).
 - [Source register](sources.md), [image usage notices](../assets/architecture/README.md).
 
-Last verified: 2026-10-14. Static build preparation only; no public-site or Azure deployment performed.
+Last verified: 2026-10-14. Local preparation only; no public-site or Azure deployment performed.
 '@
 
 $files['docs/LEARNING-GUIDE.md'] = @'
@@ -6219,7 +6574,7 @@ A module is `validated` only when its validate script passes on a fresh subscrip
 
 | Module | Title | Status | Validated on | Evidence (PASS lines or PR) | Notes |
 |---|---|---|---|---|---|
-| 00 | Prerequisites and environment | todo |  |  | Partial preparation: workstation choice, tool checks, container config and Terraform group foundation. Container runtime/full preflight/Azure validation pending. |
+| 00 | Prerequisites and environment | in-progress |  | Offline only: script/HTTP checks and 5 mock plans; not fresh-subscription evidence. | EN/FR guide, explicit read-only preflight, identity request and optional public B1 hosting implemented. Container and approved Azure target/plan still pending. |
 | 01 | Discover MCP (no Azure) | todo | | | |
 | 02 | An "open" MCP server (level 0) | todo | | | |
 | 03 | Identity with Microsoft Entra (level 1) | todo | | | |
@@ -6249,8 +6604,9 @@ A module is `validated` only when its validate script passes on a fresh subscrip
   group; accept an approved existing group without managing it. Shared quotas still require cohort capacity checks.
 
 ## Deviations from the build plan
-- P1 preparation only: source assessment, updated architecture recommendations, and the project build board.
-  No module has been built or validated. No Azure or Microsoft Entra resource has been changed.
+- Initial P1 preparation: source assessment, architecture recommendations and build board.
+  Module 00 is now implemented locally as described below, but no module is Azure-validated.
+  No Azure or Microsoft Entra resource has been changed.
 - Prefer current Inspector 2.11.0 as a compatibility-test candidate over the older APIM documentation's 0.9.0 tip.
 - Upstream Functions sample now targets .NET 10; the Learn quickstarts still show .NET 8. Use the pinned project
   as the runtime starting point and verify Azure runtime support before deployment.
@@ -6274,7 +6630,110 @@ A module is `validated` only when its validate script passes on a fresh subscrip
   persistent connection storage or progress mutation. These are website checks, not module validation.
   Source review/merge is required before site publication; no Pages activation, workflow dispatch or Azure/Entra
   change was performed.
-  The complete MCP deployment and the exact optional App Service/ACA hosting target remain unresolved.
+  The complete MCP deployment and the exact optional Azure hosting target remain unresolved.
+- Module 00 local implementation (2026-10-14): EN/FR guide, validator/cleanup wrappers and identity-administrator
+  request. Read-only preflight requires explicit tenant/subscription, rejects mixed authentication overrides,
+  verifies provider registration, region, effective grant pagination and stage-specific capacity evidence.
+  Its future MCP baseline is not a complete runtime/Policy permission proof.
+- Optional public SPA: Linux B1 App Service, default off and persistently opted in without changing suffix/state.
+  TLS enforced, FTP/SCM basic publishing disabled, Node 22 explicit startup and read-only package.
+  Exact 52-file ZIP, local HTTP server and guarded Entra deployment script; no visitor credentials or MCP API.
+  ACA/private visitor sign-in remain unimplemented. B1 costs and actual deployment require separate approval.
+- Offline evidence: `PASS local script/HTTP checks (expected HTTP N/A; no Azure access)`;
+  `PASS Terraform schema and mock-only plans (expected HTTP N/A; no live plan/apply)`;
+  `PASS offline checks only. Module 00 is NOT Azure-validated by this result.`
+  Five Terraform 1.16.6/AzureRM 5.9.0 mock plans pass. Synthetic cases cover read-only failures,
+  permission pagination, stale/wrong quota evidence, ownership/TLS/runtime checks, WhatIf and exact ZIP contents.
+  Combined board/workspace/hosting suite: 29 tests pass. Edge checks pass for EN/FR Pages-prefix routes,
+  the real local App Service server, module 00/administrator links, all diagrams and 320/390/1366 layouts.
+  Browser traffic remains local GET-only, without credential headers or persistent connection state.
+  A fresh Windows checkout with `core.autocrlf=true` also passes offline validation, locked local-provider
+  initialization, diagram provenance and the exact portal integrity check, leaving a clean Git tree.
+- Authoring tool boundary: ordinary installation had Terraform 1.16.5 and an incomplete npm Core Tools shim.
+  Official-checksum-verified Terraform 1.16.6 and Core Tools 4.14.0 ARM64 were installed in session scope for checks,
+  not substituted globally. Container execution and fresh-subscription preflight/real plan/apply remain unverified.
+  Module 01 must not start before real module 00 validation.
+'@
+
+$files['docs/requests/identity-request.md'] = @'
+# Identity administrator request - Governed MCP on Azure
+
+Send this request through your approved private process. Do not fill account identifiers into this public file.
+Module 00 creates no identity. Review the later module's exact plan before approving changes.
+
+## Requested scope and ownership
+
+One non-production, single-tenant workshop deployment per participant, with a stable participant suffix.
+Record the tenant, owner, expiry, existing application/object identifiers and approval privately.
+The identity administrator owns registrations, enterprise applications, assignments and consent.
+The participant owns only approved workload resources. Accept existing IDs without importing, modifying or deleting
+administrator-owned objects. Use time-bound authority where available; do not make participants tenant administrators.
+
+## API application and enterprise application
+
+- One logical MCP API audience, a unique Application ID URI and single-tenant issuer.
+- Delegated scope `user_impersonation`. It authorizes a client to act for a signed-in user; it is not a user role.
+- User app roles `Tools.Read` and `Tools.Write`, allowed member type `User`.
+- Application app role `Tools.Execute.All`, allowed member type `Application`, only for a separately approved app-only client.
+  Do not grant it to every client or use it as an implicit bypass for write tools.
+- Require assignment on the enterprise application. Unassigned Eve must not obtain access.
+- Pre-authorize only the exact reviewed public clients needed by the module: the VS Code client identified in the
+  pinned official sample and Azure CLI where its interactive delegated flow is required.
+  Do not guess client identifiers or pre-authorize all applications.
+- Use documented protected-resource metadata and OAuth challenges at the gateway. The selected App Service
+  metadata configuration is **Preview**; approve it explicitly in module 03.
+- The MCP service accepts only its own audience. Microsoft Graph and Storage receive separate downstream tokens,
+  never a forwarded MCP client token.
+
+## Downstream consent and secretless credentials
+
+Module 05 needs delegated Microsoft Graph `User.Read` for `/me` and Azure Storage `user_impersonation`
+for the caller's authorized data access. No Graph application permissions or directory-wide read permission are requested.
+Review consent according to tenant policy. A consent grant does not grant a caller access to Storage data.
+The workload's app identity uses the documented managed-identity federated credential trust for On-Behalf-Of,
+not a client secret, copied certificate, publish profile or shared deployment key.
+Record the exact issuer, subject and audience from the reviewed plan privately before creating the trust.
+
+## Test assignments and separate Azure data roles
+
+Use dedicated synthetic test personas or approved existing test users; never real business data.
+
+| Persona | MCP user app roles | Azure data access |
+|---|---|---|
+| Alice | Tools.Read, Tools.Write | Storage Blob Data Reader on the one report container |
+| Bob | Tools.Read | No report-container data role |
+| Eve | No assignment | No report-container data role |
+
+Azure role-based access control (RBAC) is separate from Entra app roles.
+The workload managed identity receives only the required report-container reader role and synthetic-ticket
+queue data role on the exact resources. A separate scoped administrator performs any required Azure role assignments.
+Do not assign subscription Owner or broad Storage rights to make the demonstration work.
+Write tools additionally require explicit human approval in the client.
+
+## Review and return
+
+Confirm which operations are approved, who executes them, which existing objects must be preserved, consent
+conditions and the cleanup owner/date. Return only needed identifiers through the private channel, never tokens
+or credentials. No directory creation or consent is authorized by merely receiving this document.
+Validate Alice/Bob/Eve and wrong-audience behavior in the real identity module before declaring success.
+
+## Cleanup
+
+Remove only workshop-owned assignments, consent/trust and registrations after the reviewed workload cleanup.
+Preserve existing users, groups, applications and administrator-owned resources.
+Review separate Terraform roots/state before destruction; this request is not a cleanup authorization.
+
+## Sources
+
+- [App roles](https://learn.microsoft.com/entra/identity-platform/howto-add-app-roles-in-apps).
+- [Require assignment](https://learn.microsoft.com/entra/identity/enterprise-apps/assign-user-or-group-access-portal).
+- [MCP built-in authentication](https://learn.microsoft.com/azure/app-service/configure-authentication-mcp).
+- [On-Behalf-Of](https://learn.microsoft.com/entra/identity-platform/v2-oauth2-on-behalf-of-flow).
+- [Managed-identity federation](https://learn.microsoft.com/entra/workload-id/workload-identity-federation-config-app-trust-managed-identity).
+- [Azure role assignment scope](https://learn.microsoft.com/azure/role-based-access-control/scope-overview).
+- [Pinned sample and source register](../sources.md).
+
+Last verified: 2026-10-14. Request template, not evidence of identity deployment or consent.
 '@
 
 $files['docs/sources.md'] = @'
@@ -6315,10 +6774,33 @@ Verified public OCI selections:
 `mcr.microsoft.com/devcontainers/base:ubuntu-24.04@sha256:d94c97dd9cacf183d0a6fd12a8e87b526e9e928307674ae9c94139139c0c6eae`.
 Feature digests are in `.devcontainer/devcontainer.json`; exact published tags were checked for Azure CLI 1.3.0,
 Terraform 1.5.0, .NET 2.5.0, PowerShell 2.0.3 and Node 2.1.1.
-Tools: Azure CLI 2.88.0, Terraform 1.16.5, .NET 10.0.402, PowerShell 7.6.6, Node 22.22.0,
+Tools: Azure CLI 2.88.0, Terraform 1.16.6, .NET 10.0.402, PowerShell 7.6.6, Node 22.22.0,
 Functions Core Tools 4.14.0. These are preparation selections, not a tested container/runtime combination.
 The base index includes linux/amd64 and linux/arm64; that does not prove every feature/tool runs on both.
 No engine was reachable on the Windows ARM64 authoring host. No engine or machine was started.
+
+## Module 00 implementation and optional portal
+
+Last verified: 2026-10-14. This iteration implements module 00 only; later runtime roots remain absent.
+The code uses existing patterns plus original checks/server logic, not copied sample application source.
+
+| Source | Verified decision |
+|---|---|
+| [Terraform release 1.16.6](https://releases.hashicorp.com/terraform/1.16.6/) and [checkpoint API](https://checkpoint-api.hashicorp.com/v1/check/terraform) | Release became current during this iteration. Updated container/minimum/check fixtures consistently; tested a session-local Windows binary against its official SHA-256 checksum without replacing the user's installation. |
+| [AzureRM 5.9.0 metadata](https://registry.terraform.io/v1/providers/hashicorp/azurerm/5.9.0) and [Linux web app schema](https://registry.terraform.io/providers/hashicorp/azurerm/5.9.0/docs/resources/linux_web_app) | Existing exact provider pin and lock are retained. Actual schema validation and five mock plans cover optional B1 Linux hosting, disabled basic publishing, TLS, runtime and default-off behavior. No unused AzureAD/AzAPI providers are added. |
+| [Functions Core Tools 4.14.0 release](https://github.com/Azure/azure-functions-core-tools/releases/tag/4.14.0) | Known npm shim was incomplete and did not prove compatibility. Verified the official minimal Windows ARM64 asset against its published SHA-256 digest and ran version/tool checks in session scope, without altering global tools. A container build and Functions tool calls remain separate. |
+| [ARM permissions API](https://learn.microsoft.com/rest/api/authorization/permissions/list-for-resource-group?view=rest-authorization-2022-04-01) | Read effective grants at subscription or existing-group scope, subtract each record's notActions, combine grants, validate same-scope HTTPS pagination. Do not infer rights from role names or claim absence of deny assignments/Policy. |
+| [Subscription limits](https://learn.microsoft.com/azure/azure-resource-manager/management/azure-subscription-service-limits) | New-group foundation checks the documented 980 group limit. Existing-group mode does not consume a new group. Names do not change quota. |
+| [Flex hosting](https://learn.microsoft.com/azure/azure-functions/flex-consumption-plan) | Linux isolated .NET 10 is listed. Quota is regional/subscription-shared memory; review the documented portal diagnosis, not an invented quota metric. Stage evidence is a private human review, not a live reservation. |
+| [Pinned Azure CLI 2.88.0 runtime helper](https://github.com/Azure/azure-cli/blob/azure-cli-2.88.0/src/azure-cli/azure/cli/command_modules/appservice/custom.py) | `list-flexconsumption-locations` exposes name; direct runtimes expose name/version. Use the documented command without an unsupported runtime-version flag. Source inspected for schema only, not copied. |
+| [Node App Service](https://learn.microsoft.com/azure/app-service/configure-language-nodejs) | Listen on PORT, use an explicit Node 22 startup command, no implicit PM2/Oryx build. Public documentation only; no identity, API or credential collection. |
+| [Deployment authentication](https://learn.microsoft.com/azure/app-service/deploy-authentication-types) | Azure CLI 2.48.1+ supports Entra with `az webapp deploy` when SCM basic publishing is disabled. Baseline 2.88.0 exceeds this. No key/profile fallback. |
+| [Run from ZIP](https://learn.microsoft.com/azure/app-service/deploy-run-package) | Read-only package root with WEBSITE_RUN_FROM_PACKAGE=1; ZIP contains content, not its enclosing directory. Build only the explicit public allowlist and reviewed stdlib server. |
+| [App Service pricing](https://azure.microsoft.com/pricing/details/app-service/linux/) | Basic B1 is provisioned paid capacity, opt-in only. No invented price, no free-hosting claim; stopping the site does not remove plan charges. |
+
+The HTML quickstart URL now presents Static Web Apps guidance, not a reason to mix its deployment with
+traditional App Service. ACA/private-portal authentication remains separate and unimplemented.
+Local public server, ZIP boundary and synthetic deployment/preflight tests do not prove a live deployment.
 
 ## Upstream snapshots
 
@@ -6521,7 +7003,7 @@ provider "registry.terraform.io/hashicorp/azurerm" {
 
 $files['infra/workload/main.tf'] = @'
 terraform {
-  required_version = ">= 1.16.5, < 2.0.0"
+  required_version = ">= 1.16.6, < 2.0.0"
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
@@ -6572,7 +7054,7 @@ output "resource_group_name" {
 }
 
 output "resource_names" {
-  description = "Planned service names only. This foundation creates no service or MCP endpoint."
+  description = "Planned MCP service names only. No MCP endpoint is created. The separate public portal is optional."
   value       = local.names
 }
 
@@ -6581,11 +7063,68 @@ output "resource_tags" {
 }
 '@
 
+$files['infra/workload/portal.tf'] = @'
+locals {
+  workload_group    = var.existing_resource_group_name == null ? azurerm_resource_group.workshop[0].name : data.azurerm_resource_group.existing[0].name
+  workload_location = var.existing_resource_group_name == null ? azurerm_resource_group.workshop[0].location : var.location
+}
+
+resource "azurerm_service_plan" "portal" {
+  count               = var.public_portal_enabled ? 1 : 0
+  name                = "plan-${local.stem}-portal"
+  resource_group_name = local.workload_group
+  location            = local.workload_location
+  os_type             = "Linux"
+  sku_name            = "B1"
+  tags                = local.tags
+}
+
+resource "azurerm_linux_web_app" "portal" {
+  count                                          = var.public_portal_enabled ? 1 : 0
+  name                                           = "web-${local.stem}-portal"
+  resource_group_name                            = local.workload_group
+  location                                       = local.workload_location
+  service_plan_id                                = azurerm_service_plan.portal[0].id
+  https_only                                     = true
+  public_network_access_enabled                  = true
+  ftp_publish_basic_authentication_enabled       = false
+  webdeploy_publish_basic_authentication_enabled = false
+  client_affinity_enabled                        = false
+  tags                                           = local.tags
+
+  site_config {
+    always_on                         = true
+    minimum_tls_version               = "1.2"
+    scm_minimum_tls_version           = "1.2"
+    ftps_state                        = "Disabled"
+    http2_enabled                     = true
+    app_command_line                  = "node server.mjs"
+    health_check_path                 = "/health"
+    health_check_eviction_time_in_min = 2
+    application_stack {
+      node_version = "22-lts"
+    }
+  }
+
+  app_settings = {
+    SCM_DO_BUILD_DURING_DEPLOYMENT = "false"
+    WEBSITE_RUN_FROM_PACKAGE       = "1"
+  }
+}
+
+output "public_portal_url" {
+  description = "Public documentation only, not an authenticated MCP endpoint. Null until explicitly opted in."
+  value       = var.public_portal_enabled ? "https://${azurerm_linux_web_app.portal[0].default_hostname}" : null
+}
+'@
+
 $files['infra/workload/README.md'] = @'
 # Workload foundation
 
-This root currently manages only one dedicated workshop resource group, or reads an approved existing group.
-It does not deploy an MCP server. Planned service names are outputs for later modules, not created resources.
+By default this root manages one dedicated workshop resource group, or reads an approved existing group.
+An explicit persistent opt-in adds a public Linux App Service B1 portal; see [hosting](../../docs/HOSTING.md).
+It does not deploy an MCP server. Planned MCP service names are outputs for later modules, not created resources.
+Terraform requires 1.16.6+ below 2; AzureRM is locked to 5.9.0.
 
 Start with [workspace preparation](../../docs/GETTING-STARTED.md), or [the French guide](../../docs/fr/GETTING-STARTED.md).
 Both workstation routes use this root and the same private `.workshop/participant.tfvars.json`.
@@ -6607,7 +7146,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Terraform plan failed.' }
 
 The equivalent bash commands use `&&` between init and plan.
 Review the saved plan privately. Apply it only with separate explicit approval.
-When the foundation is the only deployed content, prepare a destroy plan with the same var-file and state:
+When full teardown of this root is intended, prepare a destroy plan with the same var-file and state:
 
 ```powershell
 terraform -chdir=infra/workload plan -destroy -var-file=../../.workshop/participant.tfvars.json -out=../../.workshop/destroy.tfplan
@@ -6628,11 +7167,16 @@ terraform -chdir=infra/workload test
 ```
 
 The tests use a mock Azure provider and plan-only runs. They create no Azure resources.
+Five runs cover new/existing groups, isolation, invalid names, default-off hosting and the opt-in TLS/runtime settings.
+Module 00's [offline validator](../../modules/00-prerequisites/README.md#validate) also covers local HTTP,
+bundle integrity, private-file exclusion, and synthetic preflight/deployment failures.
 
 ## Sources
 
 - [Azure naming rules](https://learn.microsoft.com/azure/azure-resource-manager/management/resource-name-rules).
 - [AzureRM group](https://registry.terraform.io/providers/hashicorp/azurerm/5.9.0/docs/resources/resource_group).
+- [Linux web app](https://registry.terraform.io/providers/hashicorp/azurerm/5.9.0/docs/resources/linux_web_app).
+- [App Service secretless deployment](https://learn.microsoft.com/azure/app-service/deploy-authentication-types).
 - [Terraform mocks](https://developer.hashicorp.com/terraform/language/tests/mocking).
 
 Last verified: 2026-10-14. Mock tests do not establish Azure deployment compatibility.
@@ -6662,6 +7206,10 @@ run "dedicated_group" {
   assert {
     condition     = output.resource_tags.owner == "alice" && output.resource_tags.expiry == "2099-12-31"
     error_message = "Required ownership tags are missing."
+  }
+  assert {
+    condition     = length(azurerm_service_plan.portal) == 0 && length(azurerm_linux_web_app.portal) == 0 && output.public_portal_url == null
+    error_message = "Default mode must create no billable portal or pretend that a URL exists."
   }
 }
 
@@ -6697,6 +7245,25 @@ run "invalid_suffix" {
     resource_suffix = "same"
   }
   expect_failures = [var.resource_suffix]
+}
+
+run "public_portal_opt_in" {
+  command = plan
+  variables {
+    public_portal_enabled = true
+  }
+  assert {
+    condition     = length(azurerm_service_plan.portal) == 1 && azurerm_service_plan.portal[0].sku_name == "B1" && azurerm_service_plan.portal[0].os_type == "Linux"
+    error_message = "An opt-in must provision exactly one B1 Linux plan."
+  }
+  assert {
+    condition     = azurerm_linux_web_app.portal[0].https_only && !azurerm_linux_web_app.portal[0].ftp_publish_basic_authentication_enabled && !azurerm_linux_web_app.portal[0].webdeploy_publish_basic_authentication_enabled
+    error_message = "Portal TLS and secretless publishing protections must remain enabled."
+  }
+  assert {
+    condition     = azurerm_linux_web_app.portal[0].site_config[0].ftps_state == "Disabled" && azurerm_linux_web_app.portal[0].site_config[0].application_stack[0].node_version == "22-lts" && azurerm_linux_web_app.portal[0].site_config[0].app_command_line == "node server.mjs"
+    error_message = "Use the selected supported runtime and read-only server; do not add FTP or implicit build/start behavior."
+  }
 }
 '@
 
@@ -6759,6 +7326,13 @@ variable "existing_resource_group_name" {
     error_message = "Use a 1-90 character resource group name without a trailing period."
   }
 }
+
+variable "public_portal_enabled" {
+  type        = bool
+  default     = false
+  nullable    = false
+  description = "Explicit opt-in to a paid B1 Linux App Service for public documentation only. Not an MCP server or tenant deployment control plane."
+}
 '@
 
 $files['LICENSE'] = @'
@@ -6783,6 +7357,386 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+'@
+
+$files['modules/00-prerequisites/cleanup.ps1'] = @'
+#requires -Version 7.4
+[CmdletBinding()]
+param()
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+Write-Output 'PASS module 00 preflight cleanup (expected HTTP N/A): checks create no Azure or Entra resources.'
+Write-Output 'PASS private parameters and state preserved (expected HTTP N/A). Optional paid portal cleanup requires the reviewed Terraform destroy flow in docs/HOSTING.md.'
+'@
+
+$files['modules/00-prerequisites/cleanup.sh'] = @'
+#!/usr/bin/env bash
+set -euo pipefail
+command -v pwsh >/dev/null || { printf '%s\n' 'FAIL PowerShell 7.4+ is required.' >&2; exit 1; }
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+pwsh -NoProfile -File "$root/cleanup.ps1" "$@"
+'@
+
+$files['modules/00-prerequisites/README.fr.md'] = @'
+# 00 - Preparer l'environnement approuve
+
+[English](README.md)
+
+## Goal
+
+Choisissez un terminal local ou un conteneur de developpement Visual Studio Code.
+Verifiez les outils et votre cible Azure hors production. Preparez la demande a l'administrateur Microsoft Entra.
+
+## Why it matters
+
+Un outil installe ne prouve ni les autorisations ni la capacite disponible.
+Les noms aleatoires evitent les collisions ; ils ne changent pas les quotas partages.
+Votre terminal s'authentifie dans Azure, jamais le portail public.
+
+## What you deploy
+
+Le preflight ne deploie **rien**. Il lit le contexte, les regions, les fournisseurs et les droits accordes.
+La racine Terraform partagee peut creer un groupe isole ou lire un groupe existant sans le gerer.
+Le [portail public facultatif](../../docs/fr/HOSTING.md) ajoute un plan App Service payant et un site,
+uniquement sur activation explicite. Aucun serveur Model Context Protocol (MCP) n'est encore deploye.
+
+## Prerequisites and required roles
+
+Suivez le [choix du poste](../../docs/fr/GETTING-STARTED.md).
+Versions retenues : Terraform 1.16.6, AzureRM 5.9.0, Azure CLI 2.88.0, kit de developpement .NET 10,
+PowerShell 7.4+, Node.js 22.19+ et Functions Core Tools v4 >= 4.5.0.
+L'interface de commande Functions v5 distincte est en **Preview** et n'est pas retenue.
+
+Un nouveau groupe exige les droits de lecture, creation et suppression de groupes au niveau abonnement.
+Pour un groupe fourni par l'administrateur, restez dans son perimetre. Ne demandez pas Owner par commodite.
+Le script evalue les actions Azure Resource Manager (ARM) autorisees moins les exclusions de chaque enregistrement,
+puis combine les autorisations. Une autre attribution peut autoriser une action exclue ailleurs.
+La pagination reste sur le meme hote HTTPS et le meme perimetre.
+Les refus explicites et Azure Policy restent a examiner : une autorisation accordee ne garantit pas le deploiement.
+
+Aucun droit Entra d'administration n'est necessaire ici. L'administrateur traite separement la
+[demande precise](../../docs/requests/identity-request.md) avant le module 03.
+Le script n'enregistre aucun fournisseur et n'attribue aucun role.
+
+## Steps
+
+### PowerShell
+
+Depuis la racine, dans le terminal effectivement choisi :
+
+```powershell
+$ErrorActionPreference = 'Stop'
+& .\scripts\check-tools.ps1
+$expiry = [datetime]::UtcNow.AddDays(1).ToString('yyyy-MM-dd')
+& .\scripts\prepare-workshop.ps1 -ParticipantPrefix p01 -Location westeurope -Owner alice -Expiry $expiry
+& .\scripts\select-azure-context.ps1 -Language fr
+& .\modules\00-prerequisites\validate.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID
+```
+
+Adaptez la region, les libelles et la date approuves. Si un groupe est fourni, ajoutez
+`-ExistingResourceGroupName` des la premiere preparation. Conservez le suffixe et l'etat Terraform.
+Lisez le selecteur : il demande les identifiants prives et `NONPROD`, ouvre la connexion et selectionne
+l'abonnement. Le preflight ne se connecte pas et ne change pas le contexte.
+Ne publiez aucun identifiant de compte, jeton ou reponse de compte dans le tableau, Git ou le chat.
+
+Les tests locaux sont distincts :
+
+```powershell
+terraform -chdir=infra/workload init -backend=false -lockfile=readonly
+if ($LASTEXITCODE -ne 0) { throw 'Provider initialization failed.' }
+& .\modules\00-prerequisites\validate.ps1 -Offline
+```
+
+### bash
+
+Les wrappers utilisent le meme PowerShell, egalement present dans le conteneur.
+
+```bash
+bash ./scripts/check-tools.sh
+read -r -p 'Date de nettoyage approuvee (yyyy-MM-dd) : ' expiry
+bash ./scripts/prepare-workshop.sh -ParticipantPrefix p01 -Location westeurope -Owner alice -Expiry "$expiry"
+source ./scripts/select-azure-context.sh fr
+bash ./modules/00-prerequisites/validate.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId "$ARM_SUBSCRIPTION_ID"
+terraform -chdir=infra/workload init -backend=false -lockfile=readonly &&
+bash ./modules/00-prerequisites/validate.sh -Offline
+```
+
+Pour une etape payante ulterieure, utilisez `-Stage portal` ou `-Stage mcp`, avec une preuve privee
+`-CapacityReviewPath` decrite dans le [guide d'hebergement](../../docs/fr/HOSTING.md).
+La base `mcp` anticipe les futurs services ; elle ne valide pas leurs ressources imbriquees ou leur fonctionnement.
+Elle verifie aussi les droits d'attribution de roles : prevoyez leur execution separee par l'administrateur,
+pas une elevation des droits de tous les participants. Les futurs modules preciseront leurs operations exactes.
+
+## What you should see
+
+Chaque controle affiche `PASS` ou s'arrete sur une erreur. HTTP designe le protocole de transfert hypertexte.
+Les lectures Azure attendent HTTP 200 ; les controles locaux affichent `N/A`.
+Les erreurs CLI n'affichent pas les reponses de compte. Le mode nouveau groupe verifie la limite documentee
+de 980 groupes ; le mode groupe existant n'exige pas de quota pour un groupe supplementaire.
+
+Les tests hors ligne utilisent des reponses synthetiques et des fournisseurs simules.
+Leur derniere ligne indique explicitement que le module n'est **pas valide dans Azure**.
+Un controle sur l'hote ne valide pas le conteneur. L'execution du conteneur et de Codespaces reste
+non verifiee sur le poste de creation, faute de moteur approuve accessible.
+
+## Validate
+
+Executez `validate.ps1` ou `validate.sh` dans l'abonnement de test approuve.
+Consignez l'etape, le type de terminal, la date et les lignes PASS non sensibles dans `docs/PROGRESS.md`.
+Avant de declarer le module valide, confirmez que la demande d'identite est comprise et peut etre transmise
+en prive. N'etendez pas cette validation a une autre route ou aux capacites des services futurs.
+Ne commencez le module 01 qu'apres la validation reelle du module 00.
+
+## Troubleshooting
+
+- Mauvais contexte ou surcharge d'authentification : utilisez un terminal interactif approuve et separe.
+- Fournisseur absent : faites examiner l'enregistrement du fournisseur nomme par l'administrateur.
+- Droit manquant : verifiez l'action et le perimetre. Preferez un groupe existant aux droits d'abonnement elargis.
+- Capacite insuffisante : examinez quotas, nombre maximal d'instances et demande totale du groupe de participants.
+- Wrapper npm Core Tools sans binaire : terminez l'installation approuvee. Le controle ne lance pas de telechargement.
+- Refus Policy lors du plan reel : traitez le refus ; ne desactivez pas le controle.
+
+## Clean up
+
+```powershell
+& .\modules\00-prerequisites\cleanup.ps1
+```
+
+```bash
+bash ./modules/00-prerequisites/cleanup.sh
+```
+
+Le preflight n'a rien cree. Le nettoyage conserve les parametres et l'etat prives.
+Si vous avez applique le Terraform du groupe ou du portail, suivez son
+[plan de destruction a revoir](../../docs/fr/HOSTING.md#clean-up).
+Arreter le site ne supprime pas son plan payant. Ne supprimez jamais un groupe partage pour contourner Terraform.
+
+## Go further
+
+Consultez la [gouvernance](../../docs/fr/LEARNING-GUIDE.md), la [demande Entra](../../docs/requests/identity-request.md)
+et le [schema prevu](../../assets/architecture/00.fr.svg).
+Le portail facultatif contient de la documentation publique ; ce n'est ni un site interne authentifie,
+ni une console de deploiement inter-tenants.
+
+## Sources
+
+- [Installation Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli).
+- [Terraform sur Azure](https://learn.microsoft.com/azure/developer/terraform/overview).
+- [Installation PowerShell](https://learn.microsoft.com/powershell/scripting/install/installing-powershell).
+- [.NET 10](https://dotnet.microsoft.com/download/dotnet/10.0).
+- [Outils Functions](https://learn.microsoft.com/azure/azure-functions/functions-run-local).
+- [API des autorisations](https://learn.microsoft.com/rest/api/authorization/permissions/list-for-resource-group).
+- [Limites Azure](https://learn.microsoft.com/azure/azure-resource-manager/management/azure-subscription-service-limits).
+- [Capacite et runtimes Flex](https://learn.microsoft.com/azure/azure-functions/flex-consumption-plan).
+- [Conteneurs VS Code](https://code.visualstudio.com/docs/devcontainers/containers).
+- [Versions et sources retenues](../../docs/sources.md).
+
+Last verified: 2026-10-14. Tests locaux uniquement ; aucune validation Azure ou du conteneur a ce stade.
+'@
+
+$files['modules/00-prerequisites/README.md'] = @'
+# 00 - Prepare the approved environment
+
+[Francais](README.fr.md)
+
+## Goal
+
+Choose a local terminal or Visual Studio Code dev container. Verify the tools and your explicit
+non-production Azure target. Prepare the request for the Microsoft Entra administrator.
+
+## Why it matters
+
+A working command line does not prove deployment rights or capacity. Random participant names avoid
+accidental collisions; they do not increase shared subscription quotas. Your terminal, not the public
+portal, authenticates to Azure.
+
+## What you deploy
+
+The preflight deploys **nothing**. It reads context, regions, providers and effective permission grants.
+The shared Terraform root can create one isolated resource group, or read an existing approved group
+without managing it. [Optional public portal hosting](../../docs/HOSTING.md) adds a paid App Service plan
+and website only after an explicit opt-in. No Model Context Protocol (MCP) server exists yet.
+
+## Prerequisites and required roles
+
+Use the [workspace and installation guide](../../docs/GETTING-STARTED.md).
+The selected baseline is Terraform 1.16.6, AzureRM 5.9.0, Azure CLI 2.88.0, .NET software development kit
+(SDK) 10, PowerShell 7.4+, Node.js 22.19+ and Functions Core Tools v4 >= 4.5.0.
+The separate Functions command-line interface (CLI) v5 is **Preview** and is not selected.
+
+For a new group, the explicit subscription scope needs resource-group read/write/delete grants.
+For an existing group, use that group's scoped permissions; do not obtain subscription Owner just for this lab.
+The script evaluates Azure Resource Manager (ARM) `actions` minus `notActions` within each permission record,
+then combines grants. A separate grant can authorize an action excluded from another record.
+It follows same-scope HTTPS pagination and refuses redirected permission hosts.
+Deny assignments and Azure Policy can still block deployment; grants alone are not full authorization.
+
+No Entra administration is required to run this module. The identity administrator reviews the
+[exact request](../../docs/requests/identity-request.md) separately before module 03.
+Provider registration and role grants are administrator actions, never side effects of preflight.
+
+## Steps
+
+### PowerShell
+
+Run from the repository root. Use the route you will actually use for the workshop.
+
+```powershell
+$ErrorActionPreference = 'Stop'
+& .\scripts\check-tools.ps1
+$expiry = [datetime]::UtcNow.AddDays(1).ToString('yyyy-MM-dd')
+& .\scripts\prepare-workshop.ps1 -ParticipantPrefix p01 -Location westeurope -Owner alice -Expiry $expiry
+& .\scripts\select-azure-context.ps1
+& .\modules\00-prerequisites\validate.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID
+```
+
+Use your approved region, labels and cleanup date. For an administrator-provided group, supply
+`-ExistingResourceGroupName` on the **first** preparation command. Keep the generated suffix and state.
+Read the context selector before running it: it asks for the approved target and `NONPROD`,
+then signs in interactively and changes the active CLI subscription. Preflight itself never signs in or switches.
+Do not paste account identifiers, tokens or account responses into the portal, a commit or chat.
+
+Initialize the locked provider and run the separate local tests:
+
+```powershell
+terraform -chdir=infra/workload init -backend=false -lockfile=readonly
+if ($LASTEXITCODE -ne 0) { throw 'Provider initialization failed.' }
+& .\modules\00-prerequisites\validate.ps1 -Offline
+```
+
+### bash
+
+PowerShell is also installed inside the dev container. The wrappers run the same checks.
+
+```bash
+bash ./scripts/check-tools.sh
+read -r -p 'Approved cleanup date (yyyy-MM-dd): ' expiry
+bash ./scripts/prepare-workshop.sh -ParticipantPrefix p01 -Location westeurope -Owner alice -Expiry "$expiry"
+source ./scripts/select-azure-context.sh
+bash ./modules/00-prerequisites/validate.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId "$ARM_SUBSCRIPTION_ID"
+terraform -chdir=infra/workload init -backend=false -lockfile=readonly &&
+bash ./modules/00-prerequisites/validate.sh -Offline
+```
+
+For a later billable stage, use `-Stage portal` or `-Stage mcp` and `-CapacityReviewPath` pointing to
+private evidence described in [hosting](../../docs/HOSTING.md). The `mcp` checks are a future baseline,
+not a declaration that later Terraform modules, every nested operation or runtime checks already exist.
+That baseline includes role-assignment authority: arrange separate scoped administrator execution rather
+than giving every participant a wider role. Actual future modules must refine their required operations.
+
+## What you should see
+
+Each environment check prints `PASS` or stops with an error. HTTP means Hypertext Transfer Protocol.
+Cloud reads expect HTTP 200; local checks say `N/A`. Azure CLI failures are reported without dumping
+account responses. The foundation stage checks the documented 980-resource-group subscription limit.
+An existing-group route does not require capacity for a new group.
+
+Offline checks use synthetic Azure responses and provider mocks. Their final line explicitly says that
+module 00 is **not Azure-validated**. A host tool check does not validate the container.
+Container/Codespaces execution remains unverified in the authoring environment until an approved engine is available.
+
+## Validate
+
+Use `validate.ps1` or `validate.sh` above in your approved fresh test subscription.
+Record the stage, terminal route, date and non-sensitive PASS lines in `docs/PROGRESS.md`.
+Before marking this module validated, confirm the administrator request is understood and can be submitted
+privately. Do not mark future service capacity or another workspace route validated by implication.
+Only after real module 00 validation may you begin module 01.
+
+## Troubleshooting
+
+- Wrong context or authentication override: use an approved, separate interactive-user terminal.
+  Preflight rejects mixed service-principal, certificate, federation and managed-identity overrides.
+- Missing provider: ask the administrator to review registration of the **named** provider. Do not run automatic registration.
+- Permission failure: verify the action and scope. Prefer an existing approved group over increasing subscription rights.
+- Capacity failure: names do not change quotas. Review the portal quota, planned maximum instances and shared cohort demand.
+- Core Tools npm shim without its binary: finish the approved installation. The checker refuses to trigger a first-run download.
+- Policy/deny failure during the real plan: resolve it with the administrator; do not disable the control.
+
+## Clean up
+
+```powershell
+& .\modules\00-prerequisites\cleanup.ps1
+```
+
+```bash
+bash ./modules/00-prerequisites/cleanup.sh
+```
+
+Preflight creates no resources. Cleanup preserves private parameters and state. If you separately applied
+the group/optional portal Terraform, use its [reviewed destroy flow](../../docs/HOSTING.md#clean-up).
+Stopping an App Service is not the same as deleting its paid plan. Never delete a shared group as a shortcut.
+
+## Go further
+
+Review [governance](../../docs/LEARNING-GUIDE.md), [identity ownership](../../docs/requests/identity-request.md)
+and the [planned architecture](../../assets/architecture/00.en.svg).
+The optional portal is public documentation only, not an authenticated internal site or cross-tenant control plane.
+
+## Sources
+
+- [Azure CLI installation](https://learn.microsoft.com/cli/azure/install-azure-cli).
+- [Terraform on Azure](https://learn.microsoft.com/azure/developer/terraform/overview).
+- [PowerShell installation](https://learn.microsoft.com/powershell/scripting/install/installing-powershell).
+- [.NET 10](https://dotnet.microsoft.com/download/dotnet/10.0).
+- [Functions local tools](https://learn.microsoft.com/azure/azure-functions/functions-run-local).
+- [Resource-group permissions API](https://learn.microsoft.com/rest/api/authorization/permissions/list-for-resource-group).
+- [Subscription limits](https://learn.microsoft.com/azure/azure-resource-manager/management/azure-subscription-service-limits).
+- [Flex capacity and runtimes](https://learn.microsoft.com/azure/azure-functions/flex-consumption-plan).
+- [VS Code containers](https://code.visualstudio.com/docs/devcontainers/containers).
+- [Pinned choices and upstream sample](../../docs/sources.md).
+
+Last verified: 2026-10-14. Local tests are not a live Azure deployment or container validation.
+'@
+
+$files['modules/00-prerequisites/validate.ps1'] = @'
+#requires -Version 7.4
+[CmdletBinding()]
+param(
+    [switch]$Offline,
+    [guid]$TenantId,
+    [guid]$SubscriptionId,
+    [ValidateSet('foundation', 'portal', 'mcp')][string]$Stage = 'foundation',
+    [string]$ParametersPath,
+    [string]$CapacityReviewPath
+)
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+$root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+if ($Offline) {
+    & node --test (Join-Path $root 'scripts/workspace.test.mjs') (Join-Path $root 'scripts/preflight.test.mjs') `
+        (Join-Path $root 'scripts/site.test.mjs') (Join-Path $root 'scripts/portal.test.mjs') (Join-Path $root 'scripts/portal-deploy.test.mjs')
+    if ($LASTEXITCODE -ne 0) { throw 'FAIL local script/HTTP checks (expected HTTP N/A; synthetic context only).' }
+    Write-Output 'PASS local script/HTTP checks (expected HTTP N/A; no Azure access)'
+    $terraform = Join-Path $root 'infra/workload'
+    foreach ($arguments in @(@('fmt', '-check', '-recursive'), @('validate', '-no-color'), @('test', '-no-color'))) {
+        & terraform "-chdir=$terraform" @arguments
+        if ($LASTEXITCODE -ne 0) { throw 'FAIL Terraform checks (expected HTTP N/A). Install the pinned version and initialize the locked provider first.' }
+    }
+    Write-Output 'PASS Terraform schema and mock-only plans (expected HTTP N/A; no live plan/apply)'
+    Write-Output 'PASS offline checks only. Module 00 is NOT Azure-validated by this result.'
+} else {
+    if ($TenantId -eq [guid]::Empty -or $SubscriptionId -eq [guid]::Empty) {
+        throw 'FAIL explicit target required. Use -Offline for synthetic tests, or supply the privately approved tenant/subscription.'
+    }
+    $arguments = @{ TenantId = $TenantId; SubscriptionId = $SubscriptionId; Stage = $Stage }
+    if ($ParametersPath) { $arguments.ParametersPath = $ParametersPath }
+    if ($CapacityReviewPath) { $arguments.CapacityReviewPath = $CapacityReviewPath }
+    & (Join-Path $root 'scripts/preflight.ps1') @arguments
+    if (-not (Test-Path -LiteralPath (Join-Path $root 'docs/requests/identity-request.md') -PathType Leaf)) {
+        throw 'FAIL administrator request (expected HTTP N/A; template missing).'
+    }
+    Write-Output 'PASS administrator request template present (expected HTTP N/A; approval and identity creation are separate)'
+    Write-Output "PASS module 00 $Stage environment checks. Record only the verified workspace route and stage; this is not MCP runtime validation."
+}
+'@
+
+$files['modules/00-prerequisites/validate.sh'] = @'
+#!/usr/bin/env bash
+set -euo pipefail
+command -v pwsh >/dev/null || { printf '%s\n' 'FAIL PowerShell 7.4+ is required.' >&2; exit 1; }
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+pwsh -NoProfile -File "$root/validate.ps1" "$@"
 '@
 
 $files['README.md'] = @'
@@ -6826,7 +7780,9 @@ not the repository. No site has been published yet.
 Read [hosting and publication](docs/HOSTING.md) or [le guide français](docs/fr/HOSTING.md).
 
 The public portal never collects Azure keys or deploys into a visitor's tenant.
-App Service and Azure Container Apps are separate optional hosting targets requiring an exact selection and approval.
+Optional Linux App Service B1 Terraform and an Entra-authenticated ZIP deployment script are available,
+disabled by default. A paid deployment still requires an exact approved target and reviewed plan.
+Azure Container Apps and private visitor authentication are not implemented.
 Participants still authenticate and run reviewed Terraform in their own approved environment.
 
 ## Target architecture
@@ -6845,7 +7801,7 @@ flowchart LR
 
 | # | Module |
 |---|---|
-| 00 | Prerequisites and environment |
+| 00 | [Prerequisites and environment](modules/00-prerequisites/README.md) |
 | 01 | Discover MCP (no Azure) |
 | 02 | An "open" MCP server (level 0) |
 | 03 | Identity with Microsoft Entra (level 1) |
@@ -6876,7 +7832,9 @@ Workshop authors use [`docs/COPILOT-RUNBOOK.md`](docs/COPILOT-RUNBOOK.md).
 The [P1 recommendations](docs/BUILD-PLAN.md#p1-recommendations-design-only) describe the target tree,
 networking and identity decisions. The [source assessment](docs/sources.md) selects the useful parts of official
 samples, pins upstream snapshots, and records updates, licensing boundaries and unresolved compatibility gates.
-**Modules are not implemented yet.** No Azure deployment has been validated.
+**Module 00 is implemented locally, but not Azure-validated.** Its EN/FR guide, read-only preflight,
+identity request and optional public hosting have offline evidence. Later MCP modules remain unimplemented.
+No Azure deployment has been validated; no cloud resource or identity has been changed.
 
 The project includes a **Workshop build board** canvas under `.github/extensions/workshop-build-board/`.
 In the Copilot app, ask: "Show the workshop build board." Its responsive single-page application (SPA) is a
@@ -6926,10 +7884,23 @@ This is a community workshop. It is not an official Microsoft product, service o
 [Verified sources and upstream reuse decisions](docs/sources.md). Last verified: 2026-10-14.
 '@
 
+$files['scripts/build-portal.mjs'] = @'
+import { resolve } from "node:path";
+import { buildPortal } from "./build-site.mjs";
+
+const args = process.argv.slice(2);
+if (args.length && (args.length !== 2 || args[0] !== "--output")) {
+    throw new Error("Usage: node scripts/build-portal.mjs [--output <new-directory>]");
+}
+const result = buildPortal(undefined, args.length ? resolve(args[1]) : undefined);
+console.log(`PASS public App Service bundle: ${result.files} allowlisted files. No cloud action executed.`);
+'@
+
 $files['scripts/build-site.mjs'] = @'
 import { lstatSync, readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { createHash } from "node:crypto";
 import { parseProgress } from "../.github/extensions/workshop-build-board/progress.mjs";
 import { readJourney } from "../.github/extensions/workshop-build-board/journey.mjs";
 
@@ -6937,16 +7908,18 @@ const repository = fileURLToPath(new URL("../", import.meta.url));
 const icons = ["azure", "microsoft", "entra", "apim", "functions", "storage", "insights", "api-center", "subscription"];
 const modules = ["00", "01", "02", "03", "04", "05", "06", "07", "99"];
 
-export function buildSite(root = repository, destination = join(root, "site-dist")) {
-    function read(parts) {
-        for (let index = 0; index <= parts.length; index++) {
-            const entry = lstatSync(join(root, ...parts.slice(0, index)));
-            if (entry.isSymbolicLink() || (index < parts.length ? !entry.isDirectory() : !entry.isFile())) {
-                throw new Error("Site sources must be regular files inside the repository.");
-            }
+function readSource(root, parts) {
+    for (let index = 0; index <= parts.length; index++) {
+        const entry = lstatSync(join(root, ...parts.slice(0, index)));
+        if (entry.isSymbolicLink() || (index < parts.length ? !entry.isDirectory() : !entry.isFile())) {
+            throw new Error("Site sources must be regular files inside the repository.");
         }
-        return readFileSync(join(root, ...parts));
     }
+    return readFileSync(join(root, ...parts));
+}
+
+export function buildSite(root = repository, destination = join(root, "site-dist")) {
+    const read = (parts) => readSource(root, parts);
     const progress = parseProgress(read(["docs", "PROGRESS.md"]).toString("utf8"));
     const journey = readJourney(root, progress);
     delete journey.revision;
@@ -6987,7 +7960,22 @@ export function buildSite(root = repository, destination = join(root, "site-dist
         if (parts.length > 1) mkdirSync(join(destination, ...parts.slice(0, -1)), { recursive: true });
         writeFileSync(join(destination, ...parts), content, { flag: "wx" });
     }
-    return { destination, files: files.size };
+    return { destination, files: files.size, paths: [...files.keys()] };
+}
+
+export function buildPortal(root = repository, destination = join(root, "portal-dist")) {
+    const server = readSource(root, ["scripts", "portal-server.mjs"]);
+    const result = buildSite(root, destination);
+    const manifest = {
+        schema: 1,
+        files: result.paths.map((path) => ({
+            path,
+            sha256: createHash("sha256").update(readFileSync(join(destination, ...path.split("/")))).digest("hex"),
+        })),
+    };
+    writeFileSync(join(destination, "site-manifest.json"), JSON.stringify(manifest), { flag: "wx" });
+    writeFileSync(join(destination, "server.mjs"), server, { flag: "wx" });
+    return { destination, files: result.files + 2 };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
@@ -7011,10 +7999,31 @@ $failed = $false
 
 function Test-WorkshopTool {
     param([string]$Name, [string[]]$Arguments, [scriptblock]$Accept, [string]$Requirement)
-    if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
+    $command = Get-Command $Name -ErrorAction SilentlyContinue
+    if (-not $command) {
         Write-Output "FAIL $Name missing; required: $Requirement. See docs/GETTING-STARTED.md."
         $script:failed = $true
         return
+    }
+    if ($Name -eq 'func' -and $command.CommandType -in @('Application', 'ExternalScript')) {
+        $package = Join-Path (Split-Path $command.Source -Parent) 'node_modules/azure-functions-core-tools'
+        $launcher = Get-Item -LiteralPath $command.Source
+        if ($launcher.LinkType) {
+            $target = $launcher.ResolveLinkTarget($true)
+            if ($target -and $target.FullName -match '[/\\]azure-functions-core-tools[/\\]lib[/\\]main\.js$') {
+                $package = Split-Path (Split-Path $target.FullName -Parent) -Parent
+            }
+        }
+        $npmShim = Test-Path -LiteralPath (Join-Path $package 'package.json')
+        if (-not $npmShim -and $launcher.Extension -in @('.ps1', '.cmd', '.js')) {
+            $npmShim = (Get-Content -LiteralPath $launcher.FullName -Raw) -match 'azure-functions-core-tools[/\\]lib[/\\]main\.js'
+        }
+        $binary = Join-Path $package $(if ($IsWindows) { 'bin/func.exe' } else { 'bin/func' })
+        if ($npmShim -and -not (Test-Path -LiteralPath $binary -PathType Leaf)) {
+            Write-Output "FAIL func npm shim has no runtime binary; finish the documented Core Tools installation. No first-run download was started."
+            $script:failed = $true
+            return
+        }
     }
     $output = & $Name @Arguments 2>&1 | Out-String
     if ($LASTEXITCODE -ne 0 -or -not (& $Accept $output)) {
@@ -7022,7 +8031,7 @@ function Test-WorkshopTool {
         $script:failed = $true
         return
     }
-    Write-Output "PASS $Name ($Requirement)"
+    Write-Output "PASS $Name ($Requirement; expected HTTP N/A)"
 }
 
 Test-WorkshopTool git @('--version') {
@@ -7036,8 +8045,8 @@ Test-WorkshopTool az @('version', '--output', 'json') {
 Test-WorkshopTool terraform @('version', '-json') {
     param($text)
     $version = [version](($text | ConvertFrom-Json).terraform_version)
-    $version -ge [version]'1.16.5' -and $version.Major -eq 1
-} 'Terraform >= 1.16.5, < 2'
+    $version -ge [version]'1.16.6' -and $version.Major -eq 1
+} 'Terraform >= 1.16.6, < 2'
 Test-WorkshopTool dotnet @('--list-sdks') { param($text) $text -match '(?m)^10\.\d+\.\d+ ' } '.NET SDK 10'
 Test-WorkshopTool node @('--version') {
     param($text)
@@ -7047,7 +8056,7 @@ Test-WorkshopTool func @('--version') {
     param($text)
     $text.Trim() -match '^4\.(\d+)\.(\d+)$' -and [version]$text.Trim() -ge [version]'4.5.0'
 } 'Functions Core Tools >= 4.5.0, < 5 (not the Preview v5 CLI)'
-Write-Output "PASS PowerShell $($PSVersionTable.PSVersion)"
+Write-Output "PASS PowerShell $($PSVersionTable.PSVersion) (expected HTTP N/A)"
 if ($failed) { throw 'Tool checks failed. Resolve every FAIL before continuing. No Azure permissions or quota were checked.' }
 Write-Output 'PASS local tools only; Azure context, permissions, quota and deployment remain separate checks.'
 '@
@@ -7059,6 +8068,760 @@ command -v pwsh >/dev/null || { printf '%s\n' 'FAIL PowerShell 7.4+ is required.
 exec pwsh -NoProfile -File "$(dirname "${BASH_SOURCE[0]}")/check-tools.ps1"
 '@
 
+$files['scripts/context-common.ps1'] = @'
+#requires -Version 7.4
+
+function Assert-WorkshopInteractiveEnvironment {
+    foreach ($name in @('ARM_CLIENT_ID', 'ARM_CLIENT_SECRET', 'ARM_CLIENT_CERTIFICATE_PATH',
+        'ARM_CLIENT_CERTIFICATE', 'ARM_CLIENT_CERTIFICATE_PASSWORD', 'ARM_USE_MSI',
+        'ARM_USE_OIDC', 'ARM_OIDC_TOKEN', 'ARM_ACCESS_KEY', 'AZURE_CLIENT_ID',
+        'AZURE_CLIENT_SECRET', 'AZURE_CLIENT_CERTIFICATE_PATH', 'ARM_ENVIRONMENT',
+        'ARM_USE_CLI', 'ARM_USE_AKS_WORKLOAD_IDENTITY', 'ARM_OIDC_TOKEN_FILE_PATH',
+        'ARM_OIDC_REQUEST_TOKEN', 'ARM_OIDC_REQUEST_URL', 'AZURE_FEDERATED_TOKEN_FILE',
+        'AZURE_AUTHORITY_HOST', 'ARM_MSI_ENDPOINT', 'ARM_CLIENT_ID_FILE_PATH',
+        'ARM_TENANT_ID_FILE_PATH', 'ARM_SUBSCRIPTION_ID_FILE_PATH')) {
+        if ([Environment]::GetEnvironmentVariable($name)) {
+            throw 'An authentication override is present. Use a separate approved interactive-user terminal; do not combine credential flows.'
+        }
+    }
+}
+
+function Invoke-WorkshopAzureJson {
+    param([Parameter(Mandatory)][string[]]$Arguments)
+    $text = & az @Arguments --output json --only-show-errors 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) {
+        throw "Azure CLI '$($Arguments[0])' read/check failed. Verify the selected context and exact scoped permissions privately; no resource was changed by this check."
+    }
+    try { $value = ConvertFrom-Json -InputObject $text -AsHashtable -Depth 100 -ErrorAction Stop }
+    catch [System.ArgumentException] { throw 'Azure CLI returned invalid JSON; the check cannot pass.' }
+    if ($null -eq $value) { throw 'Azure CLI returned no data; the check cannot pass.' }
+    return ,$value
+}
+
+function Assert-WorkshopAzureContext {
+    param([Parameter(Mandatory)][guid]$TenantId, [Parameter(Mandatory)][guid]$SubscriptionId)
+    if ($TenantId -eq [guid]::Empty -or $SubscriptionId -eq [guid]::Empty) {
+        throw 'Specify the approved non-production tenant and subscription; empty identifiers are refused.'
+    }
+    Assert-WorkshopInteractiveEnvironment
+    foreach ($entry in @{ ARM_TENANT_ID = $TenantId; ARM_SUBSCRIPTION_ID = $SubscriptionId }.GetEnumerator()) {
+        $current = [Environment]::GetEnvironmentVariable($entry.Key)
+        if ($current -and $current -ne $entry.Value.ToString()) {
+            throw 'ARM context variables differ from the explicit target. Use the approved context selector in a separate terminal.'
+        }
+    }
+    $cloud = Invoke-WorkshopAzureJson -Arguments @('cloud', 'show')
+    if ($cloud.name -ne 'AzureCloud') { throw 'Only Azure public cloud is supported by this workshop.' }
+    $account = Invoke-WorkshopAzureJson -Arguments @('account', 'show', '--query',
+        '{id:id,tenantId:tenantId,state:state,environmentName:environmentName,userType:user.type}')
+    if ($account.id -ne $SubscriptionId.ToString() -or $account.tenantId -ne $TenantId.ToString() -or
+        $account.state -ne 'Enabled' -or $account.environmentName -ne 'AzureCloud' -or $account.userType -ne 'user') {
+        throw 'The active interactive account does not match the explicit enabled test target. No login or subscription switch was attempted.'
+    }
+}
+
+function Read-WorkshopParameters {
+    param([Parameter(Mandatory)][string]$Path)
+    $item = Get-Item -LiteralPath $Path -Force -ErrorAction Stop
+    $parent = Get-Item -LiteralPath $item.DirectoryName -Force -ErrorAction Stop
+    if ($item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -or
+        ($parent.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+        throw 'Participant parameters must be a regular file in a regular directory.'
+    }
+    $value = Get-Content -LiteralPath $item.FullName -Raw | ConvertFrom-Json -AsHashtable -ErrorAction Stop
+    $patterns = @{
+        participant_prefix = '^[a-z][a-z0-9]{1,7}$'
+        resource_suffix = '^[a-f0-9]{10}$'
+        location = '^[a-z][a-z0-9]+$'
+        owner = '^[a-z][a-z0-9-]{1,31}$'
+        expiry = '^\d{4}-\d{2}-\d{2}$'
+    }
+    if ($value -isnot [System.Collections.IDictionary]) { throw 'Participant parameters must be an object.' }
+    $allowed = @($patterns.Keys) + 'existing_resource_group_name', 'public_portal_enabled'
+    if ($value.Keys | Where-Object { $_ -notin $allowed }) { throw 'Unexpected participant parameter; use the preparation script.' }
+    foreach ($entry in $patterns.GetEnumerator()) {
+        if ($value[$entry.Key] -isnot [string] -or $value[$entry.Key] -cnotmatch $entry.Value) {
+            throw "Invalid participant parameter '$($entry.Key)'."
+        }
+    }
+    $date = [datetime]::MinValue
+    if (-not [datetime]::TryParseExact($value.expiry, 'yyyy-MM-dd', [Globalization.CultureInfo]::InvariantCulture,
+        [Globalization.DateTimeStyles]::None, [ref]$date) -or $date.Date -le [datetime]::UtcNow.Date) {
+        throw 'Participant expiry must be a real future date. Preserve the suffix and state when reviewing an expired deployment.'
+    }
+    if (-not $value.Contains('existing_resource_group_name') -or ($null -ne $value.existing_resource_group_name -and
+        ($value.existing_resource_group_name -isnot [string] -or
+         $value.existing_resource_group_name -notmatch '^[a-zA-Z0-9_().-]{1,90}$' -or
+         $value.existing_resource_group_name.EndsWith('.')))) {
+        throw 'Invalid existing resource group parameter.'
+    }
+    if ($value.Contains('public_portal_enabled') -and $value.public_portal_enabled -isnot [bool]) {
+        throw 'public_portal_enabled must be a Boolean.'
+    }
+    return $value
+}
+'@
+
+$files['scripts/deploy-portal.ps1'] = @'
+#requires -Version 7.4
+[CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High')]
+param(
+    [Parameter(Mandatory)][guid]$TenantId,
+    [Parameter(Mandatory)][guid]$SubscriptionId,
+    [Parameter(Mandatory)][string]$CapacityReviewPath,
+    [string]$ParametersPath = (Join-Path (Split-Path $PSScriptRoot -Parent) '.workshop/participant.tfvars.json'),
+    [string]$BundlePath = (Join-Path (Split-Path $PSScriptRoot -Parent) 'portal-dist'),
+    [string]$PackagePath = (Join-Path (Split-Path $PSScriptRoot -Parent) '.workshop/portal.zip')
+)
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'context-common.ps1')
+$parameters = Read-WorkshopParameters -Path $ParametersPath
+if (-not $parameters.Contains('public_portal_enabled') -or -not $parameters.public_portal_enabled) {
+    throw 'Public portal is not opted in in the persistent participant parameters.'
+}
+& node (Join-Path $PSScriptRoot 'portal-server.mjs') --verify $BundlePath
+if ($LASTEXITCODE -ne 0) { throw 'Portal bundle verification failed.' }
+& (Join-Path $PSScriptRoot 'preflight.ps1') -TenantId $TenantId -SubscriptionId $SubscriptionId `
+    -Stage portal -ParametersPath $ParametersPath -CapacityReviewPath $CapacityReviewPath
+$stem = "mcp-$($parameters.participant_prefix)-$($parameters.resource_suffix)"
+$name = "web-$stem-portal"
+$group = if ($parameters.existing_resource_group_name) { $parameters.existing_resource_group_name } else { "rg-$stem" }
+$id = "/subscriptions/$SubscriptionId/resourceGroups/$group/providers/Microsoft.Web/sites/$name"
+$dynamicInstall = $env:AZURE_EXTENSION_USE_DYNAMIC_INSTALL
+$env:AZURE_EXTENSION_USE_DYNAMIC_INSTALL = 'no'
+try {
+    $app = Invoke-WorkshopAzureJson -Arguments @('webapp', 'show', '--subscription', $SubscriptionId.ToString(),
+        '--resource-group', $group, '--name', $name, '--query',
+        '{id:id,httpsOnly:httpsOnly,defaultHostName:defaultHostName,tags:tags,serverFarmId:serverFarmId}')
+    if ($app.id -ne $id -or -not $app.httpsOnly -or $app.tags.workshop -cne $stem -or
+        $app.tags.owner -cne $parameters.owner -or $app.tags.expiry -cne $parameters.expiry -or
+        $app.serverFarmId -ne "/subscriptions/$SubscriptionId/resourceGroups/$group/providers/Microsoft.Web/serverfarms/plan-$stem-portal" -or
+        $app.defaultHostName -notmatch '^[a-z0-9-]+(?:\.[a-z0-9-]+)*\.azurewebsites\.net$') {
+        throw 'Portal ownership, target, plan, host or HTTPS protection differs from the expected Terraform deployment.'
+    }
+    $configuration = Invoke-WorkshopAzureJson -Arguments @('webapp', 'config', 'show', '--subscription', $SubscriptionId.ToString(),
+        '--resource-group', $group, '--name', $name, '--query',
+        '{linuxFxVersion:linuxFxVersion,appCommandLine:appCommandLine,ftpsState:ftpsState,minTlsVersion:minTlsVersion,scmMinTlsVersion:scmMinTlsVersion}')
+    if ($configuration.linuxFxVersion -ine 'NODE|22-lts' -or $configuration.appCommandLine -cne 'node server.mjs' -or
+        $configuration.ftpsState -ne 'Disabled' -or $configuration.minTlsVersion -notin @('1.2', '1.3') -or
+        $configuration.scmMinTlsVersion -notin @('1.2', '1.3')) {
+        throw 'Portal runtime or transport configuration differs from the reviewed setup.'
+    }
+    foreach ($policy in @('scm', 'ftp')) {
+        $setting = Invoke-WorkshopAzureJson -Arguments @('rest', '--method', 'get', '--url',
+            "https://management.azure.com$id/basicPublishingCredentialsPolicies/$policy`?api-version=2025-03-01")
+        if ($setting.properties.allow -isnot [bool] -or $setting.properties.allow) {
+            throw 'Basic publishing is not explicitly disabled. No key or publish-profile fallback is permitted.'
+        }
+    }
+    if ($PSCmdlet.ShouldProcess("$name in $group", 'Replace public documentation code using Entra-authenticated ZIP deployment')) {
+        & (Join-Path $PSScriptRoot 'package-portal.ps1') -BundlePath $BundlePath -OutputPath $PackagePath
+        $null = & az webapp deploy --subscription $SubscriptionId.ToString() --resource-group $group --name $name `
+            --src-path ([IO.Path]::GetFullPath($PackagePath)) --type zip --clean false --restart true `
+            --track-status true --output none --only-show-errors 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            throw 'Entra ZIP deployment failed. Inspect the deployment status privately; do not enable basic publishing or use credentials as a fallback.'
+        }
+        $health = Invoke-WebRequest -Uri "https://$($app.defaultHostName)/health" -SkipHttpErrorCheck -TimeoutSec 30
+        if ($health.StatusCode -ne 200 -or $health.Content -cne '{"status":"ok"}') {
+            throw 'FAIL public portal health (expected HTTP 200 and the exact read-only health response).'
+        }
+        Write-Output 'PASS public portal health (expected HTTP 200). Verify EN/FR navigation and diagrams on the deployed host before sharing.'
+    }
+} finally { $env:AZURE_EXTENSION_USE_DYNAMIC_INSTALL = $dynamicInstall }
+'@
+
+$files['scripts/deploy-portal.sh'] = @'
+#!/usr/bin/env bash
+set -euo pipefail
+command -v pwsh >/dev/null || { printf '%s\n' 'FAIL PowerShell 7.4+ is required.' >&2; exit 1; }
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+pwsh -NoProfile -File "$root/deploy-portal.ps1" "$@"
+'@
+
+$files['scripts/package-portal.ps1'] = @'
+#requires -Version 7.4
+[CmdletBinding()]
+param(
+    [string]$BundlePath = (Join-Path (Split-Path $PSScriptRoot -Parent) 'portal-dist'),
+    [string]$OutputPath = (Join-Path (Split-Path $PSScriptRoot -Parent) '.workshop/portal.zip')
+)
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+& node (Join-Path $PSScriptRoot 'portal-server.mjs') --verify $BundlePath
+if ($LASTEXITCODE -ne 0) { throw 'Portal verification failed; no package was created.' }
+$output = [IO.Path]::GetFullPath($OutputPath)
+$directory = Split-Path $output -Parent
+if (Test-Path -LiteralPath $output) { throw 'Refusing to overwrite an existing package. Choose a new private output path.' }
+if (-not (Test-Path -LiteralPath $directory)) { [void](New-Item -ItemType Directory -Path $directory) }
+if ((Get-Item -LiteralPath $directory -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) {
+    throw 'Package output directory must not be linked.'
+}
+$manifest = Get-Content -LiteralPath (Join-Path $BundlePath 'site-manifest.json') -Raw | ConvertFrom-Json
+$paths = @($manifest.files.path) + 'server.mjs', 'site-manifest.json'
+$stream = [IO.File]::Open($output, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
+try {
+    $zip = [IO.Compression.ZipArchive]::new($stream, [IO.Compression.ZipArchiveMode]::Create, $true)
+    try {
+        foreach ($path in $paths) {
+            [void][IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, (Join-Path $BundlePath $path),
+                $path, [IO.Compression.CompressionLevel]::Optimal)
+        }
+    } finally { $zip.Dispose() }
+} finally { $stream.Dispose() }
+Write-Output 'PASS ZIP contains only the 50 public assets, integrity manifest and reviewed server. No Azure command executed.'
+'@
+
+$files['scripts/portal-deploy.test.mjs'] = @'
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { mkdtempSync, mkdirSync, copyFileSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { spawnSync } from "node:child_process";
+import { buildPortal } from "./build-site.mjs";
+
+const root = fileURLToPath(new URL("../", import.meta.url));
+test("portal deployment checks ownership and protection, honors WhatIf, and packages exactly 52 files without real Azure access", (t) => {
+    const directory = mkdtempSync(join(tmpdir(), "workshop-deploy-fixture-"));
+    t.after(() => rmSync(directory, { recursive: true, force: true }));
+    const scripts = join(directory, "scripts");
+    mkdirSync(scripts);
+    for (const file of ["deploy-portal.ps1", "context-common.ps1", "package-portal.ps1", "portal-server.mjs"]) {
+        copyFileSync(join(root, "scripts", file), join(scripts, file));
+    }
+    writeFileSync(join(scripts, "preflight.ps1"), `
+param($TenantId, $SubscriptionId, $Stage, $ParametersPath, $CapacityReviewPath)
+if ($Stage -ne 'portal' -or -not $CapacityReviewPath) { throw 'Missing preflight stage/evidence.' }
+Write-Output 'PASS synthetic preflight fixture; real implementation is tested separately.'
+`);
+    const bundle = join(directory, "bundle");
+    buildPortal(root, bundle);
+    const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-Command", `
+$ErrorActionPreference='Stop'
+$directory='${directory.replaceAll("'", "''")}'
+$global:subscription=[guid]::NewGuid()
+$tenant=[guid]::NewGuid()
+$global:writes=0
+$expiry=[datetime]::UtcNow.AddDays(1).ToString('yyyy-MM-dd')
+$global:expectedExpiry=$expiry
+$path=Join-Path $directory 'parameters.json'
+$zipPath=Join-Path $directory 'public.zip'
+$parameters=@{participant_prefix='p01';resource_suffix='0123456789';location='westeurope';owner='alice';
+    expiry=$expiry;existing_resource_group_name=$null;public_portal_enabled=$true}
+function global:az {
+    $global:LASTEXITCODE=0
+    if ($args[0] -eq 'webapp' -and $args[1] -eq 'deploy') { $global:writes++; return }
+    $result = if ($args[0] -eq 'rest' -and $args[1] -eq '--method' -and $args[2] -eq 'get') {
+        @{properties=@{allow=($global:scenario -eq 'basic-enabled')}}
+    } elseif ($args[0] -eq 'webapp' -and $args[1] -eq 'show') {
+        @{id="/subscriptions/$global:subscription/resourceGroups/rg-mcp-p01-0123456789/providers/Microsoft.Web/sites/web-mcp-p01-0123456789-portal";
+            httpsOnly=$true;defaultHostName='web-mcp-p01-0123456789-portal.azurewebsites.net';
+            serverFarmId="/subscriptions/$global:subscription/resourceGroups/rg-mcp-p01-0123456789/providers/Microsoft.Web/serverfarms/plan-mcp-p01-0123456789-portal";
+            tags=@{workshop='mcp-p01-0123456789';owner=$(if ($global:scenario -eq 'wrong-owner') {'bob'} else {'alice'});expiry=$global:expectedExpiry}}
+    } elseif ($args[0] -eq 'webapp' -and $args[1] -eq 'config' -and $args[2] -eq 'show') {
+        @{linuxFxVersion=$(if ($global:scenario -eq 'wrong-runtime') {'NODE|20-lts'} else {'NODE|22-lts'});
+            appCommandLine='node server.mjs';ftpsState='Disabled';minTlsVersion='1.2';scmMinTlsVersion='1.2'}
+    } else { throw 'Unexpected Azure command.' }
+    ConvertTo-Json -InputObject $result -Depth 10 -Compress
+}
+function global:Invoke-WebRequest { @{StatusCode=200;Content='{"status":"ok"}'} }
+$script=Join-Path $directory 'scripts/deploy-portal.ps1'
+foreach ($global:scenario in @('what-if','wrong-owner','basic-enabled','wrong-runtime','not-opted-in','valid','existing-package')) {
+    $global:writes=0
+    $parameters.public_portal_enabled=($global:scenario -ne 'not-opted-in')
+    $parameters | ConvertTo-Json | Set-Content -LiteralPath $path
+    $failed=$false
+    try {
+        $arguments=@{TenantId=$tenant;SubscriptionId=$global:subscription;ParametersPath=$path;
+            CapacityReviewPath=(Join-Path $directory 'synthetic-capacity.json');BundlePath=(Join-Path $directory 'bundle');
+            PackagePath=$zipPath;WhatIf=($global:scenario -eq 'what-if');Confirm=$false}
+        & $script @arguments | Out-Null
+    } catch { $failed=$true; $message=$_.Exception.Message }
+    $expectedSuccess=$global:scenario -in @('what-if','valid')
+    if ($failed -eq $expectedSuccess) { throw "Unexpected $global:scenario result: $message" }
+    if ($global:writes -ne $(if ($global:scenario -eq 'valid') {1} else {0})) { throw 'Unexpected Azure write.' }
+    if ($global:scenario -eq 'what-if' -and (Test-Path -LiteralPath $zipPath)) { throw 'WhatIf created a package.' }
+    if ($global:scenario -eq 'valid') {
+        $archive=[IO.Compression.ZipFile]::OpenRead($zipPath)
+        try {
+            if ($archive.Entries.Count -ne 52 -or $null -eq $archive.GetEntry('.nojekyll') -or
+                $archive.Entries.FullName -match '(^|/)([.]workshop|[.]git)(/|$)|[.]tfstate|[.]tfplan|participant[.]tfvars') { throw 'Incorrect public ZIP contents.' }
+        } finally { $archive.Dispose() }
+    }
+    Write-Output "PASS synthetic portal $global:scenario (expected HTTP N/A; no real Azure access)"
+}
+`], { encoding: "utf8", timeout: 60000 });
+    assert.equal(result.status, 0, result.stderr + result.stdout);
+    assert.equal((result.stdout.match(/PASS synthetic portal /g) ?? []).length, 7);
+});
+'@
+
+$files['scripts/portal-server.mjs'] = @'
+import { createServer } from "node:http";
+import { createHash, timingSafeEqual } from "node:crypto";
+import { lstatSync, readFileSync, readdirSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+
+const entry = fileURLToPath(import.meta.url);
+const icons = ["azure", "microsoft", "entra", "apim", "functions", "storage", "insights", "api-center", "subscription"];
+export const publicPaths = ["index.html", "locale-fr.js", "journey.json", ".nojekyll",
+    ...icons.map((icon) => `assets/icons/${icon}.svg`), "assets/architecture/workshop.drawio"];
+for (const module of ["00", "01", "02", "03", "04", "05", "06", "07", "99"]) {
+    for (const language of ["en", "fr"]) {
+        for (const format of ["svg", "png"]) publicPaths.push(`assets/architecture/${module}.${language}.${format}`);
+    }
+}
+const types = { html: "text/html; charset=utf-8", js: "text/javascript; charset=utf-8",
+    json: "application/json; charset=utf-8", svg: "image/svg+xml", png: "image/png",
+    drawio: "application/xml; charset=utf-8" };
+const headers = {
+    "Content-Security-Policy": "default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "no-referrer",
+    "X-Frame-Options": "DENY",
+    "Cache-Control": "no-store",
+};
+function readRegular(root, path) {
+    const parts = path.split("/");
+    for (let index = 0; index <= parts.length; index++) {
+        const info = lstatSync(join(root, ...parts.slice(0, index)));
+        if (info.isSymbolicLink() || (index === parts.length ? !info.isFile() : !info.isDirectory())) {
+            throw new Error("Portal bundle contains a linked or non-regular entry.");
+        }
+    }
+    return readFileSync(join(root, ...parts));
+}
+
+export function verifyPortal(root) {
+    const manifest = JSON.parse(readRegular(root, "site-manifest.json").toString("utf8"));
+    if (manifest.schema !== 1 || !Array.isArray(manifest.files) || manifest.files.length !== publicPaths.length) {
+        throw new Error("Portal manifest has an invalid schema or file count.");
+    }
+    const assets = new Map();
+    for (const file of manifest.files) {
+        if (!publicPaths.includes(file.path) || assets.has(`/${file.path}`) || !/^[a-f0-9]{64}$/.test(file.sha256)) {
+            throw new Error("Portal manifest contains a duplicate, invalid or non-public entry.");
+        }
+        const content = readRegular(root, file.path);
+        const actual = createHash("sha256").update(content).digest();
+        if (!timingSafeEqual(actual, Buffer.from(file.sha256, "hex"))) {
+            throw new Error("Portal asset integrity check failed.");
+        }
+        assets.set(`/${file.path}`, { content, type: types[file.path.split(".").at(-1)] ?? "application/octet-stream" });
+    }
+    if (!readRegular(root, "server.mjs").equals(readFileSync(entry))) {
+        throw new Error("Bundled server differs from the reviewed runtime.");
+    }
+    const allowed = new Set([...publicPaths, "server.mjs", "site-manifest.json"]);
+    for (const file of readdirSync(root, { recursive: true, withFileTypes: true })) {
+        const relative = join(file.parentPath, file.name).slice(resolve(root).length + 1).replaceAll("\\", "/");
+        if (file.isSymbolicLink() || (!file.isDirectory() && (!file.isFile() || !allowed.has(relative)))) {
+            throw new Error("Bundle contains an unexpected file; refusing publication.");
+        }
+    }
+    return assets;
+}
+
+export function startPortal({ root = dirname(entry), port = Number(process.env.PORT ?? 8080), host = "127.0.0.1" } = {}) {
+    if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error("PORT must be a valid integer TCP port.");
+    const assets = verifyPortal(resolve(root));
+    const server = createServer((request, response) => {
+        const send = (status, type, content) => {
+            response.writeHead(status, { ...headers, "Content-Type": type, "Content-Length": Buffer.byteLength(content),
+                ...(status === 405 ? { Allow: "GET, HEAD" } : {}) });
+            response.end(request.method === "HEAD" ? undefined : content);
+        };
+        if (!["GET", "HEAD"].includes(request.method)) return send(405, "text/plain", "Method not allowed.");
+        let url;
+        try { url = new URL(request.url, "http://localhost"); }
+        catch (error) {
+            if (!(error instanceof TypeError)) throw error;
+            return send(400, "text/plain", "Invalid request URL.");
+        }
+        if ([...url.searchParams].some(([key, value]) => key !== "lang" || !["en", "fr"].includes(value))) {
+            return send(400, "text/plain", "Only the public language selector is supported.");
+        }
+        if (url.pathname === "/health") return send(200, "application/json", '{"status":"ok"}');
+        const asset = assets.get(url.pathname === "/" ? "/index.html" : url.pathname);
+        if (!asset || url.pathname === "/.nojekyll") return send(404, "text/plain", "Not found.");
+        send(200, asset.type, asset.content);
+    });
+    server.requestTimeout = 15000;
+    server.headersTimeout = 10000;
+    return server.listen(port, host);
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+    if (process.argv[2] === "--verify" && process.argv.length <= 4) {
+        verifyPortal(resolve(process.argv[3] ?? dirname(entry)));
+        console.log("PASS 50 public assets and the reviewed runtime; no private files or cloud access.");
+    } else if (process.argv.length === 2) {
+        if (process.env.PORT && (!/^\d+$/.test(process.env.PORT) || Number(process.env.PORT) < 1)) {
+            throw new Error("App Service PORT must be a positive integer.");
+        }
+        const server = startPortal({ host: process.env.PORT ? "0.0.0.0" : "127.0.0.1" });
+        server.on("error", () => { console.error("FAIL public portal listener."); process.exitCode = 1; });
+        for (const signal of ["SIGTERM", "SIGINT"]) process.once(signal, () => server.close());
+    } else { throw new Error("Usage: node server.mjs [--verify [bundle-directory]]"); }
+}
+'@
+
+$files['scripts/portal.test.mjs'] = @'
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { mkdtempSync, writeFileSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { once } from "node:events";
+import { buildPortal } from "./build-site.mjs";
+import { startPortal, verifyPortal, publicPaths } from "./portal-server.mjs";
+
+const root = fileURLToPath(new URL("../", import.meta.url));
+function bundle(t) {
+    const directory = mkdtempSync(join(tmpdir(), "workshop-public-portal-"));
+    t.after(() => rmSync(directory, { recursive: true, force: true }));
+    const destination = join(directory, "bundle");
+    assert.equal(buildPortal(root, destination).files, 52);
+    return destination;
+}
+test("public hosting verifies exact assets and refuses tampering, private extras or a changed server", (t) => {
+    const directory = bundle(t);
+    assert.equal(verifyPortal(directory).size, 50);
+    const server = readFileSync(join(directory, "server.mjs"));
+    writeFileSync(join(directory, "server.mjs"), "throw new Error('not the reviewed server');");
+    assert.throws(() => verifyPortal(directory), /reviewed runtime/);
+    writeFileSync(join(directory, "server.mjs"), server);
+    writeFileSync(join(directory, "private.txt"), "synthetic private data");
+    assert.throws(() => verifyPortal(directory), /unexpected file/);
+    rmSync(join(directory, "private.txt"));
+    writeFileSync(join(directory, "journey.json"), "{}");
+    assert.throws(() => verifyPortal(directory), /integrity/);
+});
+test("public server serves bilingual assets and health, but never exposes code, files or canvas writes", async (t) => {
+    const directory = bundle(t);
+    const server = startPortal({ root: directory, port: 0 });
+    await once(server, "listening");
+    t.after(() => new Promise((resolve) => { server.closeAllConnections(); server.close(resolve); }));
+    const base = `http://127.0.0.1:${server.address().port}`;
+    for (const path of ["/", "/?lang=fr", "/health", ...publicPaths.filter((path) => path !== ".nojekyll").map((path) => `/${path}`)]) {
+        const response = await fetch(`${base}${path}`);
+        assert.equal(response.status, 200, path);
+        assert.equal(response.headers.get("x-content-type-options"), "nosniff");
+        assert.match(response.headers.get("content-security-policy"), /connect-src 'self'/);
+        if (path === "/") assert.match(await response.text(), /const staticSite = "true" === "true"/);
+        else await response.arrayBuffer();
+    }
+    for (const path of ["/server.mjs", "/site-manifest.json", "/.git/config", "/.workshop/participant.tfvars.json",
+        "/api/progress", "/assets/architecture/", "/.nojekyll"]) {
+        assert.equal((await fetch(`${base}${path}`)).status, 404, path);
+    }
+    assert.equal((await fetch(`${base}/?token=synthetic`)).status, 400);
+    assert.equal((await fetch(`${base}/`, { method: "POST", body: "synthetic" })).status, 405);
+    const head = await fetch(base, { method: "HEAD" });
+    assert.equal(head.status, 200);
+    assert.equal(await head.text(), "");
+    assert.equal((await fetch(`${base}/health`)).headers.get("cache-control"), "no-store");
+});
+test("public manifest rejects duplicate and path traversal entries before starting HTTP", (t) => {
+    const directory = bundle(t);
+    const path = join(directory, "site-manifest.json");
+    const manifest = JSON.parse(readFileSync(path, "utf8"));
+    manifest.files[0].path = "../private.txt";
+    writeFileSync(path, JSON.stringify(manifest));
+    assert.throws(() => startPortal({ root: directory, port: 0 }), /non-public entry/);
+    manifest.files[0] = manifest.files[1];
+    writeFileSync(path, JSON.stringify(manifest));
+    assert.throws(() => verifyPortal(directory), /duplicate/);
+});
+'@
+
+$files['scripts/preflight.ps1'] = @'
+#requires -Version 7.4
+[CmdletBinding()]
+param(
+    [Parameter(Mandatory)][guid]$TenantId,
+    [Parameter(Mandatory)][guid]$SubscriptionId,
+    [ValidateSet('foundation', 'portal', 'mcp')][string]$Stage = 'foundation',
+    [string]$ParametersPath = (Join-Path (Split-Path $PSScriptRoot -Parent) '.workshop/participant.tfvars.json'),
+    [string]$CapacityReviewPath,
+    [ValidateSet(512, 2048, 4096)][int]$FlexMemoryMB = 2048,
+    [ValidateRange(1, 1000)][int]$FlexMaximumInstances = 10
+)
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'context-common.ps1')
+$dynamicInstall = $env:AZURE_EXTENSION_USE_DYNAMIC_INSTALL
+$env:AZURE_EXTENSION_USE_DYNAMIC_INSTALL = 'no'
+try {
+    & (Join-Path $PSScriptRoot 'check-tools.ps1')
+    $parameters = Read-WorkshopParameters -Path $ParametersPath
+    Assert-WorkshopAzureContext -TenantId $TenantId -SubscriptionId $SubscriptionId
+    Write-Output 'PASS explicit interactive context (expected HTTP N/A; no sign-in, token output or context change)'
+
+    $subscription = $SubscriptionId.ToString()
+    $scope = "/subscriptions/$subscription"
+    $stem = "mcp-$($parameters.participant_prefix)-$($parameters.resource_suffix)"
+    $group = if ($parameters.existing_resource_group_name) { $parameters.existing_resource_group_name } else { "rg-$stem" }
+    $groupScope = "$scope/resourceGroups/$group"
+    if ($Stage -ne 'foundation' -or $parameters.existing_resource_group_name) {
+        $groupInfo = Invoke-WorkshopAzureJson -Arguments @('group', 'show', '--name', $group, '--subscription', $subscription)
+        if ($groupInfo.id -ne $groupScope) { throw 'Resource group lookup does not match the explicit target.' }
+        $permissionScope = $groupScope
+    } else { $permissionScope = $scope }
+    $locations = Invoke-WorkshopAzureJson -Arguments @('account', 'list-locations', '--subscription', $subscription)
+    if (-not (@($locations) | Where-Object { $_.name -eq $parameters.location })) {
+        throw 'FAIL region (expected HTTP 200 and the selected region in the subscription location list).'
+    }
+    Write-Output 'PASS subscription region (expected HTTP 200; availability is not a capacity reservation)'
+
+    $requiredProviders = switch ($Stage) {
+        'foundation' { @('Microsoft.Resources') }
+        'portal' { @('Microsoft.Resources', 'Microsoft.Web') }
+        'mcp' { @('Microsoft.Resources', 'Microsoft.Web', 'Microsoft.App', 'Microsoft.Storage',
+            'Microsoft.ManagedIdentity', 'Microsoft.Network', 'Microsoft.Insights',
+            'Microsoft.OperationalInsights', 'Microsoft.ApiManagement', 'Microsoft.ApiCenter') }
+    }
+    $providers = Invoke-WorkshopAzureJson -Arguments @('provider', 'list', '--subscription', $subscription)
+    foreach ($provider in $requiredProviders) {
+        if (-not (@($providers) | Where-Object { $_.namespace -eq $provider -and $_.registrationState -eq 'Registered' })) {
+            throw "FAIL provider $provider (expected HTTP 200 and Registered). Ask the administrator; this script never registers providers."
+        }
+        Write-Output "PASS provider $provider (expected HTTP 200; Registered)"
+    }
+
+    $permissions = @()
+    $url = "https://management.azure.com$permissionScope/providers/Microsoft.Authorization/permissions?api-version=2022-04-01"
+    $pages = 0
+    while ($url) {
+        $uri = $null
+        if ($url -isnot [string] -or -not [uri]::TryCreate($url, [UriKind]::Absolute, [ref]$uri) -or
+            $uri.Scheme -ne 'https' -or $uri.Host -ne 'management.azure.com' -or $uri.Port -ne 443 -or
+            $uri.UserInfo -or $uri.Fragment -or
+            $uri.AbsolutePath -ine "$permissionScope/providers/Microsoft.Authorization/permissions" -or
+            ++$pages -gt 100) {
+            throw 'Unsafe or excessive permissions pagination was refused.'
+        }
+        $page = Invoke-WorkshopAzureJson -Arguments @('rest', '--method', 'get', '--url', $url)
+        if (-not $page.Contains('value') -or $page.value -isnot [System.Collections.IList]) {
+            throw 'The permissions response is missing its documented array.'
+        }
+        $permissions += @($page.value)
+        $url = if ($page.Contains('nextLink')) { $page.nextLink } else { $null }
+    }
+    $requiredActions = @('Microsoft.Resources/subscriptions/resourceGroups/read')
+    if ($Stage -eq 'foundation' -and -not $parameters.existing_resource_group_name) {
+        $requiredActions += 'Microsoft.Resources/subscriptions/resourceGroups/write', 'Microsoft.Resources/subscriptions/resourceGroups/delete'
+    }
+    if ($Stage -in @('portal', 'mcp')) {
+        foreach ($resource in @('Microsoft.Web/serverfarms', 'Microsoft.Web/sites')) {
+            foreach ($verb in @('read', 'write', 'delete')) { $requiredActions += "$resource/$verb" }
+        }
+    }
+    if ($Stage -eq 'portal') {
+        $requiredActions += 'Microsoft.Web/sites/publish/Action', 'Microsoft.Web/serverfarms/join/action',
+            'Microsoft.Web/sites/config/read', 'Microsoft.Web/sites/config/write', 'Microsoft.Web/sites/config/list/action',
+            'Microsoft.Web/sites/basicPublishingCredentialsPolicies/read', 'Microsoft.Web/sites/basicPublishingCredentialsPolicies/write'
+    }
+    if ($Stage -eq 'mcp') {
+        foreach ($resource in @('Microsoft.Storage/storageAccounts', 'Microsoft.ManagedIdentity/userAssignedIdentities',
+            'Microsoft.Network/virtualNetworks', 'Microsoft.Network/privateEndpoints', 'Microsoft.Network/privateDnsZones',
+            'Microsoft.Insights/components', 'Microsoft.OperationalInsights/workspaces',
+            'Microsoft.ApiManagement/service', 'Microsoft.ApiCenter/services')) {
+            foreach ($verb in @('read', 'write', 'delete')) { $requiredActions += "$resource/$verb" }
+        }
+        $requiredActions += 'Microsoft.Authorization/roleAssignments/write', 'Microsoft.Authorization/roleAssignments/delete'
+    }
+    foreach ($action in $requiredActions) {
+        $granted = $false
+        foreach ($permission in $permissions) {
+            if (-not $permission.Contains('actions') -or -not $permission.Contains('notActions')) {
+                throw 'The permissions response is malformed.'
+            }
+            $allow = @($permission.actions | Where-Object { $action -like $_ }).Count -gt 0
+            $exclude = @($permission.notActions | Where-Object { $action -like $_ }).Count -gt 0
+            if ($allow -and -not $exclude) { $granted = $true; break }
+        }
+        if (-not $granted) { throw "FAIL permission grant for $action (expected HTTP 200 and a matching grant at the required scope)." }
+    }
+    Write-Output 'PASS required ARM permission grants (expected HTTP 200; deny assignments, policy and deployment approval remain separate)'
+
+    if ($Stage -eq 'foundation' -and -not $parameters.existing_resource_group_name) {
+        $count = Invoke-WorkshopAzureJson -Arguments @('group', 'list', '--subscription', $subscription, '--query', 'length(@)')
+        if ($count -isnot [long] -and $count -isnot [int]) { throw 'Resource group count is not an integer.' }
+        if ($count -ge 980 -or $count -lt 0) { throw 'FAIL resource group capacity (expected HTTP 200 and fewer than 980 groups).' }
+        Write-Output 'PASS resource group capacity (expected HTTP 200; below the documented 980-group limit)'
+    } elseif ($Stage -eq 'foundation') {
+        Write-Output 'PASS existing group mode (expected HTTP N/A; no new group quota required and group is not managed)'
+    }
+    if ($Stage -eq 'portal') {
+        $regions = Invoke-WorkshopAzureJson -Arguments @('appservice', 'list-locations', '--sku', 'B1',
+            '--linux-workers-enabled', '--subscription', $subscription)
+        if (-not (@($regions) | Where-Object { ($_.name -replace ' ', '') -eq $parameters.location })) {
+            throw 'FAIL B1 Linux region (expected HTTP 200 and the selected region).'
+        }
+        Write-Output 'PASS B1 Linux region (expected HTTP 200; paid worker capacity is reviewed separately)'
+    }
+    if ($Stage -eq 'mcp') {
+        $regions = Invoke-WorkshopAzureJson -Arguments @('functionapp', 'list-flexconsumption-locations', '--subscription', $subscription)
+        $runtimes = Invoke-WorkshopAzureJson -Arguments @('functionapp', 'list-flexconsumption-runtimes',
+            '--location', $parameters.location, '--runtime', 'dotnet-isolated', '--subscription', $subscription)
+        if (-not (@($regions) | Where-Object { $_.name -eq $parameters.location }) -or
+            -not (@($runtimes) | Where-Object { $_.name -eq 'dotnet-isolated' -and $_.version -match '^10(\.0)?$' })) {
+            throw 'FAIL Flex region/runtime (expected HTTP 200, selected region and isolated .NET 10).'
+        }
+        Write-Output 'PASS Flex region and isolated .NET 10 runtime (expected HTTP 200; does not reserve compute)'
+    }
+    if ($Stage -ne 'foundation') {
+        if (-not $CapacityReviewPath) {
+            throw 'FAIL capacity review: provide a private, same-target quota/cost review from the last 24 hours. Region availability alone cannot pass this gate.'
+        }
+        $reviewItem = Get-Item -LiteralPath $CapacityReviewPath -Force
+        if ($reviewItem.PSIsContainer -or ($reviewItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+            throw 'Capacity evidence must be a regular private file.'
+        }
+        $jsonOptions = @{ AsHashtable = $true }
+        if ($PSVersionTable.PSVersion -ge [version]'7.5') { $jsonOptions.DateKind = 'String' }
+        $review = Get-Content -LiteralPath $reviewItem.FullName -Raw | ConvertFrom-Json @jsonOptions
+        $checked = [datetimeoffset]::MinValue
+        $now = [datetimeoffset]::UtcNow
+        $required = if ($Stage -eq 'portal') { 1 } else { $FlexMemoryMB * $FlexMaximumInstances }
+        $unit = if ($Stage -eq 'portal') { 'workers' } else { 'MB' }
+        if ($review.subscriptionId -ne $subscription -or $review.location -ne $parameters.location -or
+            $review.stage -ne $Stage -or $review.unit -cne $unit -or $review.costApproved -isnot [bool] -or
+            -not $review.costApproved -or ($review.availableUnits -isnot [long] -and $review.availableUnits -isnot [int]) -or
+            $review.availableUnits -lt $required -or
+            -not [datetimeoffset]::TryParseExact($review.checkedAtUtc, 'yyyy-MM-ddTHH:mm:ssZ',
+                [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::AssumeUniversal, [ref]$checked) -or
+            $checked -gt $now -or $checked -lt $now.AddHours(-24)) {
+            throw 'FAIL capacity/cost review: stale, insufficient, malformed or for a different target.'
+        }
+        Write-Output 'PASS private human capacity/cost review (expected HTTP N/A; not a live quota API check or reservation)'
+    }
+    Write-Output "PASS $Stage preflight only. No resource, registration, permission, login or context was changed. A real plan and separate approval are still required."
+} finally { $env:AZURE_EXTENSION_USE_DYNAMIC_INSTALL = $dynamicInstall }
+'@
+
+$files['scripts/preflight.sh'] = @'
+#!/usr/bin/env bash
+set -euo pipefail
+command -v pwsh >/dev/null || { printf '%s\n' 'FAIL PowerShell 7.4+ is required.' >&2; exit 1; }
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+pwsh -NoProfile -File "$root/preflight.ps1" "$@"
+'@
+
+$files['scripts/preflight.test.mjs'] = @'
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { spawnSync } from "node:child_process";
+
+const root = fileURLToPath(new URL("../", import.meta.url));
+test("preflight is read-only and fails closed for context, permission, provider, quota, runtime and evidence errors", (t) => {
+    const directory = mkdtempSync(join(tmpdir(), "workshop-preflight-"));
+    t.after(() => rmSync(directory, { recursive: true, force: true }));
+    const script = join(root, "scripts", "preflight.ps1").replaceAll("'", "''");
+    const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-Command", `
+$ErrorActionPreference = 'Stop'
+Get-ChildItem Env: | Where-Object { $_.Name -match '^(ARM_|AZURE_)' } | ForEach-Object { Remove-Item "Env:$($_.Name)" }
+$global:tenant = [guid]::NewGuid()
+$global:subscription = [guid]::NewGuid()
+$global:calls = [Collections.Generic.List[string]]::new()
+$global:pageCount = 0
+function global:git { $global:LASTEXITCODE=0; 'git version 2.53.0' }
+function global:terraform { $global:LASTEXITCODE=0; '{"terraform_version":"1.16.6"}' }
+function global:dotnet { $global:LASTEXITCODE=0; '10.0.402 [synthetic]' }
+function global:node { $global:LASTEXITCODE=0; 'v22.22.0' }
+function global:func { $global:LASTEXITCODE=0; '4.14.0' }
+function global:az {
+    $global:LASTEXITCODE = 0
+    $global:calls.Add(($args -join ' '))
+    $result = switch ("$($args[0]) $($args[1])") {
+        'version --output' { @{ 'azure-cli'='2.88.0' }; break }
+        'cloud show' { @{ name='AzureCloud' }; break }
+        'account show' { @{ id=$(if ($global:scenario -eq 'wrong-context') { [guid]::NewGuid().ToString() } else { $global:subscription.ToString() });
+            tenantId=$global:tenant.ToString(); state='Enabled'; environmentName='AzureCloud'; userType='user' }; break }
+        'account list-locations' { @(@{name='westeurope'}); break }
+        'group show' { @{id="/subscriptions/$global:subscription/resourceGroups/rg-synthetic-admin"}; break }
+        'group list' { if ($global:scenario -eq 'group-quota') { 980 } else { 3 }; break }
+        'provider list' { @('Microsoft.Resources','Microsoft.Web','Microsoft.App','Microsoft.Storage','Microsoft.ManagedIdentity',
+            'Microsoft.Network','Microsoft.Insights','Microsoft.OperationalInsights','Microsoft.ApiManagement','Microsoft.ApiCenter') |
+            ForEach-Object { @{ namespace=$_; registrationState=$(if ($global:scenario -eq 'missing-provider' -and $_ -eq 'Microsoft.Web') { 'NotRegistered' } else { 'Registered' }) } }; break }
+        'appservice list-locations' { @(@{name='West Europe'}); break }
+        'functionapp list-flexconsumption-locations' { @(@{name=$(if ($global:scenario -eq 'wrong-region') { 'eastus' } else { 'westeurope' })}); break }
+        'functionapp list-flexconsumption-runtimes' { @(@{name='dotnet-isolated';version=$(if ($global:scenario -eq 'wrong-runtime') { '8.0' } else { '10.0' })}); break }
+        'rest --method' {
+            if ($args[2] -ne 'get') { throw 'Write attempt refused by synthetic CLI.' }
+            $global:pageCount++
+            $permission = @{actions=@('*');notActions=@()}
+            if ($global:scenario -eq 'permission-denied') { $permission.notActions=@('Microsoft.Resources/subscriptions/resourceGroups/write') }
+            $response = @{value=@($permission)}
+            if ($global:scenario -eq 'pagination' -and $global:pageCount -eq 1) {
+                $response.value=@(@{actions=@('*/read');notActions=@()})
+                $response.nextLink="https://management.azure.com/subscriptions/$global:subscription/providers/Microsoft.Authorization/permissions?api-version=2022-04-01&skiptoken=synthetic"
+            }
+            if ($global:scenario -eq 'unsafe-pagination') { $response.nextLink='https://example.invalid/never-call' }
+            $response
+            break
+        }
+        default { throw "Unexpected Azure command; synthetic CLI allows only read/check commands." }
+    }
+    if ($global:scenario -eq 'cli-error' -and $args[0] -eq 'provider') { $global:LASTEXITCODE=1; 'synthetic private error must not be printed'; return }
+    if ($global:scenario -eq 'invalid-json' -and $args[0] -eq 'provider') { 'not-json'; return }
+    ConvertTo-Json -InputObject $result -Depth 20 -Compress
+}
+$directory = '${directory.replaceAll("'", "''")}'
+$path = Join-Path $directory 'parameters.json'
+$reviewPath = Join-Path $directory 'capacity.json'
+foreach ($global:scenario in @('valid', 'pagination', 'wrong-context', 'override', 'permission-denied', 'group-quota',
+    'missing-provider', 'cli-error', 'invalid-json', 'unsafe-pagination', 'portal-valid', 'mcp-valid', 'wrong-runtime',
+    'wrong-region', 'missing-review', 'stale-review', 'future-review', 'wrong-review-target', 'insufficient-review', 'unsafe-parameters')) {
+    $global:pageCount=0
+    $global:calls.Clear()
+    $stage = if ($global:scenario -in @('portal-valid','missing-provider','missing-review','stale-review','future-review','wrong-review-target','insufficient-review')) { 'portal' }
+        elseif ($global:scenario -in @('mcp-valid','wrong-runtime','wrong-region')) { 'mcp' } else { 'foundation' }
+    $parameters = @{participant_prefix='p01';resource_suffix='0123456789';location='westeurope';owner='alice';
+        expiry=[datetime]::UtcNow.AddDays(1).ToString('yyyy-MM-dd');existing_resource_group_name=$(if ($stage -ne 'foundation') { 'rg-synthetic-admin' } else { $null })}
+    if ($global:scenario -eq 'unsafe-parameters') { $parameters.resource_suffix='../../outside' }
+    $parameters | ConvertTo-Json | Set-Content -LiteralPath $path
+    $before = Get-Content -LiteralPath $path -Raw
+    $checked = [datetime]::UtcNow.AddMinutes(-1)
+    if ($global:scenario -eq 'stale-review') { $checked=$checked.AddDays(-2) }
+    if ($global:scenario -eq 'future-review') { $checked=$checked.AddDays(1) }
+    @{subscriptionId=$(if ($global:scenario -eq 'wrong-review-target') { [guid]::NewGuid().ToString() } else { $global:subscription.ToString() });
+        location='westeurope';stage=$stage;unit=$(if ($stage -eq 'portal') { 'workers' } else { 'MB' });
+        availableUnits=$(if ($global:scenario -eq 'insufficient-review') { 0 } else { 512000 });
+        checkedAtUtc=$checked.ToString('yyyy-MM-ddTHH:mm:ssZ');costApproved=$true } | ConvertTo-Json | Set-Content -LiteralPath $reviewPath
+    $arguments = @{TenantId=$global:tenant;SubscriptionId=$global:subscription;ParametersPath=$path;Stage=$stage}
+    if ($stage -ne 'foundation' -and $global:scenario -ne 'missing-review') { $arguments.CapacityReviewPath=$reviewPath }
+    if ($global:scenario -eq 'override') { $env:ARM_CLIENT_ID='synthetic-override' }
+    $failed=$false
+    try { $output = & '${script}' @arguments | Out-String }
+    catch { $failed=$true; $output=$_.Exception.Message + ' ' + $_.ScriptStackTrace }
+    finally { Remove-Item Env:ARM_CLIENT_ID -ErrorAction SilentlyContinue }
+    $expected = $global:scenario -in @('valid','pagination','portal-valid','mcp-valid')
+    if ($failed -eq $expected) { throw "Unexpected result for $global:scenario : $output" }
+    if ($output -match 'synthetic private error must not be printed') { throw 'Private CLI error leaked.' }
+    if ((Get-Content -LiteralPath $path -Raw) -cne $before) { throw 'Preflight changed participant parameters.' }
+    if ($env:AZURE_EXTENSION_USE_DYNAMIC_INSTALL) { throw 'Extension policy was not restored.' }
+    if ($global:calls | Where-Object { $_ -match '(^| )(login|set|register|create|delete|update|deploy|apply)( |$)' }) { throw 'Preflight attempted a state-changing command.' }
+    if ($global:scenario -eq 'pagination' -and $global:pageCount -ne 2) { throw 'Permission pagination was not followed.' }
+    if ($global:scenario -eq 'unsafe-pagination' -and $global:pageCount -ne 1) { throw 'Unsafe pagination was followed.' }
+    Write-Output "PASS synthetic $global:scenario (expected HTTP N/A; no Azure access)"
+}
+`], { encoding: "utf8", timeout: 60000 });
+    assert.equal(result.status, 0, result.stderr + result.stdout);
+    assert.equal((result.stdout.match(/PASS synthetic /g) ?? []).length, 20);
+});
+'@
+
 $files['scripts/prepare-workshop.ps1'] = @'
 #requires -Version 7.4
 [CmdletBinding()]
@@ -7067,7 +8830,8 @@ param(
     [Parameter(Mandatory)][ValidatePattern('^[a-z][a-z0-9]+$')][string]$Location,
     [Parameter(Mandatory)][ValidatePattern('^[a-z][a-z0-9-]{1,31}$')][string]$Owner,
     [Parameter(Mandatory)][string]$Expiry,
-    [ValidatePattern('^[a-zA-Z0-9_().-]{1,90}$')][string]$ExistingResourceGroupName
+    [ValidatePattern('^[a-zA-Z0-9_().-]{1,90}$')][string]$ExistingResourceGroupName,
+    [switch]$EnablePublicPortal
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -7099,10 +8863,13 @@ if (Test-Path -LiteralPath $path) {
     if ($entry.PSIsContainer -or $entry.Attributes -band [IO.FileAttributes]::ReparsePoint) {
         throw 'Participant parameters must be a regular local file.'
     }
-    $existing = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json -AsHashtable
-    $keys = @($configuration.Keys) + 'resource_suffix'
-    if ($existing.Count -ne $keys.Count -or ($existing.Keys | Where-Object { $_ -notin $keys }) -or
-        $existing.resource_suffix -isnot [string] -or $existing.resource_suffix -cnotmatch '^[a-f0-9]{10}$') {
+    $before = Get-Content -LiteralPath $path -Raw
+    $existing = $before | ConvertFrom-Json -AsHashtable
+    $keys = @($configuration.Keys) + 'resource_suffix', 'public_portal_enabled'
+    $expectedCount = $configuration.Count + 1 + $(if ($existing.ContainsKey('public_portal_enabled')) { 1 } else { 0 })
+    if ($existing.Count -ne $expectedCount -or ($existing.Keys | Where-Object { $_ -notin $keys }) -or
+        $existing.resource_suffix -isnot [string] -or $existing.resource_suffix -cnotmatch '^[a-f0-9]{10}$' -or
+        ($existing.ContainsKey('public_portal_enabled') -and $existing.public_portal_enabled -isnot [bool])) {
         throw 'Invalid participant file. Restore the original private parameters; do not regenerate names for deployed resources.'
     }
     foreach ($key in $configuration.Keys) {
@@ -7110,8 +8877,18 @@ if (Test-Path -LiteralPath $path) {
             throw "Participant setting '$key' differs. Refusing to overwrite parameters or silently replace resources."
         }
     }
-    Write-Output 'PASS existing participant parameters reused unchanged.'
+    if ($EnablePublicPortal -and (-not $existing.ContainsKey('public_portal_enabled') -or -not $existing.public_portal_enabled)) {
+        $existing.public_portal_enabled = $true
+        $temporary = Join-Path $directory "participant-$([guid]::NewGuid().ToString('N')).tmp"
+        [IO.File]::WriteAllText($temporary, ($existing | ConvertTo-Json) + "`n", [Text.UTF8Encoding]::new($false))
+        try {
+            if ([IO.File]::ReadAllText($path) -cne $before) { throw 'Participant parameters changed concurrently; no replacement was made.' }
+            [IO.File]::Move($temporary, $path, $true)
+        } finally { if ([IO.File]::Exists($temporary)) { [IO.File]::Delete($temporary) } }
+        Write-Output 'PASS public portal explicitly opted in; existing names and state preserved. Review the paid-resource plan before applying.'
+    } else { Write-Output 'PASS existing participant parameters reused unchanged.' }
 } else {
+    if ($EnablePublicPortal) { $configuration.public_portal_enabled = $true }
     $configuration.resource_suffix = [Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(5)).ToLowerInvariant()
     $bytes = [Text.UTF8Encoding]::new($false).GetBytes(($configuration | ConvertTo-Json) + "`n")
     $stream = [IO.File]::Open($path, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
@@ -7474,18 +9251,8 @@ $ErrorActionPreference = 'Stop'
 $fr = $Language -eq 'fr'
 Get-Command az -ErrorAction Stop | Out-Null
 
-foreach ($name in @('ARM_CLIENT_ID', 'ARM_CLIENT_SECRET', 'ARM_CLIENT_CERTIFICATE_PATH',
-    'ARM_CLIENT_CERTIFICATE', 'ARM_CLIENT_CERTIFICATE_PASSWORD', 'ARM_USE_MSI',
-    'ARM_USE_OIDC', 'ARM_OIDC_TOKEN', 'ARM_ACCESS_KEY', 'AZURE_CLIENT_ID',
-    'AZURE_CLIENT_SECRET', 'AZURE_CLIENT_CERTIFICATE_PATH', 'ARM_ENVIRONMENT',
-    'ARM_USE_CLI', 'ARM_USE_AKS_WORKLOAD_IDENTITY', 'ARM_OIDC_TOKEN_FILE_PATH',
-    'ARM_OIDC_REQUEST_TOKEN', 'ARM_OIDC_REQUEST_URL', 'AZURE_FEDERATED_TOKEN_FILE',
-    'AZURE_AUTHORITY_HOST', 'ARM_MSI_ENDPOINT', 'ARM_CLIENT_ID_FILE_PATH',
-    'ARM_TENANT_ID_FILE_PATH', 'ARM_SUBSCRIPTION_ID_FILE_PATH')) {
-    if ([Environment]::GetEnvironmentVariable($name)) {
-        throw 'An authentication override is present. Use a separate approved interactive-user terminal; do not combine credential flows.'
-    }
-}
+. (Join-Path $PSScriptRoot 'context-common.ps1')
+Assert-WorkshopInteractiveEnvironment
 
 $cloud = az cloud show --query name --output tsv
 if ($LASTEXITCODE -ne 0 -or $cloud -ne 'AzureCloud') {
@@ -7689,6 +9456,12 @@ foreach ($change in @(@{Owner='bob';Expiry=$expiry}, @{Owner='alice';Expiry='200
   catch { $rejected++ }
 }
 if ($rejected -ne 3 -or [IO.File]::ReadAllText($path) -cne $before) { throw 'Unsafe changes were accepted.' }
+& $scriptOne -ParticipantPrefix p01 -Location westeurope -Owner alice -Expiry $expiry -EnablePublicPortal
+$opted = [IO.File]::ReadAllText($path)
+$portal = $opted | ConvertFrom-Json
+if (-not $portal.public_portal_enabled -or $portal.resource_suffix -cne $first.resource_suffix) { throw 'Portal opt-in changed resource names.' }
+& $scriptOne -ParticipantPrefix p01 -Location westeurope -Owner alice -Expiry $expiry
+if ([IO.File]::ReadAllText($path) -cne $opted) { throw 'Rerun removed persistent portal opt-in.' }
 Write-Output 'PASS stable parameters and safe rejection'
 `, t);
     if (!result) return;
@@ -7702,7 +9475,7 @@ test("shared tool checks accept working tools and reject incompatible versions w
         const result = powershell(`
 function global:git { $global:LASTEXITCODE=0; 'git version 2.53.0' }
 function global:az { if ($args[0] -ne 'version') { throw 'Unexpected Azure access.' }; $global:LASTEXITCODE=0; '{"azure-cli":"2.88.0"}' }
-function global:terraform { $global:LASTEXITCODE=0; '{"terraform_version":"1.16.5"}' }
+function global:terraform { $global:LASTEXITCODE=0; '{"terraform_version":"1.16.6"}' }
 function global:dotnet { $global:LASTEXITCODE=0; '${compatible ? "10.0.402" : "9.0.319"} [synthetic]' }
 function global:node { $global:LASTEXITCODE=0; 'v22.22.0' }
 function global:func { $global:LASTEXITCODE=0; '4.14.0' }
@@ -7816,7 +9589,8 @@ Start the workshop, with or without Copilot:
   2. Choose VS Code dev container or a local terminal; run the shared tool checks there.
   3. Prepare one private participant file; reuse its random suffix and Terraform state through cleanup.
   4. Review your Azure context, permissions, quota and plan before any approved deployment.
-     The Terraform foundation manages only a dedicated group or reads an approved existing group, not an MCP server.
+     By default Terraform manages a dedicated group or reads an approved existing group, not an MCP server.
+     Optional public App Service hosting is a separate paid opt-in: read docs/HOSTING.md.
 
 Optional authoring workflow in GitHub Copilot app:
   1. Open $Path in a local session.

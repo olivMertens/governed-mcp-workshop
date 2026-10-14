@@ -45,6 +45,12 @@ foreach ($change in @(@{Owner='bob';Expiry=$expiry}, @{Owner='alice';Expiry='200
   catch { $rejected++ }
 }
 if ($rejected -ne 3 -or [IO.File]::ReadAllText($path) -cne $before) { throw 'Unsafe changes were accepted.' }
+& $scriptOne -ParticipantPrefix p01 -Location westeurope -Owner alice -Expiry $expiry -EnablePublicPortal
+$opted = [IO.File]::ReadAllText($path)
+$portal = $opted | ConvertFrom-Json
+if (-not $portal.public_portal_enabled -or $portal.resource_suffix -cne $first.resource_suffix) { throw 'Portal opt-in changed resource names.' }
+& $scriptOne -ParticipantPrefix p01 -Location westeurope -Owner alice -Expiry $expiry
+if ([IO.File]::ReadAllText($path) -cne $opted) { throw 'Rerun removed persistent portal opt-in.' }
 Write-Output 'PASS stable parameters and safe rejection'
 `, t);
     if (!result) return;
@@ -58,7 +64,7 @@ test("shared tool checks accept working tools and reject incompatible versions w
         const result = powershell(`
 function global:git { $global:LASTEXITCODE=0; 'git version 2.53.0' }
 function global:az { if ($args[0] -ne 'version') { throw 'Unexpected Azure access.' }; $global:LASTEXITCODE=0; '{"azure-cli":"2.88.0"}' }
-function global:terraform { $global:LASTEXITCODE=0; '{"terraform_version":"1.16.5"}' }
+function global:terraform { $global:LASTEXITCODE=0; '{"terraform_version":"1.16.6"}' }
 function global:dotnet { $global:LASTEXITCODE=0; '${compatible ? "10.0.402" : "9.0.319"} [synthetic]' }
 function global:node { $global:LASTEXITCODE=0; 'v22.22.0' }
 function global:func { $global:LASTEXITCODE=0; '4.14.0' }

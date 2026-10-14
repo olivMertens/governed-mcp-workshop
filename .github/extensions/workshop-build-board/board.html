@@ -215,10 +215,18 @@
           const label = parts ? parts[1] : target;
           const url = new URL(target, `https://github.com/olivMertens/workshop-mcp/blob/main/${path}`);
           if (["https:", "http:"].includes(url.protocol)) {
-            const repositoryPath = decodeURIComponent(url.pathname).replace(/^\/olivMertens\/workshop-mcp\/blob\/main\//, "");
+            const repositoryUrl = url.origin === "https://github.com" &&
+              url.pathname.startsWith("/olivMertens/workshop-mcp/blob/main/");
+            const repositoryPath = repositoryUrl ?
+              decodeURIComponent(url.pathname).replace(/^\/olivMertens\/workshop-mcp\/blob\/main\//, "") : null;
             const local = Object.entries(state.documents).find(([, doc]) => doc.sourcePath === repositoryPath);
-            const anchor = link(label, local && !url.hash ? `#/${local[0]}` : url.href);
-            if (!local || url.hash) {
+            const asset = repositoryPath && (
+              /^assets\/architecture\/(?:00|01|02|03|04|05|06|07|99)\.(?:en|fr)\.(?:svg|png)$/.test(repositoryPath) ||
+              repositoryPath === "assets/architecture/workshop.drawio" ||
+              /^assets\/icons\/(?:azure|microsoft|entra|apim|functions|storage|insights|api-center|subscription)\.svg$/.test(repositoryPath));
+            const anchor = link(label, local ? `#/${local[0]}` :
+              asset ? `${staticSite ? "" : "/"}${repositoryPath}` : url.href);
+            if (!local) {
               anchor.target = "_blank";
               anchor.rel = "noopener noreferrer";
             }
