@@ -140,3 +140,10 @@ A module is `validated` only when its validate script passes on a fresh subscrip
   An initial concurrent run timed out in two synthetic PowerShell fixtures under shared-host load;
   the complete serial run passes without relaxing assertions or changing timeouts.
   No cloud resource, module validation status, role or Preview gate changed.
+- Documentation workstream PD (2026-10-14): added bilingual concept guides for the token chain, scopes versus
+  app roles, OBO versus managed identity and the MCP threat model, plus bilingual facilitator timing, expected
+  outcomes, safe fallbacks and common-error guidance. The guides link the existing Draw.io-derived SVG and generated
+  Mermaid assets; no second architecture source or export was created. Public Microsoft Learn sources only.
+  Protected Resource Metadata, API Management MCP management APIs, Foundry identity passthrough, Agent 365 and
+  AI Gateway tier are marked **Preview** where used. Agent 365/AI Gateway remain facilitator-only.
+  This is documentation evidence only: module statuses and validation evidence are unchanged.

@@ -6,6 +6,22 @@ Module 01 now adapts the SDK bootstrap pattern; its provenance and complete upst
 Versions below are reproducible reference selections or compatibility-test candidates, not a promise that every
 combination has been tested together.
 
+## Concept and facilitator guides
+
+Last verified: 2026-10-14. The bilingual concept and facilitator guides summarize only public documentation and
+reuse the existing Draw.io-derived architecture assets. They do not add another architecture source.
+
+| Source | Use in the guides |
+|---|---|
+| [Access tokens](https://learn.microsoft.com/entra/identity-platform/access-tokens) and [claim validation](https://learn.microsoft.com/entra/identity-platform/claims-validation) | One token and audience per resource; platform validation of issuer, tenant, audience and expiry. |
+| [Scopes](https://learn.microsoft.com/entra/identity-platform/scopes-oidc), [app roles](https://learn.microsoft.com/entra/identity-platform/howto-add-app-roles-in-apps) and [API verification](https://learn.microsoft.com/entra/identity-platform/scenario-protected-web-api-verification-scope-app-roles) | Delegated `scp` and assigned `roles` have different purposes and are both enforced. |
+| [On-Behalf-Of](https://learn.microsoft.com/entra/identity-platform/v2-oauth2-on-behalf-of-flow), [secretless managed identity](https://learn.microsoft.com/entra/identity/managed-identities-azure-resources/secretless-authentication) and [managed-identity federation](https://learn.microsoft.com/entra/workload-id/workload-identity-federation-config-app-trust-managed-identity) | Separate downstream user-context and app-only tokens without client secrets. |
+| [App Service MCP authorization](https://learn.microsoft.com/azure/app-service/configure-authentication-mcp) | Protected Resource Metadata is **Preview** and token passthrough to downstream resources is unsafe. |
+| [Secure MCP servers](https://learn.microsoft.com/azure/api-management/secure-mcp-servers), [monitor MCP traffic](https://learn.microsoft.com/azure/api-management/monitor-mcp-servers) and [programmatic MCP management](https://learn.microsoft.com/azure/api-management/manage-mcp-servers-rest-api) | Gateway authorization, payload-free workshop logging, and MCP management API `2025-09-01-preview` (**Preview**). |
+| [MCP rug-pull attack](https://learn.microsoft.com/security/zero-trust/catalog-ai-attack-techniques/rug-pull-attack) and [prompt injection](https://learn.microsoft.com/security/zero-trust/catalog-ai-attack-techniques/prompt-injection) | Public threat descriptions and recommended layered controls. |
+| [Agent 365 with API Management](https://learn.microsoft.com/azure/api-management/agent-365) | Optional facilitator-only **Preview** inventory and blocking; AI Gateway tier is **Preview** and outside the core path. |
+| [Foundry MCP authentication](https://learn.microsoft.com/azure/foundry/agents/how-to/mcp-authentication) | Optional identity passthrough is marked **Preview** where documented and never permits downstream token passthrough. |
+
 ## Selection method
 
 Choose the smallest example that teaches one workshop outcome and can be validated and cleaned up by a participant.
