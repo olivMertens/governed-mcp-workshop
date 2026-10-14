@@ -45,7 +45,7 @@ Depuis le dossier principal du dépôt, dans le terminal que vous utiliserez pou
 $ErrorActionPreference = 'Stop'
 & .\scripts\check-tools.ps1
 $expiry = [datetime]::UtcNow.AddDays(1).ToString('yyyy-MM-dd')
-& .\scripts\prepare-workshop.ps1 -ParticipantPrefix p01 -Location westeurope -Owner alice -Expiry $expiry
+& .\scripts\prepare-workshop.ps1 -ParticipantPrefix p01 -Location swedencentral -Owner alice -Expiry $expiry
 & .\scripts\select-azure-context.ps1 -Language fr
 & .\modules\00-prerequisites\validate.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID
 ```
@@ -67,7 +67,7 @@ PowerShell doit aussi être installé : les scripts bash appellent les mêmes co
 ```bash
 bash ./scripts/check-tools.sh
 read -r -p 'Date de nettoyage approuvée (yyyy-MM-dd) : ' expiry
-bash ./scripts/prepare-workshop.sh -ParticipantPrefix p01 -Location westeurope -Owner alice -Expiry "$expiry"
+bash ./scripts/prepare-workshop.sh -ParticipantPrefix p01 -Location swedencentral -Owner alice -Expiry "$expiry"
 source ./scripts/select-azure-context.sh fr
 bash ./modules/00-prerequisites/validate.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId "$ARM_SUBSCRIPTION_ID"
 ```
