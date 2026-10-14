@@ -21,7 +21,7 @@ A module is `validated` only when its validate script passes on a fresh subscrip
   private DNS and public Function access disabled. Confirm deployment connectivity before applying.
 - Identity ownership: confirm who runs infra/entra and grants delegated consent; accept existing object IDs
   without changing or deleting those objects when identity creation is skipped.
-- Region: evaluate West Europe first. Confirm current Flex runtime support, Standard v2 availability, quota,
+- Region: Sweden Central (`swedencentral`) is the default example (decided 2026-10-14). Confirm current Flex runtime support, Standard v2 availability, quota,
   subscription policies and costs before selecting it.
 - Test identities: decide between a dedicated non-production tenant and dedicated Alice, Bob and Eve test
   accounts in an existing non-production tenant. Do not store live account details in the repository.

@@ -161,17 +161,17 @@ Ce contrôle exécute uniquement des commandes de version locales : ni permissio
 ## 3. Préparer vos paramètres de déploiement
 
 Choisissez votre préfixe de participant, une région approuvée, un libellé de propriétaire sans information
-personnelle et une date de nettoyage proche. Adaptez les exemples : `p01`, `alice` et `westeurope`
+personnelle et une date de nettoyage proche. Adaptez les exemples : `p01`, `alice` et `swedencentral`
 ne sont pas des valeurs imposées.
 
 ```powershell
 $expiry = [datetime]::UtcNow.AddDays(1).ToString('yyyy-MM-dd')
-& .\scripts\prepare-workshop.ps1 -ParticipantPrefix p01 -Location westeurope -Owner alice -Expiry $expiry
+& .\scripts\prepare-workshop.ps1 -ParticipantPrefix p01 -Location swedencentral -Owner alice -Expiry $expiry
 ```
 
 ```bash
 read -r -p 'Date de nettoyage approuvée (yyyy-MM-dd) : ' expiry
-bash ./scripts/prepare-workshop.sh -ParticipantPrefix p01 -Location westeurope -Owner alice -Expiry "$expiry"
+bash ./scripts/prepare-workshop.sh -ParticipantPrefix p01 -Location swedencentral -Owner alice -Expiry "$expiry"
 ```
 
 Le script crée un fichier privé, `.workshop/participant.tfvars.json`, que Git ne publie pas.
