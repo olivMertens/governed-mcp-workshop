@@ -281,6 +281,120 @@ def stamp_png(path, svg):
     path.write_bytes(data[:33] + chunk + data[33:])
 
 
+def mermaid_label(value):
+    return (value.replace("#", "#35;").replace("&", "#38;").replace('"', "#quot;")
+            .replace("<", "#60;").replace(">", "#62;").replace("\n", " / "))
+
+
+def mermaid(page):
+    cells = {cell.get("id"): cell for cell in page.findall("./mxGraphModel/root/mxCell")}
+    styles = {identifier: style(cell) for identifier, cell in cells.items()}
+    components = [cell for cell in cells.values() if cell.get("vertex") == "1"
+                  and styles[cell.get("id")].get("shape", "rectangle") == "rectangle"
+                  and styles[cell.get("id")].get("container") != "1"]
+    boundaries = [cell for cell in cells.values() if styles[cell.get("id")].get("container") == "1"]
+    identifiers = {cell.get("id"): "n_" + re.sub(r"[^a-zA-Z0-9_]", "_", cell.get("id")) for cell in components}
+    if len(set(identifiers.values())) != len(components):
+        raise ValueError("Mermaid component identifiers collide.")
+    groups = {boundary.get("id"): [] for boundary in boundaries}
+    outside = []
+    for cell in components:
+        x, y, w, h = bounds(cell, cells)
+        owners = []
+        for boundary in boundaries:
+            bx, by, bw, bh = bounds(boundary, cells)
+            if bx <= x and by <= y and x + w <= bx + bw and y + h <= by + bh:
+                owners.append(boundary.get("id"))
+        if len(owners) > 1:
+            raise ValueError("Nested/overlapping Mermaid ownership needs an explicit reviewed representation.")
+        (groups[owners[0]] if owners else outside).append(cell)
+
+    lines = ["flowchart LR"]
+    for cell in cells.values():
+        if cell.get("id", "").startswith("lane-label-"):
+            lines.append("  %% " + cell.get("value").replace("\n", " / "))
+
+    def declare(cell, indent):
+        if not cell.get("value"):
+            raise ValueError("Every Mermaid component needs a label.")
+        lines.append(f'{indent}{identifiers[cell.get("id")]}["{mermaid_label(cell.get("value"))}"]')
+
+    for cell in outside:
+        declare(cell, "  ")
+    for index, boundary in enumerate(boundaries):
+        caption = cells["boundary-label-" + boundary.get("id").removeprefix("boundary-")].get("value")
+        lines.append(f'  subgraph boundary_{index}["{mermaid_label(caption)}"]')
+        for cell in groups[boundary.get("id")]:
+            declare(cell, "    ")
+        lines.append("  end")
+        color = styles[boundary.get("id")]["strokeColor"]
+        lines.append(f"  style boundary_{index} fill:#ffffff,stroke:{color},stroke-dasharray:8 6")
+    for cell in cells.values():
+        if cell.get("edge") != "1":
+            continue
+        source, target = cell.get("source"), cell.get("target")
+        if source not in identifiers or target not in identifiers:
+            raise ValueError("Mermaid must preserve every edge between real components.")
+        arrow = "-.->" if styles[cell.get("id")].get("dashed") == "1" else "-->"
+        label = f'|"{mermaid_label(cell.get("value"))}"|' if cell.get("value") else ""
+        lines.append(f"  {identifiers[source]} {arrow}{label} {identifiers[target]}")
+    for cell in components:
+        s = styles[cell.get("id")]
+        lines.append(f'  style {identifiers[cell.get("id")]} fill:{s["fillColor"]},stroke:{s["strokeColor"]},color:{s["fontColor"]}')
+    return "\n".join(lines)
+
+
+def architecture_documents(pages, directory, check):
+    for language in ("en", "fr"):
+        french = language == "fr"
+        name = "STEPS.fr.md" if french else "STEPS.md"
+        lines = [
+            "# " + ("L'architecture, étape par étape" if french else "Architecture, step by step"), "",
+            ("Ces schémas montrent les objectifs du parcours, pas des déploiements réalisés. "
+             "Consultez le suivi de construction pour les preuves de validation." if french else
+             "These diagrams show learning targets, not deployed resources. See build progress for validation evidence."), "",
+            ("Le protocole de contexte de modèle (MCP) relie un client à des outils. "
+             "Chaque étape ajoute un contrôle ou explique une responsabilité." if french else
+             "The Model Context Protocol (MCP) connects a client to tools. "
+             "Each step adds a control or explains an ownership boundary."), "",
+            ("[Ce qui est réellement disponible](../../docs/fr/IMPLEMENTATION-STATUS.md). "
+             "[Modifier les schémas et vérifier les icônes](README.fr.md)." if french else
+             "[What is actually available](../../docs/IMPLEMENTATION-STATUS.md). "
+             "[Edit diagrams and verify icon provenance](README.md)."), "",
+            ("Fichier généré depuis `workshop.drawio` : ne le modifiez pas séparément. "
+             "Les cadres représentent des périmètres ; les vues répétées désignent le même environnement. "
+             "GitHub affiche Mermaid ; l'application affiche le SVG équivalent avec ses icônes et son routage vérifiés."
+             if french else
+             "Generated from `workshop.drawio`; do not edit separately. Frames are ownership boundaries; "
+             "repeated views refer to the same environment. GitHub renders Mermaid; "
+             "the application displays the equivalent SVG with verified icons and routing."), "",
+        ]
+        for page in pages:
+            if not page.get("id").endswith("." + language):
+                continue
+            identifier = page.get("id")
+            lines.extend([
+                "## " + page.get("name"), "", page.get("description"), "",
+                f"[SVG]({identifier}.svg) · [PNG]({identifier}.png)", "",
+                "```mermaid", mermaid(page), "```", "",
+            ])
+        lines.extend([
+            "## Sources", "",
+            "- [Draw.io](workshop.drawio).",
+            "- [GitHub Mermaid](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/creating-diagrams).",
+            "- [Mermaid flowcharts](https://mermaid.js.org/syntax/flowchart.html).", "",
+            ("Dernière vérification : 2026-10-14." if french else "Last verified: 2026-10-14."), "",
+        ])
+        data = "\n".join(lines)
+        output = directory / name
+        if check:
+            if output.read_text(encoding="utf-8") != data:
+                raise ValueError(f"Stale Mermaid documentation: {name}")
+        else:
+            output.write_text(data, encoding="utf-8", newline="\n")
+        print(f"PASS {name}: nine Mermaid graphs from the same Draw.io source")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     mode = parser.add_mutually_exclusive_group()
@@ -323,6 +437,7 @@ def main():
                 stamp_png(png, output)
                 check_png(png, output, (width, height))
             print(f"PASS {page.get('id')}: XML, routing, text fit, embedded SVG" + (", PNG" if not args.svg_only else ""))
+        architecture_documents(pages, source.parent, args.check)
     finally:
         if browser_process:
             browser_process.close()

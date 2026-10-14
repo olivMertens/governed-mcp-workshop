@@ -91,6 +91,27 @@ test("client commands reject credential URLs and quote endpoint data without exe
     assert.doesNotMatch(commands.configuration, /headers|Authorization|token/);
 });
 
+test("published Mermaid blocks render their matching diagram, while arbitrary graphs fail explicitly", () => {
+    const html = readFileSync(new URL("./board.html", import.meta.url), "utf8");
+    const start = html.indexOf("function markdown(");
+    const end = html.indexOf("function notice(", start);
+    const content = 'flowchart LR\n  a["Synthetic client"] --> b["Synthetic server"]';
+    const module = { module: "00", diagramSource: { content } };
+    const element = (tag, text) => ({
+        tag, children: text === undefined ? [] : [text],
+        append(...children) { this.children.push(...children); },
+    });
+    const render = new Function("element", "inline", "notice", "state", "architecture",
+        `${html.slice(start, end)}; return markdown;`)(element, () => {}, () => element("aside"),
+        { modules: [module] }, (selected) => element("figure", selected.module));
+    const result = render(`\`\`\`mermaid\n${content}\n\`\`\``, "assets/architecture/STEPS.md");
+    assert.equal(result.children.length, 1);
+    assert.equal(result.children[0].tag, "figure");
+    assert.deepEqual(result.children[0].children, ["00"]);
+    assert.throws(() => render("```mermaid\nflowchart LR\n  a --> unreviewed\n```",
+        "assets/architecture/STEPS.md"), /does not match a published/);
+});
+
 function setup(t, content = fixture) {
     const root = mkdtempSync(join(tmpdir(), "workshop-board-test-"));
     mkdirSync(join(root, "docs"));
@@ -109,8 +130,9 @@ function setup(t, content = fixture) {
     writeFileSync(join(root, "docs", "DEPLOYMENT.md"), "# Synthetic deployment context\n");
     writeFileSync(join(root, "docs", "GETTING-STARTED.md"), "# Synthetic workstation choices\n");
     writeFileSync(join(root, "docs", "HOSTING.md"), "# Synthetic static publication\n");
+    writeFileSync(join(root, "docs", "IMPLEMENTATION-STATUS.md"), "# Synthetic implementation status\n");
     mkdirSync(join(root, "docs", "fr"));
-    for (const file of ["BUILD-PLAN.md", "PRACTICE.md", "LEARNING-GUIDE.md", "DEPLOYMENT.md", "COPILOT-RUNBOOK.md", "GETTING-STARTED.md", "HOSTING.md"]) {
+    for (const file of ["BUILD-PLAN.md", "PRACTICE.md", "LEARNING-GUIDE.md", "DEPLOYMENT.md", "COPILOT-RUNBOOK.md", "GETTING-STARTED.md", "HOSTING.md", "IMPLEMENTATION-STATUS.md"]) {
         writeFileSync(join(root, "docs", "fr", file), readFileSync(join(root, "docs", file), "utf8").replaceAll("Synthetic module", "Module français"));
     }
     writeFileSync(join(root, "docs", "fr", "REFERENCES.md"), "# Références synthétiques\n");
@@ -118,6 +140,10 @@ function setup(t, content = fixture) {
     mkdirSync(join(root, "assets", "icons"));
     writeFileSync(join(root, "assets", "architecture", "README.md"), "# Synthetic diagrams\n");
     writeFileSync(join(root, "assets", "architecture", "README.fr.md"), "# Schémas synthétiques\n");
+    for (const [language, file] of [["en", "STEPS.md"], ["fr", "STEPS.fr.md"]]) {
+        writeFileSync(join(root, "assets", "architecture", file), "# Synthetic architecture\n\n" +
+            ids.map((id) => `## ${id} - Synthetic ${language} architecture\n\n\`\`\`mermaid\nflowchart LR\n  a["${language} ${id}"] --> b["Synthetic target"]\n\`\`\`\n`).join("\n"));
+    }
     writeFileSync(join(root, "assets", "architecture", "00.fr.svg"), '<svg xmlns="http://www.w3.org/2000/svg"/>');
     writeFileSync(join(root, "assets", "icons", "azure.svg"), '<svg xmlns="http://www.w3.org/2000/svg"/>');
     t.after(() => rmSync(root, { recursive: true }));
@@ -232,6 +258,30 @@ test("French content cannot silently disappear or alter shared status", (t) => {
     assert.deepEqual(readFileSync(path), before);
     writeFileSync(join(root, "docs", "fr", "LEARNING-GUIDE.md"), "# Missing modules\n");
     assert.throws(() => readJourney(root, store.read()), (error) => error.code === "invalid_document");
+});
+
+test("each language requires one Mermaid graph per module and exposes implementation status separately", (t) => {
+    const { store, root, path } = setup(t);
+    const before = readFileSync(path);
+    const journey = readJourney(root, store.read());
+    for (const language of [journey, journey.translations.fr]) {
+        assert.match(language.documents.implementation.sourcePath, /IMPLEMENTATION-STATUS\.md$/);
+        for (const module of language.modules) {
+            assert.match(module.diagramSource.content, new RegExp(`${language.language} ${module.module}`));
+            assert.ok(language.documents.architecture.content.includes(module.diagramSource.content));
+        }
+    }
+    const source = join(root, "assets", "architecture", "STEPS.fr.md");
+    const original = readFileSync(source, "utf8");
+    writeFileSync(source, original.replaceAll("\n", "\r\n"));
+    assert.equal(readJourney(root, store.read()).translations.fr.modules[0].diagramSource.content,
+        journey.translations.fr.modules[0].diagramSource.content);
+    writeFileSync(source, original +
+        '\n## 00 - Duplicate graph\n```mermaid\nflowchart LR\n  a --> b\n```\n```mermaid\nflowchart LR\n  c --> d\n```\n');
+    assert.throws(() => readJourney(root, store.read()), (error) => error.code === "invalid_document");
+    writeFileSync(source, original.replace("## 04 -", "## Missing -"));
+    assert.throws(() => readJourney(root, store.read()), (error) => error.code === "invalid_document");
+    assert.deepEqual(readFileSync(path), before);
 });
 
 test("only allowlisted public assets are served, with no API or private-file exposure", async (t) => {
@@ -420,5 +470,6 @@ test("editable architecture, SVGs and PNG source provenance remain synchronized"
         { cwd: repository, encoding: "utf8", timeout: 30000 });
     if (result.error?.code === "ENOENT") { t.skip("Python 3 is required for architecture authoring checks."); return; }
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(result.stdout.match(/^PASS /gm)?.length, 18);
+    assert.equal(result.stdout.match(/^PASS \d{2}\.(en|fr):/gm)?.length, 18);
+    assert.equal(result.stdout.match(/^PASS STEPS(?:\.fr)?\.md:/gm)?.length, 2);
 });

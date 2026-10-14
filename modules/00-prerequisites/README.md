@@ -13,6 +13,10 @@ A working command line does not prove deployment rights or capacity. Random part
 accidental collisions; they do not increase shared subscription quotas. Your terminal, not the public
 portal, authenticates to Azure.
 
+See the [step-by-step architecture](../../assets/architecture/STEPS.md) and
+[actual implementation status](../../docs/IMPLEMENTATION-STATUS.md).
+The diagram is a learning target, not proof that identities or resources have been deployed.
+
 ## What you deploy
 
 The preflight deploys **nothing**. It reads context, regions, providers and effective permission grants.

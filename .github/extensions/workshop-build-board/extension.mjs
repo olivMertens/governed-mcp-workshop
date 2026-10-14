@@ -28,7 +28,7 @@ await joinSession({
             inputSchema: {
                 type: "object",
                 properties: {
-                    view: { type: "string", enum: ["start", "overview", "practice", "deployment", "governance", "sources"] },
+                    view: { type: "string", enum: ["start", "overview", "practice", "deployment", "governance", "sources", "architecture", "implementation"] },
                     language: { type: "string", enum: ["en", "fr"] },
                 },
                 additionalProperties: false,

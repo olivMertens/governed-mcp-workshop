@@ -1,0 +1,67 @@
+# Ce qui est réellement disponible
+
+Le dépôt public contient du code de préparation utilisable, pas un atelier déjà déployé dans Azure.
+Le [suivi de construction](../PROGRESS.md) indique les contrôles réalisés. **Aucun module n'est encore validé dans Azure.**
+
+| Élément | Disponible dans cette branche | Reste à faire |
+|---|---|---|
+| Environnement participant | Vérification des outils, choix explicite du tenant et de l'abonnement, noms stables et état individuel | Exécuter le conteneur et valider une cible Azure approuvée |
+| Portail documentaire public | Application bilingue, Terraform App Service et script de déploiement avec contrôles | Examiner un plan réel, approuver les frais, déployer et vérifier le site |
+| Serveur MCP | Objectifs et schémas du parcours | Construire Functions, Storage et les outils à partir du module 02 |
+| Identités managées | Modèle de droits et demande à l'administrateur | Créer les identités, les attributions ciblées et la fédération approuvée dans les modules concernés |
+| Microsoft Entra | Audience, autorisations, rôles et profils de test définis | Construire le code d'identité, puis vérifier les consentements et les accès |
+| Passerelle API Management | Architecture Standard v2 et contrôles attendus | Construire la passerelle, le réseau privé et les règles d'autorisation |
+| Microsoft Foundry | Scénario de client facultatif uniquement | Examiner séparément le projet, le modèle, l'agent et la connexion sans secret si cette option est retenue |
+| Observabilité et inventaire | Règles de journalisation sans contenu des échanges | Construire et vérifier la télémétrie et l'inscription dans API Center |
+
+## Comprendre chaque étape
+
+Consultez les [schémas étape par étape](../../assets/architecture/STEPS.fr.md).
+Chaque module affiche aussi son schéma dans l'application. Le code Mermaid se trouve dans une section
+« Pour aller plus loin », fermée au départ.
+Ces schémas montrent une **cible prévue** : ils ne prouvent pas que les ressources existent.
+
+Commencez par le [guide du module 00](../../modules/00-prerequisites/README.fr.md).
+Les modules suivants restent des plans tant que leurs guides et contrôles ne sont pas construits.
+La construction du module suivant attend la validation du précédent.
+
+<details>
+<summary>Pour aller plus loin : identités, Foundry et passerelle IA</summary>
+
+Le portail ne sert que des fichiers publics. Il ne contacte aucune ressource Azure et n'a donc pas besoin
+d'identité managée à ce stade. Il ne doit jamais recueillir les identifiants des participants.
+Le déploiement utilise la connexion interactive de l'opérateur autorisé, pas une clé de publication.
+
+Le futur serveur utilisant le protocole de contexte de modèle (MCP) aura ses propres identités et droits ciblés.
+Un appel effectué pour un utilisateur utilisera la délégation On-Behalf-Of.
+Un appel au nom de l'application utilisera une identité managée.
+Le jeton reçu du client MCP ne sera jamais transmis à Storage ou Microsoft Graph.
+
+La passerelle du parcours principal est **API Management Standard v2**, pas le niveau AI Gateway en préversion.
+L'API de gestion MCP prévue est **Preview**.
+Acheminer les requêtes vers un modèle d'intelligence artificielle (IA) est un besoin distinct des appels aux outils MCP.
+Aucun projet Foundry, modèle, agent ni règle de routage vers un modèle n'a été construit ou déployé ici.
+Cette option demandera sa propre revue des sources, des quotas, des coûts et des accès, puis une approbation
+et une validation.
+
+</details>
+
+<details>
+<summary>Pour aller plus loin : mettre à jour les schémas</summary>
+
+Modifiez `assets/architecture/workshop.drawio`, puis régénérez les SVG, PNG et documents Mermaid.
+Le [guide de modification](../../assets/architecture/README.fr.md) donne les commandes et la provenance des icônes.
+Ne maintenez pas une seconde copie dessinée à la main.
+Mettez à jour cette page et `PROGRESS.md` quand le code ou la validation réelle change, pas simplement après un dessin.
+
+</details>
+
+Ces documents n'autorisent aucune création, modification de droits ou suppression dans Azure ou Microsoft Entra.
+
+## Sources
+
+- [Plan de construction](BUILD-PLAN.md), [suivi](../PROGRESS.md) et [références](REFERENCES.md).
+- [Demande à l'administrateur, en anglais](../requests/identity-request.md).
+- [Hébergement du portail et approbation](HOSTING.md).
+
+Dernière vérification : 2026-10-14. État du code du dépôt, pas un inventaire en direct d'Azure.

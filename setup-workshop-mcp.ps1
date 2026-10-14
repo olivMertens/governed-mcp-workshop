@@ -560,6 +560,12 @@ $files['.github/extensions/workshop-build-board/board.html'] = @'
           i++;
           while (i < lines.length && !/^\s*```/.test(lines[i])) code.push(lines[i++]);
           i++;
+          if (line.trim() === "```mermaid") {
+            const module = state.modules.find((item) => item.diagramSource.content === code.join("\n"));
+            if (!module) throw new Error("Mermaid source does not match a published workshop diagram.");
+            body.append(architecture(module));
+            continue;
+          }
           const pre = element("pre");
           pre.append(element("code", code.join("\n")));
           body.append(pre);
@@ -776,7 +782,10 @@ $files['.github/extensions/workshop-build-board/board.html'] = @'
         actions.append(externalLink("Open SVG", module.diagram.svg, "secondary"),
           externalLink("Open PNG", module.diagram.png, "secondary"),
           externalLink("Editable draw.io source", module.diagram.editable, "secondary"));
-        figure.append(scroll, caption, actions);
+        figure.append(scroll, caption, actions,
+          disclosure("More detail: Mermaid source",
+            element("p", "GitHub renders this Mermaid source. Here, the matching SVG preserves the verified icons and routing. Both come from the same draw.io source."),
+            commandBlock("Mermaid diagram", module.diagramSource.content, "Copy diagram")));
         return figure;
       }
       function nextStep(module) {
@@ -1040,7 +1049,8 @@ $files['.github/extensions/workshop-build-board/board.html'] = @'
         ["overview", "Workshop overview", "route"], ["practice", "Try your MCP", "terminal"],
         ["deployment", "Your Azure context", "shield"], ["governance", "Understand governance", "shield"],
         ["sources", "Verified sources", "book"], ["runbook", "Build runbook", "book"],
-        ["architecture", "Diagrams and icons", "route"], ["decisions", "Build decisions", "important"],
+        ["architecture", "Architecture, step by step", "route"], ["decisions", "Build decisions", "important"],
+        ["implementation", "What is actually available?", "important"],
         ["hosting", "Publish or host the guides", "book"],
       ]) {
         const anchor = link("", `#/${route}`);
@@ -1152,7 +1162,7 @@ await joinSession({
             inputSchema: {
                 type: "object",
                 properties: {
-                    view: { type: "string", enum: ["start", "overview", "practice", "deployment", "governance", "sources"] },
+                    view: { type: "string", enum: ["start", "overview", "practice", "deployment", "governance", "sources", "architecture", "implementation"] },
                     language: { type: "string", enum: ["en", "fr"] },
                 },
                 additionalProperties: false,
@@ -1253,6 +1263,9 @@ export function readJourney(root, progress) {
         const hints = moduleSections(practice);
         const learning = readDocument(root, [...base, "LEARNING-GUIDE.md"]);
         const concepts = moduleSections(learning);
+        const diagramPath = ["assets", "architecture", french ? "STEPS.fr.md" : "STEPS.md"];
+        const diagramDocument = readDocument(root, diagramPath);
+        const diagramSections = moduleSections(diagramDocument);
         function document(title, name, directory = base) {
             const parts = [...directory, name];
             return { title, sourcePath: parts.join("/"), content: readDocument(root, parts) };
@@ -1263,8 +1276,12 @@ export function readJourney(root, progress) {
                 const outline = sections.get(module.module);
                 const hint = hints.get(module.module);
                 const concept = concepts.get(module.module);
+                const graphs = [...(diagramSections.get(module.module) ?? "").matchAll(/^```mermaid\r?\n([\s\S]*?)\r?\n```/gm)];
                 if (!outline || !hint || !concept || !titles.get(module.module)) {
                     throw new BoardError("invalid_document", `Module ${module.module} is missing required ${language} plan, hints or governance content.`);
+                }
+                if (graphs.length !== 1 || !/^flowchart LR\r?\n/.test(graphs[0][1])) {
+                    throw new BoardError("invalid_document", `Module ${module.module} needs one generated ${language} Mermaid graph.`);
                 }
                 const parts = ["modules", folders[module.module], "README.md"];
                 const original = readDocument(root, parts, true);
@@ -1284,6 +1301,7 @@ export function readJourney(root, progress) {
                         png: `/assets/architecture/${module.module}.${language}.png`,
                         editable: "/assets/architecture/workshop.drawio",
                     },
+                    diagramSource: { content: graphs[0][1].replaceAll("\r\n", "\n"), sourcePath: diagramPath.join("/") },
                     validation: {
                         powershell: original === null ? null : available(["modules", folders[module.module], "validate.ps1"]),
                         bash: original === null ? null : available(["modules", folders[module.module], "validate.sh"]),
@@ -1304,7 +1322,13 @@ export function readJourney(root, progress) {
                         document(french ? "Demande à l'administrateur (version anglaise)" : "Identity administrator request",
                             "identity-request.md", ["docs", "requests"]),
                 } : {}),
-                architecture: document(french ? "Schémas et icônes" : "Diagrams and icons", french ? "README.fr.md" : "README.md", ["assets", "architecture"]),
+                architecture: { title: french ? "L'architecture, étape par étape" : "Architecture, step by step",
+                    sourcePath: diagramPath.join("/"), content: diagramDocument },
+                architectureAuthoring: document(french ? "Modifier les schémas" : "Edit the diagrams",
+                    french ? "README.fr.md" : "README.md", ["assets", "architecture"]),
+                implementation: document(french ? "Ce qui est réellement disponible" : "What is actually available?",
+                    "IMPLEMENTATION-STATUS.md"),
+                buildProgress: document(french ? "Suivi de construction (en anglais)" : "Build progress", "PROGRESS.md", ["docs"]),
                 plan: document(french ? "Le parcours de l'atelier" : "Technical build plan", "BUILD-PLAN.md"),
                 ...(french ? {
                     originalSources: document("Registre technique original (anglais)", "sources.md", ["docs"]),
@@ -1373,6 +1397,12 @@ const french = {
   "Understand governance": "Comprendre la gouvernance",
   "Your Azure context": "Votre contexte Azure",
   "Diagrams and icons": "Schémas et icônes",
+  "Architecture, step by step": "L'architecture, étape par étape",
+  "What is actually available?": "Ce qui est réellement disponible",
+  "More detail: Mermaid source": "Pour aller plus loin : le code Mermaid",
+  "Mermaid diagram": "Schéma Mermaid",
+  "Copy diagram": "Copier le schéma",
+  "GitHub renders this Mermaid source. Here, the matching SVG preserves the verified icons and routing. Both come from the same draw.io source.": "GitHub affiche ce code sous forme de schéma. Ici, la version SVG conserve les icônes et le tracé vérifiés. Les deux proviennent du même fichier Draw.io.",
   "Workshop build board / self-paced guide": "MCP sur Azure / parcours autonome",
   "Refresh content": "Actualiser",
   "Loading the workshop.": "Chargement de l'atelier.",
@@ -1734,6 +1764,27 @@ test("client commands reject credential URLs and quote endpoint data without exe
     assert.doesNotMatch(commands.configuration, /headers|Authorization|token/);
 });
 
+test("published Mermaid blocks render their matching diagram, while arbitrary graphs fail explicitly", () => {
+    const html = readFileSync(new URL("./board.html", import.meta.url), "utf8");
+    const start = html.indexOf("function markdown(");
+    const end = html.indexOf("function notice(", start);
+    const content = 'flowchart LR\n  a["Synthetic client"] --> b["Synthetic server"]';
+    const module = { module: "00", diagramSource: { content } };
+    const element = (tag, text) => ({
+        tag, children: text === undefined ? [] : [text],
+        append(...children) { this.children.push(...children); },
+    });
+    const render = new Function("element", "inline", "notice", "state", "architecture",
+        `${html.slice(start, end)}; return markdown;`)(element, () => {}, () => element("aside"),
+        { modules: [module] }, (selected) => element("figure", selected.module));
+    const result = render(`\`\`\`mermaid\n${content}\n\`\`\``, "assets/architecture/STEPS.md");
+    assert.equal(result.children.length, 1);
+    assert.equal(result.children[0].tag, "figure");
+    assert.deepEqual(result.children[0].children, ["00"]);
+    assert.throws(() => render("```mermaid\nflowchart LR\n  a --> unreviewed\n```",
+        "assets/architecture/STEPS.md"), /does not match a published/);
+});
+
 function setup(t, content = fixture) {
     const root = mkdtempSync(join(tmpdir(), "workshop-board-test-"));
     mkdirSync(join(root, "docs"));
@@ -1752,8 +1803,9 @@ function setup(t, content = fixture) {
     writeFileSync(join(root, "docs", "DEPLOYMENT.md"), "# Synthetic deployment context\n");
     writeFileSync(join(root, "docs", "GETTING-STARTED.md"), "# Synthetic workstation choices\n");
     writeFileSync(join(root, "docs", "HOSTING.md"), "# Synthetic static publication\n");
+    writeFileSync(join(root, "docs", "IMPLEMENTATION-STATUS.md"), "# Synthetic implementation status\n");
     mkdirSync(join(root, "docs", "fr"));
-    for (const file of ["BUILD-PLAN.md", "PRACTICE.md", "LEARNING-GUIDE.md", "DEPLOYMENT.md", "COPILOT-RUNBOOK.md", "GETTING-STARTED.md", "HOSTING.md"]) {
+    for (const file of ["BUILD-PLAN.md", "PRACTICE.md", "LEARNING-GUIDE.md", "DEPLOYMENT.md", "COPILOT-RUNBOOK.md", "GETTING-STARTED.md", "HOSTING.md", "IMPLEMENTATION-STATUS.md"]) {
         writeFileSync(join(root, "docs", "fr", file), readFileSync(join(root, "docs", file), "utf8").replaceAll("Synthetic module", "Module français"));
     }
     writeFileSync(join(root, "docs", "fr", "REFERENCES.md"), "# Références synthétiques\n");
@@ -1761,6 +1813,10 @@ function setup(t, content = fixture) {
     mkdirSync(join(root, "assets", "icons"));
     writeFileSync(join(root, "assets", "architecture", "README.md"), "# Synthetic diagrams\n");
     writeFileSync(join(root, "assets", "architecture", "README.fr.md"), "# Schémas synthétiques\n");
+    for (const [language, file] of [["en", "STEPS.md"], ["fr", "STEPS.fr.md"]]) {
+        writeFileSync(join(root, "assets", "architecture", file), "# Synthetic architecture\n\n" +
+            ids.map((id) => `## ${id} - Synthetic ${language} architecture\n\n\`\`\`mermaid\nflowchart LR\n  a["${language} ${id}"] --> b["Synthetic target"]\n\`\`\`\n`).join("\n"));
+    }
     writeFileSync(join(root, "assets", "architecture", "00.fr.svg"), '<svg xmlns="http://www.w3.org/2000/svg"/>');
     writeFileSync(join(root, "assets", "icons", "azure.svg"), '<svg xmlns="http://www.w3.org/2000/svg"/>');
     t.after(() => rmSync(root, { recursive: true }));
@@ -1875,6 +1931,30 @@ test("French content cannot silently disappear or alter shared status", (t) => {
     assert.deepEqual(readFileSync(path), before);
     writeFileSync(join(root, "docs", "fr", "LEARNING-GUIDE.md"), "# Missing modules\n");
     assert.throws(() => readJourney(root, store.read()), (error) => error.code === "invalid_document");
+});
+
+test("each language requires one Mermaid graph per module and exposes implementation status separately", (t) => {
+    const { store, root, path } = setup(t);
+    const before = readFileSync(path);
+    const journey = readJourney(root, store.read());
+    for (const language of [journey, journey.translations.fr]) {
+        assert.match(language.documents.implementation.sourcePath, /IMPLEMENTATION-STATUS\.md$/);
+        for (const module of language.modules) {
+            assert.match(module.diagramSource.content, new RegExp(`${language.language} ${module.module}`));
+            assert.ok(language.documents.architecture.content.includes(module.diagramSource.content));
+        }
+    }
+    const source = join(root, "assets", "architecture", "STEPS.fr.md");
+    const original = readFileSync(source, "utf8");
+    writeFileSync(source, original.replaceAll("\n", "\r\n"));
+    assert.equal(readJourney(root, store.read()).translations.fr.modules[0].diagramSource.content,
+        journey.translations.fr.modules[0].diagramSource.content);
+    writeFileSync(source, original +
+        '\n## 00 - Duplicate graph\n```mermaid\nflowchart LR\n  a --> b\n```\n```mermaid\nflowchart LR\n  c --> d\n```\n');
+    assert.throws(() => readJourney(root, store.read()), (error) => error.code === "invalid_document");
+    writeFileSync(source, original.replace("## 04 -", "## Missing -"));
+    assert.throws(() => readJourney(root, store.read()), (error) => error.code === "invalid_document");
+    assert.deepEqual(readFileSync(path), before);
 });
 
 test("only allowlisted public assets are served, with no API or private-file exposure", async (t) => {
@@ -2063,7 +2143,8 @@ test("editable architecture, SVGs and PNG source provenance remain synchronized"
         { cwd: repository, encoding: "utf8", timeout: 30000 });
     if (result.error?.code === "ENOENT") { t.skip("Python 3 is required for architecture authoring checks."); return; }
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(result.stdout.match(/^PASS /gm)?.length, 18);
+    assert.equal(result.stdout.match(/^PASS \d{2}\.(en|fr):/gm)?.length, 18);
+    assert.equal(result.stdout.match(/^PASS STEPS(?:\.fr)?\.md:/gm)?.length, 2);
 });
 '@
 
@@ -2511,6 +2592,8 @@ Cette page s'adresse aux personnes qui modifient ou republient les schémas.
 
 `workshop.drawio` est le fichier source commun : neuf modules, chacun avec une page anglaise et une page française.
 Les fichiers `NN.en.svg` / `NN.fr.svg` et PNG correspondants sont générés, jamais retouchés séparément.
+Les guides `STEPS.md` et `STEPS.fr.md` reprennent les mêmes composants, liens et périmètres en Mermaid.
+Pour suivre l'atelier, ouvrez les [schémas étape par étape](STEPS.fr.md).
 Tous montrent une **cible prévue**, pas une infrastructure déjà déployée.
 Les cadres en pointillés désignent le périmètre nommé : poste local, identité ou ressources Azure.
 Les lignes numérotées sont des vues liées de la même étape, pas des ressources déployées en double.
@@ -2544,6 +2627,14 @@ Chaque PNG contient l'empreinte SHA-256 de son SVG source ; une paire périmée 
 Contrôles : segments complets, traversée de composants, intersections et recouvrement d'arêtes, écart parallèle
 de 16 pixels, approche perpendiculaire des flèches, capacité du texte et icônes autonomes.
 
+La même commande régénère les deux guides Mermaid. `--check` refuse aussi un guide devenu incohérent.
+Mermaid conserve les liens et les périmètres, pas la position exacte des éléments ni les icônes Microsoft.
+GitHub affiche directement ses blocs Mermaid. Dans l'application et le portail, chaque bloc publié affiche
+le SVG correspondant, avec ses icônes et son tracé vérifiés, sans bibliothèque Mermaid ni service externe.
+Un bloc inconnu provoque une erreur explicite : ce n'est pas un éditeur de schémas généraliste.
+Le code Mermaid de chaque module reste dans une section fermée au départ, avec un bouton de copie.
+Après une modification, régénérez, examinez les PNG et vérifiez les deux langues avant publication.
+
 </details>
 
 ## Provenance et droits
@@ -2570,6 +2661,7 @@ Cet atelier indépendant n'est ni approuvé ni sponsorisé par Microsoft.
 - [Conditions et pack Entra](https://learn.microsoft.com/entra/architecture/architecture-icons).
 - [Règles de marques Microsoft](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks).
 - [Source et inventaire exacts](README.md), [plan technique](../../docs/BUILD-PLAN.md).
+- [Affichage des schémas sur GitHub](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/creating-diagrams).
 
 Dernière vérification : 2026-10-14.
 '@
@@ -2579,6 +2671,8 @@ $files['assets/architecture/README.md'] = @'
 
 `workshop.drawio` is the single architecture source: nine modules, with one English and one French page each.
 `NN.en.svg` / `NN.fr.svg` and matching PNGs are generated, not hand-edited.
+`STEPS.md` and `STEPS.fr.md` contain the same components, edges and ownership boundaries as Mermaid.
+Start with [the step-by-step guide](STEPS.md), not this authoring reference.
 All views are **planned targets**, not evidence of deployed infrastructure.
 Dashed frames identify the labeled local, identity or Azure workload boundary. Numbered lanes are linked views
 of the same stage, not additional copies of a deployed resource. Request, identity, observation and administration
@@ -2608,6 +2702,14 @@ Use `python .\scripts\render-architecture.py --check` for read-only consistency 
 PNGs contain their source SVG's SHA-256 digest; stale pairs fail rather than silently passing.
 Checks cover full orthogonal segments, unrelated-box crossings, edge intersections/overlaps, 16-pixel parallel
 clearance, perpendicular arrow approaches, text capacity and self-contained icons.
+
+The same command regenerates both Mermaid guides. `--check` also rejects stale Mermaid text.
+Mermaid preserves graph relationships, source labels and boundaries, not the exact pixel positions or product icons.
+GitHub renders its native Mermaid blocks. The board and static portal match each published block to its
+generated SVG, retaining the verified icons and routing without loading a Mermaid library or external service.
+Unknown Mermaid blocks fail explicitly; this is not a general-purpose diagram editor.
+Each module offers its Mermaid source in a closed-by-default section with a copy button.
+After changing architecture, regenerate, inspect the PNGs and check both languages before committing.
 
 ## Icon provenance
 
@@ -2648,6 +2750,587 @@ This independent workshop is not Microsoft-endorsed. Do not use its board as Mic
 - [Official Entra icon terms and October 2023 pack](https://learn.microsoft.com/entra/architecture/architecture-icons).
 - [Microsoft trademark and brand guidelines](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks).
 - [Workshop build plan](../../docs/BUILD-PLAN.md) and [source register](../../docs/sources.md).
+- [GitHub diagram rendering](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/creating-diagrams).
+
+Last verified: 2026-10-14.
+'@
+
+$files['assets/architecture/STEPS.fr.md'] = @'
+# L'architecture, étape par étape
+
+Ces schémas montrent les objectifs du parcours, pas des déploiements réalisés. Consultez le suivi de construction pour les preuves de validation.
+
+Le protocole de contexte de modèle (MCP) relie un client à des outils. Chaque étape ajoute un contrôle ou explique une responsabilité.
+
+[Ce qui est réellement disponible](../../docs/fr/IMPLEMENTATION-STATUS.md). [Modifier les schémas et vérifier les icônes](README.fr.md).
+
+Fichier généré depuis `workshop.drawio` : ne le modifiez pas séparément. Les cadres représentent des périmètres ; les vues répétées désignent le même environnement. GitHub affiche Mermaid ; l'application affiche le SVG équivalent avec ses icônes et son routage vérifiés.
+
+## 00 - Préparer les identités et les ressources
+
+L'autorité Entra et les droits Azure sont distincts. Ni appel MCP ni création de ressources ici.
+
+[SVG](00.fr.svg) · [PNG](00.fr.png)
+
+```mermaid
+flowchart LR
+  %% Préparation des identités - administration
+  %% Préparation des ressources - aucun déploiement
+  n_node_0_0["Admin identité / Périmètre approuvé"]
+  n_node_0_2["Clients publics / Retours exacts"]
+  n_node_1_0["Opérateur Azure / Budget de test"]
+  n_node_1_2["Précontrôle / Droits et coût"]
+  subgraph boundary_0["Tenant Microsoft Entra"]
+    n_node_0_1["Microsoft Entra ID / Apps et consentement"]
+  end
+  style boundary_0 fill:#ffffff,stroke:#526783,stroke-dasharray:8 6
+  subgraph boundary_1["Azure : ressources de test"]
+    n_node_1_1["Abonnement Azure / Groupe de ressources"]
+  end
+  style boundary_1 fill:#ffffff,stroke:#526783,stroke-dasharray:8 6
+  n_node_0_0 -->|"Revue"| n_node_0_1
+  n_node_0_1 -->|"Approuver"| n_node_0_2
+  n_node_1_0 -->|"Choisir / vérifier"| n_node_1_1
+  n_node_1_1 -->|"Contrôler"| n_node_1_2
+  style n_node_0_0 fill:#ffffff,stroke:#1659dc,color:#172c48
+  style n_node_0_1 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+  style n_node_0_2 fill:#ffffff,stroke:#1659dc,color:#172c48
+  style n_node_1_0 fill:#ffffff,stroke:#1659dc,color:#172c48
+  style n_node_1_1 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+  style n_node_1_2 fill:#ffffff,stroke:#1659dc,color:#172c48
+```
+
+## 01 - Découvrir et appeler en local
+
+Découverte et exécution diffèrent. Accord humain pour chaque écriture. Négocier le protocole supporté.
+
+[SVG](01.fr.svg) · [PNG](01.fr.png)
+
+```mermaid
+flowchart LR
+  %% Processus locaux - aucun déploiement Azure
+  subgraph boundary_0["Poste de travail local"]
+    n_node_0_0["Client MCP / VS Code / Inspector"]
+    n_node_0_1["Serveur MCP local / Transport stdio"]
+    n_node_0_2["Outil synthétique / Accord explicite"]
+  end
+  style boundary_0 fill:#ffffff,stroke:#526783,stroke-dasharray:8 6
+  n_node_0_0 -->|"Lister / appeler"| n_node_0_1
+  n_node_0_1 -->|"Exécuter"| n_node_0_2
+  style n_node_0_0 fill:#ffffff,stroke:#1659dc,color:#172c48
+  style n_node_0_1 fill:#ffffff,stroke:#1659dc,color:#172c48
+  style n_node_0_2 fill:#ffffff,stroke:#1659dc,color:#172c48
+```
+
+## 02 - Une clé partagée n'est pas une identité
+
+Aucun accès anonyme. Outils d'identité simulés jusqu'à 05. Garder cette étape par clé très brève.
+
+[SVG](02.fr.svg) · [PNG](02.fr.png)
+
+```mermaid
+flowchart LR
+  %% Démonstration brève par clé - votre abonnement de test
+  n_node_0_0["Client MCP / Clé système"]
+  subgraph boundary_0["Azure : ressources de test"]
+    n_node_0_1["Azure Functions / Protection System"]
+    n_node_0_2["Azure Storage / File synthétique"]
+  end
+  style boundary_0 fill:#ffffff,stroke:#526783,stroke-dasharray:8 6
+  n_node_0_0 -->|"MCP + clé"| n_node_0_1
+  n_node_0_1 -->|"Écriture approuvée"| n_node_0_2
+  style n_node_0_0 fill:#ffffff,stroke:#1659dc,color:#172c48
+  style n_node_0_1 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+  style n_node_0_2 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+```
+
+## 03 - Se connecter, puis appeler la ressource protégée
+
+401 sans jeton MCP valide. Eve non affectée. Aucun jeton réel dans journaux, chat, fichiers ou sites.
+
+[SVG](03.fr.svg) · [PNG](03.fr.png)
+
+```mermaid
+flowchart LR
+  %% 1. Identité - Entra remet le jeton au client
+  %% 2. Requête - découverte PRM en Preview
+  n_node_0_0["Client MCP / App publique validée"]
+  n_node_0_2["Même client MCP / Jeton destiné à MCP"]
+  n_node_1_0["Client MCP / Audience MCP"]
+  subgraph boundary_0["Tenant Microsoft Entra"]
+    n_node_0_1["Microsoft Entra ID / Utilisateurs affectés"]
+  end
+  style boundary_0 fill:#ffffff,stroke:#526783,stroke-dasharray:8 6
+  subgraph boundary_1["Azure : ressources de test"]
+    n_node_1_1["Azure Functions / Validation plateforme"]
+    n_node_1_2["Lecture synthétique / Étendue et rôle"]
+  end
+  style boundary_1 fill:#ffffff,stroke:#526783,stroke-dasharray:8 6
+  n_node_0_0 -->|"Connexion"| n_node_0_1
+  n_node_0_1 -->|"Émettre le jeton"| n_node_0_2
+  n_node_1_0 -->|"Jeton MCP"| n_node_1_1
+  n_node_1_1 -->|"Autoriser"| n_node_1_2
+  style n_node_0_0 fill:#ffffff,stroke:#1659dc,color:#172c48
+  style n_node_0_1 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+  style n_node_0_2 fill:#ffffff,stroke:#1659dc,color:#172c48
+  style n_node_1_0 fill:#ffffff,stroke:#1659dc,color:#172c48
+  style n_node_1_1 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+  style n_node_1_2 fill:#ffffff,stroke:#1659dc,color:#172c48
+```
+
+## 04 - Seule la passerelle gouvernée accepte les clients
+
+Accès public Function désactivé. DNS privé et intégration sortante. 403 Bob / 429 débit. API de gestion MCP : Preview.
+
+[SVG](04.fr.svg) · [PNG](04.fr.png)
+
+```mermaid
+flowchart LR
+  %% Requête - APIM et Functions protègent une seule ressource MCP
+  n_node_0_0["Client MCP / Jeton destiné à MCP"]
+  subgraph boundary_0["Azure : ressources de test"]
+    n_node_0_1["API Management / Standard v2"]
+    n_node_0_2["Azure Functions / Accès privé"]
+  end
+  style boundary_0 fill:#ffffff,stroke:#526783,stroke-dasharray:8 6
+  n_node_0_0 -->|"Jeton MCP"| n_node_0_1
+  n_node_0_1 -->|"Réseau privé"| n_node_0_2
+  style n_node_0_0 fill:#ffffff,stroke:#1659dc,color:#172c48
+  style n_node_0_1 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+  style n_node_0_2 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+```
+
+## 05 - Deux identités cibles, deux contrôles de droits
+
+Ne jamais transmettre le jeton MCP à Storage ou Graph. Jeton Graph distinct. Un 403 cible peut être dans HTTP 200.
+
+[SVG](05.fr.svg) · [PNG](05.fr.png)
+
+```mermaid
+flowchart LR
+  %% Contexte utilisateur - On-Behalf-Of (OBO)
+  %% Contexte applicatif - identité managée (MI)
+  n_node_0_0["Client MCP / Alice / Bob"]
+  n_node_1_0["Client MCP / Alice / Bob"]
+  subgraph boundary_0["Azure : ressources de test"]
+    n_node_0_1["API Management / Contrôle du rôle MCP"]
+    n_node_0_2["Azure Functions / Échange OBO"]
+    n_node_0_3["Azure Storage / RBAC utilisateur"]
+  end
+  style boundary_0 fill:#ffffff,stroke:#526783,stroke-dasharray:8 6
+  subgraph boundary_1["Azure : ressources de test"]
+    n_node_1_1["API Management / Contrôle du rôle MCP"]
+    n_node_1_2["Azure Functions / MI explicite"]
+    n_node_1_3["Azure Storage / Rôle MI du conteneur"]
+  end
+  style boundary_1 fill:#ffffff,stroke:#526783,stroke-dasharray:8 6
+  n_node_0_0 -->|"Jeton MCP"| n_node_0_1
+  n_node_0_1 -->|"Jeton MCP"| n_node_0_2
+  n_node_0_2 -->|"Jeton Storage / Utilisateur"| n_node_0_3
+  n_node_1_0 -->|"Jeton MCP"| n_node_1_1
+  n_node_1_1 -->|"Jeton MCP"| n_node_1_2
+  n_node_1_2 -->|"Jeton Storage / Application"| n_node_1_3
+  style n_node_0_0 fill:#ffffff,stroke:#1659dc,color:#172c48
+  style n_node_0_1 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+  style n_node_0_2 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+  style n_node_0_3 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+  style n_node_1_0 fill:#ffffff,stroke:#1659dc,color:#172c48
+  style n_node_1_1 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+  style n_node_1_2 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+  style n_node_1_3 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+```
+
+## 06 - Requêtes, observation et inventaire sont séparés
+
+Seulement outil, ID objet appelant, statut, latence et corrélation. API Center n'autorise ni ne relaie les appels.
+
+[SVG](06.fr.svg) · [PNG](06.fr.png)
+
+```mermaid
+flowchart LR
+  %% 1. Requête à l'exécution - URL gouvernée uniquement
+  %% 2. Observation - aucune copie du corps
+  %% 3. Inventaire - enregistrement administratif, pas de routage
+  n_node_0_0["Client MCP / Appel approuvé"]
+  n_node_2_0["Inscrire la passerelle / URL approuvée"]
+  subgraph boundary_0["Azure : ressources de test"]
+    n_node_0_1["API Management / Valider / autoriser"]
+    n_node_0_2["Azure Functions / Accès privé"]
+  end
+  style boundary_0 fill:#ffffff,stroke:#526783,stroke-dasharray:8 6
+  subgraph boundary_1["Azure : ressources de test"]
+    n_node_1_0["Même passerelle / Appelant authentifié"]
+    n_node_1_1["Application Insights / Zéro octet de corps"]
+  end
+  style boundary_1 fill:#ffffff,stroke:#526783,stroke-dasharray:8 6
+  subgraph boundary_2["Azure : ressources de test"]
+    n_node_2_1["Azure API Center / Aucun droit accordé"]
+  end
+  style boundary_2 fill:#ffffff,stroke:#526783,stroke-dasharray:8 6
+  n_node_0_0 -->|"MCP"| n_node_0_1
+  n_node_0_1 -->|"Réseau privé"| n_node_0_2
+  n_node_1_0 -->|"Métadonnées seules"| n_node_1_1
+  n_node_2_0 -->|"Inventaire"| n_node_2_1
+  style n_node_0_0 fill:#ffffff,stroke:#1659dc,color:#172c48
+  style n_node_0_1 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+  style n_node_0_2 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+  style n_node_1_0 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+  style n_node_1_1 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+  style n_node_2_0 fill:#ffffff,stroke:#1659dc,color:#172c48
+  style n_node_2_1 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+```
+
+## 07 - Les clients facultatifs utilisent la même frontière
+
+Aucun agent déployé ici. Vérifier licences, Preview et accès sans secret. Reporter tout flux exigeant un secret.
+
+[SVG](07.fr.svg) · [PNG](07.fr.png)
+
+```mermaid
+flowchart LR
+  %% Démonstration prévue - certains flux Foundry en Preview
+  n_node_0_0["Client MCP facultatif / Utilisateur ou app"]
+  subgraph boundary_0["Azure : ressources de test"]
+    n_node_0_1["API Management / Mêmes contrôles"]
+    n_node_0_2["Azure Functions / Accès privé"]
+  end
+  style boundary_0 fill:#ffffff,stroke:#526783,stroke-dasharray:8 6
+  n_node_0_0 -->|"Identité approuvée"| n_node_0_1
+  n_node_0_1 -->|"Réseau privé"| n_node_0_2
+  style n_node_0_0 fill:#ffffff,stroke:#1659dc,color:#172c48
+  style n_node_0_1 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+  style n_node_0_2 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+```
+
+## 99 - Retirer les ressources du workshop, préserver le reste
+
+Ressources d'abord, puis objets Entra créés. Vérifier rôles, DNS privé, inventaire, rétention et codespaces.
+
+[SVG](99.fr.svg) · [PNG](99.fr.png)
+
+```mermaid
+flowchart LR
+  %% 1. Nettoyage des ressources - après accord explicite
+  %% 2. Nettoyage des identités - préserver les objets fournis
+  n_node_0_0["Vérifier la propriété / Vrai plan destroy"]
+  n_node_0_2["Vérifier l'inventaire / Coûts et rétention"]
+  n_node_1_0["Admin identité / Revoir les créations"]
+  n_node_1_2["Préserver l'existant / Comptes / apps"]
+  subgraph boundary_0["Azure : ressources de test"]
+    n_node_0_1["Abonnement Azure / Retrait des ressources"]
+  end
+  style boundary_0 fill:#ffffff,stroke:#526783,stroke-dasharray:8 6
+  subgraph boundary_1["Tenant Microsoft Entra"]
+    n_node_1_1["Microsoft Entra ID / Objets du workshop"]
+  end
+  style boundary_1 fill:#ffffff,stroke:#526783,stroke-dasharray:8 6
+  n_node_0_0 -->|"Approuver"| n_node_0_1
+  n_node_0_1 -->|"Vérifier"| n_node_0_2
+  n_node_1_0 -->|"Approuver le périmètre"| n_node_1_1
+  n_node_1_1 -->|"Vérifier"| n_node_1_2
+  style n_node_0_0 fill:#ffffff,stroke:#1659dc,color:#172c48
+  style n_node_0_1 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+  style n_node_0_2 fill:#ffffff,stroke:#1659dc,color:#172c48
+  style n_node_1_0 fill:#ffffff,stroke:#1659dc,color:#172c48
+  style n_node_1_1 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+  style n_node_1_2 fill:#ffffff,stroke:#1659dc,color:#172c48
+```
+
+## Sources
+
+- [Draw.io](workshop.drawio).
+- [GitHub Mermaid](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/creating-diagrams).
+- [Mermaid flowcharts](https://mermaid.js.org/syntax/flowchart.html).
+
+Dernière vérification : 2026-10-14.
+'@
+
+$files['assets/architecture/STEPS.md'] = @'
+# Architecture, step by step
+
+These diagrams show learning targets, not deployed resources. See build progress for validation evidence.
+
+The Model Context Protocol (MCP) connects a client to tools. Each step adds a control or explains an ownership boundary.
+
+[What is actually available](../../docs/IMPLEMENTATION-STATUS.md). [Edit diagrams and verify icon provenance](README.md).
+
+Generated from `workshop.drawio`; do not edit separately. Frames are ownership boundaries; repeated views refer to the same environment. GitHub renders Mermaid; the application displays the equivalent SVG with verified icons and routing.
+
+## 00 - Prepare identity and resource authority
+
+Entra authority and Azure resource permissions are distinct. No MCP call or resource creation is shown.
+
+[SVG](00.en.svg) · [PNG](00.en.png)
+
+```mermaid
+flowchart LR
+  %% Identity preparation - administrative flow
+  %% Resource preparation - no deployment yet
+  n_node_0_0["Identity admin / Approved scope"]
+  n_node_0_2["Public clients / Exact callbacks"]
+  n_node_1_0["Workload operator / Test budget"]
+  n_node_1_2["Preflight / Permissions / cost"]
+  subgraph boundary_0["Microsoft Entra tenant"]
+    n_node_0_1["Microsoft Entra ID / Apps and consent"]
+  end
+  style boundary_0 fill:#ffffff,stroke:#526783,stroke-dasharray:8 6
+  subgraph boundary_1["Your Azure test workload"]
+    n_node_1_1["Azure subscription / Resource group"]
+  end
+  style boundary_1 fill:#ffffff,stroke:#526783,stroke-dasharray:8 6
+  n_node_0_0 -->|"Review"| n_node_0_1
+  n_node_0_1 -->|"Approve"| n_node_0_2
+  n_node_1_0 -->|"Select / verify"| n_node_1_1
+  n_node_1_1 -->|"Check"| n_node_1_2
+  style n_node_0_0 fill:#ffffff,stroke:#1659dc,color:#172c48
+  style n_node_0_1 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+  style n_node_0_2 fill:#ffffff,stroke:#1659dc,color:#172c48
+  style n_node_1_0 fill:#ffffff,stroke:#1659dc,color:#172c48
+  style n_node_1_1 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+  style n_node_1_2 fill:#ffffff,stroke:#1659dc,color:#172c48
+```
+
+## 01 - Discover and call locally
+
+Discovery is not execution. Keep human approval for each write. Negotiate the supported protocol era.
+
+[SVG](01.en.svg) · [PNG](01.en.png)
+
+```mermaid
+flowchart LR
+  %% Local process boundary - no Azure deployment
+  subgraph boundary_0["Local workstation"]
+    n_node_0_0["MCP client / VS Code / Inspector"]
+    n_node_0_1["Local MCP server / stdio transport"]
+    n_node_0_2["Synthetic tool / Explicit approval"]
+  end
+  style boundary_0 fill:#ffffff,stroke:#526783,stroke-dasharray:8 6
+  n_node_0_0 -->|"List / call"| n_node_0_1
+  n_node_0_1 -->|"Invoke"| n_node_0_2
+  style n_node_0_0 fill:#ffffff,stroke:#1659dc,color:#172c48
+  style n_node_0_1 fill:#ffffff,stroke:#1659dc,color:#172c48
+  style n_node_0_2 fill:#ffffff,stroke:#1659dc,color:#172c48
+```
+
+## 02 - A shared key is not a user's identity
+
+No anonymous endpoint. Identity tools are simulated until 05. Stop this shared-key stage promptly.
+
+[SVG](02.en.svg) · [PNG](02.en.png)
+
+```mermaid
+flowchart LR
+  %% Short-lived key demonstration - your test subscription
+  n_node_0_0["MCP client / System key"]
+  subgraph boundary_0["Your Azure test workload"]
+    n_node_0_1["Azure Functions / System protection"]
+    n_node_0_2["Azure Storage / Synthetic queue"]
+  end
+  style boundary_0 fill:#ffffff,stroke:#526783,stroke-dasharray:8 6
+  n_node_0_0 -->|"MCP + key"| n_node_0_1
+  n_node_0_1 -->|"Write approved"| n_node_0_2
+  style n_node_0_0 fill:#ffffff,stroke:#1659dc,color:#172c48
+  style n_node_0_1 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+  style n_node_0_2 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+```
+
+## 03 - Sign in first, call the protected resource second
+
+401 without a valid MCP token. Eve is unassigned. No live tokens in logs, chat, files or decoder websites.
+
+[SVG](03.en.svg) · [PNG](03.en.png)
+
+```mermaid
+flowchart LR
+  %% 1. Identity flow - Entra returns the token to the client
+  %% 2. Request flow - PRM discovery is Preview
+  n_node_0_0["MCP client / Approved public app"]
+  n_node_0_2["Same MCP client / Token for MCP"]
+  n_node_1_0["MCP client / MCP audience"]
+  subgraph boundary_0["Microsoft Entra tenant"]
+    n_node_0_1["Microsoft Entra ID / Assigned users"]
+  end
+  style boundary_0 fill:#ffffff,stroke:#526783,stroke-dasharray:8 6
+  subgraph boundary_1["Your Azure test workload"]
+    n_node_1_1["Azure Functions / Platform validation"]
+    n_node_1_2["Synthetic read / Scope / app role"]
+  end
+  style boundary_1 fill:#ffffff,stroke:#526783,stroke-dasharray:8 6
+  n_node_0_0 -->|"Sign in"| n_node_0_1
+  n_node_0_1 -->|"Issue token"| n_node_0_2
+  n_node_1_0 -->|"MCP token"| n_node_1_1
+  n_node_1_1 -->|"Authorize"| n_node_1_2
+  style n_node_0_0 fill:#ffffff,stroke:#1659dc,color:#172c48
+  style n_node_0_1 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+  style n_node_0_2 fill:#ffffff,stroke:#1659dc,color:#172c48
+  style n_node_1_0 fill:#ffffff,stroke:#1659dc,color:#172c48
+  style n_node_1_1 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+  style n_node_1_2 fill:#ffffff,stroke:#1659dc,color:#172c48
+```
+
+## 04 - Only the governed gateway accepts clients
+
+Public Function access disabled. Private DNS + outbound integration. 403 Bob / 429 burst. MCP management API: Preview.
+
+[SVG](04.en.svg) · [PNG](04.en.png)
+
+```mermaid
+flowchart LR
+  %% Request flow - APIM and Functions protect one MCP resource
+  n_node_0_0["MCP client / Token for MCP"]
+  subgraph boundary_0["Your Azure test workload"]
+    n_node_0_1["API Management / Standard v2"]
+    n_node_0_2["Azure Functions / Private endpoint"]
+  end
+  style boundary_0 fill:#ffffff,stroke:#526783,stroke-dasharray:8 6
+  n_node_0_0 -->|"MCP token"| n_node_0_1
+  n_node_0_1 -->|"Private network"| n_node_0_2
+  style n_node_0_0 fill:#ffffff,stroke:#1659dc,color:#172c48
+  style n_node_0_1 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+  style n_node_0_2 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+```
+
+## 05 - Two downstream identities, two different permission checks
+
+Never forward the MCP token to Storage or Graph. Graph needs its own token. Downstream 403 can be inside HTTP 200.
+
+[SVG](05.en.svg) · [PNG](05.en.png)
+
+```mermaid
+flowchart LR
+  %% User context - On-Behalf-Of (OBO)
+  %% Application context - managed identity (MI)
+  n_node_0_0["MCP client / Alice / Bob"]
+  n_node_1_0["MCP client / Alice / Bob"]
+  subgraph boundary_0["Your Azure test workload"]
+    n_node_0_1["API Management / MCP role check"]
+    n_node_0_2["Azure Functions / OBO exchange"]
+    n_node_0_3["Azure Storage / User RBAC"]
+  end
+  style boundary_0 fill:#ffffff,stroke:#526783,stroke-dasharray:8 6
+  subgraph boundary_1["Your Azure test workload"]
+    n_node_1_1["API Management / MCP role check"]
+    n_node_1_2["Azure Functions / Explicit MI"]
+    n_node_1_3["Azure Storage / MI container role"]
+  end
+  style boundary_1 fill:#ffffff,stroke:#526783,stroke-dasharray:8 6
+  n_node_0_0 -->|"MCP token"| n_node_0_1
+  n_node_0_1 -->|"MCP token"| n_node_0_2
+  n_node_0_2 -->|"Storage token / User rights"| n_node_0_3
+  n_node_1_0 -->|"MCP token"| n_node_1_1
+  n_node_1_1 -->|"MCP token"| n_node_1_2
+  n_node_1_2 -->|"Storage token / App rights"| n_node_1_3
+  style n_node_0_0 fill:#ffffff,stroke:#1659dc,color:#172c48
+  style n_node_0_1 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+  style n_node_0_2 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+  style n_node_0_3 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+  style n_node_1_0 fill:#ffffff,stroke:#1659dc,color:#172c48
+  style n_node_1_1 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+  style n_node_1_2 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+  style n_node_1_3 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+```
+
+## 06 - Requests, observation and inventory are separate flows
+
+Only tool, caller object ID, status, latency and correlation ID. API Center does not authorize or relay requests.
+
+[SVG](06.en.svg) · [PNG](06.en.png)
+
+```mermaid
+flowchart LR
+  %% 1. Runtime request - governed endpoint only
+  %% 2. Observation - not a request-body copy
+  %% 3. Inventory - administrative registration, not runtime routing
+  n_node_0_0["MCP client / Approved call"]
+  n_node_2_0["Register gateway / Approved endpoint"]
+  subgraph boundary_0["Your Azure test workload"]
+    n_node_0_1["API Management / Validate / authorize"]
+    n_node_0_2["Azure Functions / Private endpoint"]
+  end
+  style boundary_0 fill:#ffffff,stroke:#526783,stroke-dasharray:8 6
+  subgraph boundary_1["Your Azure test workload"]
+    n_node_1_0["Same gateway / Authenticated caller"]
+    n_node_1_1["Application Insights / Zero body bytes"]
+  end
+  style boundary_1 fill:#ffffff,stroke:#526783,stroke-dasharray:8 6
+  subgraph boundary_2["Your Azure test workload"]
+    n_node_2_1["Azure API Center / No access grant"]
+  end
+  style boundary_2 fill:#ffffff,stroke:#526783,stroke-dasharray:8 6
+  n_node_0_0 -->|"MCP"| n_node_0_1
+  n_node_0_1 -->|"Private network"| n_node_0_2
+  n_node_1_0 -->|"Metadata only"| n_node_1_1
+  n_node_2_0 -->|"Inventory"| n_node_2_1
+  style n_node_0_0 fill:#ffffff,stroke:#1659dc,color:#172c48
+  style n_node_0_1 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+  style n_node_0_2 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+  style n_node_1_0 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+  style n_node_1_1 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+  style n_node_2_0 fill:#ffffff,stroke:#1659dc,color:#172c48
+  style n_node_2_1 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+```
+
+## 07 - Optional clients use the same governed boundary
+
+No agent deployed here. Check licensing, Preview and secretless support. Defer any client-secret requirement.
+
+[SVG](07.en.svg) · [PNG](07.en.png)
+
+```mermaid
+flowchart LR
+  %% Planned facilitator demo - selected Foundry flows Preview
+  n_node_0_0["Optional MCP client / User or application"]
+  subgraph boundary_0["Your Azure test workload"]
+    n_node_0_1["API Management / Same controls"]
+    n_node_0_2["Azure Functions / Private endpoint"]
+  end
+  style boundary_0 fill:#ffffff,stroke:#526783,stroke-dasharray:8 6
+  n_node_0_0 -->|"Approved identity"| n_node_0_1
+  n_node_0_1 -->|"Private network"| n_node_0_2
+  style n_node_0_0 fill:#ffffff,stroke:#1659dc,color:#172c48
+  style n_node_0_1 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+  style n_node_0_2 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+```
+
+## 99 - Remove workshop-owned resources, preserve shared identities
+
+Workload first, then only created Entra objects. Check assignments, private DNS, inventory, retention and codespaces.
+
+[SVG](99.en.svg) · [PNG](99.en.png)
+
+```mermaid
+flowchart LR
+  %% 1. Resource cleanup - administrative flow after explicit approval
+  %% 2. Identity cleanup - do not delete supplied identities
+  n_node_0_0["Review ownership / Actual destroy plan"]
+  n_node_0_2["Verify inventory / Costs / retention"]
+  n_node_1_0["Identity admin / Review created IDs"]
+  n_node_1_2["Preserve existing / Users / apps"]
+  subgraph boundary_0["Your Azure test workload"]
+    n_node_0_1["Azure subscription / Workload teardown"]
+  end
+  style boundary_0 fill:#ffffff,stroke:#526783,stroke-dasharray:8 6
+  subgraph boundary_1["Microsoft Entra tenant"]
+    n_node_1_1["Microsoft Entra ID / Workshop objects only"]
+  end
+  style boundary_1 fill:#ffffff,stroke:#526783,stroke-dasharray:8 6
+  n_node_0_0 -->|"Approve"| n_node_0_1
+  n_node_0_1 -->|"Verify"| n_node_0_2
+  n_node_1_0 -->|"Approve scope"| n_node_1_1
+  n_node_1_1 -->|"Verify"| n_node_1_2
+  style n_node_0_0 fill:#ffffff,stroke:#1659dc,color:#172c48
+  style n_node_0_1 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+  style n_node_0_2 fill:#ffffff,stroke:#1659dc,color:#172c48
+  style n_node_1_0 fill:#ffffff,stroke:#1659dc,color:#172c48
+  style n_node_1_1 fill:#eaf0ff,stroke:#1659dc,color:#172c48
+  style n_node_1_2 fill:#ffffff,stroke:#1659dc,color:#172c48
+```
+
+## Sources
+
+- [Draw.io](workshop.drawio).
+- [GitHub Mermaid](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/creating-diagrams).
+- [Mermaid flowcharts](https://mermaid.js.org/syntax/flowchart.html).
 
 Last verified: 2026-10-14.
 '@
@@ -5500,6 +6183,76 @@ jamais dans le portail, URL, chat, sortie publique ou configuration sauvegardée
 Dernière vérification : 2026-10-14. Préparation locale uniquement, sans publication ni déploiement Azure.
 '@
 
+$files['docs/fr/IMPLEMENTATION-STATUS.md'] = @'
+# Ce qui est réellement disponible
+
+Le dépôt public contient du code de préparation utilisable, pas un atelier déjà déployé dans Azure.
+Le [suivi de construction](../PROGRESS.md) indique les contrôles réalisés. **Aucun module n'est encore validé dans Azure.**
+
+| Élément | Disponible dans cette branche | Reste à faire |
+|---|---|---|
+| Environnement participant | Vérification des outils, choix explicite du tenant et de l'abonnement, noms stables et état individuel | Exécuter le conteneur et valider une cible Azure approuvée |
+| Portail documentaire public | Application bilingue, Terraform App Service et script de déploiement avec contrôles | Examiner un plan réel, approuver les frais, déployer et vérifier le site |
+| Serveur MCP | Objectifs et schémas du parcours | Construire Functions, Storage et les outils à partir du module 02 |
+| Identités managées | Modèle de droits et demande à l'administrateur | Créer les identités, les attributions ciblées et la fédération approuvée dans les modules concernés |
+| Microsoft Entra | Audience, autorisations, rôles et profils de test définis | Construire le code d'identité, puis vérifier les consentements et les accès |
+| Passerelle API Management | Architecture Standard v2 et contrôles attendus | Construire la passerelle, le réseau privé et les règles d'autorisation |
+| Microsoft Foundry | Scénario de client facultatif uniquement | Examiner séparément le projet, le modèle, l'agent et la connexion sans secret si cette option est retenue |
+| Observabilité et inventaire | Règles de journalisation sans contenu des échanges | Construire et vérifier la télémétrie et l'inscription dans API Center |
+
+## Comprendre chaque étape
+
+Consultez les [schémas étape par étape](../../assets/architecture/STEPS.fr.md).
+Chaque module affiche aussi son schéma dans l'application. Le code Mermaid se trouve dans une section
+« Pour aller plus loin », fermée au départ.
+Ces schémas montrent une **cible prévue** : ils ne prouvent pas que les ressources existent.
+
+Commencez par le [guide du module 00](../../modules/00-prerequisites/README.fr.md).
+Les modules suivants restent des plans tant que leurs guides et contrôles ne sont pas construits.
+La construction du module suivant attend la validation du précédent.
+
+<details>
+<summary>Pour aller plus loin : identités, Foundry et passerelle IA</summary>
+
+Le portail ne sert que des fichiers publics. Il ne contacte aucune ressource Azure et n'a donc pas besoin
+d'identité managée à ce stade. Il ne doit jamais recueillir les identifiants des participants.
+Le déploiement utilise la connexion interactive de l'opérateur autorisé, pas une clé de publication.
+
+Le futur serveur utilisant le protocole de contexte de modèle (MCP) aura ses propres identités et droits ciblés.
+Un appel effectué pour un utilisateur utilisera la délégation On-Behalf-Of.
+Un appel au nom de l'application utilisera une identité managée.
+Le jeton reçu du client MCP ne sera jamais transmis à Storage ou Microsoft Graph.
+
+La passerelle du parcours principal est **API Management Standard v2**, pas le niveau AI Gateway en préversion.
+L'API de gestion MCP prévue est **Preview**.
+Acheminer les requêtes vers un modèle d'intelligence artificielle (IA) est un besoin distinct des appels aux outils MCP.
+Aucun projet Foundry, modèle, agent ni règle de routage vers un modèle n'a été construit ou déployé ici.
+Cette option demandera sa propre revue des sources, des quotas, des coûts et des accès, puis une approbation
+et une validation.
+
+</details>
+
+<details>
+<summary>Pour aller plus loin : mettre à jour les schémas</summary>
+
+Modifiez `assets/architecture/workshop.drawio`, puis régénérez les SVG, PNG et documents Mermaid.
+Le [guide de modification](../../assets/architecture/README.fr.md) donne les commandes et la provenance des icônes.
+Ne maintenez pas une seconde copie dessinée à la main.
+Mettez à jour cette page et `PROGRESS.md` quand le code ou la validation réelle change, pas simplement après un dessin.
+
+</details>
+
+Ces documents n'autorisent aucune création, modification de droits ou suppression dans Azure ou Microsoft Entra.
+
+## Sources
+
+- [Plan de construction](BUILD-PLAN.md), [suivi](../PROGRESS.md) et [références](REFERENCES.md).
+- [Demande à l'administrateur, en anglais](../requests/identity-request.md).
+- [Hébergement du portail et approbation](HOSTING.md).
+
+Dernière vérification : 2026-10-14. État du code du dépôt, pas un inventaire en direct d'Azure.
+'@
+
 $files['docs/fr/LEARNING-GUIDE.md'] = @'
 # Comprendre les protections du serveur
 
@@ -6473,6 +7226,67 @@ URL, chat, public output or saved client configuration.
 Last verified: 2026-10-14. Local preparation only; no public-site or Azure deployment performed.
 '@
 
+$files['docs/IMPLEMENTATION-STATUS.md'] = @'
+# What is actually available?
+
+The public repository contains working preparation code, not a deployed Azure workshop.
+Read [build progress](PROGRESS.md) for evidence. **No module is Azure-validated yet.**
+
+| Area | Available in this branch | Still required |
+|---|---|---|
+| Participant environment | Tool checks, explicit tenant/subscription selection, private stable names and separate state | Execute the dev container and validate an approved Azure target |
+| Public documentation portal | Bilingual single-page application, App Service Terraform and guarded deployment script | Review a real plan, approve costs, deploy and verify the site |
+| MCP server | Learning targets and diagrams | Functions, Storage and tool implementation from module 02 |
+| Managed identities | Permission model and administrator request | Create identities, scoped role assignments and approved federation in their modules |
+| Microsoft Entra | Audience, scope, role and test-persona requirements | Implement the identity root, then validate consent and authorization |
+| API Management gateway | Standard v2 design and planned checks | Implement the gateway, private network and authorization policies |
+| Microsoft Foundry | Optional client scenario only | A separately reviewed project, model, agent and secretless connection if this option is selected |
+| Observability and inventory | Payload-free logging requirements | Implement and validate telemetry and API Center registration |
+
+## Follow the architecture in order
+
+Open the [step-by-step diagrams](../assets/architecture/STEPS.md). Each module also shows its diagram
+in the application, with a closed-by-default Mermaid source section.
+The diagrams are **planned targets**. They never imply that the shown resources exist.
+
+For module 00, follow the [published guide](../modules/00-prerequisites/README.md).
+Later modules remain outlines until their guides and validators are implemented.
+Do not begin the next module's implementation before the previous module validates.
+
+## Identity and gateway boundaries
+
+The documentation portal serves public files. It does not call Azure or need a managed identity today.
+It must not collect participant credentials. Azure deployment uses the approved operator's interactive sign-in,
+not a publishing key.
+
+The future MCP workload needs its own identities and least-privilege assignments.
+Delegated downstream calls use On-Behalf-Of; application calls use a managed identity.
+Never forward the MCP client token to Storage or Microsoft Graph.
+
+The core gateway is **API Management Standard v2**, not the Preview AI Gateway tier.
+The planned MCP management API is **Preview**.
+Model traffic through an AI gateway is a separate design from MCP tool traffic.
+No Foundry project, model deployment, agent or model-routing policy has been implemented or deployed here.
+Selecting that optional scenario requires its own source review, quota/cost review, approval and validation.
+
+## Keep documentation synchronized
+
+When an architecture step changes, edit `assets/architecture/workshop.drawio`, regenerate the SVG/PNG
+and Mermaid documentation, then run the consistency check. Do not maintain a second handwritten diagram.
+The [diagram authoring guide](../assets/architecture/README.md) records commands and icon provenance.
+Update this page and `PROGRESS.md` when implementation or real validation changes, not just when a diagram is drawn.
+
+No Azure or Microsoft Entra creation, permission change or deletion is authorized by these documents.
+
+## Sources
+
+- [Build plan](BUILD-PLAN.md), [progress](PROGRESS.md) and [verified technical sources](sources.md).
+- [Identity administrator request](requests/identity-request.md).
+- [Portal hosting and approval boundary](HOSTING.md).
+
+Last verified: 2026-10-14. Repository implementation status, not live Azure discovery.
+'@
+
 $files['docs/LEARNING-GUIDE.md'] = @'
 # Understand the governance boundary
 
@@ -6896,7 +7710,7 @@ A module is `validated` only when its validate script passes on a fresh subscrip
 
 | Module | Title | Status | Validated on | Evidence (PASS lines or PR) | Notes |
 |---|---|---|---|---|---|
-| 00 | Prerequisites and environment | in-progress |  | Offline only: 33 script/HTTP tests and 11 mock plans; not fresh-subscription evidence. | EN/FR guide, explicit read-only preflight, identity request and optional public B1 hosting implemented. Container and approved Azure target/plan still pending. |
+| 00 | Prerequisites and environment | in-progress |  | Offline only: 35 script/HTTP tests and 11 mock plans; not fresh-subscription evidence. | EN/FR guide, explicit read-only preflight, identity request and optional public B1 hosting implemented. Container and approved Azure target/plan still pending. |
 | 01 | Discover MCP (no Azure) | todo | | | |
 | 02 | An "open" MCP server (level 0) | todo | | | |
 | 03 | Identity with Microsoft Entra (level 1) | todo | | | |
@@ -6986,6 +7800,16 @@ A module is `validated` only when its validate script passes on a fresh subscrip
   Eleven mock-only Terraform plans cover service-name constraints, shared-group isolation, real portal name wiring
   and invalid inputs. All 33 local tests pass. EN/FR guides explain separate checkouts/state, preserved existing groups,
   fixed protocol configuration and shared quotas. No global name reservation, real Azure plan or deployment was performed.
+- Iterative diagram documentation (2026-10-14): both Mermaid guides derive all 18 graphs from the existing
+  Draw.io source, preserving components, directed/dashed edges and ownership boundaries. Existing SVG/PNG remain
+  byte-identical. The application displays matching icon-rich SVGs and closed Mermaid source/copy sections.
+  Separate EN/FR implementation-status pages state that managed identities, Entra, gateway and Foundry are not deployed.
+  `PASS Mermaid 11.12.0: 18 graphs parsed/rendered with matching node/edge counts` (session-only dependency);
+  35 local tests pass serially. EN/FR browser checks cover 26 routes in both static and App Service runtimes,
+  all module diagrams/source copies, closed advanced sections and 320/390/1366 layouts.
+  An initial concurrent run timed out in two synthetic PowerShell fixtures under shared-host load;
+  the complete serial run passes without relaxing assertions or changing timeouts.
+  No cloud resource, module validation status, role or Preview gate changed.
 '@
 
 $files['docs/requests/identity-request.md'] = @'
@@ -7276,6 +8100,22 @@ workshop explanations, not copies of external documentation. The latter records 
   verify community-mirrored service identities and permitted documentation use.
 - [Microsoft trademark guidelines](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks):
   corporate logos are separate brand assets, not covered by this repository's MIT license.
+
+## Iterative Markdown and application diagrams
+
+Last verified: 2026-10-14. [English diagrams](../assets/architecture/STEPS.md) and
+[French diagrams](../assets/architecture/STEPS.fr.md) are generated from the same Draw.io source as the SVG/PNG.
+The [implementation status](IMPLEMENTATION-STATUS.md) distinguishes code from real Azure validation.
+
+- [GitHub Mermaid blocks](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/creating-diagrams):
+  native Markdown rendering; use ordinary flowcharts, not plugins, remote images or diagrams sent to external services.
+- [Mermaid flowcharts](https://mermaid.js.org/syntax/flowchart.html):
+  preserve component labels, directed/dashed edges and actual ownership boundaries.
+  Mermaid does not preserve Draw.io pixel routing or the verified embedded product icons.
+- [Mermaid 11.12.0](https://www.npmjs.com/package/mermaid/v/11.12.0):
+  pinned session-only syntax/rendering checker, not a website or dev-container dependency.
+  The application uses its already generated SVG when a Mermaid block matches a published module.
+  Unknown blocks fail explicitly. No Mermaid service, CDN, credential collection or new runtime dependency.
 
 ## Public portal hosting
 
@@ -7842,6 +8682,10 @@ Vous préparerez aussi les informations à transmettre à l'administrateur Micro
 Un outil installé ne garantit pas que vous avez les droits ou la capacité nécessaires dans Azure.
 Les noms propres à chaque participant limitent les conflits, mais n'augmentent pas les quotas disponibles.
 
+Consultez les [schémas étape par étape](../../assets/architecture/STEPS.fr.md) et
+[ce qui est réellement disponible](../../docs/fr/IMPLEMENTATION-STATUS.md).
+Un schéma explique l'objectif ; il ne prouve pas que des identités ou des ressources ont été déployées.
+
 ## Ce que vous déployez
 
 **Les scripts de vérification ne créent aucune ressource.** Ils consultent votre configuration et vos droits.
@@ -8023,6 +8867,10 @@ non-production Azure target. Prepare the request for the Microsoft Entra adminis
 A working command line does not prove deployment rights or capacity. Random participant names avoid
 accidental collisions; they do not increase shared subscription quotas. Your terminal, not the public
 portal, authenticates to Azure.
+
+See the [step-by-step architecture](../../assets/architecture/STEPS.md) and
+[actual implementation status](../../docs/IMPLEMENTATION-STATUS.md).
+The diagram is a learning target, not proof that identities or resources have been deployed.
 
 ## What you deploy
 
@@ -8261,15 +9109,16 @@ Participants still authenticate and run reviewed Terraform in their own approved
 
 ## Target architecture
 
-```mermaid
-flowchart LR
-    C["MCP client<br/>VS Code + GitHub Copilot<br/>MCP Inspector"] -->|"Entra token<br/>audience = MCP server"| G["Azure API Management<br/>only entry point"]
-    G -->|"same token<br/>same protected resource"| F["Azure Functions<br/>MCP server (.NET)"]
-    F -->|"On-Behalf-Of"| U["Microsoft Graph / Azure Storage<br/>with the user's rights"]
-    F -->|"Managed identity"| A["Azure Storage<br/>with the app's rights"]
-    G -.-> L["Application Insights<br/>no payloads"]
-    G -.->|"register gateway endpoint"| I["Azure API Center<br/>inventory"]
-```
+![Module 04 planned gateway boundary, not deployed or validated](assets/architecture/04.en.png)
+
+Follow all nine stages in the generated **[Mermaid architecture guide](assets/architecture/STEPS.md)**
+or **[les schémas en français](assets/architecture/STEPS.fr.md)**.
+The application shows the matching icon-rich SVGs and offers the Mermaid source under each diagram.
+Draw.io is the shared source, not a second independently maintained design.
+
+**[What is actually available?](docs/IMPLEMENTATION-STATUS.md)**
+([version française](docs/fr/IMPLEMENTATION-STATUS.md)) distinguishes code, local checks and real deployment.
+Managed identities, Entra, API Management and a Foundry project are not deployed by the current code.
 
 ## Modules
 
@@ -9676,6 +10525,120 @@ def stamp_png(path, svg):
     path.write_bytes(data[:33] + chunk + data[33:])
 
 
+def mermaid_label(value):
+    return (value.replace("#", "#35;").replace("&", "#38;").replace('"', "#quot;")
+            .replace("<", "#60;").replace(">", "#62;").replace("\n", " / "))
+
+
+def mermaid(page):
+    cells = {cell.get("id"): cell for cell in page.findall("./mxGraphModel/root/mxCell")}
+    styles = {identifier: style(cell) for identifier, cell in cells.items()}
+    components = [cell for cell in cells.values() if cell.get("vertex") == "1"
+                  and styles[cell.get("id")].get("shape", "rectangle") == "rectangle"
+                  and styles[cell.get("id")].get("container") != "1"]
+    boundaries = [cell for cell in cells.values() if styles[cell.get("id")].get("container") == "1"]
+    identifiers = {cell.get("id"): "n_" + re.sub(r"[^a-zA-Z0-9_]", "_", cell.get("id")) for cell in components}
+    if len(set(identifiers.values())) != len(components):
+        raise ValueError("Mermaid component identifiers collide.")
+    groups = {boundary.get("id"): [] for boundary in boundaries}
+    outside = []
+    for cell in components:
+        x, y, w, h = bounds(cell, cells)
+        owners = []
+        for boundary in boundaries:
+            bx, by, bw, bh = bounds(boundary, cells)
+            if bx <= x and by <= y and x + w <= bx + bw and y + h <= by + bh:
+                owners.append(boundary.get("id"))
+        if len(owners) > 1:
+            raise ValueError("Nested/overlapping Mermaid ownership needs an explicit reviewed representation.")
+        (groups[owners[0]] if owners else outside).append(cell)
+
+    lines = ["flowchart LR"]
+    for cell in cells.values():
+        if cell.get("id", "").startswith("lane-label-"):
+            lines.append("  %% " + cell.get("value").replace("\n", " / "))
+
+    def declare(cell, indent):
+        if not cell.get("value"):
+            raise ValueError("Every Mermaid component needs a label.")
+        lines.append(f'{indent}{identifiers[cell.get("id")]}["{mermaid_label(cell.get("value"))}"]')
+
+    for cell in outside:
+        declare(cell, "  ")
+    for index, boundary in enumerate(boundaries):
+        caption = cells["boundary-label-" + boundary.get("id").removeprefix("boundary-")].get("value")
+        lines.append(f'  subgraph boundary_{index}["{mermaid_label(caption)}"]')
+        for cell in groups[boundary.get("id")]:
+            declare(cell, "    ")
+        lines.append("  end")
+        color = styles[boundary.get("id")]["strokeColor"]
+        lines.append(f"  style boundary_{index} fill:#ffffff,stroke:{color},stroke-dasharray:8 6")
+    for cell in cells.values():
+        if cell.get("edge") != "1":
+            continue
+        source, target = cell.get("source"), cell.get("target")
+        if source not in identifiers or target not in identifiers:
+            raise ValueError("Mermaid must preserve every edge between real components.")
+        arrow = "-.->" if styles[cell.get("id")].get("dashed") == "1" else "-->"
+        label = f'|"{mermaid_label(cell.get("value"))}"|' if cell.get("value") else ""
+        lines.append(f"  {identifiers[source]} {arrow}{label} {identifiers[target]}")
+    for cell in components:
+        s = styles[cell.get("id")]
+        lines.append(f'  style {identifiers[cell.get("id")]} fill:{s["fillColor"]},stroke:{s["strokeColor"]},color:{s["fontColor"]}')
+    return "\n".join(lines)
+
+
+def architecture_documents(pages, directory, check):
+    for language in ("en", "fr"):
+        french = language == "fr"
+        name = "STEPS.fr.md" if french else "STEPS.md"
+        lines = [
+            "# " + ("L'architecture, étape par étape" if french else "Architecture, step by step"), "",
+            ("Ces schémas montrent les objectifs du parcours, pas des déploiements réalisés. "
+             "Consultez le suivi de construction pour les preuves de validation." if french else
+             "These diagrams show learning targets, not deployed resources. See build progress for validation evidence."), "",
+            ("Le protocole de contexte de modèle (MCP) relie un client à des outils. "
+             "Chaque étape ajoute un contrôle ou explique une responsabilité." if french else
+             "The Model Context Protocol (MCP) connects a client to tools. "
+             "Each step adds a control or explains an ownership boundary."), "",
+            ("[Ce qui est réellement disponible](../../docs/fr/IMPLEMENTATION-STATUS.md). "
+             "[Modifier les schémas et vérifier les icônes](README.fr.md)." if french else
+             "[What is actually available](../../docs/IMPLEMENTATION-STATUS.md). "
+             "[Edit diagrams and verify icon provenance](README.md)."), "",
+            ("Fichier généré depuis `workshop.drawio` : ne le modifiez pas séparément. "
+             "Les cadres représentent des périmètres ; les vues répétées désignent le même environnement. "
+             "GitHub affiche Mermaid ; l'application affiche le SVG équivalent avec ses icônes et son routage vérifiés."
+             if french else
+             "Generated from `workshop.drawio`; do not edit separately. Frames are ownership boundaries; "
+             "repeated views refer to the same environment. GitHub renders Mermaid; "
+             "the application displays the equivalent SVG with verified icons and routing."), "",
+        ]
+        for page in pages:
+            if not page.get("id").endswith("." + language):
+                continue
+            identifier = page.get("id")
+            lines.extend([
+                "## " + page.get("name"), "", page.get("description"), "",
+                f"[SVG]({identifier}.svg) · [PNG]({identifier}.png)", "",
+                "```mermaid", mermaid(page), "```", "",
+            ])
+        lines.extend([
+            "## Sources", "",
+            "- [Draw.io](workshop.drawio).",
+            "- [GitHub Mermaid](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/creating-diagrams).",
+            "- [Mermaid flowcharts](https://mermaid.js.org/syntax/flowchart.html).", "",
+            ("Dernière vérification : 2026-10-14." if french else "Last verified: 2026-10-14."), "",
+        ])
+        data = "\n".join(lines)
+        output = directory / name
+        if check:
+            if output.read_text(encoding="utf-8") != data:
+                raise ValueError(f"Stale Mermaid documentation: {name}")
+        else:
+            output.write_text(data, encoding="utf-8", newline="\n")
+        print(f"PASS {name}: nine Mermaid graphs from the same Draw.io source")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     mode = parser.add_mutually_exclusive_group()
@@ -9718,6 +10681,7 @@ def main():
                 stamp_png(png, output)
                 check_png(png, output, (width, height))
             print(f"PASS {page.get('id')}: XML, routing, text fit, embedded SVG" + (", PNG" if not args.svg_only else ""))
+        architecture_documents(pages, source.parent, args.check)
     finally:
         if browser_process:
             browser_process.close()
@@ -9869,10 +10833,13 @@ test("public site exports only the allowlist, with no capability, root URLs, pri
     for (const language of [journey, journey.translations.fr]) {
         assert.equal(language.modules.length, 9);
         for (const module of language.modules) {
+            assert.match(module.diagramSource.content, /^flowchart LR\n/);
+            assert.ok(language.documents.architecture.content.replaceAll("\r\n", "\n").includes(module.diagramSource.content));
             for (const path of Object.values(module.diagram)) {
                 assert.match(path, /^assets\/architecture\//);
                 assert.ok(existsSync(join(output, path)));
             }
+            assert.match(language.documents.implementation.sourcePath, /IMPLEMENTATION-STATUS\.md$/);
         }
     }
     assert.deepEqual(readdirSync(join(output, "assets")).sort(), ["architecture", "icons"]);
