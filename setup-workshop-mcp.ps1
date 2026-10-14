@@ -5366,6 +5366,11 @@ Azure API Center répertorie l'adresse de la passerelle ; il ne relaie pas les a
 Des requêtes Kusto Query Language (KQL) ou un classeur d'analyse montreront le nom de l'outil,
 l'identifiant de l'appelant authentifié, le statut, la durée et l'identifiant de corrélation.
 L'inventaire Microsoft 365 est facultatif, en **Preview**, et réservé à l'animateur.
+L'intégration [Agent 365 et API Management (Preview)](https://learn.microsoft.com/azure/api-management/agent-365)
+reste une démonstration prévue, non implémentée. API Management v2 permet l'inventaire et le blocage du serveur ;
+le contrôle par outil exige AI Gateway (Preview) et une liste statique d'outils autorisés.
+Le consentement administrateur à l'échelle du tenant n'est jamais une étape participant.
+Les limites et les résultats attendus figurent dans la [fiche de gouvernance](LEARNING-GUIDE.md).
 
 </details>
 
@@ -6453,6 +6458,32 @@ il ne relaie pas les requêtes, n'authentifie pas les clients et ne donne aucun 
 > Ne conservez ni jetons, ni consignes, ni paramètres, ni résultats d'outils et n'exportez pas les traces Inspector.
 > L'inventaire Microsoft 365 facultatif est en **Preview**, réservé à l'animateur.
 
+<details>
+<summary>Facultatif : Agent 365 et API Management — Preview, démonstration prévue</summary>
+
+Microsoft Agent 365 définit les décisions de gouvernance ; API Management les applique.
+Cette intégration est en **Preview**. L'exercice n'est pas encore implémenté.
+Avec API Management v2, elle permet l'inventaire et le blocage d'un serveur entier (HTTP 403).
+Le blocage par outil, le suivi d'activité par outil et la protection contre les menaces exigent l'offre
+**AI Gateway (Preview)**, hors parcours principal. Le contrôle par outil exige une liste statique d'outils autorisés.
+
+Le consentement à l'échelle du tenant attribue à l'identité du service Agent 365 le rôle
+**A365 MCP Gateway Policy Operator**, avec lecture et écriture des stratégies d'API dans les abonnements
+actuels et futurs du tenant. Aucun script participant ne demande cette autorisation.
+Une démonstration exige l'accord distinct de l'administrateur.
+Agent 365 ne redirige pas automatiquement les clients : l'accès direct au serveur doit rester bloqué.
+
+**Résultat attendu de la démonstration :** le blocage du serveur renvoie HTTP 403.
+Avec AI Gateway (Preview), le blocage d'un outil renvoie HTTP 200, mais le résultat MCP contient
+`result.isError: true` et le code `ToolNotAvailable`.
+Vérifiez le code HTTP et le résultat structuré, pas seulement la réponse de l'agent.
+Ce sont les résultats documentés, pas la preuve d'un exercice validé.
+
+[Instructions officielles et limites par offre (Preview)](https://learn.microsoft.com/azure/api-management/agent-365).
+Dernière vérification : 2026-10-14.
+
+</details>
+
 **Résultat attendu :** des traces limitées aux métadonnées, des requêtes permettant d'examiner les refus et l'adresse de la passerelle dans l'inventaire.
 **Suite :** module 99 pour arrêter les coûts. Le module 07 est une branche facultative, pas un prérequis.
 
@@ -7478,6 +7509,30 @@ it does not forward requests, authenticate callers or grant tool permission.
 **Expected evidence:** a metadata-only call trace, useful denial queries and the governed endpoint in inventory.
 **Next:** module 99 stops costs. Module 07 is an optional facilitator branch, not a prerequisite.
 
+<details>
+<summary>Optional: Agent 365 + API Management — Preview, planned demo</summary>
+
+Microsoft Agent 365 defines governance decisions; API Management enforces them.
+This integration is **Preview**, not an implemented workshop exercise.
+With API Management v2, it supports inventory and blocking an entire server (HTTP 403).
+Tool-level blocking, tool activity observability and threat protection require the **AI Gateway tier (Preview)**,
+outside the core route. Tool-level control requires a static allowed-tools list.
+
+Tenant-wide consent grants the Agent 365 service identity the **A365 MCP Gateway Policy Operator** role,
+including API-policy read/write across existing and future tenant subscriptions.
+No participant script requests this grant. Any facilitator demo requires separate administrator approval.
+Agent 365 does not automatically route clients through the gateway; direct backend access must remain blocked.
+
+**Expected demo result:** server blocking returns HTTP 403. In the AI Gateway tier (Preview), a blocked tool
+returns HTTP 200 with MCP `result.isError: true` and denial code `ToolNotAvailable`.
+Check both the HTTP status and the structured tool result, not the agent's summary.
+These are documented expectations, not workshop validation evidence.
+
+[Official instructions and tier limits (Preview)](https://learn.microsoft.com/azure/api-management/agent-365).
+Last verified: 2026-10-14.
+
+</details>
+
 **Deep dive:** [APIM telemetry](https://learn.microsoft.com/azure/api-management/api-management-howto-app-insights),
 [API Center registration](https://learn.microsoft.com/azure/api-center/register-discover-mcp-server),
 [Microsoft 365 BYO inventory (Preview)](https://learn.microsoft.com/microsoft-365/admin/manage/manage-byo-mcp-server).
@@ -7779,6 +7834,11 @@ A module is `validated` only when its validate script passes on a fresh subscrip
   group; accept an approved existing group without managing it. Shared quotas still require cohort capacity checks.
 
 ## Deviations from the build plan
+- Agent 365 integration clarification (2026-10-14): README and EN/FR module 06 learning panels explicitly mark
+  the integration and AI Gateway tier **Preview**. The board reads these panels directly.
+  This remains a planned facilitator demo, not implemented infrastructure. Tenant-wide policy-write consent
+  is excluded from participant scripts. Documented denial expectations distinguish server HTTP 403 from tool
+  HTTP 200 with `result.isError: true`. No cloud resource or validation status changed.
 - Initial P1 preparation: source assessment, architecture recommendations and build board.
   Module 00 is now implemented locally as described below, but no module is Azure-validated.
   No Azure or Microsoft Entra resource has been changed.
@@ -9120,9 +9180,9 @@ Take one MCP server from **open** to **governed** on Azure, alone, in **your own
 | 2️⃣ | 📖 **Read** | Open the [board](#-open-the-board) or the module README. | One page per module, with a diagram. |
 | 3️⃣ | 🛠️ **Prepare** | Run the module 00 checks. They only read. | `PASS` lines, then a private `.workshop` file. |
 | 4️⃣ | ▶️ **Do** | Follow the module steps, one module at a time. | The result written under "What you should see". |
-| 5️⃣ | ✅ **Validate, then clean up** | Run `validate.ps1`, then the clean-up script. | Only `PASS`. Azure resources removed. |
+| 5️⃣ | ✅ **Validate, then clean up** | Run the published module's validator. Review cleanup before deleting anything. | Offline `PASS` does not prove Azure deployment. Module 00 preflight creates nothing. |
 
-📸 Each module page ends with its expected result, like this one:
+📸 This is the module 00 guide, not a deployed Azure result:
 
 ![Module 00 page with its architecture and security flow](assets/screenshots/module-00.en.png)
 
@@ -9140,7 +9200,7 @@ Take one MCP server from **open** to **governed** on Azure, alone, in **your own
 | 07 | 🤖 Other clients (Foundry, Copilot Studio) | ➕ Optional | ⚪ Planned | [Plan](docs/BUILD-PLAN.md#07--optional-other-clients) |
 | 99 | 🧹 Clean up | ♻️ As soon as you create resources | ⚪ Planned | [Plan](docs/BUILD-PLAN.md#99--clean-up) |
 
-> 💡 **Why only module 00 is a link to a guide?** A module guide is published only after it is built and validated.
+> 💡 **Why only module 00 is a link to a guide?** It is the only implemented guide, but its Azure validation is still pending.
 > The other rows link to their plan: what they will take, build, show and validate.
 
 ## 🧭 Open the board
@@ -9156,6 +9216,14 @@ optional ones are marked) · **References** (practice, governance, sources). Swi
 ## 🧪 Try your MCP
 
 Calls run in **your** MCP client (VS Code, Inspector…), never in the board. See the [practice guide](docs/PRACTICE.md).
+
+### Agent 365 integration — Preview, optional
+
+[Microsoft Agent 365 + API Management (Preview)](https://learn.microsoft.com/azure/api-management/agent-365)
+is a **planned facilitator demo**, not an implemented exercise.
+API Management v2 supports inventory and server blocking; tool-level blocking requires the **AI Gateway tier (Preview)**.
+Tenant-wide administrator consent is required. The core workshop does not request it.
+See module 06 in the [governance guide](docs/LEARNING-GUIDE.md#06---observe-metadata-inventory-endpoints).
 
 ## 📐 Architecture
 

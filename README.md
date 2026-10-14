@@ -16,9 +16,9 @@ Take one MCP server from **open** to **governed** on Azure, alone, in **your own
 | 2️⃣ | 📖 **Read** | Open the [board](#-open-the-board) or the module README. | One page per module, with a diagram. |
 | 3️⃣ | 🛠️ **Prepare** | Run the module 00 checks. They only read. | `PASS` lines, then a private `.workshop` file. |
 | 4️⃣ | ▶️ **Do** | Follow the module steps, one module at a time. | The result written under "What you should see". |
-| 5️⃣ | ✅ **Validate, then clean up** | Run `validate.ps1`, then the clean-up script. | Only `PASS`. Azure resources removed. |
+| 5️⃣ | ✅ **Validate, then clean up** | Run the published module's validator. Review cleanup before deleting anything. | Offline `PASS` does not prove Azure deployment. Module 00 preflight creates nothing. |
 
-📸 Each module page ends with its expected result, like this one:
+📸 This is the module 00 guide, not a deployed Azure result:
 
 ![Module 00 page with its architecture and security flow](assets/screenshots/module-00.en.png)
 
@@ -36,7 +36,7 @@ Take one MCP server from **open** to **governed** on Azure, alone, in **your own
 | 07 | 🤖 Other clients (Foundry, Copilot Studio) | ➕ Optional | ⚪ Planned | [Plan](docs/BUILD-PLAN.md#07--optional-other-clients) |
 | 99 | 🧹 Clean up | ♻️ As soon as you create resources | ⚪ Planned | [Plan](docs/BUILD-PLAN.md#99--clean-up) |
 
-> 💡 **Why only module 00 is a link to a guide?** A module guide is published only after it is built and validated.
+> 💡 **Why only module 00 is a link to a guide?** It is the only implemented guide, but its Azure validation is still pending.
 > The other rows link to their plan: what they will take, build, show and validate.
 
 ## 🧭 Open the board
@@ -52,6 +52,14 @@ optional ones are marked) · **References** (practice, governance, sources). Swi
 ## 🧪 Try your MCP
 
 Calls run in **your** MCP client (VS Code, Inspector…), never in the board. See the [practice guide](docs/PRACTICE.md).
+
+### Agent 365 integration — Preview, optional
+
+[Microsoft Agent 365 + API Management (Preview)](https://learn.microsoft.com/azure/api-management/agent-365)
+is a **planned facilitator demo**, not an implemented exercise.
+API Management v2 supports inventory and server blocking; tool-level blocking requires the **AI Gateway tier (Preview)**.
+Tenant-wide administrator consent is required. The core workshop does not request it.
+See module 06 in the [governance guide](docs/LEARNING-GUIDE.md#06---observe-metadata-inventory-endpoints).
 
 ## 📐 Architecture
 

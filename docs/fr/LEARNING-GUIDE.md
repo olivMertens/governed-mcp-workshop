@@ -158,6 +158,32 @@ il ne relaie pas les requêtes, n'authentifie pas les clients et ne donne aucun 
 > Ne conservez ni jetons, ni consignes, ni paramètres, ni résultats d'outils et n'exportez pas les traces Inspector.
 > L'inventaire Microsoft 365 facultatif est en **Preview**, réservé à l'animateur.
 
+<details>
+<summary>Facultatif : Agent 365 et API Management — Preview, démonstration prévue</summary>
+
+Microsoft Agent 365 définit les décisions de gouvernance ; API Management les applique.
+Cette intégration est en **Preview**. L'exercice n'est pas encore implémenté.
+Avec API Management v2, elle permet l'inventaire et le blocage d'un serveur entier (HTTP 403).
+Le blocage par outil, le suivi d'activité par outil et la protection contre les menaces exigent l'offre
+**AI Gateway (Preview)**, hors parcours principal. Le contrôle par outil exige une liste statique d'outils autorisés.
+
+Le consentement à l'échelle du tenant attribue à l'identité du service Agent 365 le rôle
+**A365 MCP Gateway Policy Operator**, avec lecture et écriture des stratégies d'API dans les abonnements
+actuels et futurs du tenant. Aucun script participant ne demande cette autorisation.
+Une démonstration exige l'accord distinct de l'administrateur.
+Agent 365 ne redirige pas automatiquement les clients : l'accès direct au serveur doit rester bloqué.
+
+**Résultat attendu de la démonstration :** le blocage du serveur renvoie HTTP 403.
+Avec AI Gateway (Preview), le blocage d'un outil renvoie HTTP 200, mais le résultat MCP contient
+`result.isError: true` et le code `ToolNotAvailable`.
+Vérifiez le code HTTP et le résultat structuré, pas seulement la réponse de l'agent.
+Ce sont les résultats documentés, pas la preuve d'un exercice validé.
+
+[Instructions officielles et limites par offre (Preview)](https://learn.microsoft.com/azure/api-management/agent-365).
+Dernière vérification : 2026-10-14.
+
+</details>
+
 **Résultat attendu :** des traces limitées aux métadonnées, des requêtes permettant d'examiner les refus et l'adresse de la passerelle dans l'inventaire.
 **Suite :** module 99 pour arrêter les coûts. Le module 07 est une branche facultative, pas un prérequis.
 
