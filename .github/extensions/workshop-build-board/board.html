@@ -25,6 +25,8 @@
     nav a[aria-current="page"] { background: var(--wash); color: var(--blue); font-weight: 650; }
     .module-id { width: 28px; flex-shrink: 0; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
     .nav-title { flex: 1; }
+    .badge { margin-left: auto; font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; white-space: nowrap; }
+    #start-nav a { display: flex; align-items: center; gap: 8px; }
     .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--line); flex-shrink: 0; }
     .dot.validated { background: var(--success); }
     .dot.in-progress { background: var(--blue); }
@@ -139,9 +141,11 @@
   <div class="shell">
     <aside class="rail">
       <a class="brand" href="#/overview"><span class="brand-mark" aria-hidden="true">GM</span><span>Governed MCP<small>A hands-on Azure workshop</small></span></a>
-      <p class="nav-label">Your route</p>
+      <p class="nav-label">Start</p>
+      <nav id="start-nav" aria-label="Start here"></nav>
+      <p class="nav-label">Main route</p>
       <nav id="module-nav" aria-label="Workshop modules"></nav>
-      <p class="nav-label">Reference desk</p>
+      <p class="nav-label">References</p>
       <nav id="resource-nav" aria-label="Workshop references">
         <a href="#/overview">Workshop overview</a>
         <a href="#/practice">Try your MCP</a>
@@ -756,25 +760,36 @@
         [".toolbar > span", staticSite ? "Governed MCP / self-paced workshop" : "Workshop build board / self-paced guide"], ["#refresh", "Refresh content"],
       ]) document.querySelector(selector).textContent = t(text);
       const captions = document.querySelectorAll(".nav-label");
-      captions[0].textContent = t("Your route");
-      captions[1].textContent = t("Reference desk");
+      captions[0].textContent = t("Start");
+      captions[1].textContent = t("Main route");
+      captions[2].textContent = t("References");
       document.querySelector(".rail-footer").textContent = staticSite ?
         t("Read the steps. Run in your own environment. No credentials or deployment in this website.") :
         language === "fr" ? "Interface Copilot en Preview. Suivez les étapes et vérifiez chaque module avant de poursuivre." :
           "Copilot canvas SDK: Preview. Read the steps. Run locally. Validate before continuing.";
-      for (const [id, text] of [["module-nav", "Workshop modules"], ["resource-nav", "Workshop references"], ["content", "Workshop content"]]) {
+      for (const [id, text] of [["start-nav", "Start here"], ["module-nav", "Workshop modules"], ["resource-nav", "Workshop references"], ["content", "Workshop content"]]) {
         document.getElementById(id).setAttribute("aria-label", t(text));
+      }
+      const starts = document.getElementById("start-nav");
+      starts.replaceChildren();
+      for (const [route, title, icon] of [
+        ["start", "Choose your workspace", "terminal"],
+        ["overview", "Workshop overview", "route"],
+        ["implementation", "What is actually available?", "important"],
+      ]) {
+        const anchor = link("", `#/${route}`);
+        anchor.append(symbol(icon), element("span", title));
+        starts.append(anchor);
       }
       for (const code of ["en", "fr"]) document.getElementById(`language-${code}`).setAttribute("aria-pressed", String(language === code));
       const resources = document.getElementById("resource-nav");
       resources.replaceChildren();
       for (const [route, title, icon] of [
-        ["start", "Choose your workspace", "terminal"],
-        ["overview", "Workshop overview", "route"], ["practice", "Try your MCP", "terminal"],
+        ["practice", "Try your MCP", "terminal"],
         ["deployment", "Your Azure context", "shield"], ["governance", "Understand governance", "shield"],
+        ["architecture", "Architecture, step by step", "route"],
         ["sources", "Verified sources", "book"], ["runbook", "Build runbook", "book"],
-        ["architecture", "Architecture, step by step", "route"], ["decisions", "Build decisions", "important"],
-        ["implementation", "What is actually available?", "important"],
+        ["decisions", "Build decisions", "important"],
         ["hosting", "Publish or host the guides", "book"],
       ]) {
         const anchor = link("", `#/${route}`);
@@ -787,6 +802,8 @@
         const anchor = link("", `#/module/${module.module}`);
         anchor.setAttribute("aria-label", `Module ${module.module}: ${module.title}`);
         anchor.append(element("span", module.module, "module-id"), element("span", module.title, "nav-title"));
+        const note = module.module === "07" ? "Optional" : module.module === "99" ? "Always" : "";
+        if (note) anchor.append(element("span", t(note), "badge"));
         const dot = element("span", undefined, `dot ${module.status}`);
         dot.setAttribute("aria-hidden", "true");
         dot.title = t(labels[module.status]);
