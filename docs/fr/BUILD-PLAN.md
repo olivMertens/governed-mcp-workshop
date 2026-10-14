@@ -107,6 +107,11 @@ Azure API Center répertorie l'adresse de la passerelle ; il ne relaie pas les a
 Des requêtes Kusto Query Language (KQL) ou un classeur d'analyse montreront le nom de l'outil,
 l'identifiant de l'appelant authentifié, le statut, la durée et l'identifiant de corrélation.
 L'inventaire Microsoft 365 est facultatif, en **Preview**, et réservé à l'animateur.
+L'intégration [Agent 365 et API Management (Preview)](https://learn.microsoft.com/azure/api-management/agent-365)
+reste une démonstration prévue, non implémentée. API Management v2 permet l'inventaire et le blocage du serveur ;
+le contrôle par outil exige AI Gateway (Preview) et une liste statique d'outils autorisés.
+Le consentement administrateur à l'échelle du tenant n'est jamais une étape participant.
+Les limites et les résultats attendus figurent dans la [fiche de gouvernance](LEARNING-GUIDE.md).
 
 </details>
 

@@ -36,6 +36,11 @@ A module is `validated` only when its validate script passes on a fresh subscrip
   group; accept an approved existing group without managing it. Shared quotas still require cohort capacity checks.
 
 ## Deviations from the build plan
+- Agent 365 integration clarification (2026-10-14): README and EN/FR module 06 learning panels explicitly mark
+  the integration and AI Gateway tier **Preview**. The board reads these panels directly.
+  This remains a planned facilitator demo, not implemented infrastructure. Tenant-wide policy-write consent
+  is excluded from participant scripts. Documented denial expectations distinguish server HTTP 403 from tool
+  HTTP 200 with `result.isError: true`. No cloud resource or validation status changed.
 - Initial P1 preparation: source assessment, architecture recommendations and build board.
   Module 00 is now implemented locally as described below, but no module is Azure-validated.
   No Azure or Microsoft Entra resource has been changed.

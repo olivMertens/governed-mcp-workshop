@@ -149,6 +149,30 @@ it does not forward requests, authenticate callers or grant tool permission.
 **Expected evidence:** a metadata-only call trace, useful denial queries and the governed endpoint in inventory.
 **Next:** module 99 stops costs. Module 07 is an optional facilitator branch, not a prerequisite.
 
+<details>
+<summary>Optional: Agent 365 + API Management — Preview, planned demo</summary>
+
+Microsoft Agent 365 defines governance decisions; API Management enforces them.
+This integration is **Preview**, not an implemented workshop exercise.
+With API Management v2, it supports inventory and blocking an entire server (HTTP 403).
+Tool-level blocking, tool activity observability and threat protection require the **AI Gateway tier (Preview)**,
+outside the core route. Tool-level control requires a static allowed-tools list.
+
+Tenant-wide consent grants the Agent 365 service identity the **A365 MCP Gateway Policy Operator** role,
+including API-policy read/write across existing and future tenant subscriptions.
+No participant script requests this grant. Any facilitator demo requires separate administrator approval.
+Agent 365 does not automatically route clients through the gateway; direct backend access must remain blocked.
+
+**Expected demo result:** server blocking returns HTTP 403. In the AI Gateway tier (Preview), a blocked tool
+returns HTTP 200 with MCP `result.isError: true` and denial code `ToolNotAvailable`.
+Check both the HTTP status and the structured tool result, not the agent's summary.
+These are documented expectations, not workshop validation evidence.
+
+[Official instructions and tier limits (Preview)](https://learn.microsoft.com/azure/api-management/agent-365).
+Last verified: 2026-10-14.
+
+</details>
+
 **Deep dive:** [APIM telemetry](https://learn.microsoft.com/azure/api-management/api-management-howto-app-insights),
 [API Center registration](https://learn.microsoft.com/azure/api-center/register-discover-mcp-server),
 [Microsoft 365 BYO inventory (Preview)](https://learn.microsoft.com/microsoft-365/admin/manage/manage-byo-mcp-server).
