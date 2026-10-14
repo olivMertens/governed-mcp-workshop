@@ -5100,6 +5100,8 @@ bash ./scripts/prepare-workshop.sh -ParticipantPrefix p01 -Location westeurope -
 
 Le script crée un fichier privé, `.workshop/participant.tfvars.json`, que Git ne publie pas.
 Il y conserve une terminaison aléatoire pour distinguer vos noms de ressources de ceux des autres participants.
+Même si tout le monde choisit `p01`, chaque préparation indépendante produit ses propres noms.
+Chacun doit utiliser sa propre copie du dépôt, ses paramètres privés et son état Terraform : ne les copiez pas d'un autre participant.
 Relancer la même commande réutilise le fichier ; changer les paramètres provoque un arrêt.
 Conservez ce fichier et l'état Terraform, qui permet de retrouver les ressources déployées, jusqu'au nettoyage.
 Le script ne contacte pas Azure. La date est un rappel, **pas une suppression automatique**.
@@ -5114,11 +5116,27 @@ première préparation. Terraform ne gérera pas ce groupe existant et ne le sup
 <details>
 <summary>Pour aller plus loin : noms des ressources et groupes existants</summary>
 
-Nouveau groupe : `rg-mcp-<participant>-<suffixe>`. Les futurs noms globaux reprennent ce suffixe :
-Storage utilise `stmcp<participant><suffixe>`, au plus 23 lettres minuscules/chiffres ;
-Functions et API Management ont leur préfixe de service. Les sorties Terraform sont des **noms prévus**,
-pas des serveurs déployés. L'aléatoire réduit le risque de collision sans le supprimer : vérifiez la disponibilité.
+Une nouvelle préparation conserve un suffixe de 16 caractères hexadécimaux minuscules, soit 64 bits aléatoires.
+Les anciennes préparations à 10 caractères et tous leurs noms sont conservés sans modification.
+Dans le tableau, `participant` comporte 2 à 8 lettres minuscules ou chiffres et commence par une lettre.
+`court` désigne ses six premiers caractères, ou le préfixe entier s'il est plus court.
+Le suffixe aléatoire n'est jamais raccourci.
+
+| Ressource | Nom d'une nouvelle préparation | Contrainte Azure |
+|---|---|---|
+| Nouveau groupe de ressources | `rg-mcp-<participant>-<suffixe>` | 1 à 90 caractères ; unique dans l'abonnement |
+| Compte Storage, prévu | `st<court><suffixe>` | 3 à 24 lettres minuscules ou chiffres ; unique au niveau mondial |
+| Application Functions, prévue | `func-mcp-<court>-<suffixe>` | Nom d'application unique au niveau mondial ; limité ici à 32 caractères pour préserver l'identifiant de l'hôte |
+| API Management, prévu | `apim-mcp-<participant>-<suffixe>` | 1 à 50 lettres, chiffres ou traits d'union ; unique au niveau mondial |
+| Plan App Service facultatif | `plan-mcp-<participant>-<suffixe>-portal` | 1 à 60 caractères ; unique dans le groupe |
+| Application du portail facultatif | `web-mcp-<participant>-<suffixe>-portal` | 2 à 60 lettres, chiffres ou traits d'union ; nom d'application unique au niveau mondial |
+
+Les sorties Terraform sont des **noms prévus**, pas des serveurs déployés ni une réservation de noms.
+L'aléatoire réduit le risque de collision sans le supprimer : vérifiez la disponibilité avant le déploiement.
 Ne régénérez jamais le suffixe pour résoudre un problème de quota ou réparer un déploiement existant.
+Si les paramètres ont disparu mais qu'un état local, des métadonnées de stockage de l'état ou un plan enregistré
+sont encore présents aux emplacements connus, le script s'arrête. Restaurez le fichier privé d'origine.
+Un état distant ou enregistré ailleurs n'est pas toujours détectable.
 
 Pour un groupe fourni par l'administrateur, ajoutez son nom exact avec `-ExistingResourceGroupName` au **premier**
 appel. Terraform lit ce groupe par une source de données : aucun import, renommage, changement d'étiquettes
@@ -5128,6 +5146,11 @@ ne permet pas de créer un groupe voisin. Préférez le chemin groupe existant p
 
 En cas de nom refusé, recherchez la cause avant le premier déploiement. Ne renommez pas un groupe déjà
 déployé sans examiner les conséquences.
+
+Les noms d'outils, les valeurs du protocole, les autorisations et rôles applicatifs, ainsi que les noms de zones
+privées du système de noms de domaine (DNS) imposés par les services, ne doivent pas être rendus aléatoires.
+Les modules d'identité et de réseau, encore à construire, devront aussi vérifier l'isolation des participants
+et l'absence de chevauchement des plages d'adresses.
 
 </details>
 
@@ -6087,15 +6110,11 @@ bash ./scripts/prepare-workshop.sh -ParticipantPrefix p01 -Location westeurope -
 ```
 
 The script creates `.workshop/participant.tfvars.json`, ignored by Git, with a cryptographically random
-10-hex-character suffix. It never contacts Azure. Repeating the same command reuses the exact saved file;
+suffix. Even if everyone uses `p01`, each independent preparation gets its own names.
+Use a separate checkout, private parameter file and Terraform state per participant; do not copy another person's files.
+It never contacts Azure. Repeating the same command reuses the exact saved file;
 conflicting settings fail instead of silently changing names. Keep this file and Terraform state through cleanup.
 The expiry is a tag, **not automatic resource deletion**.
-
-New groups use `rg-mcp-<participant>-<suffix>`. Future global names include the same suffix:
-Storage uses `stmcp<participant><suffix>` (at most 23 lowercase letters/digits); Functions and API Management
-use their own service prefix. The Terraform output contains **planned names**, not endpoints or deployed services.
-Randomness makes accidental collisions unlikely, not impossible; validate global availability before deployment.
-Never regenerate the suffix to repair a quota error or an existing deployment.
 
 If an administrator already supplied an approved group, add `-ExistingResourceGroupName` with its exact name
 to the **first** preparation command. Terraform reads that group through a data source. It does not import,
@@ -6107,6 +6126,34 @@ alone cannot create a sibling group. Prefer the existing-group route rather than
 > A new name or resource group does not reset subscription, regional or service quotas.
 > Check shared workshop capacity, policy, global name availability and provisioned API Management costs separately.
 > If a service denies a name, investigate before the first apply. Never rename an already deployed group casually.
+
+<details>
+<summary>More detail: resource names and safe reruns</summary>
+
+Fresh preparations save 16 lowercase hexadecimal characters (64 random bits) once, not on every deployment.
+An existing 10-character suffix and all its resource names remain unchanged.
+In the table, `participant` has 2-8 lowercase letters/digits, starting with a letter;
+`short` is its first six characters, or the whole prefix if shorter. Never shorten the random suffix.
+
+| Resource | Fresh name | Azure constraint |
+|---|---|---|
+| New resource group | `rg-mcp-<participant>-<suffix>` | 1-90 characters; unique within the subscription |
+| Storage account (planned) | `st<short><suffix>` | 3-24 lowercase letters/digits; globally unique |
+| Function App (planned) | `func-mcp-<short>-<suffix>` | Globally unique app name; kept within 32 characters to avoid host-ID truncation |
+| API Management (planned) | `apim-mcp-<participant>-<suffix>` | 1-50 letters/digits/hyphens; globally unique |
+| Optional App Service plan | `plan-mcp-<participant>-<suffix>-portal` | 1-60 characters; unique within the group |
+| Optional portal app | `web-mcp-<participant>-<suffix>-portal` | 2-60 letters/digits/hyphens; globally unique app name |
+
+The Terraform output contains **planned names**, not proof of deployment or a name reservation.
+Randomness makes accidental collisions unlikely, not impossible; check global availability before deployment.
+An approved existing group keeps its exact name; participant resources still get separate names.
+If parameters are missing but known local state, backend metadata or saved plans remain, preparation stops.
+Restore the original private file. Custom/remote state cannot always be detected; never regenerate names to repair a deployment.
+
+Do not randomize protocol values, tool names, scopes, app roles or service-required private Domain Name System (DNS) zone names.
+Later identity and network modules still need their own isolation and address-space review; they are not implemented yet.
+
+</details>
 
 ## 4. Understand the Terraform boundary
 
@@ -6849,7 +6896,7 @@ A module is `validated` only when its validate script passes on a fresh subscrip
 
 | Module | Title | Status | Validated on | Evidence (PASS lines or PR) | Notes |
 |---|---|---|---|---|---|
-| 00 | Prerequisites and environment | in-progress |  | Offline only: script/HTTP checks and 5 mock plans; not fresh-subscription evidence. | EN/FR guide, explicit read-only preflight, identity request and optional public B1 hosting implemented. Container and approved Azure target/plan still pending. |
+| 00 | Prerequisites and environment | in-progress |  | Offline only: 33 script/HTTP tests and 11 mock plans; not fresh-subscription evidence. | EN/FR guide, explicit read-only preflight, identity request and optional public B1 hosting implemented. Container and approved Azure target/plan still pending. |
 | 01 | Discover MCP (no Azure) | todo | | | |
 | 02 | An "open" MCP server (level 0) | todo | | | |
 | 03 | Identity with Microsoft Entra (level 1) | todo | | | |
@@ -6932,6 +6979,13 @@ A module is `validated` only when its validate script passes on a fresh subscrip
   Beginner instructions appear first; technical setup and advanced context use closed, keyboard-accessible
   disclosure sections in both the board and static exports. Safety requirements, module status and cloud
   approval gates are unchanged. This is a language/readability change, not Azure or container validation.
+- Participant naming hardening (2026-10-14): new private parameters save 64 cryptographic random bits once.
+  Storage and Function names retain every random bit within their 24/32-character limits; all legacy names are preserved.
+  `PASS 100 independent participants, one shared group, identical inputs and unchanged reruns`;
+  `PASS legacy stability, invalid suffix rejection and six missing-parameter guards`.
+  Eleven mock-only Terraform plans cover service-name constraints, shared-group isolation, real portal name wiring
+  and invalid inputs. All 33 local tests pass. EN/FR guides explain separate checkouts/state, preserved existing groups,
+  fixed protocol configuration and shared quotas. No global name reservation, real Azure plan or deployment was performed.
 '@
 
 $files['docs/requests/identity-request.md'] = @'
@@ -6943,6 +6997,8 @@ Module 00 creates no identity. Review the later module's exact plan before appro
 ## Requested scope and ownership
 
 One non-production, single-tenant workshop deployment per participant, with a stable participant suffix.
+Use the participant suffix in display labels; use Entra-generated identifiers for object identity and a unique API audience.
+The role/scope values below stay fixed within each application; do not randomize their protocol values.
 Record the tenant, owner, expiry, existing application/object identifiers and approval privately.
 The identity administrator owns registrations, enterprise applications, assignments and consent.
 The participant owns only approved workload resources. Accept existing IDs without importing, modifying or deleting
@@ -6976,6 +7032,8 @@ Record the exact issuer, subject and audience from the reviewed plan privately b
 ## Test assignments and separate Azure data roles
 
 Use dedicated synthetic test personas or approved existing test users; never real business data.
+Alice, Bob and Eve are teaching labels, not instructions to create the same three accounts for every participant.
+Agree on isolated test accounts or reviewed assignments per participant; never modify another participant's assignments.
 
 | Persona | MCP user app roles | Azure data access |
 |---|---|---|
@@ -7044,7 +7102,7 @@ Provider-mocked plans are local evidence only. Container builds and fresh-subscr
 | [VS Code Dev Containers](https://code.visualstudio.com/docs/devcontainers/containers) | Reopen a checkout in a reviewed Linux container; use the startup log and the same checks as the local route. This is VS Code, not Visual Studio IDE. |
 | [Alternative engines](https://code.visualstudio.com/remote/advancedcontainers/docker-options) | Podman 5+ can be selected explicitly through the Docker Path setting; CLI presence is not daemon reachability or full support. No automatic engine switch or VM creation. |
 | [Official Features](https://github.com/devcontainers/features) and [JSON specification](https://containers.dev/implementors/json_reference/) | Pin base/Features by immutable digest, select exact tool versions, avoid credential/socket mounts and keep creation hooks free of cloud sign-in/deployment. |
-| [Azure naming](https://learn.microsoft.com/azure/azure-resource-manager/management/resource-name-rules) | Group uniqueness is subscription-scoped; service names such as Storage have global constraints. Use a saved cryptographic suffix and service-specific valid names. |
+| [Azure naming](https://learn.microsoft.com/azure/azure-resource-manager/management/resource-name-rules) | Save a fresh 64-bit cryptographic suffix once. Preserve legacy 10-hex names. Storage keeps all random bits within 24 lowercase alphanumeric characters; Functions within the first 32 host-ID characters. Group uniqueness is subscription-scoped; Storage/app/API Management names have global constraints. Eleven mock plans check bounds, shared-group isolation and old names. Randomness is not a name reservation or quota increase. |
 | [Azure quota limits](https://learn.microsoft.com/azure/azure-resource-manager/management/azure-subscription-service-limits) | Random groups do not reset subscription, regional or service capacity. Plan cohort capacity separately. |
 | [AzureRM group](https://registry.terraform.io/providers/hashicorp/azurerm/5.9.0/docs/resources/resource_group) and [existing group](https://registry.terraform.io/providers/hashicorp/azurerm/5.9.0/docs/data-sources/resource_group) | Manage only a dedicated workshop group, or read an administrator-provided group. Keep nonempty-group deletion protection and disable automatic provider registration. |
 | [Terraform mocks](https://developer.hashicorp.com/terraform/language/tests/mocking) and [state](https://developer.hashicorp.com/terraform/language/state) | Prove plan shape and ownership boundaries without Azure calls; preserve private parameters and one isolated state across modules/workstations. |
@@ -7066,7 +7124,7 @@ The code uses existing patterns plus original checks/server logic, not copied sa
 | Source | Verified decision |
 |---|---|
 | [Terraform release 1.16.6](https://releases.hashicorp.com/terraform/1.16.6/) and [checkpoint API](https://checkpoint-api.hashicorp.com/v1/check/terraform) | Release became current during this iteration. Updated container/minimum/check fixtures consistently; tested a session-local Windows binary against its official SHA-256 checksum without replacing the user's installation. |
-| [AzureRM 5.9.0 metadata](https://registry.terraform.io/v1/providers/hashicorp/azurerm/5.9.0) and [Linux web app schema](https://registry.terraform.io/providers/hashicorp/azurerm/5.9.0/docs/resources/linux_web_app) | Existing exact provider pin and lock are retained. Actual schema validation and five mock plans cover optional B1 Linux hosting, disabled basic publishing, TLS, runtime and default-off behavior. No unused AzureAD/AzAPI providers are added. |
+| [AzureRM 5.9.0 metadata](https://registry.terraform.io/v1/providers/hashicorp/azurerm/5.9.0) and [Linux web app schema](https://registry.terraform.io/providers/hashicorp/azurerm/5.9.0/docs/resources/linux_web_app) | Existing exact provider pin and lock are retained. Actual schema validation and eleven mock plans cover naming isolation, optional B1 Linux hosting, disabled basic publishing, TLS, runtime and default-off behavior. No unused AzureAD/AzAPI providers are added. |
 | [Functions Core Tools 4.14.0 release](https://github.com/Azure/azure-functions-core-tools/releases/tag/4.14.0) | Known npm shim was incomplete and did not prove compatibility. Verified the official minimal Windows ARM64 asset against its published SHA-256 digest and ran version/tool checks in session scope, without altering global tools. A container build and Functions tool calls remain separate. |
 | [ARM permissions API](https://learn.microsoft.com/rest/api/authorization/permissions/list-for-resource-group?view=rest-authorization-2022-04-01) | Read effective grants at subscription or existing-group scope, subtract each record's notActions, combine grants, validate same-scope HTTPS pagination. Do not infer rights from role names or claim absence of deny assignments/Policy. |
 | [Subscription limits](https://learn.microsoft.com/azure/azure-resource-manager/management/azure-subscription-service-limits) | New-group foundation checks the documented 980 group limit. Existing-group mode does not consume a new group. Names do not change quota. |
@@ -7302,12 +7360,16 @@ provider "azurerm" {
 }
 
 locals {
-  stem = "mcp-${var.participant_prefix}-${var.resource_suffix}"
+  stem           = "mcp-${var.participant_prefix}-${var.resource_suffix}"
+  compact_prefix = substr(var.participant_prefix, 0, 6)
+  legacy_suffix  = length(var.resource_suffix) == 10
   names = {
     resource_group = coalesce(var.existing_resource_group_name, "rg-${local.stem}")
-    storage        = "stmcp${var.participant_prefix}${var.resource_suffix}"
-    function_app   = "func-${local.stem}"
+    storage        = local.legacy_suffix ? "stmcp${var.participant_prefix}${var.resource_suffix}" : "st${local.compact_prefix}${var.resource_suffix}"
+    function_app   = local.legacy_suffix ? "func-${local.stem}" : "func-mcp-${local.compact_prefix}-${var.resource_suffix}"
     api_management = "apim-${local.stem}"
+    portal_plan    = "plan-${local.stem}-portal"
+    portal_app     = "web-${local.stem}-portal"
   }
   tags = {
     workshop = local.stem
@@ -7350,7 +7412,7 @@ locals {
 
 resource "azurerm_service_plan" "portal" {
   count               = var.public_portal_enabled ? 1 : 0
-  name                = "plan-${local.stem}-portal"
+  name                = local.names.portal_plan
   resource_group_name = local.workload_group
   location            = local.workload_location
   os_type             = "Linux"
@@ -7360,7 +7422,7 @@ resource "azurerm_service_plan" "portal" {
 
 resource "azurerm_linux_web_app" "portal" {
   count                                          = var.public_portal_enabled ? 1 : 0
-  name                                           = "web-${local.stem}-portal"
+  name                                           = local.names.portal_app
   resource_group_name                            = local.workload_group
   location                                       = local.workload_location
   service_plan_id                                = azurerm_service_plan.portal[0].id
@@ -7408,6 +7470,11 @@ Terraform requires 1.16.6+ below 2; AzureRM is locked to 5.9.0.
 Start with [workspace preparation](../../docs/GETTING-STARTED.md), or [the French guide](../../docs/fr/GETTING-STARTED.md).
 Both workstation routes use this root and the same private `.workshop/participant.tfvars.json`.
 Keep one private state per participant. Do not share state or generate new names on every module.
+Fresh preparations use a saved 64-bit cryptographic suffix, even when participant labels are identical.
+Storage and Function names shorten only the human prefix to six characters, keeping all random bits
+within the Storage 24-character and Functions host-ID 32-character limits.
+Legacy 10-character suffixes keep every original name. See the start guide's naming table.
+Restore missing private parameters rather than generating replacements for an existing deployment.
 
 New-group mode requires approved group-creation authority at subscription scope.
 Existing-group mode uses only a data source and does not manage the group or its tags.
@@ -7446,7 +7513,8 @@ terraform -chdir=infra/workload test
 ```
 
 The tests use a mock Azure provider and plan-only runs. They create no Azure resources.
-Five runs cover new/existing groups, isolation, invalid names, default-off hosting and the opt-in TLS/runtime settings.
+Eleven runs cover new/existing groups, legacy compatibility, 64-bit names at minimum/maximum prefix lengths,
+shared-group isolation, invalid names, default-off hosting and the opt-in TLS/runtime settings.
 Module 00's [offline validator](../../modules/00-prerequisites/README.md#validate) also covers local HTTP,
 bundle integrity, private-file exclusion, and synthetic preflight/deployment failures.
 
@@ -7481,6 +7549,13 @@ run "dedicated_group" {
   assert {
     condition     = output.resource_group_name == "rg-mcp-p01-0123456789" && output.resource_names.storage == "stmcpp010123456789"
     error_message = "Names must use the saved participant prefix and suffix."
+  }
+  assert {
+    condition = (output.resource_names.function_app == "func-mcp-p01-0123456789" &&
+      output.resource_names.api_management == "apim-mcp-p01-0123456789" &&
+      output.resource_names.portal_plan == "plan-mcp-p01-0123456789-portal" &&
+    output.resource_names.portal_app == "web-mcp-p01-0123456789-portal")
+    error_message = "Every legacy service name must remain byte-for-byte unchanged."
   }
   assert {
     condition     = output.resource_tags.owner == "alice" && output.resource_tags.expiry == "2099-12-31"
@@ -7544,6 +7619,102 @@ run "public_portal_opt_in" {
     error_message = "Use the selected supported runtime and read-only server; do not add FTP or implicit build/start behavior."
   }
 }
+
+run "new_suffix_maximum_prefix" {
+  command = plan
+  variables {
+    participant_prefix    = "abcdefgh"
+    resource_suffix       = "0123456789abcdef"
+    public_portal_enabled = true
+  }
+  assert {
+    condition     = output.resource_names.storage == "stabcdef0123456789abcdef" && length(output.resource_names.storage) == 24 && can(regex("^[a-z0-9]{3,24}$", output.resource_names.storage))
+    error_message = "Keep all 64 random bits and fit the global Storage name into 24 lowercase alphanumeric characters."
+  }
+  assert {
+    condition     = output.resource_names.function_app == "func-mcp-abcdef-0123456789abcdef" && length(output.resource_names.function_app) == 32
+    error_message = "Keep all random bits within the first 32 Function host-ID characters."
+  }
+  assert {
+    condition     = output.resource_group_name == "rg-mcp-abcdefgh-0123456789abcdef" && length(output.resource_group_name) <= 90 && length(output.resource_names.api_management) <= 50
+    error_message = "Group and API Management names must preserve the participant identity and fit Azure limits."
+  }
+  assert {
+    condition = alltrue([
+      for name in [output.resource_names.function_app, output.resource_names.api_management, output.resource_names.portal_plan, output.resource_names.portal_app] :
+      length(name) <= 60 && can(regex("^[a-z][a-z0-9-]*[a-z0-9]$", name))
+    ])
+    error_message = "Service names must use valid DNS-compatible characters without trailing hyphens."
+  }
+  assert {
+    condition     = azurerm_linux_web_app.portal[0].name == output.resource_names.portal_app && azurerm_service_plan.portal[0].name == output.resource_names.portal_plan
+    error_message = "Actual portal resources must use the central names, not separate naming formulas."
+  }
+}
+
+run "new_suffix_minimum_prefix" {
+  command = plan
+  variables {
+    participant_prefix = "ab"
+    resource_suffix    = "fedcba9876543210"
+  }
+  assert {
+    condition     = output.resource_names.storage == "stabfedcba9876543210" && length(output.resource_names.storage) == 20 && length(output.resource_names.function_app) == 28
+    error_message = "The shortest allowed participant prefix must still retain all random bits and valid service lengths."
+  }
+}
+
+run "shared_group_first_participant" {
+  command = plan
+  variables {
+    participant_prefix           = "abcdefgh"
+    resource_suffix              = "0123456789abcdef"
+    existing_resource_group_name = "rg-synthetic-shared"
+    public_portal_enabled        = true
+  }
+  assert {
+    condition     = length(azurerm_resource_group.workshop) == 0 && output.resource_names.resource_group == "rg-synthetic-shared"
+    error_message = "A shared administrator-owned group must not be managed."
+  }
+}
+
+run "shared_group_second_participant" {
+  command = plan
+  variables {
+    participant_prefix           = "abcdefgh"
+    resource_suffix              = "fedcba9876543210"
+    existing_resource_group_name = "rg-synthetic-shared"
+    public_portal_enabled        = true
+  }
+  assert {
+    condition = alltrue([
+      for key in ["storage", "function_app", "api_management", "portal_app", "portal_plan"] :
+      output.resource_names[key] != run.shared_group_first_participant.resource_names[key]
+    ])
+    error_message = "Identical participant labels in one shared group must still have different names for every service."
+  }
+  assert {
+    condition     = output.resource_names.resource_group == run.shared_group_first_participant.resource_names.resource_group && length(azurerm_resource_group.workshop) == 0
+    error_message = "Different participant resources must neither rename nor manage the shared group."
+  }
+}
+
+run "invalid_prefix_length" {
+  command = plan
+  variables {
+    participant_prefix = "abcdefghi"
+    resource_suffix    = "0123456789abcdef"
+  }
+  expect_failures = [var.participant_prefix]
+}
+
+run "invalid_intermediate_suffix" {
+  command = plan
+  variables {
+    resource_suffix = "0123456789abcd"
+  }
+  expect_failures = [var.resource_suffix]
+}
 '@
 
 $files['infra/workload/variables.tf'] = @'
@@ -7558,10 +7729,10 @@ variable "participant_prefix" {
 
 variable "resource_suffix" {
   type        = string
-  description = "Stable 40-bit random suffix from the private preparation script. Never regenerate during an active deployment."
+  description = "Stable 64-bit random suffix from the private preparation script. Existing 40-bit suffixes remain unchanged. Never regenerate during an active deployment."
   validation {
-    condition     = can(regex("^[a-f0-9]{10}$", var.resource_suffix))
-    error_message = "Use the 10-character lowercase hex suffix in your private participant file."
+    condition     = can(regex("^([a-f0-9]{10}|[a-f0-9]{16})$", var.resource_suffix))
+    error_message = "Use the saved 16-character lowercase hex suffix, or preserve an existing 10-character legacy suffix."
   }
 }
 
@@ -8434,7 +8605,7 @@ function Read-WorkshopParameters {
     $value = Get-Content -LiteralPath $item.FullName -Raw | ConvertFrom-Json -AsHashtable -ErrorAction Stop
     $patterns = @{
         participant_prefix = '^[a-z][a-z0-9]{1,7}$'
-        resource_suffix = '^[a-f0-9]{10}$'
+        resource_suffix = '^([a-f0-9]{10}|[a-f0-9]{16})$'
         location = '^[a-z][a-z0-9]+$'
         owner = '^[a-z][a-z0-9-]{1,31}$'
         expiry = '^\d{4}-\d{2}-\d{2}$'
@@ -8612,7 +8783,7 @@ $expiry=[datetime]::UtcNow.AddDays(1).ToString('yyyy-MM-dd')
 $global:expectedExpiry=$expiry
 $path=Join-Path $directory 'parameters.json'
 $zipPath=Join-Path $directory 'public.zip'
-$parameters=@{participant_prefix='p01';resource_suffix='0123456789';location='westeurope';owner='alice';
+$parameters=@{participant_prefix='p01';resource_suffix='0123456789abcdef';location='westeurope';owner='alice';
     expiry=$expiry;existing_resource_group_name=$null;public_portal_enabled=$true}
 function global:az {
     $global:LASTEXITCODE=0
@@ -8620,10 +8791,10 @@ function global:az {
     $result = if ($args[0] -eq 'rest' -and $args[1] -eq '--method' -and $args[2] -eq 'get') {
         @{properties=@{allow=($global:scenario -eq 'basic-enabled')}}
     } elseif ($args[0] -eq 'webapp' -and $args[1] -eq 'show') {
-        @{id="/subscriptions/$global:subscription/resourceGroups/rg-mcp-p01-0123456789/providers/Microsoft.Web/sites/web-mcp-p01-0123456789-portal";
-            httpsOnly=$true;defaultHostName='web-mcp-p01-0123456789-portal.azurewebsites.net';
-            serverFarmId="/subscriptions/$global:subscription/resourceGroups/rg-mcp-p01-0123456789/providers/Microsoft.Web/serverfarms/plan-mcp-p01-0123456789-portal";
-            tags=@{workshop='mcp-p01-0123456789';owner=$(if ($global:scenario -eq 'wrong-owner') {'bob'} else {'alice'});expiry=$global:expectedExpiry}}
+        @{id="/subscriptions/$global:subscription/resourceGroups/rg-mcp-p01-0123456789abcdef/providers/Microsoft.Web/sites/web-mcp-p01-0123456789abcdef-portal";
+            httpsOnly=$true;defaultHostName='web-mcp-p01-0123456789abcdef-portal.azurewebsites.net';
+            serverFarmId="/subscriptions/$global:subscription/resourceGroups/rg-mcp-p01-0123456789abcdef/providers/Microsoft.Web/serverfarms/plan-mcp-p01-0123456789abcdef-portal";
+            tags=@{workshop='mcp-p01-0123456789abcdef';owner=$(if ($global:scenario -eq 'wrong-owner') {'bob'} else {'alice'});expiry=$global:expectedExpiry}}
     } elseif ($args[0] -eq 'webapp' -and $args[1] -eq 'config' -and $args[2] -eq 'show') {
         @{linuxFxVersion=$(if ($global:scenario -eq 'wrong-runtime') {'NODE|20-lts'} else {'NODE|22-lts'});
             appCommandLine='node server.mjs';ftpsState='Disabled';minTlsVersion='1.2';scmMinTlsVersion='1.2'}
@@ -9171,7 +9342,7 @@ if (Test-Path -LiteralPath $path) {
     $keys = @($configuration.Keys) + 'resource_suffix', 'public_portal_enabled'
     $expectedCount = $configuration.Count + 1 + $(if ($existing.ContainsKey('public_portal_enabled')) { 1 } else { 0 })
     if ($existing.Count -ne $expectedCount -or ($existing.Keys | Where-Object { $_ -notin $keys }) -or
-        $existing.resource_suffix -isnot [string] -or $existing.resource_suffix -cnotmatch '^[a-f0-9]{10}$' -or
+        $existing.resource_suffix -isnot [string] -or $existing.resource_suffix -cnotmatch '^([a-f0-9]{10}|[a-f0-9]{16})$' -or
         ($existing.ContainsKey('public_portal_enabled') -and $existing.public_portal_enabled -isnot [bool])) {
         throw 'Invalid participant file. Restore the original private parameters; do not regenerate names for deployed resources.'
     }
@@ -9191,8 +9362,20 @@ if (Test-Path -LiteralPath $path) {
         Write-Output 'PASS public portal explicitly opted in; existing names and state preserved. Review the paid-resource plan before applying.'
     } else { Write-Output 'PASS existing participant parameters reused unchanged.' }
 } else {
+    $workload = Join-Path (Split-Path $PSScriptRoot -Parent) 'infra' 'workload'
+    $statePaths = @(
+        (Join-Path $workload 'terraform.tfstate'),
+        (Join-Path $workload 'terraform.tfstate.backup'),
+        (Join-Path $workload 'terraform.tfstate.d'),
+        (Join-Path $workload '.terraform' 'terraform.tfstate')
+    )
+    $savedPlans = @(Get-ChildItem -LiteralPath $directory -File -Force |
+        Where-Object { $_.Name -match '\.(tfplan|tfstate)(\.backup)?$' })
+    if (($statePaths | Where-Object { Test-Path -LiteralPath $_ }) -or $savedPlans.Count -gt 0) {
+        throw 'Participant parameters are missing but local state or saved plans exist. Restore the original private parameters; refusing to generate replacement names.'
+    }
     if ($EnablePublicPortal) { $configuration.public_portal_enabled = $true }
-    $configuration.resource_suffix = [Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(5)).ToLowerInvariant()
+    $configuration.resource_suffix = [Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(8)).ToLowerInvariant()
     $bytes = [Text.UTF8Encoding]::new($false).GetBytes(($configuration | ConvertTo-Json) + "`n")
     $stream = [IO.File]::Open($path, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
     try { $stream.Write($bytes) } finally { $stream.Dispose() }
@@ -9721,10 +9904,11 @@ import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-function powershell(source, t) {
+function powershell(source, t, timeout = 30000) {
     const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-Command", source],
-        { encoding: "utf8", timeout: 30000 });
+        { encoding: "utf8", timeout });
     if (result.error?.code === "ENOENT") { t.skip("PowerShell 7.4+ is required."); return null; }
+    assert.ifError(result.error);
     return result;
 }
 
@@ -9772,6 +9956,121 @@ Write-Output 'PASS stable parameters and safe rejection'
     assert.match(result.stdout, /PASS stable parameters and safe rejection/);
 });
 
+test("100 participants with identical shared-group inputs get independent 64-bit suffixes and stable reruns", (t) => {
+    const directory = mkdtempSync(join(tmpdir(), "workshop-cohort-"));
+    t.after(() => rmSync(directory, { recursive: true, force: true }));
+    const result = powershell(`
+$ErrorActionPreference = 'Stop'
+function az { throw 'Cohort preparation must never call Azure.' }
+. '${join(root, "scripts", "context-common.ps1").replaceAll("'", "''")}'
+$source = '${join(root, "scripts", "prepare-workshop.ps1").replaceAll("'", "''")}'
+$root = '${directory.replaceAll("'", "''")}'
+$expiry = [datetime]::UtcNow.AddDays(1).ToString('yyyy-MM-dd')
+$suffixes = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+for ($index = 0; $index -lt 100; $index++) {
+  $workspace = Join-Path $root "participant-$index"
+  $scripts = Join-Path $workspace 'scripts'
+  [void][IO.Directory]::CreateDirectory($scripts)
+  $script = Join-Path $scripts 'prepare-workshop.ps1'
+  Copy-Item -LiteralPath $source -Destination $script
+  $arguments = @{ParticipantPrefix='p01';Location='westeurope';Owner='alice';Expiry=$expiry;
+    ExistingResourceGroupName='rg-synthetic-shared'}
+  & $script @arguments | Out-Null
+  $path = Join-Path $workspace '.workshop' 'participant.tfvars.json'
+  $before = [IO.File]::ReadAllText($path)
+  $parameters = Read-WorkshopParameters -Path $path
+  if ($parameters.resource_suffix -cnotmatch '^[a-f0-9]{16}$' -or -not $suffixes.Add($parameters.resource_suffix)) {
+    throw 'A fresh participant suffix is malformed or duplicated.'
+  }
+  if ($parameters.existing_resource_group_name -cne 'rg-synthetic-shared') { throw 'Shared group was changed.' }
+  & $script @arguments | Out-Null
+  if ([IO.File]::ReadAllText($path) -cne $before) { throw 'A rerun changed participant names.' }
+}
+if ($suffixes.Count -ne 100) { throw 'Cohort isolation failed.' }
+Write-Output 'PASS 100 independent participants, one shared group, identical inputs and unchanged reruns'
+`, t, 120000);
+    if (!result) return;
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /PASS 100 independent participants/);
+});
+
+test("legacy suffixes stay byte-for-byte stable and missing parameters never replace known state or plans", (t) => {
+    const directory = mkdtempSync(join(tmpdir(), "workshop-naming-guard-"));
+    t.after(() => rmSync(directory, { recursive: true, force: true }));
+    const result = powershell(`
+$ErrorActionPreference = 'Stop'
+function az { throw 'Naming safety must not call Azure.' }
+. '${join(root, "scripts", "context-common.ps1").replaceAll("'", "''")}'
+$root = '${directory.replaceAll("'", "''")}'
+$source = '${join(root, "scripts", "prepare-workshop.ps1").replaceAll("'", "''")}'
+$expiry = [datetime]::UtcNow.AddDays(1).ToString('yyyy-MM-dd')
+$arguments = @{ParticipantPrefix='abcdefgh';Location='westeurope';Owner='alice';Expiry=$expiry}
+$scripts = Join-Path $root 'legacy' 'scripts'
+[void][IO.Directory]::CreateDirectory($scripts)
+$script = Join-Path $scripts 'prepare-workshop.ps1'
+Copy-Item -LiteralPath $source -Destination $script
+& $script @arguments | Out-Null
+$path = Join-Path $root 'legacy' '.workshop' 'participant.tfvars.json'
+$parameters = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json -AsHashtable
+$parameters.resource_suffix = '0123456789'
+[IO.File]::WriteAllText($path, ($parameters | ConvertTo-Json))
+$before = [IO.File]::ReadAllText($path)
+& $script @arguments | Out-Null
+if ([IO.File]::ReadAllText($path) -cne $before -or (Read-WorkshopParameters -Path $path).resource_suffix -cne '0123456789') {
+  throw 'Legacy parameters were migrated or rejected.'
+}
+foreach ($suffix in @('012345678', '01234567890', '0123456789abcde', '0123456789abcdeg', '0123456789ABCDEF')) {
+  $parameters.resource_suffix = $suffix
+  [IO.File]::WriteAllText($path, ($parameters | ConvertTo-Json))
+  $rejected = 0
+  try { & $script @arguments | Out-Null } catch { $rejected++ }
+  try { Read-WorkshopParameters -Path $path | Out-Null } catch { $rejected++ }
+  if ($rejected -ne 2) { throw 'Malformed saved suffix was accepted.' }
+}
+$cases = @(
+  @('infra','workload','terraform.tfstate'),
+  @('infra','workload','terraform.tfstate.backup'),
+  @('infra','workload','terraform.tfstate.d'),
+  @('infra','workload','.terraform','terraform.tfstate'),
+  @('.workshop','workload.tfplan'),
+  @('.workshop','terraform.tfstate.backup')
+)
+for ($index=0; $index -lt $cases.Count; $index++) {
+  $workspace = Join-Path $root "guard-$index"
+  $scripts = Join-Path $workspace 'scripts'
+  [void][IO.Directory]::CreateDirectory($scripts)
+  $script = Join-Path $scripts 'prepare-workshop.ps1'
+  Copy-Item -LiteralPath $source -Destination $script
+  $artifact = $workspace
+  foreach ($part in $cases[$index]) { $artifact = Join-Path $artifact $part }
+  [void][IO.Directory]::CreateDirectory((Split-Path $artifact -Parent))
+  if ($artifact.EndsWith('.d')) { [void][IO.Directory]::CreateDirectory($artifact) }
+  else { [IO.File]::WriteAllText($artifact, 'synthetic private artifact') }
+  $rejected = $false
+  try { & $script @arguments | Out-Null }
+  catch { $rejected = $_.Exception.Message -match 'Restore the original private parameters' }
+  if (-not $rejected -or (Test-Path -LiteralPath (Join-Path $workspace '.workshop' 'participant.tfvars.json'))) {
+    throw 'Missing participant parameters silently produced replacement resource names.'
+  }
+  if (-not (Test-Path -LiteralPath $artifact)) { throw 'Existing state/plan was removed.' }
+}
+$workspace = Join-Path $root 'providers-only'
+$scripts = Join-Path $workspace 'scripts'
+[void][IO.Directory]::CreateDirectory($scripts)
+[void][IO.Directory]::CreateDirectory((Join-Path $workspace 'infra' 'workload' '.terraform' 'providers'))
+$script = Join-Path $scripts 'prepare-workshop.ps1'
+Copy-Item -LiteralPath $source -Destination $script
+& $script @arguments | Out-Null
+if ((Read-WorkshopParameters -Path (Join-Path $workspace '.workshop' 'participant.tfvars.json')).resource_suffix.Length -ne 16) {
+  throw 'Provider initialization without state must not block a genuinely new participant.'
+}
+Write-Output 'PASS legacy stability, invalid suffix rejection and six missing-parameter guards'
+`, t);
+    if (!result) return;
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /PASS legacy stability/);
+});
+
 test("shared tool checks accept working tools and reject incompatible versions without Azure login", (t) => {
     const script = join(root, "scripts", "check-tools.ps1").replaceAll("'", "''");
     for (const compatible of [true, false]) {
@@ -9812,7 +10111,7 @@ test("bash preparation calls the same PowerShell implementation and persists its
     assert.equal(result.status, 0, result.stderr);
     const parameters = JSON.parse(readFileSync(join(directory, ".workshop", "participant.tfvars.json"), "utf8"));
     assert.equal(parameters.participant_prefix, "p02");
-    assert.match(parameters.resource_suffix, /^[a-f0-9]{10}$/);
+    assert.match(parameters.resource_suffix, /^[a-f0-9]{16}$/);
 });
 
 test("dev container pins public images/features and uses the common checker without credential mounts", () => {

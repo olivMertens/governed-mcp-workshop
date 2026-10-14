@@ -91,15 +91,11 @@ bash ./scripts/prepare-workshop.sh -ParticipantPrefix p01 -Location westeurope -
 ```
 
 The script creates `.workshop/participant.tfvars.json`, ignored by Git, with a cryptographically random
-10-hex-character suffix. It never contacts Azure. Repeating the same command reuses the exact saved file;
+suffix. Even if everyone uses `p01`, each independent preparation gets its own names.
+Use a separate checkout, private parameter file and Terraform state per participant; do not copy another person's files.
+It never contacts Azure. Repeating the same command reuses the exact saved file;
 conflicting settings fail instead of silently changing names. Keep this file and Terraform state through cleanup.
 The expiry is a tag, **not automatic resource deletion**.
-
-New groups use `rg-mcp-<participant>-<suffix>`. Future global names include the same suffix:
-Storage uses `stmcp<participant><suffix>` (at most 23 lowercase letters/digits); Functions and API Management
-use their own service prefix. The Terraform output contains **planned names**, not endpoints or deployed services.
-Randomness makes accidental collisions unlikely, not impossible; validate global availability before deployment.
-Never regenerate the suffix to repair a quota error or an existing deployment.
 
 If an administrator already supplied an approved group, add `-ExistingResourceGroupName` with its exact name
 to the **first** preparation command. Terraform reads that group through a data source. It does not import,
@@ -111,6 +107,34 @@ alone cannot create a sibling group. Prefer the existing-group route rather than
 > A new name or resource group does not reset subscription, regional or service quotas.
 > Check shared workshop capacity, policy, global name availability and provisioned API Management costs separately.
 > If a service denies a name, investigate before the first apply. Never rename an already deployed group casually.
+
+<details>
+<summary>More detail: resource names and safe reruns</summary>
+
+Fresh preparations save 16 lowercase hexadecimal characters (64 random bits) once, not on every deployment.
+An existing 10-character suffix and all its resource names remain unchanged.
+In the table, `participant` has 2-8 lowercase letters/digits, starting with a letter;
+`short` is its first six characters, or the whole prefix if shorter. Never shorten the random suffix.
+
+| Resource | Fresh name | Azure constraint |
+|---|---|---|
+| New resource group | `rg-mcp-<participant>-<suffix>` | 1-90 characters; unique within the subscription |
+| Storage account (planned) | `st<short><suffix>` | 3-24 lowercase letters/digits; globally unique |
+| Function App (planned) | `func-mcp-<short>-<suffix>` | Globally unique app name; kept within 32 characters to avoid host-ID truncation |
+| API Management (planned) | `apim-mcp-<participant>-<suffix>` | 1-50 letters/digits/hyphens; globally unique |
+| Optional App Service plan | `plan-mcp-<participant>-<suffix>-portal` | 1-60 characters; unique within the group |
+| Optional portal app | `web-mcp-<participant>-<suffix>-portal` | 2-60 letters/digits/hyphens; globally unique app name |
+
+The Terraform output contains **planned names**, not proof of deployment or a name reservation.
+Randomness makes accidental collisions unlikely, not impossible; check global availability before deployment.
+An approved existing group keeps its exact name; participant resources still get separate names.
+If parameters are missing but known local state, backend metadata or saved plans remain, preparation stops.
+Restore the original private file. Custom/remote state cannot always be detected; never regenerate names to repair a deployment.
+
+Do not randomize protocol values, tool names, scopes, app roles or service-required private Domain Name System (DNS) zone names.
+Later identity and network modules still need their own isolation and address-space review; they are not implemented yet.
+
+</details>
 
 ## 4. Understand the Terraform boundary
 

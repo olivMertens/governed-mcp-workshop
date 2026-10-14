@@ -5,7 +5,7 @@ locals {
 
 resource "azurerm_service_plan" "portal" {
   count               = var.public_portal_enabled ? 1 : 0
-  name                = "plan-${local.stem}-portal"
+  name                = local.names.portal_plan
   resource_group_name = local.workload_group
   location            = local.workload_location
   os_type             = "Linux"
@@ -15,7 +15,7 @@ resource "azurerm_service_plan" "portal" {
 
 resource "azurerm_linux_web_app" "portal" {
   count                                          = var.public_portal_enabled ? 1 : 0
-  name                                           = "web-${local.stem}-portal"
+  name                                           = local.names.portal_app
   resource_group_name                            = local.workload_group
   location                                       = local.workload_location
   service_plan_id                                = azurerm_service_plan.portal[0].id
