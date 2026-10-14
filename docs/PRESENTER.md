@@ -9,8 +9,8 @@ Only module 00 is implemented; later modules remain planned.
 ## 1. Prepare your presenter workspace
 
 Use a separate checkout and private Terraform state for this shared portal.
-The implementation is currently on `module-00-prerequisites`, not the default branch.
-Until it is merged, use that branch for checkout and Codespaces. Verify the branch before teaching.
+Use the default branch, `main`, for checkout and Codespaces.
+Verify that everyone uses the same published revision before teaching.
 Do not publish your administrator account, tenant, subscription, parameters, state or saved plans.
 
 Follow the [module 00 PowerShell steps](../modules/00-prerequisites/README.md#steps):
