@@ -52,6 +52,9 @@ export function readJourney(root, progress) {
         const hints = moduleSections(practice);
         const learning = readDocument(root, [...base, "LEARNING-GUIDE.md"]);
         const concepts = moduleSections(learning);
+        const diagramPath = ["assets", "architecture", french ? "STEPS.fr.md" : "STEPS.md"];
+        const diagramDocument = readDocument(root, diagramPath);
+        const diagramSections = moduleSections(diagramDocument);
         function document(title, name, directory = base) {
             const parts = [...directory, name];
             return { title, sourcePath: parts.join("/"), content: readDocument(root, parts) };
@@ -62,8 +65,12 @@ export function readJourney(root, progress) {
                 const outline = sections.get(module.module);
                 const hint = hints.get(module.module);
                 const concept = concepts.get(module.module);
+                const graphs = [...(diagramSections.get(module.module) ?? "").matchAll(/^```mermaid\r?\n([\s\S]*?)\r?\n```/gm)];
                 if (!outline || !hint || !concept || !titles.get(module.module)) {
                     throw new BoardError("invalid_document", `Module ${module.module} is missing required ${language} plan, hints or governance content.`);
+                }
+                if (graphs.length !== 1 || !/^flowchart LR\r?\n/.test(graphs[0][1])) {
+                    throw new BoardError("invalid_document", `Module ${module.module} needs one generated ${language} Mermaid graph.`);
                 }
                 const parts = ["modules", folders[module.module], "README.md"];
                 const original = readDocument(root, parts, true);
@@ -83,6 +90,7 @@ export function readJourney(root, progress) {
                         png: `/assets/architecture/${module.module}.${language}.png`,
                         editable: "/assets/architecture/workshop.drawio",
                     },
+                    diagramSource: { content: graphs[0][1].replaceAll("\r\n", "\n"), sourcePath: diagramPath.join("/") },
                     validation: {
                         powershell: original === null ? null : available(["modules", folders[module.module], "validate.ps1"]),
                         bash: original === null ? null : available(["modules", folders[module.module], "validate.sh"]),
@@ -103,7 +111,13 @@ export function readJourney(root, progress) {
                         document(french ? "Demande à l'administrateur (version anglaise)" : "Identity administrator request",
                             "identity-request.md", ["docs", "requests"]),
                 } : {}),
-                architecture: document(french ? "Schémas et icônes" : "Diagrams and icons", french ? "README.fr.md" : "README.md", ["assets", "architecture"]),
+                architecture: { title: french ? "L'architecture, étape par étape" : "Architecture, step by step",
+                    sourcePath: diagramPath.join("/"), content: diagramDocument },
+                architectureAuthoring: document(french ? "Modifier les schémas" : "Edit the diagrams",
+                    french ? "README.fr.md" : "README.md", ["assets", "architecture"]),
+                implementation: document(french ? "Ce qui est réellement disponible" : "What is actually available?",
+                    "IMPLEMENTATION-STATUS.md"),
+                buildProgress: document(french ? "Suivi de construction (en anglais)" : "Build progress", "PROGRESS.md", ["docs"]),
                 plan: document(french ? "Le parcours de l'atelier" : "Technical build plan", "BUILD-PLAN.md"),
                 ...(french ? {
                     originalSources: document("Registre technique original (anglais)", "sources.md", ["docs"]),

@@ -12,6 +12,10 @@ Vous préparerez aussi les informations à transmettre à l'administrateur Micro
 Un outil installé ne garantit pas que vous avez les droits ou la capacité nécessaires dans Azure.
 Les noms propres à chaque participant limitent les conflits, mais n'augmentent pas les quotas disponibles.
 
+Consultez les [schémas étape par étape](../../assets/architecture/STEPS.fr.md) et
+[ce qui est réellement disponible](../../docs/fr/IMPLEMENTATION-STATUS.md).
+Un schéma explique l'objectif ; il ne prouve pas que des identités ou des ressources ont été déployées.
+
 ## Ce que vous déployez
 
 **Les scripts de vérification ne créent aucune ressource.** Ils consultent votre configuration et vos droits.

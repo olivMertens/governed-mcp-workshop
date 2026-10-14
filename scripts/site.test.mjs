@@ -31,10 +31,13 @@ test("public site exports only the allowlist, with no capability, root URLs, pri
     for (const language of [journey, journey.translations.fr]) {
         assert.equal(language.modules.length, 9);
         for (const module of language.modules) {
+            assert.match(module.diagramSource.content, /^flowchart LR\n/);
+            assert.ok(language.documents.architecture.content.replaceAll("\r\n", "\n").includes(module.diagramSource.content));
             for (const path of Object.values(module.diagram)) {
                 assert.match(path, /^assets\/architecture\//);
                 assert.ok(existsSync(join(output, path)));
             }
+            assert.match(language.documents.implementation.sourcePath, /IMPLEMENTATION-STATUS\.md$/);
         }
     }
     assert.deepEqual(readdirSync(join(output, "assets")).sort(), ["architecture", "icons"]);

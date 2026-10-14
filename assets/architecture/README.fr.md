@@ -5,6 +5,8 @@ Cette page s'adresse aux personnes qui modifient ou republient les schémas.
 
 `workshop.drawio` est le fichier source commun : neuf modules, chacun avec une page anglaise et une page française.
 Les fichiers `NN.en.svg` / `NN.fr.svg` et PNG correspondants sont générés, jamais retouchés séparément.
+Les guides `STEPS.md` et `STEPS.fr.md` reprennent les mêmes composants, liens et périmètres en Mermaid.
+Pour suivre l'atelier, ouvrez les [schémas étape par étape](STEPS.fr.md).
 Tous montrent une **cible prévue**, pas une infrastructure déjà déployée.
 Les cadres en pointillés désignent le périmètre nommé : poste local, identité ou ressources Azure.
 Les lignes numérotées sont des vues liées de la même étape, pas des ressources déployées en double.
@@ -38,6 +40,14 @@ Chaque PNG contient l'empreinte SHA-256 de son SVG source ; une paire périmée 
 Contrôles : segments complets, traversée de composants, intersections et recouvrement d'arêtes, écart parallèle
 de 16 pixels, approche perpendiculaire des flèches, capacité du texte et icônes autonomes.
 
+La même commande régénère les deux guides Mermaid. `--check` refuse aussi un guide devenu incohérent.
+Mermaid conserve les liens et les périmètres, pas la position exacte des éléments ni les icônes Microsoft.
+GitHub affiche directement ses blocs Mermaid. Dans l'application et le portail, chaque bloc publié affiche
+le SVG correspondant, avec ses icônes et son tracé vérifiés, sans bibliothèque Mermaid ni service externe.
+Un bloc inconnu provoque une erreur explicite : ce n'est pas un éditeur de schémas généraliste.
+Le code Mermaid de chaque module reste dans une section fermée au départ, avec un bouton de copie.
+Après une modification, régénérez, examinez les PNG et vérifiez les deux langues avant publication.
+
 </details>
 
 ## Provenance et droits
@@ -64,5 +74,6 @@ Cet atelier indépendant n'est ni approuvé ni sponsorisé par Microsoft.
 - [Conditions et pack Entra](https://learn.microsoft.com/entra/architecture/architecture-icons).
 - [Règles de marques Microsoft](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks).
 - [Source et inventaire exacts](README.md), [plan technique](../../docs/BUILD-PLAN.md).
+- [Affichage des schémas sur GitHub](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/creating-diagrams).
 
 Dernière vérification : 2026-10-14.

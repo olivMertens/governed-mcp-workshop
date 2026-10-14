@@ -6,7 +6,7 @@ A module is `validated` only when its validate script passes on a fresh subscrip
 
 | Module | Title | Status | Validated on | Evidence (PASS lines or PR) | Notes |
 |---|---|---|---|---|---|
-| 00 | Prerequisites and environment | in-progress |  | Offline only: 33 script/HTTP tests and 11 mock plans; not fresh-subscription evidence. | EN/FR guide, explicit read-only preflight, identity request and optional public B1 hosting implemented. Container and approved Azure target/plan still pending. |
+| 00 | Prerequisites and environment | in-progress |  | Offline only: 35 script/HTTP tests and 11 mock plans; not fresh-subscription evidence. | EN/FR guide, explicit read-only preflight, identity request and optional public B1 hosting implemented. Container and approved Azure target/plan still pending. |
 | 01 | Discover MCP (no Azure) | todo | | | |
 | 02 | An "open" MCP server (level 0) | todo | | | |
 | 03 | Identity with Microsoft Entra (level 1) | todo | | | |
@@ -96,3 +96,13 @@ A module is `validated` only when its validate script passes on a fresh subscrip
   Eleven mock-only Terraform plans cover service-name constraints, shared-group isolation, real portal name wiring
   and invalid inputs. All 33 local tests pass. EN/FR guides explain separate checkouts/state, preserved existing groups,
   fixed protocol configuration and shared quotas. No global name reservation, real Azure plan or deployment was performed.
+- Iterative diagram documentation (2026-10-14): both Mermaid guides derive all 18 graphs from the existing
+  Draw.io source, preserving components, directed/dashed edges and ownership boundaries. Existing SVG/PNG remain
+  byte-identical. The application displays matching icon-rich SVGs and closed Mermaid source/copy sections.
+  Separate EN/FR implementation-status pages state that managed identities, Entra, gateway and Foundry are not deployed.
+  `PASS Mermaid 11.12.0: 18 graphs parsed/rendered with matching node/edge counts` (session-only dependency);
+  35 local tests pass serially. EN/FR browser checks cover 26 routes in both static and App Service runtimes,
+  all module diagrams/source copies, closed advanced sections and 320/390/1366 layouts.
+  An initial concurrent run timed out in two synthetic PowerShell fixtures under shared-host load;
+  the complete serial run passes without relaxing assertions or changing timeouts.
+  No cloud resource, module validation status, role or Preview gate changed.

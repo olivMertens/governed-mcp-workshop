@@ -201,6 +201,22 @@ workshop explanations, not copies of external documentation. The latter records 
 - [Microsoft trademark guidelines](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks):
   corporate logos are separate brand assets, not covered by this repository's MIT license.
 
+## Iterative Markdown and application diagrams
+
+Last verified: 2026-10-14. [English diagrams](../assets/architecture/STEPS.md) and
+[French diagrams](../assets/architecture/STEPS.fr.md) are generated from the same Draw.io source as the SVG/PNG.
+The [implementation status](IMPLEMENTATION-STATUS.md) distinguishes code from real Azure validation.
+
+- [GitHub Mermaid blocks](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/creating-diagrams):
+  native Markdown rendering; use ordinary flowcharts, not plugins, remote images or diagrams sent to external services.
+- [Mermaid flowcharts](https://mermaid.js.org/syntax/flowchart.html):
+  preserve component labels, directed/dashed edges and actual ownership boundaries.
+  Mermaid does not preserve Draw.io pixel routing or the verified embedded product icons.
+- [Mermaid 11.12.0](https://www.npmjs.com/package/mermaid/v/11.12.0):
+  pinned session-only syntax/rendering checker, not a website or dev-container dependency.
+  The application uses its already generated SVG when a Mermaid block matches a published module.
+  Unknown blocks fail explicitly. No Mermaid service, CDN, credential collection or new runtime dependency.
+
 ## Public portal hosting
 
 Last verified: 2026-10-14. The [EN hosting guide](HOSTING.md) and [French hosting guide](fr/HOSTING.md)

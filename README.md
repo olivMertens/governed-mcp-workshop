@@ -45,15 +45,16 @@ Participants still authenticate and run reviewed Terraform in their own approved
 
 ## Target architecture
 
-```mermaid
-flowchart LR
-    C["MCP client<br/>VS Code + GitHub Copilot<br/>MCP Inspector"] -->|"Entra token<br/>audience = MCP server"| G["Azure API Management<br/>only entry point"]
-    G -->|"same token<br/>same protected resource"| F["Azure Functions<br/>MCP server (.NET)"]
-    F -->|"On-Behalf-Of"| U["Microsoft Graph / Azure Storage<br/>with the user's rights"]
-    F -->|"Managed identity"| A["Azure Storage<br/>with the app's rights"]
-    G -.-> L["Application Insights<br/>no payloads"]
-    G -.->|"register gateway endpoint"| I["Azure API Center<br/>inventory"]
-```
+![Module 04 planned gateway boundary, not deployed or validated](assets/architecture/04.en.png)
+
+Follow all nine stages in the generated **[Mermaid architecture guide](assets/architecture/STEPS.md)**
+or **[les schémas en français](assets/architecture/STEPS.fr.md)**.
+The application shows the matching icon-rich SVGs and offers the Mermaid source under each diagram.
+Draw.io is the shared source, not a second independently maintained design.
+
+**[What is actually available?](docs/IMPLEMENTATION-STATUS.md)**
+([version française](docs/fr/IMPLEMENTATION-STATUS.md)) distinguishes code, local checks and real deployment.
+Managed identities, Entra, API Management and a Foundry project are not deployed by the current code.
 
 ## Modules
 

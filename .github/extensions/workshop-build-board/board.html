@@ -284,6 +284,12 @@
           i++;
           while (i < lines.length && !/^\s*```/.test(lines[i])) code.push(lines[i++]);
           i++;
+          if (line.trim() === "```mermaid") {
+            const module = state.modules.find((item) => item.diagramSource.content === code.join("\n"));
+            if (!module) throw new Error("Mermaid source does not match a published workshop diagram.");
+            body.append(architecture(module));
+            continue;
+          }
           const pre = element("pre");
           pre.append(element("code", code.join("\n")));
           body.append(pre);
@@ -500,7 +506,10 @@
         actions.append(externalLink("Open SVG", module.diagram.svg, "secondary"),
           externalLink("Open PNG", module.diagram.png, "secondary"),
           externalLink("Editable draw.io source", module.diagram.editable, "secondary"));
-        figure.append(scroll, caption, actions);
+        figure.append(scroll, caption, actions,
+          disclosure("More detail: Mermaid source",
+            element("p", "GitHub renders this Mermaid source. Here, the matching SVG preserves the verified icons and routing. Both come from the same draw.io source."),
+            commandBlock("Mermaid diagram", module.diagramSource.content, "Copy diagram")));
         return figure;
       }
       function nextStep(module) {
@@ -764,7 +773,8 @@
         ["overview", "Workshop overview", "route"], ["practice", "Try your MCP", "terminal"],
         ["deployment", "Your Azure context", "shield"], ["governance", "Understand governance", "shield"],
         ["sources", "Verified sources", "book"], ["runbook", "Build runbook", "book"],
-        ["architecture", "Diagrams and icons", "route"], ["decisions", "Build decisions", "important"],
+        ["architecture", "Architecture, step by step", "route"], ["decisions", "Build decisions", "important"],
+        ["implementation", "What is actually available?", "important"],
         ["hosting", "Publish or host the guides", "book"],
       ]) {
         const anchor = link("", `#/${route}`);

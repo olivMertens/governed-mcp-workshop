@@ -2,6 +2,8 @@
 
 `workshop.drawio` is the single architecture source: nine modules, with one English and one French page each.
 `NN.en.svg` / `NN.fr.svg` and matching PNGs are generated, not hand-edited.
+`STEPS.md` and `STEPS.fr.md` contain the same components, edges and ownership boundaries as Mermaid.
+Start with [the step-by-step guide](STEPS.md), not this authoring reference.
 All views are **planned targets**, not evidence of deployed infrastructure.
 Dashed frames identify the labeled local, identity or Azure workload boundary. Numbered lanes are linked views
 of the same stage, not additional copies of a deployed resource. Request, identity, observation and administration
@@ -31,6 +33,14 @@ Use `python .\scripts\render-architecture.py --check` for read-only consistency 
 PNGs contain their source SVG's SHA-256 digest; stale pairs fail rather than silently passing.
 Checks cover full orthogonal segments, unrelated-box crossings, edge intersections/overlaps, 16-pixel parallel
 clearance, perpendicular arrow approaches, text capacity and self-contained icons.
+
+The same command regenerates both Mermaid guides. `--check` also rejects stale Mermaid text.
+Mermaid preserves graph relationships, source labels and boundaries, not the exact pixel positions or product icons.
+GitHub renders its native Mermaid blocks. The board and static portal match each published block to its
+generated SVG, retaining the verified icons and routing without loading a Mermaid library or external service.
+Unknown Mermaid blocks fail explicitly; this is not a general-purpose diagram editor.
+Each module offers its Mermaid source in a closed-by-default section with a copy button.
+After changing architecture, regenerate, inspect the PNGs and check both languages before committing.
 
 ## Icon provenance
 
@@ -71,5 +81,6 @@ This independent workshop is not Microsoft-endorsed. Do not use its board as Mic
 - [Official Entra icon terms and October 2023 pack](https://learn.microsoft.com/entra/architecture/architecture-icons).
 - [Microsoft trademark and brand guidelines](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks).
 - [Workshop build plan](../../docs/BUILD-PLAN.md) and [source register](../../docs/sources.md).
+- [GitHub diagram rendering](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/creating-diagrams).
 
 Last verified: 2026-10-14.
