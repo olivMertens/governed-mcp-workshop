@@ -162,6 +162,7 @@ references used to resolve design choices.
 | 06 | [APIM Application Insights integration](https://learn.microsoft.com/azure/api-management/api-management-howto-app-insights) | Managed-identity logger, resource-scoped Monitoring Metrics Publisher and diagnostics. |
 | 06 | [Register and discover MCP servers](https://learn.microsoft.com/azure/api-center/register-discover-mcp-server) | API Center asset, remote, environment, version and inventory metadata. |
 | 06b | [Microsoft 365 BYO MCP](https://learn.microsoft.com/microsoft-365/admin/manage/manage-byo-mcp-server) | **Preview**, review/approval workflow and supported-client restrictions; demo only. |
+| 06b | [Govern tools with Agent 365 and API Management](https://learn.microsoft.com/azure/api-management/agent-365) and [Tech Community post](https://techcommunity.microsoft.com/blog/integrationsonazureblog/microsoft-agent-365-and-azure-api-management-integration-for-mcp-governance/4563335) | **Preview**. Tenant-level role consent; v2 tiers give inventory and server block only; tool-level control needs the AI Gateway tier (Preview). Demo only. Last verified 2026-10-14. |
 | 07 | [Foundry MCP authentication](https://learn.microsoft.com/azure/foundry/agents/how-to/mcp-authentication) | Agent/project identity versus individual OAuth. Recheck selected feature availability before demo. |
 | 07 | [Copilot Studio existing MCP server](https://learn.microsoft.com/microsoft-copilot-studio/mcp-add-existing-server-to-agent) | Streamable HTTP and wizard authentication; manual-secret conflict remains unresolved. |
 

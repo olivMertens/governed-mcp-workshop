@@ -107,8 +107,20 @@ Personas:
   bring your own (BYO) MCP server in the Microsoft 365 admin center (Preview): https://learn.microsoft.com/microsoft-365/admin/manage/manage-byo-mcp-server.
 - **Build:** a workbook or saved KQL queries (tool, caller, status, latency, top denials); register the server in API Center.
 - **Show:** who called which tool, when, with what result.
-- **Optional 06b:** Agent 365 / Microsoft 365 admin center inventory as a demo only (Preview, licensing and Frontier
-  requirements), no participant step.
+- **Optional 06b (Preview):** Agent 365 / Microsoft 365 admin center inventory as a demo only (Preview, licensing and
+  Frontier requirements), no participant step. Source: https://learn.microsoft.com/azure/api-management/agent-365
+  (Preview, verified 2026-10-14) and the
+  [Tech Community post](https://techcommunity.microsoft.com/blog/integrationsonazureblog/microsoft-agent-365-and-azure-api-management-integration-for-mcp-governance/4563335).
+  Facts to respect:
+  - Needs an Agent 365 tenant and a tenant administrator's one-time consent that grants the **A365 MCP Gateway Policy
+    Operator** role at tenant level, with read and write on API-scoped policies. This widens a role beyond one
+    resource group, so it is never a participant step (security invariant 8).
+  - With API Management v2 (our core gateway): inventory and block/unblock of a server only (blocked server returns 403).
+    Tool-level blocking, tool activity observability and Defender/Purview threat protection need the **AI Gateway tier
+    (Preview)**, which stays outside the core path.
+  - Tool-level control needs a static list of allowed tools on each MCP server.
+  - Agent 365 does not route agents through the gateway: the client must use the gateway endpoint, and direct access to
+    the MCP server must stay blocked.
 
 ## 07 — Optional: other clients
 - **Take:** https://learn.microsoft.com/azure/foundry/agents/how-to/mcp-authentication;
