@@ -1,13 +1,14 @@
 # Ce qui est réellement disponible
 
-Le dépôt public contient du code de préparation utilisable, pas un atelier déjà déployé dans Azure.
+Le dépôt public contient du code de préparation et un exercice MCP local utilisables, pas un atelier déjà déployé dans Azure.
 Le [suivi de construction](../PROGRESS.md) indique les contrôles réalisés. **Aucun module n'est encore validé dans Azure.**
 
 | Élément | Disponible dans cette branche | Reste à faire |
 |---|---|---|
 | Environnement participant | Vérification des outils, choix explicite du tenant et de l'abonnement, noms stables et état individuel | Exécuter le conteneur et valider une cible Azure approuvée |
 | Portail documentaire public | Application bilingue, Terraform App Service et script de déploiement avec contrôles | Examiner un plan réel, approuver les frais, déployer et vérifier le site |
-| Serveur MCP | Objectifs et schémas du parcours | Construire Functions, Storage et les outils à partir du module 02 |
+| Découverte MCP locale, module 01 | Serveur stdio .NET 10, contrôles SDK et Inspector, guide EN/FR et configuration VS Code | Observer l'approbation par appel ; le jalon d'environnement précédent reste ouvert |
+| Serveur MCP Azure, à partir du 02 | Objectifs et schémas du parcours | Construire Functions, Storage et les outils cloud |
 | Identités managées | Modèle de droits et demande à l'administrateur | Créer les identités, les attributions ciblées et la fédération approuvée dans les modules concernés |
 | Microsoft Entra | Audience, autorisations, rôles et profils de test définis | Construire le code d'identité, puis vérifier les consentements et les accès |
 | Passerelle API Management | Architecture Standard v2 et contrôles attendus | Construire la passerelle, le réseau privé et les règles d'autorisation |
@@ -22,8 +23,9 @@ Chaque module affiche aussi son schéma dans l'application. Le code Mermaid se t
 Ces schémas montrent une **cible prévue** : ils ne prouvent pas que les ressources existent.
 
 Commencez par le [guide du module 00](../../modules/00-prerequisites/README.fr.md).
-Les modules suivants restent des plans tant que leurs guides et contrôles ne sont pas construits.
-La construction du module suivant attend la validation du précédent.
+Le [module 01](../../modules/01-discover-mcp/README.fr.md) fonctionne sans Azure ni portail présentateur.
+Sa construction locale a été explicitement approuvée pendant l'attente des contrôles Azure/conteneur du 00.
+Les modules 02 et suivants restent des plans. Les validations cloud et approbations de déploiement ne sont pas levées.
 
 <details>
 <summary>Pour aller plus loin : identités, Foundry et passerelle IA</summary>

@@ -5,6 +5,10 @@ Vous n'avez besoin ni d'un autre App Service ni du compte administrateur du pré
 Sans portail, suivez directement ces guides Markdown.
 **Présentateur :** utilisez le [guide de publication séparé](PRESENTER.md).
 
+**Essayer MCP sans Azure :** après le clonage et l'installation de .NET 10/PowerShell 7,
+suivez le [module 01](../../modules/01-discover-mcp/README.fr.md).
+Le portail du présentateur est seulement un hébergement facultatif des guides.
+
 Choisissez où exécuter les commandes : sur votre poste, dans un conteneur de développement avec
 **Visual Studio Code (VS Code)**, ou dans GitHub Codespaces. Les exercices et les scripts sont les mêmes.
 Vous pouvez suivre les guides sans Copilot ni ce tableau.
@@ -232,6 +236,10 @@ Continuez avec le [module 00](../../modules/00-prerequisites/README.fr.md).
 Le code Terraform actuel prépare le groupe et, sur demande, un portail App Service public payant.
 Il ne déploie pas encore de serveur MCP, de réseau privé ni d'API Management.
 Les validations dans Azure et dans le conteneur restent à réaliser.
+Le [module 01 local](../../modules/01-discover-mcp/README.fr.md) est maintenant exécutable avec .NET 10 et PowerShell 7.
+Il ne demande ni connexion Azure, ni Terraform, ni portail présentateur.
+Les contrôles SDK et Inspector réussissent en local ; l'approbation du client reste à observer manuellement.
+Les jalons du module 00 restent nécessaires avant les exercices cloud.
 
 ### Se connecter à son tenant de test
 

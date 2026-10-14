@@ -5,6 +5,9 @@ You do not need another App Service or the presenter's administrator account.
 Without a portal, follow these Markdown guides.
 **Presenter:** use the separate [publishing how-to](PRESENTER.md).
 
+**Try MCP without Azure first:** after cloning and installing .NET 10/PowerShell 7,
+use [module 01](../modules/01-discover-mcp/README.md). The presenter portal is optional documentation hosting.
+
 Use **Visual Studio Code (VS Code)** with a dev container, or use your own terminal.
 These are two routes to the same scripts, private participant parameters and Terraform root.
 Visual Studio IDE is a different product; the container instructions here use the VS Code Dev Containers extension.
@@ -262,7 +265,9 @@ checkout preserves files, but a different clone or codespace has different local
 restore the private parameters and state securely, or configure an approved isolated remote backend first.
 Do not commit, upload to the board or share state, saved plans, CLI credentials or participant files.
 
-Continue with module 00 and its publication/validation gates, then module 01's local MCP exercise.
+The [module 01 local exercise](../modules/01-discover-mcp/README.md) is now runnable with .NET 10 and PowerShell 7,
+without Azure sign-in, Terraform or the presenter portal. Its validator and Inspector CLI checks pass locally;
+client approval remains manual. Module 00's cloud/container gates still apply before cloud work.
 After paid stages, follow module 99. Review destroy against the same state; preserve existing groups and identities.
 Do not delete an entire group to bypass an incomplete Terraform cleanup.
 

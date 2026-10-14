@@ -1,7 +1,8 @@
 # Le parcours de l'atelier
 
 Ce parcours présente ce que vous apprendrez à chaque étape. Suivez les modules dans l'ordre.
-Le module 00 est disponible ; sa validation dans Azure reste à faire. Les autres modules sont encore prévus.
+Les modules 00 et 01 ont des guides exécutables ; les contrôles Azure du 00 restent en attente.
+Le module 01 est local et indépendant d'Azure. Les modules 02 à 07 et 99 restent prévus.
 N'utilisez pas ces résumés comme procédure de déploiement : suivez le guide du module lorsqu'il est publié.
 Le [plan technique en anglais](../BUILD-PLAN.md) s'adresse aux personnes qui construisent l'atelier.
 
@@ -27,6 +28,9 @@ Aucun serveur MCP ni code Terraform Entra n'est encore implémenté.
 **À vérifier :** une exécution réelle et une confirmation manuelle disponible dans le client.
 Aucun coût Azure ni modèle d'IA n'est nécessaire pour les tests de protocole avec Inspector.
 Le serveur C# utilise ses entrées et sorties standard (stdio), pas une adresse HTTPS.
+Le [guide exécutable](../../modules/01-discover-mcp/README.fr.md) fournit les commandes PowerShell et les résultats.
+Un outil de lecture, `get_service_health`, est disponible. Le script et Inspector 2.9.0 ont réussi en local.
+L'observation de l'approbation dans VS Code reste manuelle. Aucun portail présentateur n'est nécessaire.
 
 ## 02 - Serveur par clé, niveau 0
 
