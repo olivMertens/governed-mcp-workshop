@@ -8,7 +8,8 @@ Read [build progress](PROGRESS.md) for evidence. **No module is Azure-validated 
 | Participant environment | Tool checks, explicit tenant/subscription selection, private stable names and separate state | Execute the dev container and validate an approved Azure target |
 | Public documentation portal | Bilingual single-page application, App Service Terraform and guarded deployment script | Review a real plan, approve costs, deploy and verify the site |
 | Local MCP discovery (01) | .NET 10 stdio server, SDK validator, Inspector CLI checks, EN/FR guide and VS Code configuration | Observe the manual per-call client approval; preceding environment gate remains open |
-| Azure MCP server (02 onward) | Learning targets and diagrams | Functions, Storage and cloud tool implementation from module 02 |
+| Open MCP server (02) | .NET 10 Functions MCP server with five synthetic tools, unit tests, default-off Flex/Storage/telemetry/identity Terraform with mock tests, EN/FR guide, validator and scoped clean-up | Approved plan, deployment and live HTTP 401/200 validation; nothing is deployed |
+| Azure MCP server (03 onward) | Learning targets and diagrams | Identity, gateway and downstream implementation from module 03 |
 | Managed identities | Permission model and administrator request | Create identities, scoped role assignments and approved federation in their modules |
 | Microsoft Entra | Audience, scope, role and test-persona requirements | Implement the identity root, then validate consent and authorization |
 | API Management gateway | Standard v2 design and planned checks | Implement the gateway, private network and authorization policies |
@@ -25,7 +26,8 @@ For module 00, follow the [published guide](../modules/00-prerequisites/README.m
 Module 01's [local exercise](../modules/01-discover-mcp/README.md) runs without Azure or the presenter portal.
 Its local authoring was explicitly approved before module 00 validated on the local-terminal route.
 The optional container/Codespaces route remains unverified.
-Modules 02 onward remain outlines. Cloud validation and exact deployment approvals are not waived.
+Module 02's [guide](../modules/02-open-server/README.md) is authored and passes offline checks only; it is not deployed.
+Modules 03 onward remain outlines. Cloud validation and exact deployment approvals are not waived.
 
 ## Identity and gateway boundaries
 

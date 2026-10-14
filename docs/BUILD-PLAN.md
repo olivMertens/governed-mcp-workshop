@@ -64,6 +64,12 @@ Personas:
 - **Validate:** HTTP 401 without the MCP extension system key, HTTP 200 with the key and a valid MCP request;
   anonymous access disabled. Set webhook authorization to `System`: upstream `host.json` uses `Anonymous` because
   the upstream sample starts with Entra authentication. Never copy that setting into the key-only module.
+- **Authored, not deployed (2026-10-14):** [EN/FR guide](../modules/02-open-server/README.md),
+  `src/FunctionsMcpServer` (.NET 10 isolated worker, MCP extension 1.5.0, exact pins and lock file),
+  `tests/FunctionsMcpServer.Tests`, default-off `enable_mcp_server` resources in `infra/workload/mcp-server.tf`
+  with seven mock test runs, validator with offline mode and a deletion-only clean-up guard.
+  Host storage uses Blob Data Owner on the account; `create_ticket` uses Queue Data Message Sender on one queue.
+  Only offline checks have run. No plan, apply, Azure or Entra change; see [progress](PROGRESS.md).
 
 ## 03 — Identity with Microsoft Entra (level 1)
 - **Take:** https://learn.microsoft.com/azure/app-service/configure-authentication-mcp;
