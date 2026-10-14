@@ -7,7 +7,7 @@ A module is `validated` only when its validate script passes on a fresh subscrip
 | Module | Title | Status | Validated on | Evidence (PASS lines or PR) | Notes |
 |---|---|---|---|---|---|
 | 00 | Prerequisites and environment | in-progress |  | Offline only: 35 script/HTTP tests and 11 mock plans; not fresh-subscription evidence. | EN/FR guide, explicit read-only preflight, identity request and optional public B1 hosting implemented. Container and approved Azure target/plan still pending. |
-| 01 | Discover MCP (no Azure) | todo | | | |
+| 01 | Discover MCP (no Azure) | in-progress | | Real local SDK validator and Inspector 2.9.0 tools/list + tools/call pass; protocol 2026-07-28 with SDK client. | EN/FR guide, locked .NET 10 stdio server and client config implemented. Manual VS Code approval and preceding environment gate remain pending; no Azure needed here. |
 | 02 | An "open" MCP server (level 0) | todo | | | |
 | 03 | Identity with Microsoft Entra (level 1) | todo | | | |
 | 04 | API Management as the only entry point (level 2) | todo | | | |
@@ -36,6 +36,24 @@ A module is `validated` only when its validate script passes on a fresh subscrip
   group; accept an approved existing group without managing it. Shared quotas still require cohort capacity checks.
 
 ## Deviations from the build plan
+- Module 01 local implementation (2026-10-14), explicitly requested by the user while module 00's
+  cloud/container gate is pending. This is a scoped authoring/local-execution exception, not cloud authorization.
+  SDK 2.2.0 and Hosting 10.0.13 are pinned with a transitive package lock; upstream license notices retained.
+  One synthetic read-only health tool, no external calls, write tools, HTTP listener or payload logs.
+  `PASS tools/list exposes exactly one read tool (expected HTTP N/A; stdio).`
+  `PASS exact synthetic result for workshop-api (expected HTTP N/A; stdio).`
+  `PASS exact synthetic result for ticket-queue (expected HTTP N/A; stdio).`
+  `PASS unknown service returns a tool error (expected HTTP N/A; stdio).`
+  `PASS missing service returns a tool error (expected HTTP N/A; stdio).`
+  `PASS write tool is not exposed (expected HTTP N/A; stdio).`
+  `PASS server remains responsive after rejected inputs (expected HTTP N/A; stdio).`
+  `PASS no server stderr logging during tested calls (expected HTTP N/A; stdio).`
+  `PASS local MCP checks complete (expected HTTP N/A; stdio, no Azure).`
+  Real Inspector 2.9.0 CLI discovery/call succeeded. SDK client negotiated 2026-07-28.
+  PowerShell and Git Bash wrappers pass. The 37-test local regression suite passes, including real stdio
+  execution and EN/FR static exports with module 01's guide/validator and module 02 still marked planned.
+  Manual VS Code approval is documented but not observed; no fresh-container/cloud claim.
+  Module 00 and 01 remain in-progress. No Azure or Microsoft Entra change and no Preview feature used here.
 - Presenter preparation (2026-10-14): separate EN/FR presenter how-to and participant entry points.
   Live local-terminal foundation preflight passed on an explicitly resolved private test target:
   `PASS subscription region (expected HTTP 200; availability is not a capacity reservation)`;
@@ -100,7 +118,7 @@ A module is `validated` only when its validate script passes on a fresh subscrip
 - Authoring tool boundary: ordinary installation had Terraform 1.16.5 and an incomplete npm Core Tools shim.
   Official-checksum-verified Terraform 1.16.6 and Core Tools 4.14.0 ARM64 were installed in session scope for checks,
   not substituted globally. Container execution and fresh-subscription preflight/real plan/apply remain unverified.
-  Module 01 must not start before real module 00 validation.
+  The subsequent user-approved local-only module 01 exception is recorded above; cloud gates are unchanged.
 - French editorial revision: participant-facing labels and all French guides reviewed for natural phrasing.
   Beginner instructions appear first; technical setup and advanced context use closed, keyboard-accessible
   disclosure sections in both the board and static exports. Safety requirements, module status and cloud

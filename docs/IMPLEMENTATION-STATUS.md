@@ -1,13 +1,14 @@
 # What is actually available?
 
-The public repository contains working preparation code, not a deployed Azure workshop.
+The public repository contains working preparation code and a runnable local MCP exercise, not a deployed Azure workshop.
 Read [build progress](PROGRESS.md) for evidence. **No module is Azure-validated yet.**
 
 | Area | Available in this branch | Still required |
 |---|---|---|
 | Participant environment | Tool checks, explicit tenant/subscription selection, private stable names and separate state | Execute the dev container and validate an approved Azure target |
 | Public documentation portal | Bilingual single-page application, App Service Terraform and guarded deployment script | Review a real plan, approve costs, deploy and verify the site |
-| MCP server | Learning targets and diagrams | Functions, Storage and tool implementation from module 02 |
+| Local MCP discovery (01) | .NET 10 stdio server, SDK validator, Inspector CLI checks, EN/FR guide and VS Code configuration | Observe the manual per-call client approval; preceding environment gate remains open |
+| Azure MCP server (02 onward) | Learning targets and diagrams | Functions, Storage and cloud tool implementation from module 02 |
 | Managed identities | Permission model and administrator request | Create identities, scoped role assignments and approved federation in their modules |
 | Microsoft Entra | Audience, scope, role and test-persona requirements | Implement the identity root, then validate consent and authorization |
 | API Management gateway | Standard v2 design and planned checks | Implement the gateway, private network and authorization policies |
@@ -21,8 +22,9 @@ in the application, with a closed-by-default Mermaid source section.
 The diagrams are **planned targets**. They never imply that the shown resources exist.
 
 For module 00, follow the [published guide](../modules/00-prerequisites/README.md).
-Later modules remain outlines until their guides and validators are implemented.
-Do not begin the next module's implementation before the previous module validates.
+Module 01's [local exercise](../modules/01-discover-mcp/README.md) runs without Azure or the presenter portal.
+Its local authoring was explicitly approved while module 00's cloud/container gate remains pending.
+Modules 02 onward remain outlines. Cloud validation and exact deployment approvals are not waived.
 
 ## Identity and gateway boundaries
 

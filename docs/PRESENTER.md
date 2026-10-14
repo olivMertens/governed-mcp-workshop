@@ -4,7 +4,8 @@
 
 **You host the public guides. Participants run their own exercises.**
 Publishing the portal does not deploy the Model Context Protocol (MCP) server.
-Only module 00 is implemented; later modules remain planned.
+Module 00 preparation and module 01's local exercise are implemented; modules 02 onward remain planned.
+Students can run [module 01](../modules/01-discover-mcp/README.md) without waiting for your portal or Azure deployment.
 
 ## 1. Prepare your presenter workspace
 
@@ -68,14 +69,15 @@ if ($health.StatusCode -ne 200 -or $health.Content -cne '{"status":"ok"}') {
 "Lien participant (francais) : $portal/?lang=fr#/start"
 ```
 
-Open both links. Check language switching, module 00 and diagrams before sending them.
+Open both links. Check language switching, modules 00/01 and diagrams before sending them.
 Never send a guessed URL or one that has not passed these checks.
 
 Suggested student message:
 
 > Open the workshop link, choose your language and workspace, then follow module 00.
 > Use only your approved test tenant and subscription. You do not need to host the portal.
-> Do not send credentials or tokens. Later modules are planned, not runnable exercises yet.
+> Module 01 runs locally without Azure. Modules 02 onward are planned, not runnable exercises yet.
+> Do not send credentials or tokens.
 
 ## 5. Close the session safely
 

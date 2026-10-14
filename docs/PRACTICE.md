@@ -1,6 +1,8 @@
 # Try your MCP server
 
 This is a client-side practice guide for a server you have already deployed. It does not deploy the workshop.
+**Starting without Azure?** Use [module 01's local stdio exercise](../modules/01-discover-mcp/README.md) first.
+It has real commands and does not use the remote-endpoint field below.
 The canvas prepares commands and prompts; your chosen MCP client makes the real calls.
 An example or an expected result is not a recorded test result.
 
@@ -116,6 +118,9 @@ This module needs no Azure deployment or model-hosting subscription.
 
 **First hint:** use the server startup command in the module README. There is no HTTP endpoint for a stdio server.
 The remote connection field is for later modules, not a replacement for that local startup command.
+Run `pwsh -File .\modules\01-discover-mcp\validate.ps1` from the repository root,
+then start `workshop-local` in VS Code or use the pinned Inspector CLI commands in the guide.
+Call `get_service_health` with `service=workshop-api`; expect synthetic `healthy`, not an Azure health check.
 
 **If it still fails:** check the actual tool-call record and negotiated protocol. Current Inspector supports
 legacy and modern protocol eras; let the client negotiate instead of copying initialization messages by hand.

@@ -2,6 +2,7 @@
 
 Last verified: 2026-10-14. This is a design assessment, not evidence of a successful deployment.
 Links were read from public upstream sources. No upstream application code has been vendored in this preparation.
+Module 01 now adapts the SDK bootstrap pattern; its provenance and complete upstream license are retained separately.
 Versions below are reproducible reference selections or compatibility-test candidates, not a promise that every
 combination has been tested together.
 
@@ -64,6 +65,29 @@ traditional App Service. ACA/private-portal authentication remains separate and 
 Local public server, ZIP boundary and synthetic deployment/preflight tests do not prove a live deployment.
 
 ## Upstream snapshots
+
+### Module 01 local implementation
+
+Last verified: 2026-10-14. [Runnable EN/FR guide](../modules/01-discover-mcp/README.md)
+and [license/provenance](../modules/01-discover-mcp/UPSTREAM.md).
+The official SDK 2.2.0 quickstart and actual v2 source APIs were used, not the unversioned documentation site's v1 redirect.
+NuGet packages ModelContextProtocol 2.2.0 and Microsoft.Extensions.Hosting 10.0.13 are exact pins with a transitive lock.
+The official SDK negotiates protocol 2026-07-28 in the actual local validator.
+Pinned Inspector 2.9.0 CLI also discovers and calls the same compiled server.
+The modern protocol rejects legacy `ping`; the validator proves recovery after rejected input by repeating
+`tools/list`, not by assuming that an API present in the SDK is supported in every protocol era.
+These are local process tests, not future Functions/APIM compatibility or manual approval evidence.
+
+- [SDK quickstart at the selected commit](https://github.com/modelcontextprotocol/csharp-sdk/blob/6fa3825973949a9c4f0cd8af344e15a8db09dc35/docs/concepts/getting-started.md).
+- [SDK session/version API](https://github.com/modelcontextprotocol/csharp-sdk/blob/6fa3825973949a9c4f0cd8af344e15a8db09dc35/src/ModelContextProtocol.Core/McpSession.cs).
+- [SDK stdio process/environment/stderr options](https://github.com/modelcontextprotocol/csharp-sdk/blob/6fa3825973949a9c4f0cd8af344e15a8db09dc35/src/ModelContextProtocol.Core/Client/StdioClientTransportOptions.cs).
+- [Tool annotations and errors](https://github.com/modelcontextprotocol/csharp-sdk/blob/6fa3825973949a9c4f0cd8af344e15a8db09dc35/src/ModelContextProtocol.Core/Server/McpServerToolAttribute.cs).
+- [NuGet SDK](https://www.nuget.org/packages/ModelContextProtocol/2.2.0) and [Hosting](https://www.nuget.org/packages/Microsoft.Extensions.Hosting/10.0.13).
+- [VS Code approvals](https://code.visualstudio.com/docs/agents/run/approvals): Manual permissions, individual pre-approval
+  and per-tool false eligibility; client settings can change the actual prompt. No global auto-approval.
+- [MCP Inspector](https://modelcontextprotocol.io/docs/tools/inspector): CLI discovery and explicit call, memory-only settings.
+
+### Selected upstreams
 
 | Upstream | Selected snapshot | What was inspected | License and reuse boundary |
 |---|---|---|---|
