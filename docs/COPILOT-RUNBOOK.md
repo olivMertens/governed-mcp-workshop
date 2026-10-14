@@ -1,6 +1,7 @@
 # Runbook — build this workshop with the GitHub Copilot app
 
 This runbook drives the build from this scaffold to a validated workshop: one module per session, one branch and one pull request per module.
+Module 00 preparation and module 01's local MCP exercise are implemented. Neither module is fully validated yet.
 
 Participants do not need this authoring workflow. Start with [workspace choice](GETTING-STARTED.md):
 VS Code dev container or local terminal, common tool checks, private participant suffix and the Terraform group foundation.
@@ -190,7 +191,8 @@ cloud resources, assign roles or save IDs into the board. Read [DEPLOYMENT.md](D
 
 Hash routes such as `#/module/00` support direct links and browser back/forward navigation.
 The board reads a published module's README when it exists. Otherwise it shows a clearly labeled design outline
-from `docs/BUILD-PLAN.md`; an outline is not a runnable participant procedure. No module is currently implemented.
+from `docs/BUILD-PLAN.md`; an outline is not a runnable participant procedure. Modules 00 and 01 are implemented;
+modules 02–07 and 99 remain design outlines until their module branches are built and merged.
 Use **Refresh content** after changing repository documents. Repository status and evidence are available in
 an optional disclosure, separate from the participant instructions.
 
