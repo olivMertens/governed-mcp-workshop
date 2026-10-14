@@ -4621,7 +4621,8 @@ $files['docs/BUILD-PLAN.md'] = @'
 Build the modules in this order, one session and one branch per module.
 Do not start a module until the previous one validates.
 Scoped user-approved exception (2026-10-14): author and run the Azure-independent module 01 locally while
-module 00's cloud/container validation is pending. This does not approve cloud work or validate module 00.
+module 00's environment validation was pending. Module 00 later validated on the approved local-terminal route;
+that result does not validate the optional container/Codespaces route or approve any resource creation.
 
 ## End-state architecture
 
@@ -5984,11 +5985,12 @@ et l'absence de chevauchement des plages d'adresses.
 Continuez avec le [module 00](../../modules/00-prerequisites/README.fr.md).
 Le code Terraform actuel prépare le groupe et, sur demande, un portail App Service public payant.
 Il ne déploie pas encore de serveur MCP, de réseau privé ni d'API Management.
-Les validations dans Azure et dans le conteneur restent à réaliser.
+Le parcours terminal local a été validé sur la cible de préparation, sans créer de ressource.
+Chaque participant doit refaire ces contrôles pour sa propre cible ; le parcours conteneur/Codespaces reste non vérifié.
 Le [module 01 local](../../modules/01-discover-mcp/README.fr.md) est maintenant exécutable avec .NET 10 et PowerShell 7.
 Il ne demande ni connexion Azure, ni Terraform, ni portail présentateur.
 Les contrôles SDK et Inspector réussissent en local ; l'approbation du client reste à observer manuellement.
-Les jalons du module 00 restent nécessaires avant les exercices cloud.
+Terminez le module 00 sur l'environnement réellement choisi avant les exercices cloud.
 
 ### Se connecter à son tenant de test
 
@@ -7295,7 +7297,8 @@ Later identity and network modules still need their own isolation and address-sp
 The paid portal is disabled by default; [hosting](HOSTING.md) documents explicit persistent opt-in and deployment.
 It does not deploy Functions, networking, API Management, identities, or an MCP server.
 The [module 00 guide](../modules/00-prerequisites/README.md), read-only preflight and administrator request are available.
-Run its real environment checks before the foundation plan. Azure/container validation is still pending.
+Run its real environment checks before the foundation plan. The authoring evidence validates the local-terminal
+route only; every participant must repeat the checks for their own target.
 
 ### Sign into your test tenant
 
@@ -7345,7 +7348,7 @@ Do not commit, upload to the board or share state, saved plans, CLI credentials 
 
 The [module 01 local exercise](../modules/01-discover-mcp/README.md) is now runnable with .NET 10 and PowerShell 7,
 without Azure sign-in, Terraform or the presenter portal. Its validator and Inspector CLI checks pass locally;
-client approval remains manual. Module 00's cloud/container gates still apply before cloud work.
+client approval remains manual. Complete module 00 on the workspace route you actually selected before cloud work.
 After paid stages, follow module 99. Review destroy against the same state; preserve existing groups and identities.
 Do not delete an entire group to bypass an incomplete Terraform cleanup.
 
@@ -7658,7 +7661,8 @@ The diagrams are **planned targets**. They never imply that the shown resources 
 
 For module 00, follow the [published guide](../modules/00-prerequisites/README.md).
 Module 01's [local exercise](../modules/01-discover-mcp/README.md) runs without Azure or the presenter portal.
-Its local authoring was explicitly approved while module 00's cloud/container gate remains pending.
+Its local authoring was explicitly approved before module 00 validated on the local-terminal route.
+The optional container/Codespaces route remains unverified.
 Modules 02 onward remain outlines. Cloud validation and exact deployment approvals are not waived.
 
 ## Identity and gateway boundaries
@@ -8245,8 +8249,8 @@ A module is `validated` only when its validate script passes on a fresh subscrip
 
 | Module | Title | Status | Validated on | Evidence (PASS lines or PR) | Notes |
 |---|---|---|---|---|---|
-| 00 | Prerequisites and environment | in-progress |  | Offline only: 35 script/HTTP tests and 11 mock plans; not fresh-subscription evidence. | EN/FR guide, explicit read-only preflight, identity request and optional public B1 hosting implemented. Container and approved Azure target/plan still pending. |
-| 01 | Discover MCP (no Azure) | in-progress | | Real local SDK validator and Inspector 2.9.0 tools/list + tools/call pass; protocol 2026-07-28 with SDK client. | EN/FR guide, locked .NET 10 stdio server and client config implemented. Manual VS Code approval and preceding environment gate remain pending; no Azure needed here. |
+| 00 | Prerequisites and environment | validated | 2026-10-14 | Live local-terminal validator: explicit context, region, Microsoft.Resources registration, required ARM grants and group capacity PASS; isolated offline suite 14/14 and Terraform tests 11/11 PASS. | Validated on the selected non-production local-terminal route without creating resources. The optional dev-container/Codespaces route remains unverified and is not implied by this result. |
+| 01 | Discover MCP (no Azure) | in-progress | | Real local SDK validator and Inspector 2.9.0 tools/list + tools/call pass; protocol 2026-07-28 with SDK client. | EN/FR guide, locked .NET 10 stdio server and client config implemented. Manual VS Code approval observation remains pending; no Azure needed here. |
 | 02 | An "open" MCP server (level 0) | todo | | | |
 | 03 | Identity with Microsoft Entra (level 1) | todo | | | |
 | 04 | API Management as the only entry point (level 2) | todo | | | |
@@ -13046,7 +13050,7 @@ Optional authoring workflow in GitHub Copilot app:
      /mcp add -> microsoft-learn, HTTP, https://learn.microsoft.com/api/mcp
   3. Read docs/sources.md and the P1 recommendations in docs/BUILD-PLAN.md.
   4. Ask: Show the workshop build board.
-  5. Follow docs/COPILOT-RUNBOOK.md, one module per session/branch. No module is validated yet.
+  5. Follow docs/COPILOT-RUNBOOK.md, one module per session/branch. Module 00 is validated on the local-terminal route; module 01 still needs its manual client-approval observation.
 "@
 
 if ($OpenVSCode -and (Test-Command 'code')) { & code $Path }

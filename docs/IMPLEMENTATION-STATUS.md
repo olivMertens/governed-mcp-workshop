@@ -23,7 +23,8 @@ The diagrams are **planned targets**. They never imply that the shown resources 
 
 For module 00, follow the [published guide](../modules/00-prerequisites/README.md).
 Module 01's [local exercise](../modules/01-discover-mcp/README.md) runs without Azure or the presenter portal.
-Its local authoring was explicitly approved while module 00's cloud/container gate remains pending.
+Its local authoring was explicitly approved before module 00 validated on the local-terminal route.
+The optional container/Codespaces route remains unverified.
 Modules 02 onward remain outlines. Cloud validation and exact deployment approvals are not waived.
 
 ## Identity and gateway boundaries
