@@ -9,8 +9,8 @@ Seul le module 00 est implémenté ; les modules suivants restent prévus.
 ## 1. Préparer votre espace présentateur
 
 Utilisez une copie du dépôt et un état Terraform distincts de ceux des participants.
-L'implémentation se trouve actuellement sur `module-00-prerequisites`, pas sur la branche par défaut.
-Avant la fusion, choisissez cette branche pour votre copie et pour Codespaces. Vérifiez-la avant la session.
+Utilisez la branche par défaut, `main`, pour votre copie et pour Codespaces.
+Vérifiez que tout le groupe utilise la même version publiée avant la session.
 Ne publiez jamais votre compte administrateur, tenant, abonnement, paramètres, état ou plans sauvegardés.
 
 Suivez les [commandes PowerShell du module 00](../../modules/00-prerequisites/README.fr.md) :
