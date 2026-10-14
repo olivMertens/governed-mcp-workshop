@@ -1,157 +1,170 @@
 # Tester votre serveur MCP
 
-Ce guide accompagne **votre serveur déjà déployé**. Il ne déploie pas le workshop.
-Le board prépare les commandes ; votre client Model Context Protocol (MCP) effectue les appels.
-Un exemple ou un résultat attendu n'est pas une preuve de test.
+Ce guide sert à tester **votre serveur déjà déployé**, pas à le déployer.
+Le tableau prépare les commandes. VS Code ou MCP Inspector les exécute.
+Un résultat attendu dans le guide n'est pas un test déjà réussi.
 
-## Choisir votre poste de travail
+## Commencer par un test simple
 
-- **Local :** ouvrez le dépôt dans Visual Studio Code (VS Code), avec les prérequis du module 00.
-  La commande locale ouvre le dossier courant : exécutez-la depuis votre copie existante.
-- **Codespaces :** le lien ouvre l'écran de création GitHub. Vérifiez branche, taille, payeur et quota.
-  Les changements locaux non poussés ne sont pas inclus. Le dev container du workshop n'est pas encore publié.
-- **Inspector avec authentification :** préférez le poste local, ou VS Code desktop connecté au codespace
-  avec redirection privée des ports. Dans un codespace ouvert seulement dans le navigateur, l'origine du retour
-  OAuth peut changer. N'exposez jamais Inspector publiquement et ne désactivez pas son authentification.
-  Arrêtez Inspector avec Ctrl+C ; arrêtez les codespaces inutilisés. Leur stockage peut rester facturé.
-
-## Choisir votre environnement Azure
-
-Lisez d'abord **Votre contexte Azure**. Le tenant porte les identités ; l'abonnement porte les ressources et les coûts.
-Sélectionnez et vérifiez les deux dans votre terminal avec les sélecteurs fournis. Les identifiants ne vont pas
-dans le board. Le serveur appelé doit être celui de votre déploiement approuvé, pas un exemple partagé.
-Les guides et validateurs des modules ne sont pas encore publiés.
-
-## Connecter sans déplacer les identifiants
-
-1. Récupérez l'adresse exacte dans les sorties de votre déploiement. Utilisez Streamable HTTP pour le distant.
-   Dès le module 04, utilisez uniquement la passerelle API Management, jamais l'adresse privée de la Function.
-2. Saisissez seulement cet URL HTTPS dans le board. Ni clé, ni jeton, ni paramètres d'URL.
-   La valeur reste en mémoire de page : ni envoi au serveur du board, ni stockage, ni ajout au suivi.
-3. Dans VS Code : **MCP: Add Server**, type HTTP, puis adresse du serveur. Préférez la configuration utilisateur
-   privée. Fusionnez l'entrée avec les serveurs existants ; ne remplacez pas le fichier complet.
-4. Pour Inspector, copiez la commande PowerShell ou bash dans votre terminal. Version épinglée : **2.9.0** ;
-   Node.js 22.19.0 minimum. Examinez la demande d'installation `npx`. Ouvrez l'URL locale affichée par le lanceur :
-   elle contient une capacité privée de session, à ne pas partager.
-5. La version GitHub 2.11.0 retenue comme candidate source n'était pas disponible dans le registre npm configuré
-   le 2026-10-14. Les commandes s'arrêtent si 2.9.0 n'est pas disponible. Elles ne changent pas de registre et
-   ne contournent aucune alerte de sécurité. Le client négocie explicitement la génération de protocole.
-6. Les identifiants Inspector restent en mémoire ; les jetons OAuth ne sont pas persistés. Utilisez une connexion
-   ponctuelle, pas un catalogue enregistré. N'enregistrez ni n'exportez les en-têtes d'authentification :
-   les valeurs d'en-tête de catalogue peuvent rester en clair malgré le stockage protégé des secrets.
-7. Pour Entra, demandez l'ID de client **public** approuvé, l'adresse de retour exacte et les étendues de ce client.
-   Entra ne propose pas d'enregistrement dynamique de clients. Laissez le secret client vide.
-   L'approbation de VS Code n'approuve pas Inspector. Arrêtez si le flux exige un secret ou des droits supplémentaires.
-8. Au module 02, utilisez la saisie sécurisée prévue par le guide pour la clé système `mcp_extension`.
-   Une configuration avec URL seule ne suffit volontairement pas. Pas de clé dans URL, argument de commande,
-   en-tête enregistré, chat, journal ou dépôt. Ce n'est pas l'exercice OAuth.
+1. Ouvrez l'environnement choisi au module 00 et sélectionnez uniquement le serveur de l'atelier.
+2. Affichez les outils disponibles : **Tools / List Tools** dans Inspector, ou **MCP: List Servers**
+   et le sélecteur d'outils dans VS Code.
+3. Commencez par `get_service_health` s'il est disponible. Lisez les informations demandées par l'outil
+   et utilisez seulement des données fictives. S'il n'est pas disponible, arrêtez-vous.
+4. Lancez **Call Tool** dans Inspector, ou utilisez la consigne proposée dans le tableau avec VS Code.
+   Vérifiez la trace de l'exécution, pas seulement la réponse de l'assistant.
+5. Comparez le résultat avec celui du module. Un code HTTP 200 peut contenir une erreur MCP.
+   Lancez ensuite le script de vérification du module, s'il est publié.
 
 > [!IMPORTANT]
-> Les métadonnées de ressource protégée (PRM) App Service sont en Preview.
-> Connexion réussie, confiance dans le client et approbation d'outil ne remplacent pas les contrôles serveur.
+> Ne collez jamais de clé ou de jeton dans ce tableau. Ne désactivez pas la confirmation manuelle.
+> `create_ticket` modifie les données de test et peut entraîner des coûts : chaque exécution
+> nécessite le rôle prévu et votre accord explicite pour cette action précise.
 
-## Effectuer un vrai appel
+## Se connecter au bon serveur
 
-1. Sélectionnez uniquement le serveur du workshop dans le client. Dans Inspector, utilisez **Tools / List Tools**.
-   Dans VS Code, utilisez **MCP: List Servers** et le sélecteur d'outils. Un badge connecté ne prouve pas qu'un outil fonctionne.
-2. Lisez les noms et schémas annoncés. Commencez par `get_service_health` s'il existe. Respectez son vrai schéma ;
-   n'inventez ni champs ni résultats. Utilisez exclusivement des données synthétiques.
-3. Dans Inspector, sélectionnez l'outil et cliquez explicitement **Call Tool**. Dans VS Code, utilisez les prompts
-   proposés puis inspectez la trace d'appel, pas seulement le texte de l'assistant.
-4. Comparez statut de transport et résultat MCP. Un HTTP 200 peut transporter une erreur d'outil.
-   Un outil absent n'est pas une réussite de contrôle d'accès. Reconnectez après un changement de module.
-5. Réalisez les cas négatifs avec les seuls comptes de test dédiés. N'empruntez pas la session d'une autre personne.
-   Un refus peut être correct ; n'accordez pas davantage de droits pour obtenir du vert.
-6. `create_ticket` crée un message de file et peut entraîner des coûts. Chaque appel exige un rôle explicite et
-   une approbation humaine individuelle. N'activez pas l'approbation automatique. **Call Tool** n'approuve qu'un seul appel.
-7. Lisez puis lancez le validateur publié du module. Le board n'affiche la commande que si le README et le script
-   existent. Le script peut effectuer de vrais appels, écrire des données synthétiques et nécessiter une approbation.
+Récupérez l'adresse dans les sorties de **votre déploiement approuvé**.
+À partir du module 04, utilisez uniquement l'adresse d'API Management, jamais celle de la Function privée.
+Au module 01, le serveur fonctionne localement : suivez son guide, sans saisir d'adresse HTTPS.
 
-## Comparer le résultat
+Dans VS Code, lancez **MCP: Add Server**, choisissez HTTP et saisissez l'adresse.
+Utilisez une configuration utilisateur privée sans remplacer les autres serveurs déjà configurés.
+Pour Inspector, lisez les précisions ci-dessous avant de lancer la commande.
 
-Ces observations sont des objectifs, pas des tests déjà réussis.
+<details>
+<summary>Pour aller plus loin : installer Inspector et se connecter en toute sécurité</summary>
 
-| Étape | Exercice | Observation attendue | Ce que cela prouve |
-|---|---|---|---|
-| 01 | Lister et appeler l'outil local | Vraie liste et vrai résultat MCP | Découvrir n'est pas exécuter. |
-| 02 | Sans clé puis avec la clé système | HTTP 401, puis HTTP 200 et résultat réussi | Posséder une clé n'identifie pas l'utilisateur. |
-| 03 | Sans jeton ou mauvaise audience | HTTP 401 ; Eve ne peut pas obtenir le jeton requis | Le jeton est destiné à cette ressource. |
-| 04 | Écriture approuvée, Bob puis Alice | HTTP 403 pour Bob ; HTTP 200 et succès pour Alice | Tools.Read n'accorde pas Tools.Write. |
-| 04 | Débit et accès direct au backend | HTTP 429 au seuil ; Function directe refusée | La passerelle est imposée. |
-| 05 | `read_report_as_user`, Alice et Bob | Alice réussit ; Bob est refusé en aval, parfois dans HTTP 200 | OBO conserve les droits utilisateur. |
-| 05 | `read_report_as_app`, Alice et Bob | Même rapport synthétique autorisé | Droits de l'identité managée. |
-| 06 | Trace et inventaire | Outil, ID objet, statut, latence, corrélation ; passerelle dans API Center | Observer ne signifie pas capturer le contenu ; inventorier n'autorise pas. |
+Les commandes utilisent Inspector **2.9.0** et demandent Node.js 22.19.0 minimum.
+Vérifiez la demande d'installation de `npx`, puis ouvrez l'adresse locale affichée.
+Elle contient un accès privé à votre session : ne la partagez pas.
+La version 2.11.0 publiée sur GitHub n'était pas disponible dans le registre de paquets configuré lors du
+contrôle du 2026-10-14. Si la version prévue manque, la commande s'arrête sans changer de registre ni de version.
 
-Ne conservez ni jetons, prompts, arguments, ni résultats comme preuves. Seulement les métadonnées approuvées et
-lignes PASS/FAIL du validateur. N'exportez pas les transcripts Network/Protocol d'Inspector : ils peuvent contenir
-corps et identifiants. Les outils d'identité restent simulés avant le module 05.
+Utilisez une connexion ponctuelle, pas un catalogue enregistré. Les identifiants restent en mémoire ;
+les jetons OAuth ne sont pas enregistrés de façon persistante. N'enregistrez et n'exportez aucun en-tête
+d'authentification : les en-têtes d'un catalogue peuvent rester lisibles même si les secrets sont protégés.
+Le client négocie la version du protocole ; n'inventez pas de messages de connexion pour contourner une erreur.
 
-## En cas de blocage
+Pour Microsoft Entra, demandez à l'administrateur les paramètres approuvés pour **ce client** :
+identifiant d'application cliente publique, adresse de retour et autorisations déléguées (scopes).
+L'accord donné à VS Code ne vaut pas pour Inspector. Entra ne crée pas automatiquement un enregistrement
+pour un nouveau client. Laissez le secret client vide ; arrêtez-vous si le parcours exige un secret ou
+des droits supplémentaires.
 
-- **Pas d'outils :** vérifiez serveur sélectionné, transport, adresse et implémentation réelle ; reconnectez.
-  Ouvrir l'adresse dans un navigateur ne teste pas `tools/list`.
-- **HTTP 401 :** vérifiez identité du client, tenant, audience, expiration et étendues approuvées.
-  Utilisez la connexion du client, pas un site de décodage de jeton.
-- **HTTP 403 :** vérifiez le rôle applicatif ou la permission de ressource attendue.
-  Un refus prévu pour Bob n'est pas une raison de lui donner Tools.Write ou des droits sur l'abonnement.
-- **HTTP 200 avec erreur :** lisez l'indicateur d'erreur MCP ; le statut externe ne suffit pas.
-- **HTTP 429 :** attendez la fenêtre prévue. Ne désactivez pas la limite et ne bouclez pas sans borne.
-- **Délai ou retour OAuth :** vérifiez réseau, adresse de retour et redirection privée des ports.
-  N'exposez ni Function privée ni Inspector pour contourner le problème.
+Au module 02, utilisez uniquement la saisie protégée de la clé système `mcp_extension` prévue par le guide.
+L'adresse seule ne permet pas de se connecter. Aucune clé dans l'URL, les arguments de commande,
+un en-tête enregistré, la conversation, les journaux ou le dépôt.
+Les métadonnées de ressource protégée (PRM) d'App Service sont en **Preview** (préversion).
 
-## 00 - Comprendre votre environnement
+</details>
 
-**À prouver :** outils, identités, région et budget sont prêts.
-**Indice :** une permission Azure ne donne pas l'administration Entra. Un codespace n'est pas un tenant.
-**Si cela bloque :** demande d'identité précise, pas Owner ni secret client. Le vrai précontrôle reste à publier.
+<details>
+<summary>Pour aller plus loin : utiliser Codespaces ou vérifier le contexte Azure</summary>
 
-## 01 - Découvrir avant d'appeler
+[Choisissez votre environnement](GETTING-STARTED.md), puis suivez le [guide Azure](DEPLOYMENT.md).
+L'annuaire Microsoft Entra contient les identités ; l'abonnement Azure contient les ressources et les coûts.
+Gardez leurs identifiants dans votre terminal privé.
 
-**À prouver :** découverte et appel réels sur stdio.
-**Indice :** utilisez la commande de démarrage du README ; aucun endpoint HTTP ici.
-**Si cela bloque :** vérifiez la trace réelle et le protocole négocié, sans fabriquer de messages d'initialisation.
+Codespaces n'inclut que les fichiers publiés sur la branche choisie. Vérifiez cette branche, la taille de la
+machine, les quotas et la prise en charge des frais. La configuration du conteneur est disponible,
+mais son exécution et celle de Codespaces restent à vérifier.
 
-## 02 - Voir les limites d'une clé
+Pour Inspector avec connexion utilisateur, privilégiez VS Code installé sur votre poste, éventuellement
+connecté au codespace avec une redirection privée des ports. La connexion depuis le seul navigateur
+peut utiliser une autre adresse de retour OAuth. Ne rendez jamais Inspector public et ne désactivez pas
+son authentification. Arrêtez-le avec Ctrl+C. Arrêtez les codespaces inutilisés ; leur stockage peut rester facturé.
 
-**À prouver :** la clé protège l'entrée, mais ne distingue pas Alice et Bob.
-**Indice :** clé système MCP, pas une clé Function choisie au hasard. Gardez l'autorisation du webhook.
-**Si cela bloque :** 401 sans clé est correct. Les outils OBO et app-only sont encore des simulations.
+</details>
 
-## 03 - Séparer identité, étendue et rôle
+## Résultats attendus
 
-**À prouver :** jeton destiné au serveur, étendue du client et rôles utilisateur corrects ; Eve reste non affectée.
-**Indice :** identifiez le compte réellement connecté et le client préautorisé.
-**Si cela bloque :** revoyez consentement et affectation avec l'administrateur. Pas de jeton Graph pour MCP ni d'audience élargie.
+Ces résultats décrivent les exercices prévus. Ils ne prouvent pas que votre déploiement a été testé.
 
-## 04 - Prouver l'absence de contournement
+| Module | Test | Résultat attendu |
+|---|---|---|
+| 01 | Afficher puis exécuter un outil local | Une liste d'outils et un résultat réel |
+| 02 | Essayer sans clé, puis avec la clé système | HTTP 401, puis HTTP 200 et réussite de l'outil |
+| 03 | Essayer sans jeton, puis avec un jeton destiné à un autre service | HTTP 401 ; Eve ne peut pas obtenir le jeton requis |
+| 04 | Préparer une création de ticket avec Bob, puis Alice, avec approbation | HTTP 403 pour Bob ; HTTP 200 et réussite pour Alice |
+| 04 | Dépasser la limite de débit ; essayer l'accès direct à la Function | HTTP 429 ; accès direct refusé |
+| 05 | Lire avec `read_report_as_user`, en tant qu'Alice puis Bob | Alice réussit ; Bob est refusé par le stockage, parfois dans une réponse HTTP 200 |
+| 05 | Lire avec `read_report_as_app`, en tant qu'Alice puis Bob | Le même rapport fictif est accessible aux deux |
+| 06 | Examiner une trace et l'inventaire | Métadonnées autorisées uniquement ; adresse de la passerelle dans API Center |
 
-**À prouver :** identité, rôle par outil, débit et réseau sont imposés. API de gestion MCP en Preview.
-**Indice :** l'écriture synthétique approuvée de Bob doit donner un 403. Testez Alice séparément avec son approbation.
-**Si cela bloque :** vérifiez le refus de la Function privée et les métadonnées. Ne réactivez pas son accès public.
+Utilisez seulement les comptes de test dédiés. Ne reprenez pas la session d'une autre personne.
+Un refus prévu est une réussite du contrôle : ne donnez pas plus de droits à Bob pour obtenir une réponse positive.
+Les outils qui dépendent de l'identité restent simulés avant le module 05.
 
-## 05 - Identifier les droits qui atteignent la donnée
+Ne conservez comme preuves que les métadonnées autorisées et les lignes `PASS` ou `FAIL`.
+N'exportez pas les traces Network/Protocol d'Inspector : elles peuvent contenir des jetons,
+des consignes, les paramètres des outils ou leurs résultats.
 
-**À prouver :** OBO obtient un autre jeton avec contexte utilisateur ; app-only utilise une identité managée.
-**Indice :** prédisez les quatre cas Alice/Bob et as_user/as_app. Lisez HTTP et l'erreur MCP.
-**Si cela bloque :** vérifiez les droits exacts du conteneur. Pas de repli développeur ni de rôle élargi.
+## En cas de problème
 
-## 06 - Observer sans collecter le contenu
+- **Aucun outil affiché :** vérifiez le serveur sélectionné, l'adresse et le mode de connexion, puis reconnectez-vous.
+  Ouvrir l'adresse dans un navigateur ne remplace pas la découverte des outils.
+- **HTTP 401 :** vérifiez le compte connecté et les paramètres de connexion avec le guide.
+  N'utilisez pas de site de décodage pour examiner un jeton réel.
+- **HTTP 403 :** comparez avec le résultat attendu. Si l'accès devrait être autorisé, faites vérifier le rôle requis.
+- **HTTP 200 avec une erreur MCP :** l'outil n'a pas réussi ; lisez le détail dans le client.
+- **HTTP 429 :** attendez le délai prévu. Ne désactivez pas la limite et ne relancez pas en boucle.
+- **Connexion qui n'aboutit pas :** vérifiez le réseau, l'adresse de retour et les ports privés avec le guide.
+  Ne rendez pas publics Inspector ou la Function pour contourner le problème.
 
-**À prouver :** savoir qui appelle quoi sans enregistrer le corps. API Center inventorie, sans autoriser.
-**Indice :** corrélation à partir des métadonnées approuvées ; pas de requête ou réponse sérialisée.
-**Si cela bloque :** contrôlez les diagnostics. N'activez pas les journaux de corps et n'exportez pas de transcript Inspector.
+## 00 - Préparer votre environnement
 
-## 07 - Réutiliser la frontière, pas le jeton
+**À vérifier :** les outils fonctionnent et votre environnement de test est approuvé.
+**Conseil :** un droit Azure ne donne pas de droit d'administration dans Microsoft Entra.
+**En cas de problème :** utilisez le guide du module 00 et faites préciser les droits nécessaires par l'administrateur.
 
-**À prouver :** un client optionnel utilise la même entrée gouvernée.
-**Indice :** utilisateur ou application ? Vérifiez licences, Preview et retour OAuth. Démonstration du facilitateur seulement.
-**Si cela bloque :** reportez tout flux exigeant un secret client. Aucun transfert du jeton MCP aux API cibles.
+## 01 - Afficher les outils avant de les utiliser
 
-## 99 - Arrêter la facture, préserver le partagé
+**À vérifier :** le client affiche les outils du serveur local et peut en exécuter un.
+**Conseil :** reprenez la commande de démarrage du guide ; cette étape n'utilise pas d'adresse HTTPS.
+**En cas de problème :** vérifiez la trace et la version du protocole, sans fabriquer de messages de connexion.
 
-**À prouver :** supprimer créations et affectations du workshop, préserver identités et infrastructure existantes.
-**Indice :** nettoyage ressources et identités sont séparés. Arrêtez Inspector et les codespaces inutilisés.
-**Si cela bloque :** examinez inventaire tagué, rétention et suppression récupérable. Pas de suppression large non revue.
+## 02 - Comprendre les limites d'une clé partagée
+
+**À vérifier :** la clé protège l'accès, mais ne distingue pas Alice de Bob.
+**Conseil :** utilisez la clé système MCP prévue, pas une autre clé de la Function. Un refus HTTP 401 sans clé est normal.
+**En cas de problème :** gardez la protection du point d'entrée activée. Les accès liés à l'identité sont encore simulés.
+
+## 03 - Vérifier qui se connecte et avec quels droits
+
+**À vérifier :** le jeton est destiné au serveur MCP ; Alice et Bob sont autorisés à se connecter, pas Eve.
+**Conseil :** vérifiez le compte réellement connecté et l'application cliente utilisée.
+**En cas de problème :** faites vérifier le consentement et les affectations. N'acceptez pas un jeton destiné à Graph.
+
+## 04 - Imposer le passage par API Management
+
+**À vérifier :** les droits, la limite de débit et l'interdiction d'accès direct sont respectés.
+**Conseil :** testez Bob puis Alice séparément, en approuvant chaque action qui modifie des données.
+**En cas de problème :** ne réactivez pas l'accès public à la Function. L'API de gestion MCP est en **Preview**.
+
+## 05 - Comprendre quels droits servent à lire les données
+
+**À vérifier :** l'accès délégué utilise les droits de l'utilisateur ; l'accès applicatif utilise ceux de l'application.
+**Conseil :** prévoyez les résultats pour Alice et Bob avec chacun des deux outils, puis comparez-les.
+**En cas de problème :** vérifiez les droits sur le conteneur de stockage. Ne remplacez pas l'utilisateur par le développeur.
+
+## 06 - Suivre les appels sans enregistrer leur contenu
+
+**À vérifier :** vous savez qui a utilisé quel outil et avec quel résultat, sans conserver les données échangées.
+**Conseil :** reliez les événements grâce à l'identifiant de corrélation, pas au contenu des requêtes.
+**En cas de problème :** vérifiez les paramètres des journaux. API Center répertorie les serveurs, sans donner de droits d'accès.
+
+## 07 - Utiliser un autre client sans changer les protections
+
+**À vérifier :** le client facultatif utilise la même passerelle et une connexion officiellement prise en charge.
+**Conseil :** cette démonstration est réservée à l'animateur ; vérifiez licences, identité et fonctions en **Preview**.
+**En cas de problème :** reportez tout parcours qui exige un secret client. Ne transmettez pas le jeton MCP aux API cibles.
+
+## 99 - Supprimer les ressources de l'atelier
+
+**À vérifier :** les ressources et affectations créées pour l'atelier sont supprimées ; les ressources partagées sont préservées.
+**Conseil :** nettoyez séparément les ressources Azure et les identités. Arrêtez Inspector et les codespaces inutilisés.
+**En cas de problème :** examinez l'inventaire, les durées de conservation et les suppressions récupérables.
+Ne lancez pas de suppression globale sans examen et approbation.
 
 ## Sources
 
@@ -163,6 +176,6 @@ corps et identifiants. Les outils d'identité restent simulés avant le module 0
 - [Création d'un codespace](https://docs.github.com/en/codespaces/developing-in-a-codespace/creating-a-codespace-for-a-repository).
 - [Redirection privée des ports](https://docs.github.com/en/codespaces/developing-in-a-codespace/forwarding-ports-in-your-codespace).
 - [Autorisation App Service et PRM, Preview](https://learn.microsoft.com/azure/app-service/configure-authentication-mcp).
-- [Contexte Azure](DEPLOYMENT.md) et [registre complet](REFERENCES.md).
+- [Contexte Azure](DEPLOYMENT.md) et [références complètes](REFERENCES.md).
 
-Dernière vérification : 2026-10-14. Les recettes de lancement ne prouvent ni compatibilité déployée ni validation d'un module.
+Dernière vérification : 2026-10-14. Préparer une commande ne valide ni la connexion au serveur ni un module.

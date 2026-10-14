@@ -1,48 +1,41 @@
-# 00 - Preparer l'environnement approuve
+# 00 - Préparer votre environnement de test
 
 [English](README.md)
 
-## Goal
+## Objectif
 
-Choisissez un terminal local ou un conteneur de developpement Visual Studio Code.
-Verifiez les outils et votre cible Azure hors production. Preparez la demande a l'administrateur Microsoft Entra.
+Choisir où travailler, vérifier les outils et confirmer que vous pouvez utiliser votre environnement Azure de test.
+Vous préparerez aussi les informations à transmettre à l'administrateur Microsoft Entra.
 
-## Why it matters
+## Pourquoi cette étape est importante
 
-Un outil installe ne prouve ni les autorisations ni la capacite disponible.
-Les noms aleatoires evitent les collisions ; ils ne changent pas les quotas partages.
-Votre terminal s'authentifie dans Azure, jamais le portail public.
+Un outil installé ne garantit pas que vous avez les droits ou la capacité nécessaires dans Azure.
+Les noms propres à chaque participant limitent les conflits, mais n'augmentent pas les quotas disponibles.
 
-## What you deploy
+## Ce que vous déployez
 
-Le preflight ne deploie **rien**. Il lit le contexte, les regions, les fournisseurs et les droits accordes.
-La racine Terraform partagee peut creer un groupe isole ou lire un groupe existant sans le gerer.
-Le [portail public facultatif](../../docs/fr/HOSTING.md) ajoute un plan App Service payant et un site,
-uniquement sur activation explicite. Aucun serveur Model Context Protocol (MCP) n'est encore deploye.
+**Les scripts de vérification ne créent aucune ressource.** Ils consultent votre configuration et vos droits.
+Terraform permet, séparément et après approbation, de créer un groupe de ressources dédié ou d'utiliser
+un groupe fourni par l'administrateur. Le [portail public facultatif](../../docs/fr/HOSTING.md) est payant
+et désactivé par défaut. Aucun serveur Model Context Protocol (MCP) n'est encore déployé.
 
-## Prerequisites and required roles
+## Prérequis et droits nécessaires
 
-Suivez le [choix du poste](../../docs/fr/GETTING-STARTED.md).
-Versions retenues : Terraform 1.16.6, AzureRM 5.9.0, Azure CLI 2.88.0, kit de developpement .NET 10,
-PowerShell 7.4+, Node.js 22.19+ et Functions Core Tools v4 >= 4.5.0.
-L'interface de commande Functions v5 distincte est en **Preview** et n'est pas retenue.
+Commencez par [choisir votre environnement de travail](../../docs/fr/GETTING-STARTED.md).
+Utilisez uniquement un annuaire Microsoft Entra et un abonnement Azure autorisés pour des tests hors production.
+L'annuaire contient les identités ; l'abonnement contient les ressources facturées.
 
-Un nouveau groupe exige les droits de lecture, creation et suppression de groupes au niveau abonnement.
-Pour un groupe fourni par l'administrateur, restez dans son perimetre. Ne demandez pas Owner par commodite.
-Le script evalue les actions Azure Resource Manager (ARM) autorisees moins les exclusions de chaque enregistrement,
-puis combine les autorisations. Une autre attribution peut autoriser une action exclue ailleurs.
-La pagination reste sur le meme hote HTTPS et le meme perimetre.
-Les refus explicites et Azure Policy restent a examiner : une autorisation accordee ne garantit pas le deploiement.
+Si votre administrateur vous fournit un groupe de ressources, utilisez-le. Ne demandez pas le rôle
+Propriétaire (Owner) sur tout l'abonnement pour simplifier l'exercice.
+Aucun droit d'administration Entra n'est nécessaire à cette étape. La
+[demande destinée à l'administrateur](../../docs/requests/identity-request.md), en anglais,
+prépare les besoins du module 03.
 
-Aucun droit Entra d'administration n'est necessaire ici. L'administrateur traite separement la
-[demande precise](../../docs/requests/identity-request.md) avant le module 03.
-Le script n'enregistre aucun fournisseur et n'attribue aucun role.
-
-## Steps
+## Étapes
 
 ### PowerShell
 
-Depuis la racine, dans le terminal effectivement choisi :
+Depuis le dossier principal du dépôt, dans le terminal que vous utiliserez pour l'atelier :
 
 ```powershell
 $ErrorActionPreference = 'Stop'
@@ -53,13 +46,91 @@ $expiry = [datetime]::UtcNow.AddDays(1).ToString('yyyy-MM-dd')
 & .\modules\00-prerequisites\validate.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID
 ```
 
-Adaptez la region, les libelles et la date approuves. Si un groupe est fourni, ajoutez
-`-ExistingResourceGroupName` des la premiere preparation. Conservez le suffixe et l'etat Terraform.
-Lisez le selecteur : il demande les identifiants prives et `NONPROD`, ouvre la connexion et selectionne
-l'abonnement. Le preflight ne se connecte pas et ne change pas le contexte.
-Ne publiez aucun identifiant de compte, jeton ou reponse de compte dans le tableau, Git ou le chat.
+Adaptez `p01`, la région, le libellé du propriétaire et la date aux choix approuvés pour votre atelier.
+La date sert de rappel : elle ne déclenche pas de suppression automatique.
+Pour un groupe existant, ajoutez `-ExistingResourceGroupName` avec son nom dès le premier appel à
+`prepare-workshop.ps1`. Conservez le fichier de paramètres privé et l'état Terraform jusqu'au nettoyage.
 
-Les tests locaux sont distincts :
+Le sélecteur vous demande les identifiants de l'annuaire et de l'abonnement, puis la confirmation `NONPROD`.
+Il ouvre la connexion Azure et sélectionne l'abonnement. **Gardez le même terminal pour la suite.**
+Ne copiez aucune clé, aucun jeton ni aucune information de compte dans le tableau, le dépôt ou la conversation.
+
+<details>
+<summary>Vous utilisez bash ?</summary>
+
+PowerShell doit aussi être installé : les scripts bash appellent les mêmes contrôles.
+
+```bash
+bash ./scripts/check-tools.sh
+read -r -p 'Date de nettoyage approuvée (yyyy-MM-dd) : ' expiry
+bash ./scripts/prepare-workshop.sh -ParticipantPrefix p01 -Location westeurope -Owner alice -Expiry "$expiry"
+source ./scripts/select-azure-context.sh fr
+bash ./modules/00-prerequisites/validate.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId "$ARM_SUBSCRIPTION_ID"
+```
+
+</details>
+
+## Résultat attendu
+
+Chaque contrôle réussi affiche `PASS`. En cas d'erreur, corrigez le problème avant de poursuivre.
+Les lectures Azure attendent un code HTTP 200 ; les contrôles locaux indiquent `N/A`, car ils ne font pas
+de requête réseau. Le script n'enregistre aucun fournisseur de ressources et n'attribue aucun rôle.
+
+Le conteneur et Codespaces n'ont pas encore été testés à l'exécution sur le poste de préparation.
+Si vous utilisez l'un de ces environnements, les contrôles doivent y réussir : un test sur votre poste ne suffit pas.
+
+## Vérifier avant de poursuivre
+
+Exécutez `validate.ps1` ou `validate.sh` dans l'abonnement de test approuvé.
+Notez la date, le type d'environnement et les lignes `PASS` non sensibles dans `docs/PROGRESS.md`.
+Vérifiez aussi que la demande Entra est comprise et pourra être transmise en privé à l'administrateur.
+Ne commencez le module 01 qu'après la réussite de cette validation réelle.
+
+## En cas de problème
+
+- **Mauvais abonnement :** relancez le sélecteur dans le terminal utilisé pour l'atelier.
+- **Droits manquants :** demandez à l'administrateur de vérifier l'action refusée sur le groupe concerné.
+- **Fournisseur non enregistré :** faites examiner son enregistrement par l'administrateur ; le script ne le fera pas.
+- **Quota insuffisant :** vérifiez la capacité partagée. Changer les noms des ressources ne résout pas le problème.
+- **Functions Core Tools ne démarre pas :** terminez son installation selon la procédure approuvée.
+- **Blocage par Azure Policy :** examinez la règle avec l'administrateur ; ne la désactivez pas.
+
+## Nettoyer
+
+```powershell
+& .\modules\00-prerequisites\cleanup.ps1
+```
+
+Avec bash : `bash ./modules/00-prerequisites/cleanup.sh`.
+Les vérifications n'ont rien créé. Ce script conserve vos paramètres privés et votre état Terraform.
+Si vous avez déployé le groupe ou le portail, suivez la
+[procédure de suppression à faire approuver](../../docs/fr/HOSTING.md#nettoyer).
+Arrêter le site n'arrête pas la facturation de son plan. Ne supprimez jamais un groupe partagé.
+
+## Pour aller plus loin
+
+<details>
+<summary>Versions des outils, droits vérifiés et limites du contrôle</summary>
+
+Versions retenues : Terraform 1.16.6, fournisseur AzureRM 5.9.0, Azure CLI 2.88.0, kit de développement .NET 10,
+PowerShell 7.4+, Node.js 22.19+ et Functions Core Tools v4 >= 4.5.0.
+La CLI Functions v5, distincte, est en **Preview** (préversion) et n'est pas utilisée.
+
+Créer un groupe demande des droits de lecture, de création et de suppression au niveau de l'abonnement.
+Un groupe existant évite de demander ces droits, mais nécessite toujours les autorisations prévues sur ce groupe.
+Le script examine les actions autorisées par Azure Resource Manager (ARM), déduit les exclusions de chaque
+ensemble de permissions, puis combine les ensembles. Les pages de résultats doivent rester sur le même
+serveur HTTPS et dans le même périmètre. Les refus explicites et les règles Azure Policy peuvent encore
+empêcher un déploiement, même si ces contrôles réussissent.
+
+Le mode « nouveau groupe » vérifie aussi la limite de 980 groupes par abonnement.
+Cette vérification n'est pas nécessaire si vous utilisez un groupe existant.
+Le script de vérification ne vous connecte pas et ne change pas l'abonnement sélectionné.
+
+</details>
+
+<details>
+<summary>Tester les scripts localement, sans valider un déploiement Azure</summary>
 
 ```powershell
 terraform -chdir=infra/workload init -backend=false -lockfile=readonly
@@ -67,76 +138,29 @@ if ($LASTEXITCODE -ne 0) { throw 'Provider initialization failed.' }
 & .\modules\00-prerequisites\validate.ps1 -Offline
 ```
 
-### bash
-
-Les wrappers utilisent le meme PowerShell, egalement present dans le conteneur.
-
 ```bash
-bash ./scripts/check-tools.sh
-read -r -p 'Date de nettoyage approuvee (yyyy-MM-dd) : ' expiry
-bash ./scripts/prepare-workshop.sh -ParticipantPrefix p01 -Location westeurope -Owner alice -Expiry "$expiry"
-source ./scripts/select-azure-context.sh fr
-bash ./modules/00-prerequisites/validate.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId "$ARM_SUBSCRIPTION_ID"
 terraform -chdir=infra/workload init -backend=false -lockfile=readonly &&
 bash ./modules/00-prerequisites/validate.sh -Offline
 ```
 
-Pour une etape payante ulterieure, utilisez `-Stage portal` ou `-Stage mcp`, avec une preuve privee
-`-CapacityReviewPath` decrite dans le [guide d'hebergement](../../docs/fr/HOSTING.md).
-La base `mcp` anticipe les futurs services ; elle ne valide pas leurs ressources imbriquees ou leur fonctionnement.
-Elle verifie aussi les droits d'attribution de roles : prevoyez leur execution separee par l'administrateur,
-pas une elevation des droits de tous les participants. Les futurs modules preciseront leurs operations exactes.
+Ces tests utilisent des réponses fictives et des fournisseurs Terraform simulés.
+Leur réussite ne valide **ni votre abonnement Azure ni le conteneur**.
 
-## What you should see
+</details>
 
-Chaque controle affiche `PASS` ou s'arrete sur une erreur. HTTP designe le protocole de transfert hypertexte.
-Les lectures Azure attendent HTTP 200 ; les controles locaux affichent `N/A`.
-Les erreurs CLI n'affichent pas les reponses de compte. Le mode nouveau groupe verifie la limite documentee
-de 980 groupes ; le mode groupe existant n'exige pas de quota pour un groupe supplementaire.
+<details>
+<summary>Préparer une étape payante ultérieure</summary>
 
-Les tests hors ligne utilisent des reponses synthetiques et des fournisseurs simules.
-Leur derniere ligne indique explicitement que le module n'est **pas valide dans Azure**.
-Un controle sur l'hote ne valide pas le conteneur. L'execution du conteneur et de Codespaces reste
-non verifiee sur le poste de creation, faute de moteur approuve accessible.
+Les options `-Stage portal` et `-Stage mcp` demandent une vérification privée de capacité et de coût,
+fournie avec `-CapacityReviewPath`. Consultez le [guide d'hébergement](../../docs/fr/HOSTING.md).
+Le mode `mcp` prépare les besoins futurs : il ne valide pas les services qui restent à construire.
+Il vérifie aussi la possibilité d'attribuer des rôles. Faites réaliser ces attributions séparément par
+l'administrateur plutôt que d'élargir les droits de tous les participants.
 
-## Validate
+</details>
 
-Executez `validate.ps1` ou `validate.sh` dans l'abonnement de test approuve.
-Consignez l'etape, le type de terminal, la date et les lignes PASS non sensibles dans `docs/PROGRESS.md`.
-Avant de declarer le module valide, confirmez que la demande d'identite est comprise et peut etre transmise
-en prive. N'etendez pas cette validation a une autre route ou aux capacites des services futurs.
-Ne commencez le module 01 qu'apres la validation reelle du module 00.
-
-## Troubleshooting
-
-- Mauvais contexte ou surcharge d'authentification : utilisez un terminal interactif approuve et separe.
-- Fournisseur absent : faites examiner l'enregistrement du fournisseur nomme par l'administrateur.
-- Droit manquant : verifiez l'action et le perimetre. Preferez un groupe existant aux droits d'abonnement elargis.
-- Capacite insuffisante : examinez quotas, nombre maximal d'instances et demande totale du groupe de participants.
-- Wrapper npm Core Tools sans binaire : terminez l'installation approuvee. Le controle ne lance pas de telechargement.
-- Refus Policy lors du plan reel : traitez le refus ; ne desactivez pas le controle.
-
-## Clean up
-
-```powershell
-& .\modules\00-prerequisites\cleanup.ps1
-```
-
-```bash
-bash ./modules/00-prerequisites/cleanup.sh
-```
-
-Le preflight n'a rien cree. Le nettoyage conserve les parametres et l'etat prives.
-Si vous avez applique le Terraform du groupe ou du portail, suivez son
-[plan de destruction a revoir](../../docs/fr/HOSTING.md#clean-up).
-Arreter le site ne supprime pas son plan payant. Ne supprimez jamais un groupe partage pour contourner Terraform.
-
-## Go further
-
-Consultez la [gouvernance](../../docs/fr/LEARNING-GUIDE.md), la [demande Entra](../../docs/requests/identity-request.md)
-et le [schema prevu](../../assets/architecture/00.fr.svg).
-Le portail facultatif contient de la documentation publique ; ce n'est ni un site interne authentifie,
-ni une console de deploiement inter-tenants.
+Consultez aussi les [explications sur la sécurité](../../docs/fr/LEARNING-GUIDE.md) et le
+[schéma de cette étape](../../assets/architecture/00.fr.svg).
 
 ## Sources
 
@@ -147,8 +171,8 @@ ni une console de deploiement inter-tenants.
 - [Outils Functions](https://learn.microsoft.com/azure/azure-functions/functions-run-local).
 - [API des autorisations](https://learn.microsoft.com/rest/api/authorization/permissions/list-for-resource-group).
 - [Limites Azure](https://learn.microsoft.com/azure/azure-resource-manager/management/azure-subscription-service-limits).
-- [Capacite et runtimes Flex](https://learn.microsoft.com/azure/azure-functions/flex-consumption-plan).
+- [Capacité et versions d'exécution Flex](https://learn.microsoft.com/azure/azure-functions/flex-consumption-plan).
 - [Conteneurs VS Code](https://code.visualstudio.com/docs/devcontainers/containers).
 - [Versions et sources retenues](../../docs/sources.md).
 
-Last verified: 2026-10-14. Tests locaux uniquement ; aucune validation Azure ou du conteneur a ce stade.
+Dernière vérification : 2026-10-14. Les tests locaux ne remplacent pas la validation dans Azure et dans le conteneur.
