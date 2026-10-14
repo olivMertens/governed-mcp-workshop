@@ -217,7 +217,8 @@ Later identity and network modules still need their own isolation and address-sp
 The paid portal is disabled by default; [hosting](HOSTING.md) documents explicit persistent opt-in and deployment.
 It does not deploy Functions, networking, API Management, identities, or an MCP server.
 The [module 00 guide](../modules/00-prerequisites/README.md), read-only preflight and administrator request are available.
-Run its real environment checks before the foundation plan. Azure/container validation is still pending.
+Run its real environment checks before the foundation plan. The authoring evidence validates the local-terminal
+route only; every participant must repeat the checks for their own target.
 
 ### Sign into your test tenant
 
@@ -267,7 +268,7 @@ Do not commit, upload to the board or share state, saved plans, CLI credentials 
 
 The [module 01 local exercise](../modules/01-discover-mcp/README.md) is now runnable with .NET 10 and PowerShell 7,
 without Azure sign-in, Terraform or the presenter portal. Its validator and Inspector CLI checks pass locally;
-client approval remains manual. Module 00's cloud/container gates still apply before cloud work.
+client approval remains manual. Complete module 00 on the workspace route you actually selected before cloud work.
 After paid stages, follow module 99. Review destroy against the same state; preserve existing groups and identities.
 Do not delete an entire group to bypass an incomplete Terraform cleanup.
 
