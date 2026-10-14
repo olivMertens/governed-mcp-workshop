@@ -4885,6 +4885,7 @@ $files['docs/COPILOT-RUNBOOK.md'] = @'
 # Runbook — build this workshop with the GitHub Copilot app
 
 This runbook drives the build from this scaffold to a validated workshop: one module per session, one branch and one pull request per module.
+Module 00 preparation and module 01's local MCP exercise are implemented. Neither module is fully validated yet.
 
 Participants do not need this authoring workflow. Start with [workspace choice](GETTING-STARTED.md):
 VS Code dev container or local terminal, common tool checks, private participant suffix and the Terraform group foundation.
@@ -5074,7 +5075,8 @@ cloud resources, assign roles or save IDs into the board. Read [DEPLOYMENT.md](D
 
 Hash routes such as `#/module/00` support direct links and browser back/forward navigation.
 The board reads a published module's README when it exists. Otherwise it shows a clearly labeled design outline
-from `docs/BUILD-PLAN.md`; an outline is not a runnable participant procedure. No module is currently implemented.
+from `docs/BUILD-PLAN.md`; an outline is not a runnable participant procedure. Modules 00 and 01 are implemented;
+modules 02–07 and 99 remain design outlines until their module branches are built and merged.
 Use **Refresh content** after changing repository documents. Repository status and evidence are available in
 an optional disclosure, separate from the participant instructions.
 
@@ -5421,7 +5423,8 @@ $files['docs/fr/COPILOT-RUNBOOK.md'] = @'
 
 Ce guide s'adresse aux personnes qui construisent l'atelier, pas aux participants qui suivent les exercices.
 **Un module = une session = une branche = une pull request (PR).** Fusionnez avant le module suivant.
-Le module 00 est implémenté localement ; aucun module n'est encore validé dans Azure.
+La préparation du module 00 et l'exercice MCP local du module 01 sont implémentés.
+Aucun de ces modules n'est encore entièrement validé.
 
 Les participants peuvent travailler sans ce processus de construction :
 [choisir leur environnement](GETTING-STARTED.md), VS Code avec un conteneur de développement ou un terminal local,
