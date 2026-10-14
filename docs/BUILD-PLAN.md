@@ -30,9 +30,11 @@ Personas:
 - **Build:** .devcontainer; preflight.ps1 (tools, versions, `az login`, subscription, resource providers, role checks,
   quota, region); docs/requests/identity-request.md listing exactly what an identity administrator must create or consent.
 - **Show:** preflight passes; the identity request is clear enough to send as is.
-- **Preparation now available:** EN/FR workspace choice, pinned dev container configuration, common tool checks,
-  private stable random participant suffix, and a mock-tested Terraform resource-group foundation.
-  Container runtime, full preflight/identity request and fresh-subscription validation remain pending.
+- **Implementation now available:** EN/FR module 00 guide, read-only explicit-context preflight, administrator
+  identity request, pinned workstation configuration and private stable participant parameters.
+  The shared root supports the group foundation and a default-off public B1 App Service.
+  Offline schema/mock/script/server evidence is separate from container and fresh-subscription validation,
+  which remain pending. No MCP runtime or Entra root has been implemented.
 
 ## 01 — Discover MCP (no Azure)
 - **Take:** MCP specification: https://modelcontextprotocol.io/specification (revision 2026-07-28 verified on 2026-10-14: architecture, tools, transports, authorization);

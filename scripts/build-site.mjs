@@ -1,6 +1,7 @@
 import { lstatSync, readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { createHash } from "node:crypto";
 import { parseProgress } from "../.github/extensions/workshop-build-board/progress.mjs";
 import { readJourney } from "../.github/extensions/workshop-build-board/journey.mjs";
 
@@ -8,16 +9,18 @@ const repository = fileURLToPath(new URL("../", import.meta.url));
 const icons = ["azure", "microsoft", "entra", "apim", "functions", "storage", "insights", "api-center", "subscription"];
 const modules = ["00", "01", "02", "03", "04", "05", "06", "07", "99"];
 
-export function buildSite(root = repository, destination = join(root, "site-dist")) {
-    function read(parts) {
-        for (let index = 0; index <= parts.length; index++) {
-            const entry = lstatSync(join(root, ...parts.slice(0, index)));
-            if (entry.isSymbolicLink() || (index < parts.length ? !entry.isDirectory() : !entry.isFile())) {
-                throw new Error("Site sources must be regular files inside the repository.");
-            }
+function readSource(root, parts) {
+    for (let index = 0; index <= parts.length; index++) {
+        const entry = lstatSync(join(root, ...parts.slice(0, index)));
+        if (entry.isSymbolicLink() || (index < parts.length ? !entry.isDirectory() : !entry.isFile())) {
+            throw new Error("Site sources must be regular files inside the repository.");
         }
-        return readFileSync(join(root, ...parts));
     }
+    return readFileSync(join(root, ...parts));
+}
+
+export function buildSite(root = repository, destination = join(root, "site-dist")) {
+    const read = (parts) => readSource(root, parts);
     const progress = parseProgress(read(["docs", "PROGRESS.md"]).toString("utf8"));
     const journey = readJourney(root, progress);
     delete journey.revision;
@@ -58,7 +61,22 @@ export function buildSite(root = repository, destination = join(root, "site-dist
         if (parts.length > 1) mkdirSync(join(destination, ...parts.slice(0, -1)), { recursive: true });
         writeFileSync(join(destination, ...parts), content, { flag: "wx" });
     }
-    return { destination, files: files.size };
+    return { destination, files: files.size, paths: [...files.keys()] };
+}
+
+export function buildPortal(root = repository, destination = join(root, "portal-dist")) {
+    const server = readSource(root, ["scripts", "portal-server.mjs"]);
+    const result = buildSite(root, destination);
+    const manifest = {
+        schema: 1,
+        files: result.paths.map((path) => ({
+            path,
+            sha256: createHash("sha256").update(readFileSync(join(destination, ...path.split("/")))).digest("hex"),
+        })),
+    };
+    writeFileSync(join(destination, "site-manifest.json"), JSON.stringify(manifest), { flag: "wx" });
+    writeFileSync(join(destination, "server.mjs"), server, { flag: "wx" });
+    return { destination, files: result.files + 2 };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {

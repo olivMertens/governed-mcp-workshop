@@ -35,10 +35,33 @@ Verified public OCI selections:
 `mcr.microsoft.com/devcontainers/base:ubuntu-24.04@sha256:d94c97dd9cacf183d0a6fd12a8e87b526e9e928307674ae9c94139139c0c6eae`.
 Feature digests are in `.devcontainer/devcontainer.json`; exact published tags were checked for Azure CLI 1.3.0,
 Terraform 1.5.0, .NET 2.5.0, PowerShell 2.0.3 and Node 2.1.1.
-Tools: Azure CLI 2.88.0, Terraform 1.16.5, .NET 10.0.402, PowerShell 7.6.6, Node 22.22.0,
+Tools: Azure CLI 2.88.0, Terraform 1.16.6, .NET 10.0.402, PowerShell 7.6.6, Node 22.22.0,
 Functions Core Tools 4.14.0. These are preparation selections, not a tested container/runtime combination.
 The base index includes linux/amd64 and linux/arm64; that does not prove every feature/tool runs on both.
 No engine was reachable on the Windows ARM64 authoring host. No engine or machine was started.
+
+## Module 00 implementation and optional portal
+
+Last verified: 2026-10-14. This iteration implements module 00 only; later runtime roots remain absent.
+The code uses existing patterns plus original checks/server logic, not copied sample application source.
+
+| Source | Verified decision |
+|---|---|
+| [Terraform release 1.16.6](https://releases.hashicorp.com/terraform/1.16.6/) and [checkpoint API](https://checkpoint-api.hashicorp.com/v1/check/terraform) | Release became current during this iteration. Updated container/minimum/check fixtures consistently; tested a session-local Windows binary against its official SHA-256 checksum without replacing the user's installation. |
+| [AzureRM 5.9.0 metadata](https://registry.terraform.io/v1/providers/hashicorp/azurerm/5.9.0) and [Linux web app schema](https://registry.terraform.io/providers/hashicorp/azurerm/5.9.0/docs/resources/linux_web_app) | Existing exact provider pin and lock are retained. Actual schema validation and five mock plans cover optional B1 Linux hosting, disabled basic publishing, TLS, runtime and default-off behavior. No unused AzureAD/AzAPI providers are added. |
+| [Functions Core Tools 4.14.0 release](https://github.com/Azure/azure-functions-core-tools/releases/tag/4.14.0) | Known npm shim was incomplete and did not prove compatibility. Verified the official minimal Windows ARM64 asset against its published SHA-256 digest and ran version/tool checks in session scope, without altering global tools. A container build and Functions tool calls remain separate. |
+| [ARM permissions API](https://learn.microsoft.com/rest/api/authorization/permissions/list-for-resource-group?view=rest-authorization-2022-04-01) | Read effective grants at subscription or existing-group scope, subtract each record's notActions, combine grants, validate same-scope HTTPS pagination. Do not infer rights from role names or claim absence of deny assignments/Policy. |
+| [Subscription limits](https://learn.microsoft.com/azure/azure-resource-manager/management/azure-subscription-service-limits) | New-group foundation checks the documented 980 group limit. Existing-group mode does not consume a new group. Names do not change quota. |
+| [Flex hosting](https://learn.microsoft.com/azure/azure-functions/flex-consumption-plan) | Linux isolated .NET 10 is listed. Quota is regional/subscription-shared memory; review the documented portal diagnosis, not an invented quota metric. Stage evidence is a private human review, not a live reservation. |
+| [Pinned Azure CLI 2.88.0 runtime helper](https://github.com/Azure/azure-cli/blob/azure-cli-2.88.0/src/azure-cli/azure/cli/command_modules/appservice/custom.py) | `list-flexconsumption-locations` exposes name; direct runtimes expose name/version. Use the documented command without an unsupported runtime-version flag. Source inspected for schema only, not copied. |
+| [Node App Service](https://learn.microsoft.com/azure/app-service/configure-language-nodejs) | Listen on PORT, use an explicit Node 22 startup command, no implicit PM2/Oryx build. Public documentation only; no identity, API or credential collection. |
+| [Deployment authentication](https://learn.microsoft.com/azure/app-service/deploy-authentication-types) | Azure CLI 2.48.1+ supports Entra with `az webapp deploy` when SCM basic publishing is disabled. Baseline 2.88.0 exceeds this. No key/profile fallback. |
+| [Run from ZIP](https://learn.microsoft.com/azure/app-service/deploy-run-package) | Read-only package root with WEBSITE_RUN_FROM_PACKAGE=1; ZIP contains content, not its enclosing directory. Build only the explicit public allowlist and reviewed stdlib server. |
+| [App Service pricing](https://azure.microsoft.com/pricing/details/app-service/linux/) | Basic B1 is provisioned paid capacity, opt-in only. No invented price, no free-hosting claim; stopping the site does not remove plan charges. |
+
+The HTML quickstart URL now presents Static Web Apps guidance, not a reason to mix its deployment with
+traditional App Service. ACA/private-portal authentication remains separate and unimplemented.
+Local public server, ZIP boundary and synthetic deployment/preflight tests do not prove a live deployment.
 
 ## Upstream snapshots
 

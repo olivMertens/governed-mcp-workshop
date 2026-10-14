@@ -21,7 +21,7 @@ Gardez les ports Inspector privés, via VS Code desktop et un transfert privé, 
 ### Dans le dev container
 
 L'image Ubuntu 24.04 et les Features officielles sont fixées par empreinte dans `.devcontainer/devcontainer.json`.
-Versions choisies : Azure CLI 2.88.0, Terraform 1.16.5, SDK .NET 10.0.402, PowerShell 7.6.6,
+Versions choisies : Azure CLI 2.88.0, Terraform 1.16.6, SDK .NET 10.0.402, PowerShell 7.6.6,
 Node.js 22.22.0 et Functions Core Tools 4.14.0. Le script de création installe Core Tools puis lance
 le **même** `check-tools.ps1` que le chemin local. Les dépendances téléchargées et extensions éditeur peuvent
 évoluer : ces empreintes ne figent pas tous les dépôts de paquets. Révisez les versions délibérément.
@@ -48,14 +48,15 @@ Installez les versions compatibles avec votre système depuis les sources offici
 | Git | 2+ | [Téléchargements Git](https://git-scm.com/downloads) |
 | PowerShell | 7.4+ | [Installation](https://learn.microsoft.com/powershell/scripting/install/installing-powershell) |
 | Azure CLI | 2.88.0+ | [Installation](https://learn.microsoft.com/cli/azure/install-azure-cli) |
-| Terraform | 1.16.5+, inférieur à 2 | [Installation](https://developer.hashicorp.com/terraform/install) |
+| Terraform | 1.16.6+, inférieur à 2 | [Installation](https://developer.hashicorp.com/terraform/install) |
 | SDK .NET | 10 installé | [Téléchargement .NET](https://dotnet.microsoft.com/download/dotnet/10.0) |
 | Node.js | 22.19.0+ | [Téléchargement](https://nodejs.org/en/download) |
 | Functions Core Tools | 4.5.0+, inférieur à 5 | [Installation officielle](https://learn.microsoft.com/azure/azure-functions/functions-run-local) |
 
 Choisissez Core Tools v4, pas la CLI Functions v5 distincte en **Preview**.
-Certains lanceurs npm téléchargent le binaire au premier appel. Laissez finir ce téléchargement approuvé ;
-un paquet listé ne prouve pas que son binaire fonctionne. Aucun script ne modifie automatiquement votre poste ou moteur.
+Certains lanceurs npm téléchargent le binaire au premier appel. Le contrôle refuse les wrappers incomplets connus
+au lieu de lancer ce téléchargement. Terminez séparément l'installation approuvée ; un paquet listé ne prouve
+pas que son binaire fonctionne. Aucun script ne modifie automatiquement votre poste ou moteur.
 
 ## 2. Vérifier le terminal réellement utilisé
 
@@ -111,9 +112,12 @@ ne permet pas de créer un groupe voisin. Préférez le chemin groupe existant p
 
 ## 4. Comprendre le périmètre Terraform
 
-`infra/workload` contient pour l'instant **seulement le socle groupe de ressources** et les futurs noms.
+`infra/workload` contient le socle groupe, les futurs noms MCP et un **App Service public facultatif**.
+Le portail payant est désactivé par défaut ; [le guide](HOSTING.md) explique activation persistante et déploiement.
 Il ne déploie ni Functions, réseau, API Management, identité ni serveur MCP.
-Les procédures complètes et validations Azure des modules restent à publier.
+Le [module 00](../../modules/00-prerequisites/README.fr.md), le preflight en lecture seule et la demande
+administrateur sont disponibles. Exécutez les contrôles réels avant le plan du groupe.
+Les validations Azure et du conteneur restent à réaliser.
 
 Suivez [le guide de contexte Azure](DEPLOYMENT.md) dans **le même terminal** que Terraform.
 Ensuite, uniquement dans une session de déploiement approuvée, examinez le plan réel :

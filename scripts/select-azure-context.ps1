@@ -5,18 +5,8 @@ $ErrorActionPreference = 'Stop'
 $fr = $Language -eq 'fr'
 Get-Command az -ErrorAction Stop | Out-Null
 
-foreach ($name in @('ARM_CLIENT_ID', 'ARM_CLIENT_SECRET', 'ARM_CLIENT_CERTIFICATE_PATH',
-    'ARM_CLIENT_CERTIFICATE', 'ARM_CLIENT_CERTIFICATE_PASSWORD', 'ARM_USE_MSI',
-    'ARM_USE_OIDC', 'ARM_OIDC_TOKEN', 'ARM_ACCESS_KEY', 'AZURE_CLIENT_ID',
-    'AZURE_CLIENT_SECRET', 'AZURE_CLIENT_CERTIFICATE_PATH', 'ARM_ENVIRONMENT',
-    'ARM_USE_CLI', 'ARM_USE_AKS_WORKLOAD_IDENTITY', 'ARM_OIDC_TOKEN_FILE_PATH',
-    'ARM_OIDC_REQUEST_TOKEN', 'ARM_OIDC_REQUEST_URL', 'AZURE_FEDERATED_TOKEN_FILE',
-    'AZURE_AUTHORITY_HOST', 'ARM_MSI_ENDPOINT', 'ARM_CLIENT_ID_FILE_PATH',
-    'ARM_TENANT_ID_FILE_PATH', 'ARM_SUBSCRIPTION_ID_FILE_PATH')) {
-    if ([Environment]::GetEnvironmentVariable($name)) {
-        throw 'An authentication override is present. Use a separate approved interactive-user terminal; do not combine credential flows.'
-    }
-}
+. (Join-Path $PSScriptRoot 'context-common.ps1')
+Assert-WorkshopInteractiveEnvironment
 
 $cloud = az cloud show --query name --output tsv
 if ($LASTEXITCODE -ne 0 -or $cloud -ne 'AzureCloud') {

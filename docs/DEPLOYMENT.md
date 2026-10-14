@@ -3,7 +3,8 @@
 The Model Context Protocol (MCP) server belongs in your approved **non-production** environment.
 This page prepares a deployment context. It is not a deployment procedure, and it does not certify your permissions.
 Start by [choosing dev container or local tools](GETTING-STARTED.md).
-Only the Terraform resource-group foundation is available; runtime infrastructure and module validators are not published yet.
+Module 00's read-only preflight, validator and identity request are available.
+Terraform contains the resource-group foundation and an optional public App Service; no MCP runtime is implemented.
 
 > [!IMPORTANT]
 > A Microsoft Entra tenant holds identities, applications and consent. An Azure subscription holds billed resources.
@@ -63,7 +64,8 @@ variables would disappear with the child process. Authentication and context che
 1. Complete module 00's published prerequisite/permission checks, then module 01's local MCP exercise.
    Context selection alone does not validate either module.
 2. Prepare the private participant file using the start guide. Keep its random suffix and the same Terraform state.
-   `infra/workload` currently manages only a dedicated group or reads an approved existing group, not an MCP server.
+   `infra/workload` manages a dedicated group or reads an approved existing group; the public portal is an explicit paid opt-in.
+   Neither creates an MCP server.
    Wait for each runtime module's real guide, validation and cleanup. There is no enabled Deploy button in the board.
 3. In the same terminal, review the actual `infra/workload` provider configuration and its subscription/tenant.
    Check AzureRM and AzAPI target the selected subscription, and AzureAD targets the approved tenant.

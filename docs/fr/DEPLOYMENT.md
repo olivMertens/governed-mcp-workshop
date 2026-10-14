@@ -3,7 +3,8 @@
 Le serveur Model Context Protocol (MCP) doit être déployé dans **votre environnement de test approuvé**.
 Cette page prépare le contexte de déploiement. Elle ne déploie rien et ne certifie pas vos permissions.
 Commencez par [choisir dev container ou outils locaux](GETTING-STARTED.md).
-Seul le socle Terraform groupe de ressources est disponible ; infrastructure MCP et validations des modules restent à publier.
+Le preflight en lecture seule, le validateur et la demande d'identité du module 00 sont disponibles.
+Terraform contient le socle groupe et le portail App Service public facultatif ; aucun runtime MCP n'est implémenté.
 
 > [!IMPORTANT]
 > Le tenant Microsoft Entra contient les identités, applications et consentements. L'abonnement Azure porte les
