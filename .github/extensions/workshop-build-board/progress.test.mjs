@@ -17,6 +17,58 @@ const fixture = "# Progress\n\n| Module | Title | Status | Validated on | Eviden
     ids.map((id) => `| ${id} | Synthetic module ${id} | todo | | | Keep note |`).join("\n") +
     "\n\n## Open decisions\n- Synthetic decision.\n\n## Deviations from the build plan\nNone yet.\n";
 
+test("French labels use the reviewed wording and copied prompts preserve the safety instructions", () => {
+    const source = readFileSync(new URL("./locale-fr.js", import.meta.url), "utf8");
+    const french = new Function(`${source}; return french;`)();
+    assert.equal(french["Not sure what to ask?"], "Par quoi commencer ?");
+    assert.equal(french["Make the call. Understand the boundary."], "Testez votre serveur, puis vérifiez le résultat.");
+    assert.equal(french["Copy prompt"], "Copier la consigne");
+    assert.equal(french["Why this boundary matters"], "Pour aller plus loin : comprendre les protections");
+    assert.doesNotMatch(Object.values(french).join("\n"), /idée d'appel|Comprenez la frontière|vrai README|vrai guide/);
+    const prompts = Object.entries(french).filter(([key]) =>
+        key.startsWith("Use only my connected workshop") || key.startsWith("For my synthetic workshop"));
+    assert.equal(prompts.length, 3);
+    assert.match(prompts[0][1], /N'exécute aucun outil/);
+    assert.match(prompts[1][1], /une seule fois/);
+    assert.match(prompts[1][1], /N'utilise aucun outil qui modifie/);
+    assert.match(prompts[2][1], /rôle applicatif nécessaire/);
+    assert.match(prompts[2][1], /accord explicite.*confirmation manuelle/);
+});
+
+test("Markdown disclosures are closed by default, support nesting and code fences, and never render arbitrary HTML", () => {
+    const html = readFileSync(new URL("./board.html", import.meta.url), "utf8");
+    const start = html.indexOf("function markdown(");
+    const end = html.indexOf("function notice(", start);
+    assert.ok(start > 0 && end > start);
+    const element = (tag, text) => ({
+        tag, children: text === undefined ? [] : [text],
+        append(...children) { this.children.push(...children); },
+    });
+    const render = new Function("element", "inline", "notice",
+        `${html.slice(start, end)}; return markdown;`)(element, (node, text) => node.append(text),
+        () => element("aside"));
+    const rendered = render("À retenir.\n<details>\n<summary>Pour aller plus loin</summary>\n\n" +
+        "Précisions.\n\n<details>\n<summary>Cas avancé</summary>\n\n" +
+        "```text\n</details>\n<script>synthetic</script>\n```\n\n</details>\n\n</details>\n\nSuite.", "docs/fr/PRACTICE.md");
+    const section = rendered.children[1];
+    assert.equal(section.tag, "details");
+    assert.equal(section.open, undefined);
+    assert.equal(section.children[0].tag, "summary");
+    assert.deepEqual(section.children[0].children, ["Pour aller plus loin"]);
+    const nested = section.children[1].children[1];
+    assert.equal(nested.tag, "details");
+    assert.equal(nested.open, undefined);
+    assert.equal(nested.children[1].children[0].tag, "pre");
+    assert.deepEqual(nested.children[1].children[0].children[0].children,
+        ["</details>\n<script>synthetic</script>"]);
+    assert.deepEqual(rendered.children[2].children, ["Suite."]);
+    assert.deepEqual(render("<img src=x onerror=synthetic>", "docs/fr/PRACTICE.md").children[0].children,
+        ["<img src=x onerror=synthetic>"]);
+    assert.throws(() => render("<details>\n<summary>Incomplet</summary>", "docs/fr/PRACTICE.md"), /closing tag/);
+    assert.throws(() => render("<details>\n<summary><img src=x></summary>\n</details>", "docs/fr/PRACTICE.md"),
+        /plain-text summary/);
+});
+
 test("client commands reject credential URLs and quote endpoint data without executing it", () => {
     const html = readFileSync(new URL("./board.html", import.meta.url), "utf8");
     const start = html.indexOf("function connectionCommands(");

@@ -120,7 +120,9 @@
     .product { display: inline-flex; align-items: center; gap: 8px; }
     .product img { width: 30px; height: 30px; object-fit: contain; padding: 2px; background: white; }
     details { margin-top: 24px; color: var(--muted); font-size: 13px; }
-    summary { cursor: pointer; }
+    summary { cursor: pointer; color: var(--ink); font-size: 15px; font-weight: 600; }
+    details[open] > summary { margin-bottom: 16px; }
+    details .document, .document details { font-size: 15px; }
     details p { white-space: pre-wrap; overflow-wrap: anywhere; }
     @media (prefers-color-scheme: dark) {
       :root { color-scheme: dark; --paper: #172339; --surface: #1e2d45; --ink: #eef3ff; --muted: #b1c1db; --line: #405474; --blue: #8fbaff; --wash: #273f64; --success: #7cddb0; --error: #ff9fa8; }
@@ -220,13 +222,14 @@
             const repositoryPath = repositoryUrl ?
               decodeURIComponent(url.pathname).replace(/^\/olivMertens\/workshop-mcp\/blob\/main\//, "") : null;
             const local = Object.entries(state.documents).find(([, doc]) => doc.sourcePath === repositoryPath);
+            const localModule = state.modules.find((module) => module.guide !== null && module.sourcePath === repositoryPath);
             const asset = repositoryPath && (
               /^assets\/architecture\/(?:00|01|02|03|04|05|06|07|99)\.(?:en|fr)\.(?:svg|png)$/.test(repositoryPath) ||
               repositoryPath === "assets/architecture/workshop.drawio" ||
               /^assets\/icons\/(?:azure|microsoft|entra|apim|functions|storage|insights|api-center|subscription)\.svg$/.test(repositoryPath));
-            const anchor = link(label, local ? `#/${local[0]}` :
+            const anchor = link(label, local ? `#/${local[0]}` : localModule ? `#/module/${localModule.module}` :
               asset ? `${staticSite ? "" : "/"}${repositoryPath}` : url.href);
-            if (!local) {
+            if (!local && !localModule) {
               anchor.target = "_blank";
               anchor.rel = "noopener noreferrer";
             }
@@ -244,6 +247,25 @@
       for (let i = 0; i < lines.length;) {
         const line = lines[i];
         if (!line.trim()) { i++; continue; }
+        if (line === "<details>") {
+          const summary = /^<summary>([^<]+)<\/summary>$/.exec(lines[i + 1] || "");
+          if (!summary) throw new Error("A document disclosure needs a plain-text summary.");
+          let depth = 1, fenced = false, end = i + 2;
+          for (; end < lines.length; end++) {
+            if (/^\s*```/.test(lines[end])) fenced = !fenced;
+            if (fenced) continue;
+            if (lines[end] === "<details>") depth++;
+            if (lines[end] === "</details>" && --depth === 0) break;
+          }
+          if (depth !== 0) throw new Error("A document disclosure is missing its closing tag.");
+          const section = element("details");
+          const title = element("summary");
+          inline(title, summary[1], path);
+          section.append(title, markdown(lines.slice(i + 2, end).join("\n"), path));
+          body.append(section);
+          i = end + 1;
+          continue;
+        }
         const callout = /^> \[!(TIP|NOTE|IMPORTANT|WARNING|CAUTION)\]\s*$/.exec(line);
         if (callout) {
           const text = [];
@@ -310,12 +332,17 @@
           }
         } else {
           let text = lines[i++].replace(/^> ?/, "");
-          while (i < lines.length && lines[i].trim() && !/^(#|```|\||- |\d+\. )/.test(lines[i])) text += " " + lines[i++].trim().replace(/^> ?/, "");
+          while (i < lines.length && lines[i].trim() && !/^(#|```|\||- |\d+\. |<details>|<\/details>)/.test(lines[i])) text += " " + lines[i++].trim().replace(/^> ?/, "");
           inline(node, text, path);
         }
         body.append(node);
       }
       return body;
+    }
+    function disclosure(title, ...children) {
+      const section = element("details");
+      section.append(element("summary", title), ...children);
+      return section;
     }
     function notice(title, description, type = "important") {
       const node = element("div", undefined, `notice ${type}`);
@@ -340,7 +367,7 @@
       const heading = element("div", undefined, "command-head");
       const copy = element("button", copyLabel, "copy");
       copy.type = "button";
-      copy.setAttribute("aria-label", `${t(copyLabel)}: ${t(title)}`);
+      copy.setAttribute("aria-label", `${t(copyLabel)}${language === "fr" ? " : " : ": "}${t(title)}`);
       copy.addEventListener("click", async () => {
         try {
           if (!navigator.clipboard?.writeText) throw new Error("Clipboard access is unavailable.");
@@ -390,9 +417,10 @@
         return section;
       }
       section.append(element("p", "From the repository root, after reviewing the module guide and approvals. This can make real calls and create synthetic test data.", "field-message"));
-      if (paths.powershell) section.append(commandBlock(`Module ${module.module} validation / PowerShell`,
+      if (paths.powershell) section.append(commandBlock(`${language === "fr" ? "Vérifier le module" : "Validate module"} ${module.module} / PowerShell`,
         `pwsh -NoProfile -File .\\${paths.powershell.replaceAll("/", "\\")}`));
-      if (paths.bash) section.append(commandBlock(`Module ${module.module} validation / bash`, `bash ./${paths.bash}`));
+      if (paths.bash) section.append(disclosure("Using bash",
+        commandBlock(`${language === "fr" ? "Vérifier le module" : "Validate module"} ${module.module} / bash`, `bash ./${paths.bash}`)));
       return section;
     }
       function workspaceChoices() {
@@ -429,11 +457,14 @@
         }
         if (mode && state.environment.tools) content.append(
           commandBlock("Check tools / PowerShell", "& .\\scripts\\check-tools.ps1"),
-          commandBlock("Check tools / bash", "bash ./scripts/check-tools.sh"));
-        content.append(notice("Stable random names, not extra quota.",
-          "Prepare one private participant file before Terraform. Reuse its suffix and state through cleanup. A new resource group does not reset subscription or regional quotas."),
+          disclosure("Using bash", commandBlock("Check tools / bash", "bash ./scripts/check-tools.sh")));
+        content.append(element("p", "Start with module 00. It checks your tools and explains how to prepare your test environment."),
+          link("Explore module 00", "#/module/00", "primary"));
+        content.append(disclosure("Installation and preparation details",
+          notice("Stable random names, not extra quota.",
+            "Prepare one private participant file before Terraform. Reuse its suffix and state through cleanup. A new resource group does not reset subscription or regional quotas."),
           markdown(state.documents.gettingStarted.content, state.documents.gettingStarted.sourcePath),
-          link("Your Azure context", "#/deployment", "secondary"), link("Explore module 00", "#/module/00", "primary"));
+          link("Your Azure context", "#/deployment", "secondary")));
       }
       function deploymentContext() {
         const section = element("section", undefined, "launch-panel");
@@ -495,9 +526,8 @@
         element("p", "Connect your own deployed MCP server in a real client. Discover a tool, make a controlled call, then compare what happened with what should happen.", "lead"),
         notice("No credentials in this page.",
           "Only the endpoint goes here, in page memory. The canvas does not call your server, save connection details or run code. Commands and prompts must be reviewed and run by you."));
-      content.append(deploymentContext());
       content.append(link("Choose your workspace", "#/start", "secondary"));
-      const launch = element("section", undefined, "launch-panel");
+      const launch = disclosure("Workspace and launch options");
       launch.append(element("h2", "Start your workspace"));
       const actions = element("div", undefined, "action-row");
       actions.append(externalLink("Open Codespaces setup", "https://codespaces.new/olivMertens/workshop-mcp", "primary"),
@@ -515,10 +545,7 @@
         commandBlock("Clone a new checkout / bash",
           "git clone https://github.com/olivMertens/workshop-mcp.git && code ./workshop-mcp"));
       launch.append(clone);
-      if (state.environment.preflight) launch.append(commandBlock("Preflight / PowerShell",
-        `pwsh -NoProfile -File .\\${state.environment.preflight.replaceAll("/", "\\")}`));
-      else launch.append(element("p", "Module 00 preflight is not published yet.", "field-message"));
-      content.append(launch);
+      launch.append(link("Explore module 00", "#/module/00", "secondary"));
       const connection = element("section", undefined, "launch-panel");
       connection.append(element("h2", "Prepare your client connection"),
         element("p", "Remote servers use Streamable HTTP. From module 04 onward, use only the API Management endpoint. Module 01 uses stdio instead: follow its local startup guide."));
@@ -555,24 +582,37 @@
         feedback.textContent = t("Commands prepared locally. No network test has run; nothing has been saved.");
         commands.append(
           commandBlock("Start Inspector / PowerShell", prepared.powershell),
-          commandBlock("Start Inspector / bash", prepared.bash),
-          commandBlock("VS Code user configuration / URL only", prepared.configuration, "Copy configuration"));
+          disclosure("Using bash", commandBlock("Start Inspector / bash", prepared.bash)),
+          disclosure("VS Code user configuration / URL only",
+            commandBlock("VS Code user configuration / URL only", prepared.configuration, "Copy configuration")));
       });
-      connection.append(label, input, feedback, commands,
+      const technical = disclosure("Connection details and advanced settings",
         element("p", "Requires Node.js 22.19.0 or newer. Inspect the npx installation prompt. Open Inspector's printed local URL; keep its private launch token to yourself. For VS Code, use MCP: Add Server and a private user configuration.", "field-message"),
         notice("Sign-in still needs the right client.",
           "Microsoft Entra requires an approved public client ID, exact redirect URI and scopes. VS Code approval does not authorize Inspector. Use browser sign-in and no client secret. For module 02, follow its secure system-key input flow; this URL-only configuration cannot authenticate it."),
-        element("p", "In a browser-only codespace, OAuth callbacks can differ. Prefer VS Code desktop with private local port forwarding for authenticated Inspector sessions. Never expose Inspector publicly or disable its authentication.", "field-message"));
-      connection.append(element("p", "Practice launcher: Inspector 2.9.0, verified installable here. The GitHub 2.11.0 source candidate is not yet available from the configured registry. Commands stop if the pinned package is unavailable; they never switch registry or silently choose another version.", "field-message"));
+        element("p", "In a browser-only codespace, OAuth callbacks can differ. Prefer VS Code desktop with private local port forwarding for authenticated Inspector sessions. Never expose Inspector publicly or disable its authentication.", "field-message"),
+        element("p", "Practice launcher: Inspector 2.9.0, verified installable here. The GitHub 2.11.0 source candidate is not yet available from the configured registry. Commands stop if the pinned package is unavailable; they never switch registry or silently choose another version.", "field-message"));
+      connection.append(label, input, feedback, commands,
+        notice("Sign-in still needs the right client.",
+          "Follow your module's sign-in instructions. An address alone does not grant access. Never enter a client secret here or turn off client approval."));
+      if (language === "fr") connection.append(element("p",
+        "Dans VS Code, lancez MCP: Add Server, choisissez HTTP et saisissez l'adresse du serveur. Utilisez une configuration utilisateur privée. Pour Inspector, vérifiez d'abord les prérequis ci-dessous."));
+      else connection.append(element("p",
+        "In VS Code, run MCP: Add Server, choose HTTP and enter the server address. Use a private user configuration. For Inspector, check the prerequisites below first."));
+      connection.append(technical);
       content.append(connection, element("h2", "Not sure what to ask?"));
       content.append(commandBlock("Discover without invoking a tool",
         "Use only my connected workshop MCP server. List its available tools and describe their input schemas and read/write effects. Do not invoke any tool. If the server is not connected, say so; do not invent results.", "Copy prompt"));
       content.append(commandBlock("Make one read-only call",
         "Use only my connected workshop MCP server. If get_service_health is advertised, call it once with synthetic arguments that match its input schema. Show whether a real tool invocation succeeded or returned an MCP error. If it is not available, stop. Do not call any write tool.", "Copy prompt"));
-      content.append(commandBlock("Prepare a write, but do not execute it",
-        "For my synthetic workshop environment only, inspect the advertised create_ticket schema and prepare one schema-valid synthetic request. Explain its side effect and required app role. Do not invoke it. Wait for my explicit approval of this individual call; keep the client's approval control enabled.", "Copy prompt"));
-      content.append(element("h2", "What to verify, and why"),
-        markdown(state.documents.practice.content, state.documents.practice.sourcePath));
+      content.append(notice("Important",
+        "A successful HTTP response can still contain a tool error. Check the actual tool result in your client, not just the assistant's answer."));
+      content.append(disclosure("Try a write operation (approval required)",
+        commandBlock("Prepare a write, but do not execute it",
+          "For my synthetic workshop environment only, inspect the advertised create_ticket schema and prepare one schema-valid synthetic request. Explain its side effect and required app role. Do not invoke it. Wait for my explicit approval of this individual call; keep the client's approval control enabled.", "Copy prompt")));
+      content.append(disclosure("What to verify, and why",
+        markdown(state.documents.practice.content, state.documents.practice.sourcePath)),
+        disclosure("Your Azure context", deploymentContext()), launch);
     }
     function overview() {
       content.append(element("h1", "From open tools to governed access."),
@@ -594,7 +634,7 @@
         "Modules without a published guide show their design outline, not runnable participant steps. Build status is shared repository evidence, not your personal completion."));
       const next = state.modules.find((module) => module.status !== "validated" && module.module !== "07") || state.modules[0];
       const start = moduleLink(next, "primary");
-      start.textContent = `${language === "fr" ? "Explorer le module" : "Explore module"} ${next.module}`;
+      start.textContent = `${language === "fr" ? "Consulter le module" : "Explore module"} ${next.module}`;
       const actions = element("div", undefined, "action-row");
       actions.append(start, link("Try your deployed MCP", "#/practice", "secondary"),
         link("Your Azure context", "#/deployment", "secondary"),
@@ -622,7 +662,6 @@
         "These are the planned outcomes and requirements. Do not treat them as deployment instructions. The complete steps, commands, validation and cleanup will appear here when the module README is added."));
       else content.append(element("p", "Follow the guide in order. Run its validation before continuing. Use only non-production resources.", "lead"));
       content.append(architecture(module));
-      if (module.module === "00") content.append(deploymentContext());
       if (module.originalGuide) {
         content.append(notice("Important", "French participant guide not published. Read the original English guide before executing its commands."));
         const original = element("details");
@@ -633,20 +672,21 @@
         content.append(original);
       }
       const exercise = element("section", undefined, "exercise");
-      exercise.append(element("h2", "Try this stage"),
-        link("Open the call workspace", "#/practice", "secondary"), validationCommands(module));
+      exercise.append(element("h2", "Try this stage"));
+      if (module.module === "00") exercise.append(link("Your Azure context", "#/deployment", "secondary"));
+      else exercise.append(link("Open the call workspace", "#/practice", "secondary"), validationCommands(module));
       const hints = element("details");
       hints.append(element("summary", "Need a hint? Understand what this stage proves."),
         markdown(module.hints, module.hintsSourcePath));
       exercise.append(hints);
-      content.append(exercise);
       content.append(markdown(module.guide ?? module.outline, module.sourcePath));
+      content.append(exercise);
       const concepts = element("details");
       concepts.append(element("summary", "Why this boundary matters"), markdown(module.learning, module.learningSourcePath),
         link("Read the full governance guide", "#/governance", "secondary"));
       content.append(concepts);
       const source = element("p", undefined, "source");
-      source.append(document.createTextNode("Source: "), element("code", module.sourcePath));
+      source.append(document.createTextNode(language === "fr" ? "Fichier source : " : "Source: "), element("code", module.sourcePath));
       content.append(source);
       const details = element("details");
       details.append(element("summary", "Repository build status and evidence"));
@@ -657,7 +697,7 @@
       content.append(details);
       const index = state.modules.indexOf(module);
       const pager = element("nav", undefined, "pager");
-      pager.setAttribute("aria-label", "Previous and next module");
+      pager.setAttribute("aria-label", t("Previous and next module"));
       if (index > 0) {
         const target = module.module === "99" ? state.modules.find((item) => item.module === "06") : state.modules[index - 1];
         const previous = moduleLink(target);
@@ -711,7 +751,7 @@
       captions[1].textContent = t("Reference desk");
       document.querySelector(".rail-footer").textContent = staticSite ?
         t("Read the steps. Run in your own environment. No credentials or deployment in this website.") :
-        language === "fr" ? "SDK canvas Copilot : Preview. Lire les étapes, exécuter localement, valider avant de poursuivre." :
+        language === "fr" ? "Interface Copilot en Preview. Suivez les étapes et vérifiez chaque module avant de poursuivre." :
           "Copilot canvas SDK: Preview. Read the steps. Run locally. Validate before continuing.";
       for (const [id, text] of [["module-nav", "Workshop modules"], ["resource-nav", "Workshop references"], ["content", "Workshop content"]]) {
         document.getElementById(id).setAttribute("aria-label", t(text));

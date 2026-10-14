@@ -1,122 +1,150 @@
-# Votre tenant. Votre abonnement. Votre décision.
+# Préparer votre environnement Azure
 
-Le serveur Model Context Protocol (MCP) doit être déployé dans **votre environnement de test approuvé**.
-Cette page prépare le contexte de déploiement. Elle ne déploie rien et ne certifie pas vos permissions.
-Commencez par [choisir dev container ou outils locaux](GETTING-STARTED.md).
-Le preflight en lecture seule, le validateur et la demande d'identité du module 00 sont disponibles.
-Terraform contient le socle groupe et le portail App Service public facultatif ; aucun runtime MCP n'est implémenté.
+Utilisez uniquement un environnement de test **approuvé et hors production**.
+Cette page vous aide à le sélectionner ; elle ne déploie rien et ne garantit pas vos droits.
+Si ce n'est pas déjà fait, [choisissez votre environnement de travail](GETTING-STARTED.md).
 
-> [!IMPORTANT]
-> Le tenant Microsoft Entra contient les identités, applications et consentements. L'abonnement Azure porte les
-> ressources facturées. Le groupe de ressources délimite les ressources du workshop. Ce sont des périmètres
-> différents, avec des responsabilités administratives distinctes.
+Trois notions suffisent pour commencer :
 
-## 1. Définir le périmètre avant la connexion
+- **L'annuaire Microsoft Entra**, aussi appelé tenant, contient les utilisateurs et les applications.
+- **L'abonnement Azure** contient les ressources et porte les frais.
+- **Le groupe de ressources** rassemble les ressources de votre déploiement.
 
-Choisissez un tenant de test approuvé et un abonnement Azure rattaché à cet annuaire.
-Confirmez le préfixe participant, le groupe de ressources, le propriétaire, l'expiration, la région, le budget et
-la fenêtre de nettoyage. N'utilisez ni données de production, ni session empruntée, ni environnement non approuvé.
-Les identifiants de tenant et d'abonnement restent dans votre terminal privé, jamais dans le board ou le dépôt.
+Ces trois périmètres n'ont pas forcément le même administrateur. Gardez leurs identifiants dans votre
+terminal privé, jamais dans ce tableau ou dans le dépôt.
 
-| Responsabilité | Autorité nécessaire | Ce que cela ne donne pas |
-|---|---|---|
-| Déployer les ressources | Opérations approuvées sur le groupe de ressources du workshop | Contributor ne permet pas d'attribuer des rôles. |
-| Configurer les identités | Un administrateur d'identité approuve applications, rôles applicatifs, utilisateurs de test et consentements | Un rôle Azure ne donne pas l'administration Entra. |
-| Attribuer l'accès aux ressources | Autorisation distincte d'attribuer les rôles au périmètre exact | Ne pas demander Owner sur l'abonnement par défaut. |
-| Utiliser un client | ID de client public approuvé, adresse de retour exacte et étendues autorisées | La préautorisation de VS Code ne couvre pas Inspector. |
-| Réutiliser des identifiants | Le propriétaire fournit les objets existants et leur périmètre | Ne pas modifier ni supprimer ces identités existantes. |
+## 1. Confirmer les choix avec l'administrateur
 
-## 2. Choisir et vérifier dans votre terminal
+Vérifiez l'annuaire, l'abonnement, le groupe, la région et le budget autorisés.
+Choisissez aussi une date de nettoyage et un libellé de propriétaire sans information personnelle.
+N'utilisez pas de données de production ni la session d'une autre personne.
 
-Lisez le sélecteur de contexte avant de l'exécuter. Il lance la connexion interactive Azure CLI, choisit votre
-abonnement et vérifie les deux identifiants ainsi que l'état de l'abonnement. Il ne crée aucune ressource et
-n'attribue aucun rôle. Les substitutions d'authentification incompatibles provoquent un arrêt explicite.
-Votre confirmation atteste l'approbation : elle ne détecte pas automatiquement un environnement de production.
+<details>
+<summary>Pour aller plus loin : qui approuve quoi ?</summary>
 
-### PowerShell 7
+| Besoin | À faire approuver |
+|---|---|
+| Déployer les ressources | Les opérations nécessaires sur le groupe de l'atelier |
+| Configurer les identités | Les applications, rôles applicatifs, comptes de test et consentements Microsoft Entra |
+| Attribuer des droits sur les ressources | Les attributions de rôles, limitées au périmètre nécessaire |
+| Connecter VS Code ou Inspector | Les paramètres de chaque application cliente ; l'accord pour l'une ne couvre pas l'autre |
+| Utiliser des objets existants | Leur périmètre d'utilisation, sans les modifier ni les supprimer |
 
-Depuis votre copie locale du dépôt, dans un terminal PowerShell :
+Le rôle Contributeur (Contributor) ne permet pas d'attribuer des rôles.
+Un rôle Azure ne donne pas de droit d'administration Entra.
+Ne demandez pas le rôle Propriétaire (Owner) sur l'abonnement pour contourner ces limites.
+
+</details>
+
+## 2. Sélectionner l'environnement dans votre terminal
+
+Lisez le script, puis lancez-le depuis le dossier principal du dépôt :
 
 ```powershell
 & .\scripts\select-azure-context.ps1 -Language fr
 ```
 
-Utilisez `&` dans le processus PowerShell courant, **pas** un nouveau processus `pwsh -File`.
-Le script définit `ARM_TENANT_ID` et `ARM_SUBSCRIPTION_ID` uniquement dans ce processus.
-Il utilise `az login --tenant`, `az account set --subscription` et `az account show`.
-Respectez la connexion navigateur et l'authentification multifacteur de votre organisation. Aucun mot de passe
-ni secret client n'est nécessaire.
+Il ouvre la connexion Azure dans le navigateur, sélectionne l'abonnement demandé et vérifie le contexte.
+Respectez l'authentification multifacteur de votre organisation.
+Le script ne crée aucune ressource et n'attribue aucun rôle.
 
-### bash
+**Gardez ce même terminal pour Terraform.** Lancez le script avec `&`, pas dans un nouveau processus
+`pwsh -File` : les paramètres de contexte doivent rester disponibles pour la suite.
+Si le script échoue, arrêtez-vous. Ne poursuivez pas avec l'ancien abonnement sélectionné.
+
+<details>
+<summary>Vous utilisez bash ?</summary>
 
 ```bash
 source ./scripts/select-azure-context.sh fr
 ```
 
-Sourcez le script dans le même terminal bash. L'exécution avec `bash script.sh` est refusée : les variables
-disparaîtraient avec le processus enfant. Les contrôles correspondent à ceux de la version PowerShell.
+Utilisez bien `source`, pas `bash script.sh`, pour conserver les variables dans le terminal courant.
+Les contrôles sont les mêmes qu'avec PowerShell.
 
-> [!WARNING]
-> Un échec impose l'arrêt, pas la poursuite avec l'ancien abonnement par défaut.
-> Sélectionnez à nouveau le contexte approuvé avant Terraform. Ne collez jamais de sortie
-> `az account get-access-token` ici. Ces sélecteurs ciblent Azure public ; un cloud souverain nécessite une
-> configuration distincte et revue.
+</details>
 
-## 3. Lire le vrai module avant tout déploiement payant
+<details>
+<summary>Pour aller plus loin : fonctionnement du sélecteur de contexte</summary>
 
-1. Terminez les contrôles publiés du module 00, puis l'exercice MCP local du module 01. Choisir un contexte
-   ne valide pas ces modules.
-2. Préparez le fichier participant privé avec le guide de démarrage. Conservez suffixe aléatoire et état Terraform.
-   `infra/workload` ne gère qu'un groupe dédié ou lit un groupe approuvé, pas un serveur MCP.
-   Attendez le vrai guide, la validation et le nettoyage de chaque module runtime. Aucun bouton Deploy dans le board.
-3. Dans le même terminal, vérifiez le tenant et l'abonnement des providers réels de `infra/workload`.
-   AzureRM et AzAPI doivent cibler votre abonnement, AzureAD le tenant approuvé.
-   Un paramètre explicite ou un alias de provider peut remplacer les variables d'environnement. Lisez chaque
-   provider et le plan.
-4. L'administrateur d'identité examine séparément `infra/entra`. Lorsque la création est ignorée, lisez les
-   identifiants fournis sans modifier les objets. Utilisez identités managées et fédération, jamais un secret client.
-5. Vérifiez disponibilité régionale, quotas, politiques, tags et estimation. API Management Standard v2 facture
-   une capacité provisionnée. Points de terminaison privés, stockage, télémétrie, API Center et agents optionnels
-   peuvent également entraîner des coûts.
-   Un nom aléatoire limite les collisions mais ne remet pas à zéro les quotas régionaux ou de l'abonnement partagé.
-6. Lisez les ressources exactes et les périmètres de rôles du plan Terraform. L'application nécessite une
-   approbation explicite dans la session de déploiement. Revérifiez le contexte après un changement de terminal,
-   d'abonnement, de provider ou d'authentification.
-7. Exécutez le vrai validateur du module. Conservez seulement les métadonnées autorisées et lignes PASS.
-   Ne poursuivez pas avant sa réussite.
+Le script utilise `az login --tenant`, `az account set --subscription` et `az account show`.
+Il définit `ARM_TENANT_ID` et `ARM_SUBSCRIPTION_ID` dans le processus courant uniquement.
+Il refuse les paramètres d'authentification incompatibles plutôt que de les ignorer.
+La confirmation demandée atteste votre accord ; elle ne détecte pas automatiquement un environnement de production.
 
-## 4. Appeler le serveur réellement déployé
+Ces scripts concernent Azure public. Un cloud souverain nécessite une configuration distincte, à examiner
+avant utilisation. Ne collez jamais la sortie de `az account get-access-token` dans cette page.
 
-Utilisez l'adresse issue des **sorties de votre déploiement**. Le module 01 utilise les entrées/sorties standard
-(stdio), pas HTTPS. Le module 02 démontre brièvement une protection par clé système. Le module 03 ajoute
-l'identité des utilisateurs affectés. Dès le module 04, seul l'URL API Management est destiné aux clients :
-la Function devient privée.
+</details>
 
-Connectez le client approuvé au bon tenant avec son adresse de retour exacte et ses étendues.
-Alice, Bob et Eve désignent des personas fictifs associés à des comptes de test dédiés.
-Ne saisissez ni jeton, ni clé, ni identifiants de connexion dans le board.
-Préparez les commandes dans **Tester votre MCP**, puis exécutez et inspectez les appels dans le client officiel.
-Un HTTP 200 peut contenir une erreur d'outil MCP. Chaque écriture synthétique exige un rôle explicite et une
-approbation individuelle.
+## 3. Suivre le module avant de déployer
 
-> [!TIP]
-> Prédisez le résultat : pas de jeton donne 401 ; une écriture de Bob à la passerelle donne 403 ; un dépassement
-> de débit donne 429. Pour la délégation, lisez aussi le résultat MCP. Un refus peut être le résultat attendu.
+Terminez les vérifications du [module 00](../../modules/00-prerequisites/README.fr.md), puis l'exercice local
+du module 01 lorsqu'il sera disponible. Sélectionner un abonnement ne valide pas un module.
 
-## 5. Arrêter les coûts et préserver les objets partagés
+Le code Terraform actuel prépare le groupe et un portail App Service public facultatif, désactivé par défaut.
+Le serveur MCP et les modules suivants ne sont pas encore implémentés. Attendez leurs guides de déploiement,
+de vérification et de nettoyage. Ce tableau n'a pas de bouton qui déploie tout l'atelier.
 
-Après les étapes payantes, suivez le module 99. Le module 07 est facultatif.
-Examinez le nettoyage des ressources avant celui des identités. Supprimez uniquement les ressources,
-affectations et comptes créés pour le workshop, après approbation explicite. Préservez les identités fournies et
-l'infrastructure partagée. Vérifiez les tags, le réseau privé, l'inventaire, la rétention et la suppression
-récupérable. Arrêtez également Inspector et les codespaces inutilisés.
+> [!IMPORTANT]
+> Avant toute création payante, examinez le plan Terraform, les droits, les quotas et les coûts.
+> L'application du plan exige un accord explicite. Conservez les mêmes paramètres et le même état Terraform.
+
+<details>
+<summary>Pour aller plus loin : ce qu'il faut examiner dans un plan Terraform</summary>
+
+Vérifiez les ressources créées et les périmètres des rôles. Les fournisseurs Terraform AzureRM et AzAPI
+doivent cibler l'abonnement approuvé ; AzureAD doit cibler l'annuaire approuvé.
+Un paramètre explicite ou un alias peut remplacer une variable d'environnement.
+Revérifiez le contexte après tout changement de terminal, d'abonnement, de fournisseur ou de connexion.
+Ces fournisseurs et l'infrastructure Entra seront ajoutés dans les modules concernés.
+
+L'administrateur d'identité examine séparément `infra/entra` lorsqu'il sera implémenté.
+Les objets fournis par l'organisation ne doivent être ni modifiés ni supprimés.
+Utilisez des identités managées et la fédération, jamais de secret client.
+
+Vérifiez aussi les régions disponibles, les quotas partagés, les règles Azure Policy et les étiquettes.
+API Management Standard v2 facture une capacité réservée. Réseau privé, stockage, télémétrie,
+API Center et clients facultatifs peuvent ajouter des frais.
+Des noms aléatoires évitent certains conflits de noms, pas les limites de capacité.
+
+</details>
+
+## 4. Tester votre serveur après son déploiement
+
+Utilisez l'adresse fournie par **votre déploiement** dans [Tester votre serveur MCP](PRACTICE.md).
+Le module 01 fonctionne localement. Le module 02 utilise brièvement une clé système.
+Le module 03 ajoute la connexion des utilisateurs.
+À partir du module 04, utilisez uniquement API Management ; la Function devient privée.
+
+Alice, Bob et Eve sont des personnages fictifs associés à des comptes de test dédiés.
+Une action qui modifie des données exige le rôle prévu et une approbation pour cette action précise.
+Un refus peut être le résultat attendu : n'accordez pas plus de droits pour obtenir une réponse positive.
+Un code HTTP 200 peut contenir une erreur d'outil MCP.
+
+## 5. Nettoyer après les étapes payantes
+
+Suivez le module 99 après avoir examiné et fait approuver les suppressions.
+Supprimez uniquement les ressources et les identités créées pour l'atelier.
+Préservez les groupes et les comptes existants. Arrêtez Inspector et les codespaces inutilisés.
+Le module 07 est facultatif ; il ne doit pas retarder le nettoyage.
+
+<details>
+<summary>Pour aller plus loin : vérifier qu'il ne reste rien de facturable</summary>
+
+Nettoyez les ressources avant les identités créées pour l'atelier.
+Vérifiez les étiquettes, le réseau privé, les attributions de rôles et l'inventaire.
+Examinez aussi les durées de conservation et les suppressions récupérables.
+Arrêter un service ne signifie pas nécessairement arrêter tous ses frais.
+
+</details>
 
 ## Sources
 
 - [Choix du tenant et de l'abonnement avec Azure CLI](https://learn.microsoft.com/cli/azure/manage-azure-subscriptions-azure-cli).
 - [Connexion interactive Azure CLI](https://learn.microsoft.com/cli/azure/authenticate-azure-cli-interactively).
-- [Autorité d'attribution des rôles Azure](https://learn.microsoft.com/azure/role-based-access-control/role-assignments-cli).
+- [Attribution des rôles Azure](https://learn.microsoft.com/azure/role-based-access-control/role-assignments-cli).
 - [Configuration et authentification AzureRM](https://registry.terraform.io/providers/hashicorp/azurerm/5.9.0/docs).
-- [Plan technique original en anglais](../BUILD-PLAN.md) et [guide pratique français](PRACTICE.md).
+- [Plan technique original en anglais](../BUILD-PLAN.md) et [guide de test](PRACTICE.md).
 
-Dernière vérification : 2026-10-14. Aucun abonnement n'a été consulté et aucune ressource n'a été déployée.
+Dernière vérification : 2026-10-14. Aucun abonnement consulté et aucune ressource déployée lors de la préparation.

@@ -1,6 +1,9 @@
-# Schémas éditables du workshop
+# Schémas modifiables de l'atelier
 
-`workshop.drawio` est la source unique : neuf modules, chacun avec une page anglaise et une page française.
+Pour comprendre une étape, consultez d'abord le schéma dans son module.
+Cette page s'adresse aux personnes qui modifient ou republient les schémas.
+
+`workshop.drawio` est le fichier source commun : neuf modules, chacun avec une page anglaise et une page française.
 Les fichiers `NN.en.svg` / `NN.fr.svg` et PNG correspondants sont générés, jamais retouchés séparément.
 Tous montrent une **cible prévue**, pas une infrastructure déjà déployée.
 Les cadres en pointillés désignent le périmètre nommé : poste local, identité ou ressources Azure.
@@ -10,11 +13,14 @@ Graph exige un autre jeton pour sa propre audience.
 
 ## Reproduire les exports
 
+<details>
+<summary>Pour aller plus loin : outils et commandes de génération</summary>
+
 Pour les PNG : Python 3, le paquet Python `playwright` et une installation existante de Chromium ou Edge.
 Installez le paquet avec `python -m pip install playwright==1.62.0`. Aucun paquet ni navigateur n'est installé automatiquement.
 La génération SVG seule et `--check` utilisent uniquement la bibliothèque standard de Python.
 Le générateur local gère le sous-ensemble mxGraph utilisé : texte simple, rectangles carrés, périmètres pointillés,
-SVG incorporés, coordonnées des parents et routage orthogonal ancré. Un style non supporté provoque une erreur.
+SVG incorporés, coordonnées des parents et routage orthogonal ancré. Un style non pris en charge provoque une erreur.
 Ce n'est pas un exporteur draw.io général. Draw.io Desktop était absent ; Edge rasterise le SVG local hors ligne.
 
 ```powershell
@@ -25,12 +31,14 @@ python .\scripts\render-architecture.py --browser 'C:\Program Files (x86)\Micros
 python3 ./scripts/render-architecture.py --browser "$(command -v chromium)"
 ```
 
-Indiquez le chemin réel de votre navigateur. `--svg-only` regénère les SVG sans navigateur mais **pas les PNG**.
-Regénérez les deux avant publication. Examinez les PNG et le board après un changement de disposition.
+Indiquez le chemin réel de votre navigateur. `--svg-only` régénère les SVG sans navigateur mais **pas les PNG**.
+Régénérez les deux avant publication. Examinez les PNG et le tableau après un changement de disposition.
 `python .\scripts\render-architecture.py --check` vérifie la cohérence sans navigateur ni modification des exports.
 Chaque PNG contient l'empreinte SHA-256 de son SVG source ; une paire périmée provoque un échec.
 Contrôles : segments complets, traversée de composants, intersections et recouvrement d'arêtes, écart parallèle
 de 16 pixels, approche perpendiculaire des flèches, capacité du texte et icônes autonomes.
+
+</details>
 
 ## Provenance et droits
 
@@ -46,8 +54,8 @@ Microsoft conserve les droits. Les icônes d'architecture Azure et Entra sont pe
 et la documentation selon leurs conditions, **pas sous la licence MIT du dépôt**.
 Les logos d'entreprise restent soumis aux règles de marques Microsoft ; ce dépôt n'accorde pas de permission générale.
 Vérifiez la permission applicable à votre diffusion avant publication ou marketing.
-Conservez couleurs, proportions et noms. Les marques identifient les technologies, pas le workshop.
-Ce workshop indépendant n'est pas approuvé ou sponsorisé par Microsoft.
+Conservez les couleurs, les proportions et les noms. Les marques identifient les technologies, pas l'atelier.
+Cet atelier indépendant n'est ni approuvé ni sponsorisé par Microsoft.
 
 ## Sources
 

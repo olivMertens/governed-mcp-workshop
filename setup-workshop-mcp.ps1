@@ -396,7 +396,9 @@ $files['.github/extensions/workshop-build-board/board.html'] = @'
     .product { display: inline-flex; align-items: center; gap: 8px; }
     .product img { width: 30px; height: 30px; object-fit: contain; padding: 2px; background: white; }
     details { margin-top: 24px; color: var(--muted); font-size: 13px; }
-    summary { cursor: pointer; }
+    summary { cursor: pointer; color: var(--ink); font-size: 15px; font-weight: 600; }
+    details[open] > summary { margin-bottom: 16px; }
+    details .document, .document details { font-size: 15px; }
     details p { white-space: pre-wrap; overflow-wrap: anywhere; }
     @media (prefers-color-scheme: dark) {
       :root { color-scheme: dark; --paper: #172339; --surface: #1e2d45; --ink: #eef3ff; --muted: #b1c1db; --line: #405474; --blue: #8fbaff; --wash: #273f64; --success: #7cddb0; --error: #ff9fa8; }
@@ -496,13 +498,14 @@ $files['.github/extensions/workshop-build-board/board.html'] = @'
             const repositoryPath = repositoryUrl ?
               decodeURIComponent(url.pathname).replace(/^\/olivMertens\/workshop-mcp\/blob\/main\//, "") : null;
             const local = Object.entries(state.documents).find(([, doc]) => doc.sourcePath === repositoryPath);
+            const localModule = state.modules.find((module) => module.guide !== null && module.sourcePath === repositoryPath);
             const asset = repositoryPath && (
               /^assets\/architecture\/(?:00|01|02|03|04|05|06|07|99)\.(?:en|fr)\.(?:svg|png)$/.test(repositoryPath) ||
               repositoryPath === "assets/architecture/workshop.drawio" ||
               /^assets\/icons\/(?:azure|microsoft|entra|apim|functions|storage|insights|api-center|subscription)\.svg$/.test(repositoryPath));
-            const anchor = link(label, local ? `#/${local[0]}` :
+            const anchor = link(label, local ? `#/${local[0]}` : localModule ? `#/module/${localModule.module}` :
               asset ? `${staticSite ? "" : "/"}${repositoryPath}` : url.href);
-            if (!local) {
+            if (!local && !localModule) {
               anchor.target = "_blank";
               anchor.rel = "noopener noreferrer";
             }
@@ -520,6 +523,25 @@ $files['.github/extensions/workshop-build-board/board.html'] = @'
       for (let i = 0; i < lines.length;) {
         const line = lines[i];
         if (!line.trim()) { i++; continue; }
+        if (line === "<details>") {
+          const summary = /^<summary>([^<]+)<\/summary>$/.exec(lines[i + 1] || "");
+          if (!summary) throw new Error("A document disclosure needs a plain-text summary.");
+          let depth = 1, fenced = false, end = i + 2;
+          for (; end < lines.length; end++) {
+            if (/^\s*```/.test(lines[end])) fenced = !fenced;
+            if (fenced) continue;
+            if (lines[end] === "<details>") depth++;
+            if (lines[end] === "</details>" && --depth === 0) break;
+          }
+          if (depth !== 0) throw new Error("A document disclosure is missing its closing tag.");
+          const section = element("details");
+          const title = element("summary");
+          inline(title, summary[1], path);
+          section.append(title, markdown(lines.slice(i + 2, end).join("\n"), path));
+          body.append(section);
+          i = end + 1;
+          continue;
+        }
         const callout = /^> \[!(TIP|NOTE|IMPORTANT|WARNING|CAUTION)\]\s*$/.exec(line);
         if (callout) {
           const text = [];
@@ -586,12 +608,17 @@ $files['.github/extensions/workshop-build-board/board.html'] = @'
           }
         } else {
           let text = lines[i++].replace(/^> ?/, "");
-          while (i < lines.length && lines[i].trim() && !/^(#|```|\||- |\d+\. )/.test(lines[i])) text += " " + lines[i++].trim().replace(/^> ?/, "");
+          while (i < lines.length && lines[i].trim() && !/^(#|```|\||- |\d+\. |<details>|<\/details>)/.test(lines[i])) text += " " + lines[i++].trim().replace(/^> ?/, "");
           inline(node, text, path);
         }
         body.append(node);
       }
       return body;
+    }
+    function disclosure(title, ...children) {
+      const section = element("details");
+      section.append(element("summary", title), ...children);
+      return section;
     }
     function notice(title, description, type = "important") {
       const node = element("div", undefined, `notice ${type}`);
@@ -616,7 +643,7 @@ $files['.github/extensions/workshop-build-board/board.html'] = @'
       const heading = element("div", undefined, "command-head");
       const copy = element("button", copyLabel, "copy");
       copy.type = "button";
-      copy.setAttribute("aria-label", `${t(copyLabel)}: ${t(title)}`);
+      copy.setAttribute("aria-label", `${t(copyLabel)}${language === "fr" ? " : " : ": "}${t(title)}`);
       copy.addEventListener("click", async () => {
         try {
           if (!navigator.clipboard?.writeText) throw new Error("Clipboard access is unavailable.");
@@ -666,9 +693,10 @@ $files['.github/extensions/workshop-build-board/board.html'] = @'
         return section;
       }
       section.append(element("p", "From the repository root, after reviewing the module guide and approvals. This can make real calls and create synthetic test data.", "field-message"));
-      if (paths.powershell) section.append(commandBlock(`Module ${module.module} validation / PowerShell`,
+      if (paths.powershell) section.append(commandBlock(`${language === "fr" ? "Vérifier le module" : "Validate module"} ${module.module} / PowerShell`,
         `pwsh -NoProfile -File .\\${paths.powershell.replaceAll("/", "\\")}`));
-      if (paths.bash) section.append(commandBlock(`Module ${module.module} validation / bash`, `bash ./${paths.bash}`));
+      if (paths.bash) section.append(disclosure("Using bash",
+        commandBlock(`${language === "fr" ? "Vérifier le module" : "Validate module"} ${module.module} / bash`, `bash ./${paths.bash}`)));
       return section;
     }
       function workspaceChoices() {
@@ -705,11 +733,14 @@ $files['.github/extensions/workshop-build-board/board.html'] = @'
         }
         if (mode && state.environment.tools) content.append(
           commandBlock("Check tools / PowerShell", "& .\\scripts\\check-tools.ps1"),
-          commandBlock("Check tools / bash", "bash ./scripts/check-tools.sh"));
-        content.append(notice("Stable random names, not extra quota.",
-          "Prepare one private participant file before Terraform. Reuse its suffix and state through cleanup. A new resource group does not reset subscription or regional quotas."),
+          disclosure("Using bash", commandBlock("Check tools / bash", "bash ./scripts/check-tools.sh")));
+        content.append(element("p", "Start with module 00. It checks your tools and explains how to prepare your test environment."),
+          link("Explore module 00", "#/module/00", "primary"));
+        content.append(disclosure("Installation and preparation details",
+          notice("Stable random names, not extra quota.",
+            "Prepare one private participant file before Terraform. Reuse its suffix and state through cleanup. A new resource group does not reset subscription or regional quotas."),
           markdown(state.documents.gettingStarted.content, state.documents.gettingStarted.sourcePath),
-          link("Your Azure context", "#/deployment", "secondary"), link("Explore module 00", "#/module/00", "primary"));
+          link("Your Azure context", "#/deployment", "secondary")));
       }
       function deploymentContext() {
         const section = element("section", undefined, "launch-panel");
@@ -771,9 +802,8 @@ $files['.github/extensions/workshop-build-board/board.html'] = @'
         element("p", "Connect your own deployed MCP server in a real client. Discover a tool, make a controlled call, then compare what happened with what should happen.", "lead"),
         notice("No credentials in this page.",
           "Only the endpoint goes here, in page memory. The canvas does not call your server, save connection details or run code. Commands and prompts must be reviewed and run by you."));
-      content.append(deploymentContext());
       content.append(link("Choose your workspace", "#/start", "secondary"));
-      const launch = element("section", undefined, "launch-panel");
+      const launch = disclosure("Workspace and launch options");
       launch.append(element("h2", "Start your workspace"));
       const actions = element("div", undefined, "action-row");
       actions.append(externalLink("Open Codespaces setup", "https://codespaces.new/olivMertens/workshop-mcp", "primary"),
@@ -791,10 +821,7 @@ $files['.github/extensions/workshop-build-board/board.html'] = @'
         commandBlock("Clone a new checkout / bash",
           "git clone https://github.com/olivMertens/workshop-mcp.git && code ./workshop-mcp"));
       launch.append(clone);
-      if (state.environment.preflight) launch.append(commandBlock("Preflight / PowerShell",
-        `pwsh -NoProfile -File .\\${state.environment.preflight.replaceAll("/", "\\")}`));
-      else launch.append(element("p", "Module 00 preflight is not published yet.", "field-message"));
-      content.append(launch);
+      launch.append(link("Explore module 00", "#/module/00", "secondary"));
       const connection = element("section", undefined, "launch-panel");
       connection.append(element("h2", "Prepare your client connection"),
         element("p", "Remote servers use Streamable HTTP. From module 04 onward, use only the API Management endpoint. Module 01 uses stdio instead: follow its local startup guide."));
@@ -831,24 +858,37 @@ $files['.github/extensions/workshop-build-board/board.html'] = @'
         feedback.textContent = t("Commands prepared locally. No network test has run; nothing has been saved.");
         commands.append(
           commandBlock("Start Inspector / PowerShell", prepared.powershell),
-          commandBlock("Start Inspector / bash", prepared.bash),
-          commandBlock("VS Code user configuration / URL only", prepared.configuration, "Copy configuration"));
+          disclosure("Using bash", commandBlock("Start Inspector / bash", prepared.bash)),
+          disclosure("VS Code user configuration / URL only",
+            commandBlock("VS Code user configuration / URL only", prepared.configuration, "Copy configuration")));
       });
-      connection.append(label, input, feedback, commands,
+      const technical = disclosure("Connection details and advanced settings",
         element("p", "Requires Node.js 22.19.0 or newer. Inspect the npx installation prompt. Open Inspector's printed local URL; keep its private launch token to yourself. For VS Code, use MCP: Add Server and a private user configuration.", "field-message"),
         notice("Sign-in still needs the right client.",
           "Microsoft Entra requires an approved public client ID, exact redirect URI and scopes. VS Code approval does not authorize Inspector. Use browser sign-in and no client secret. For module 02, follow its secure system-key input flow; this URL-only configuration cannot authenticate it."),
-        element("p", "In a browser-only codespace, OAuth callbacks can differ. Prefer VS Code desktop with private local port forwarding for authenticated Inspector sessions. Never expose Inspector publicly or disable its authentication.", "field-message"));
-      connection.append(element("p", "Practice launcher: Inspector 2.9.0, verified installable here. The GitHub 2.11.0 source candidate is not yet available from the configured registry. Commands stop if the pinned package is unavailable; they never switch registry or silently choose another version.", "field-message"));
+        element("p", "In a browser-only codespace, OAuth callbacks can differ. Prefer VS Code desktop with private local port forwarding for authenticated Inspector sessions. Never expose Inspector publicly or disable its authentication.", "field-message"),
+        element("p", "Practice launcher: Inspector 2.9.0, verified installable here. The GitHub 2.11.0 source candidate is not yet available from the configured registry. Commands stop if the pinned package is unavailable; they never switch registry or silently choose another version.", "field-message"));
+      connection.append(label, input, feedback, commands,
+        notice("Sign-in still needs the right client.",
+          "Follow your module's sign-in instructions. An address alone does not grant access. Never enter a client secret here or turn off client approval."));
+      if (language === "fr") connection.append(element("p",
+        "Dans VS Code, lancez MCP: Add Server, choisissez HTTP et saisissez l'adresse du serveur. Utilisez une configuration utilisateur privée. Pour Inspector, vérifiez d'abord les prérequis ci-dessous."));
+      else connection.append(element("p",
+        "In VS Code, run MCP: Add Server, choose HTTP and enter the server address. Use a private user configuration. For Inspector, check the prerequisites below first."));
+      connection.append(technical);
       content.append(connection, element("h2", "Not sure what to ask?"));
       content.append(commandBlock("Discover without invoking a tool",
         "Use only my connected workshop MCP server. List its available tools and describe their input schemas and read/write effects. Do not invoke any tool. If the server is not connected, say so; do not invent results.", "Copy prompt"));
       content.append(commandBlock("Make one read-only call",
         "Use only my connected workshop MCP server. If get_service_health is advertised, call it once with synthetic arguments that match its input schema. Show whether a real tool invocation succeeded or returned an MCP error. If it is not available, stop. Do not call any write tool.", "Copy prompt"));
-      content.append(commandBlock("Prepare a write, but do not execute it",
-        "For my synthetic workshop environment only, inspect the advertised create_ticket schema and prepare one schema-valid synthetic request. Explain its side effect and required app role. Do not invoke it. Wait for my explicit approval of this individual call; keep the client's approval control enabled.", "Copy prompt"));
-      content.append(element("h2", "What to verify, and why"),
-        markdown(state.documents.practice.content, state.documents.practice.sourcePath));
+      content.append(notice("Important",
+        "A successful HTTP response can still contain a tool error. Check the actual tool result in your client, not just the assistant's answer."));
+      content.append(disclosure("Try a write operation (approval required)",
+        commandBlock("Prepare a write, but do not execute it",
+          "For my synthetic workshop environment only, inspect the advertised create_ticket schema and prepare one schema-valid synthetic request. Explain its side effect and required app role. Do not invoke it. Wait for my explicit approval of this individual call; keep the client's approval control enabled.", "Copy prompt")));
+      content.append(disclosure("What to verify, and why",
+        markdown(state.documents.practice.content, state.documents.practice.sourcePath)),
+        disclosure("Your Azure context", deploymentContext()), launch);
     }
     function overview() {
       content.append(element("h1", "From open tools to governed access."),
@@ -870,7 +910,7 @@ $files['.github/extensions/workshop-build-board/board.html'] = @'
         "Modules without a published guide show their design outline, not runnable participant steps. Build status is shared repository evidence, not your personal completion."));
       const next = state.modules.find((module) => module.status !== "validated" && module.module !== "07") || state.modules[0];
       const start = moduleLink(next, "primary");
-      start.textContent = `${language === "fr" ? "Explorer le module" : "Explore module"} ${next.module}`;
+      start.textContent = `${language === "fr" ? "Consulter le module" : "Explore module"} ${next.module}`;
       const actions = element("div", undefined, "action-row");
       actions.append(start, link("Try your deployed MCP", "#/practice", "secondary"),
         link("Your Azure context", "#/deployment", "secondary"),
@@ -898,7 +938,6 @@ $files['.github/extensions/workshop-build-board/board.html'] = @'
         "These are the planned outcomes and requirements. Do not treat them as deployment instructions. The complete steps, commands, validation and cleanup will appear here when the module README is added."));
       else content.append(element("p", "Follow the guide in order. Run its validation before continuing. Use only non-production resources.", "lead"));
       content.append(architecture(module));
-      if (module.module === "00") content.append(deploymentContext());
       if (module.originalGuide) {
         content.append(notice("Important", "French participant guide not published. Read the original English guide before executing its commands."));
         const original = element("details");
@@ -909,20 +948,21 @@ $files['.github/extensions/workshop-build-board/board.html'] = @'
         content.append(original);
       }
       const exercise = element("section", undefined, "exercise");
-      exercise.append(element("h2", "Try this stage"),
-        link("Open the call workspace", "#/practice", "secondary"), validationCommands(module));
+      exercise.append(element("h2", "Try this stage"));
+      if (module.module === "00") exercise.append(link("Your Azure context", "#/deployment", "secondary"));
+      else exercise.append(link("Open the call workspace", "#/practice", "secondary"), validationCommands(module));
       const hints = element("details");
       hints.append(element("summary", "Need a hint? Understand what this stage proves."),
         markdown(module.hints, module.hintsSourcePath));
       exercise.append(hints);
-      content.append(exercise);
       content.append(markdown(module.guide ?? module.outline, module.sourcePath));
+      content.append(exercise);
       const concepts = element("details");
       concepts.append(element("summary", "Why this boundary matters"), markdown(module.learning, module.learningSourcePath),
         link("Read the full governance guide", "#/governance", "secondary"));
       content.append(concepts);
       const source = element("p", undefined, "source");
-      source.append(document.createTextNode("Source: "), element("code", module.sourcePath));
+      source.append(document.createTextNode(language === "fr" ? "Fichier source : " : "Source: "), element("code", module.sourcePath));
       content.append(source);
       const details = element("details");
       details.append(element("summary", "Repository build status and evidence"));
@@ -933,7 +973,7 @@ $files['.github/extensions/workshop-build-board/board.html'] = @'
       content.append(details);
       const index = state.modules.indexOf(module);
       const pager = element("nav", undefined, "pager");
-      pager.setAttribute("aria-label", "Previous and next module");
+      pager.setAttribute("aria-label", t("Previous and next module"));
       if (index > 0) {
         const target = module.module === "99" ? state.modules.find((item) => item.module === "06") : state.modules[index - 1];
         const previous = moduleLink(target);
@@ -987,7 +1027,7 @@ $files['.github/extensions/workshop-build-board/board.html'] = @'
       captions[1].textContent = t("Reference desk");
       document.querySelector(".rail-footer").textContent = staticSite ?
         t("Read the steps. Run in your own environment. No credentials or deployment in this website.") :
-        language === "fr" ? "SDK canvas Copilot : Preview. Lire les étapes, exécuter localement, valider avant de poursuivre." :
+        language === "fr" ? "Interface Copilot en Preview. Suivez les étapes et vérifiez chaque module avant de poursuivre." :
           "Copilot canvas SDK: Preview. Read the steps. Run locally. Validate before continuing.";
       for (const [id, text] of [["module-nav", "Workshop modules"], ["resource-nav", "Workshop references"], ["content", "Workshop content"]]) {
         document.getElementById(id).setAttribute("aria-label", t(text));
@@ -1252,7 +1292,7 @@ export function readJourney(root, progress) {
             }),
             documents: {
                 gettingStarted: document(french ? "Choisir votre environnement" : "Choose your workspace", "GETTING-STARTED.md"),
-                practice: { title: french ? "Tester votre MCP" : "Try your MCP", sourcePath: [...base, "PRACTICE.md"].join("/"), content: practice },
+                practice: { title: french ? "Tester votre serveur MCP" : "Try your MCP", sourcePath: [...base, "PRACTICE.md"].join("/"), content: practice },
                 runbook: document(french ? "Construire avec Copilot" : "Build runbook", "COPILOT-RUNBOOK.md"),
                 sources: document(french ? "Références vérifiées" : "Verified sources", french ? "REFERENCES.md" : "sources.md"),
                 governance: { title: french ? "Comprendre la gouvernance" : "Understand governance",
@@ -1261,11 +1301,11 @@ export function readJourney(root, progress) {
                 hosting: document(french ? "Publier ou héberger les guides" : "Publish or host the guides", "HOSTING.md"),
                 ...(available(["docs", "requests", "identity-request.md"]) ? {
                     [french ? "originalIdentityRequest" : "identityRequest"]:
-                        document(french ? "Demande administrateur (original anglais)" : "Identity administrator request",
+                        document(french ? "Demande à l'administrateur (version anglaise)" : "Identity administrator request",
                             "identity-request.md", ["docs", "requests"]),
                 } : {}),
                 architecture: document(french ? "Schémas et icônes" : "Diagrams and icons", french ? "README.fr.md" : "README.md", ["assets", "architecture"]),
-                plan: document(french ? "Parcours prévu" : "Technical build plan", "BUILD-PLAN.md"),
+                plan: document(french ? "Le parcours de l'atelier" : "Technical build plan", "BUILD-PLAN.md"),
                 ...(french ? {
                     originalSources: document("Registre technique original (anglais)", "sources.md", ["docs"]),
                     originalArchitecture: document("Provenance détaillée (original anglais)", "README.md", ["assets", "architecture"]),
@@ -1294,128 +1334,128 @@ export function readJourney(root, progress) {
 
 $files['.github/extensions/workshop-build-board/locale-fr.js'] = @'
 const french = {
-  "Governed MCP / self-paced workshop": "Governed MCP / workshop autonome",
+  "Governed MCP / self-paced workshop": "MCP sur Azure / parcours autonome",
   "Publish or host the guides": "Publier ou héberger les guides",
   "Use Refresh content to retry. If it persists, contact the site maintainer.": "Utilisez Actualiser pour réessayer. Si l'erreur persiste, contactez le responsable du site.",
   "The published workshop content could not be loaded. No credentials are needed.": "Le contenu publié n'a pas pu être chargé. Aucun identifiant de connexion n'est nécessaire.",
-  "Read the steps. Run in your own environment. No credentials or deployment in this website.": "Lisez les étapes. Exécutez dans votre environnement. Aucun identifiant de connexion ni déploiement dans ce site.",
+  "Read the steps. Run in your own environment. No credentials or deployment in this website.": "Suivez les étapes dans votre environnement. Ce site ne demande aucun secret et ne déploie rien.",
   "Choose your workspace": "Choisir votre environnement",
-  "Choose your workspace first": "Choisissez votre environnement d'abord",
-  "Your workspace. Your resources.": "Votre environnement. Vos ressources.",
-  "Dev container or local terminal: the same scripts, private participant file and Terraform root. No progression form or cloud action.": "Dev container ou terminal local : mêmes scripts, fichier participant privé et racine Terraform. Aucun formulaire de progression ni action cloud.",
-  "VS Code dev container": "VS Code en dev container",
-  "Use the checked-in container configuration. Requires an approved, reachable Linux container engine.": "Utilisez la configuration versionnée. Un moteur de conteneurs Linux approuvé et accessible est requis.",
+  "Choose your workspace first": "Pour commencer, choisissez votre environnement",
+  "Your workspace. Your resources.": "Préparez votre espace de travail",
+  "Dev container or local terminal: the same scripts, private participant file and Terraform root. No progression form or cloud action.": "Choisissez où exécuter les commandes. Les exercices sont les mêmes dans les trois cas. Ce choix ne crée aucune ressource.",
+  "VS Code dev container": "VS Code avec un conteneur de développement",
+  "Use the checked-in container configuration. Requires an approved, reachable Linux container engine.": "La configuration fournie regroupe les outils dans un conteneur. Il vous faut VS Code et un moteur de conteneurs Linux autorisé par votre organisation.",
   "Local terminal": "Terminal local",
-  "Use your existing tools without a container. Check them in the terminal you will actually use.": "Utilisez vos outils sans conteneur. Vérifiez-les dans le terminal réellement utilisé.",
+  "Use your existing tools without a container. Check them in the terminal you will actually use.": "Installez et utilisez les outils directement sur votre poste, sans conteneur.",
   "Codespaces (optional)": "Codespaces, facultatif",
-  "Use the same container in GitHub after publication. Review branch, quota, costs and private forwarding.": "Même conteneur dans GitHub après publication. Vérifiez branche, quota, coûts et transfert privé.",
-  "In VS Code, run Dev Containers: Reopen in Container. Read the startup log and resolve every failed check. Do not mount host Azure credentials or expose Inspector ports publicly.": "Dans VS Code, lancez Dev Containers: Reopen in Container. Lisez le journal et corrigez chaque échec. Ne montez pas les identifiants Azure du poste et ne rendez pas les ports Inspector publics.",
+  "Use the same container in GitHub after publication. Review branch, quota, costs and private forwarding.": "Travaillez dans un environnement hébergé par GitHub. Vérifiez les fichiers disponibles, votre quota et les frais éventuels.",
+  "In VS Code, run Dev Containers: Reopen in Container. Read the startup log and resolve every failed check. Do not mount host Azure credentials or expose Inspector ports publicly.": "Dans la palette de commandes de VS Code, choisissez Dev Containers: Reopen in Container. Corrigez les erreurs de démarrage avant de poursuivre. Ne partagez pas le dossier de connexion Azure de votre poste avec le conteneur. Gardez Inspector inaccessible au public.",
   "Container runtime still needs verification.": "L'exécution du conteneur reste à vérifier.",
-  "The configuration and registry pins were checked, but no reachable engine was available here. Your build and module 00 checks are required.": "Configuration et empreintes vérifiées, mais aucun moteur n'était accessible ici. Votre construction et les contrôles du module 00 restent requis.",
-  "Install the officially documented tools using your approved process. No script installs workstation tools automatically. Run from this checkout.": "Installez les outils officiels selon votre procédure approuvée. Aucun script ne les installe automatiquement sur le poste. Exécutez depuis cette copie du dépôt.",
+  "The configuration and registry pins were checked, but no reachable engine was available here. Your build and module 00 checks are required.": "La configuration a été vérifiée, mais le conteneur n'a pas pu être lancé sur le poste de préparation. Vous devez encore le démarrer et réussir les contrôles du module 00.",
+  "Install the officially documented tools using your approved process. No script installs workstation tools automatically. Run from this checkout.": "Installez les outils officiels selon la procédure de votre organisation. Aucun script ne les installe automatiquement sur votre poste. Lancez les commandes depuis le dossier du dépôt.",
   "Check tools / PowerShell": "Vérifier les outils / PowerShell",
   "Check tools / bash": "Vérifier les outils / bash",
-  "Stable random names, not extra quota.": "Noms aléatoires stables, pas de quota supplémentaire.",
-  "Prepare one private participant file before Terraform. Reuse its suffix and state through cleanup. A new resource group does not reset subscription or regional quotas.": "Préparez un fichier participant privé avant Terraform. Conservez suffixe et état jusqu'au nettoyage. Un nouveau groupe ne remet pas à zéro les quotas de région ou d'abonnement.",
-  "Explore module 00": "Explorer le module 00",
+  "Stable random names, not extra quota.": "Des noms distincts pour chaque participant",
+  "Prepare one private participant file before Terraform. Reuse its suffix and state through cleanup. A new resource group does not reset subscription or regional quotas.": "Le guide prépare des noms propres à votre déploiement. Conservez les paramètres et l'état Terraform jusqu'au nettoyage. Des noms différents ne donnent pas de capacité supplémentaire dans Azure.",
+  "Explore module 00": "Commencer le module 00",
   "Skip to content": "Aller au contenu",
-  "A hands-on Azure workshop": "Un workshop Azure pratique",
+  "A hands-on Azure workshop": "Un atelier pratique sur Azure",
   "Your route": "Votre parcours",
   "Reference desk": "Pour approfondir",
-  "Workshop modules": "Modules du workshop",
-  "Workshop references": "Références du workshop",
-  "Workshop content": "Contenu du workshop",
+  "Workshop modules": "Modules de l'atelier",
+  "Workshop references": "Références de l'atelier",
+  "Workshop content": "Contenu de l'atelier",
   "Workshop overview": "Vue d'ensemble",
-  "Try your MCP": "Tester votre MCP",
+  "Try your MCP": "Tester votre serveur MCP",
   "Build runbook": "Construire avec Copilot",
   "Verified sources": "Références vérifiées",
-  "Build decisions": "Décisions de construction",
+  "Build decisions": "Choix techniques à confirmer",
   "Understand governance": "Comprendre la gouvernance",
   "Your Azure context": "Votre contexte Azure",
   "Diagrams and icons": "Schémas et icônes",
-  "Workshop build board / self-paced guide": "Workshop build board / parcours autonome",
+  "Workshop build board / self-paced guide": "MCP sur Azure / parcours autonome",
   "Refresh content": "Actualiser",
-  "Loading the workshop.": "Chargement du workshop.",
+  "Loading the workshop.": "Chargement de l'atelier.",
   "Loading workshop content...": "Chargement du contenu...",
-  "Not built": "Non construit",
-  "Being built": "En construction",
+  "Not built": "À préparer",
+  "Being built": "En préparation",
   "Validated": "Validé",
-  "Build blocked": "Construction bloquée",
+  "Build blocked": "Préparation bloquée",
   "Copy command": "Copier la commande",
   "Copy configuration": "Copier la configuration",
-  "Copy prompt": "Copier le prompt",
+  "Copy prompt": "Copier la consigne",
   "Copied. Nothing has been executed or sent to your MCP server.": "Copié. Rien n'a été exécuté ni envoyé à votre serveur MCP.",
   "Clipboard access was denied or is unavailable. Select the text below and copy it manually.": "Accès au presse-papiers refusé ou indisponible. Sélectionnez le texte et copiez-le manuellement.",
   "Module validation is not published yet. No runnable validator is offered.": "La validation du module n'est pas publiée. Aucune commande de validation n'est proposée.",
-  "From the repository root, after reviewing the module guide and approvals. This can make real calls and create synthetic test data.": "Depuis la racine du dépôt, après lecture du guide et approbations. Cela peut effectuer de vrais appels et créer des données de test synthétiques.",
-  "Make the call. Understand the boundary.": "Faites l'appel. Comprenez la frontière.",
-  "Connect your own deployed MCP server in a real client. Discover a tool, make a controlled call, then compare what happened with what should happen.": "Connectez votre serveur MCP déployé dans un vrai client. Découvrez un outil, appelez-le de façon contrôlée et comparez résultat obtenu et résultat attendu.",
-  "No credentials in this page.": "Aucun identifiant de connexion dans cette page.",
-  "Only the endpoint goes here, in page memory. The canvas does not call your server, save connection details or run code. Commands and prompts must be reviewed and run by you.": "Seule l'adresse du serveur va ici, en mémoire de page. Le canvas n'appelle pas votre serveur, ne sauvegarde pas la connexion et n'exécute pas de code. Vous lisez puis exécutez commandes et prompts.",
+  "From the repository root, after reviewing the module guide and approvals. This can make real calls and create synthetic test data.": "Lancez cette commande depuis le dossier principal du dépôt, après avoir lu le guide et obtenu les accords nécessaires. Elle peut contacter votre serveur et créer des données fictives de test.",
+  "Make the call. Understand the boundary.": "Testez votre serveur, puis vérifiez le résultat.",
+  "Connect your own deployed MCP server in a real client. Discover a tool, make a controlled call, then compare what happened with what should happen.": "Votre serveur doit déjà être déployé. Connectez-le à VS Code ou à MCP Inspector, un outil de test. Commencez par afficher les outils disponibles, puis testez-en un en lecture seule.",
+  "No credentials in this page.": "Ne saisissez aucun secret ici",
+  "Only the endpoint goes here, in page memory. The canvas does not call your server, save connection details or run code. Commands and prompts must be reviewed and run by you.": "Saisissez uniquement l'adresse du serveur, jamais de clé ni de jeton d'accès. Cette page ne conserve pas votre connexion et n'appelle pas le serveur : c'est vous qui lancez les tests dans votre outil.",
   "Start your workspace": "Ouvrir votre environnement",
   "Open Codespaces setup": "Préparer un codespace",
   "Open repository": "Ouvrir le dépôt",
-  "Codespaces opens GitHub's creation flow. Review quota, costs and the published branch before creating a machine. Local unpushed changes are not included.": "Codespaces ouvre l'écran de création GitHub. Vérifiez quota, coûts et branche publiée. Les changements locaux non poussés ne sont pas inclus.",
-  "Dev container configuration found.": "Configuration de dev container présente.",
-  "Workshop dev container not published yet.": "Dev container du workshop non publié.",
+  "Codespaces opens GitHub's creation flow. Review quota, costs and the published branch before creating a machine. Local unpushed changes are not included.": "GitHub vous proposera de créer un environnement. Vérifiez la branche choisie, le quota disponible et les frais éventuels. Seuls les fichiers publiés sur GitHub seront disponibles.",
+  "Dev container configuration found.": "La configuration du conteneur est disponible.",
+  "Workshop dev container not published yet.": "La configuration du conteneur n'est pas encore publiée.",
   "A configuration file is not evidence that its tools have been validated. Follow module 00.": "Un fichier de configuration ne prouve pas que ses outils sont validés. Suivez le module 00.",
-  "Codespaces can use its default image, but the workshop prerequisites are not preconfigured or validated.": "Codespaces peut utiliser son image par défaut ; les prérequis du workshop ne sont ni préconfigurés ni validés.",
+  "Codespaces can use its default image, but the workshop prerequisites are not preconfigured or validated.": "Codespaces peut démarrer avec sa configuration par défaut, mais les outils nécessaires à l'atelier restent à installer et à vérifier.",
   "Open your existing local checkout in VS Code": "Ouvrir votre copie locale dans VS Code",
-  "Run this from your repository folder. If you do not have a checkout, clone the repository first. This page does not open a terminal or execute commands for you.": "Exécutez depuis votre dossier de dépôt. Sans copie locale, clonez d'abord. Cette page n'ouvre pas de terminal et n'exécute rien pour vous.",
+  "Run this from your repository folder. If you do not have a checkout, clone the repository first. This page does not open a terminal or execute commands for you.": "Lancez la commande dans le dossier du dépôt. Si vous ne l'avez pas encore sur votre poste, commencez par le copier avec git clone. Cette page n'exécute aucune commande à votre place.",
   "No local checkout yet?": "Pas encore de copie locale ?",
   "Clone a new checkout / PowerShell": "Cloner une nouvelle copie / PowerShell",
   "Clone a new checkout / bash": "Cloner une nouvelle copie / bash",
-  "Preflight / PowerShell": "Précontrôle / PowerShell",
-  "Module 00 preflight is not published yet.": "Le précontrôle du module 00 n'est pas publié.",
-  "Prepare your client connection": "Préparer la connexion du client",
-  "Remote servers use Streamable HTTP. From module 04 onward, use only the API Management endpoint. Module 01 uses stdio instead: follow its local startup guide.": "Les serveurs distants utilisent Streamable HTTP. Dès le module 04, utilisez uniquement API Management. Le module 01 utilise stdio : suivez son guide local.",
+  "Preflight / PowerShell": "Vérifier les prérequis / PowerShell",
+  "Module 00 preflight is not published yet.": "Le script de vérification du module 00 n'est pas encore publié.",
+  "Prepare your client connection": "Connecter votre outil de test",
+  "Remote servers use Streamable HTTP. From module 04 onward, use only the API Management endpoint. Module 01 uses stdio instead: follow its local startup guide.": "Copiez l'adresse HTTPS indiquée à la fin de votre déploiement. À partir du module 04, prenez celle d'API Management. Pour le serveur local du module 01, suivez plutôt le guide du module.",
   "Your deployed HTTPS MCP endpoint": "Adresse HTTPS de votre serveur MCP déployé",
-  "Enter only the endpoint. No tokens, keys or query parameters.": "Seulement l'adresse du serveur. Ni jeton, ni clé, ni paramètre d'URL.",
+  "Enter only the endpoint. No tokens, keys or query parameters.": "Collez uniquement l'adresse HTTPS, sans clé, jeton d'accès ni paramètre après un point d'interrogation.",
   "Use a single HTTPS URL without spaces or credentials.": "Utilisez une seule adresse HTTPS, sans espace ni identifiant de connexion.",
-  "Enter the complete HTTPS endpoint from your deployment outputs.": "Saisissez l'adresse HTTPS complète issue des sorties de votre déploiement.",
-  "Use HTTPS without credentials, query strings or fragments. Never paste a key or token here.": "Utilisez HTTPS sans identifiant, paramètre ni fragment. Ne collez jamais de clé ou de jeton ici.",
+  "Enter the complete HTTPS endpoint from your deployment outputs.": "Saisissez l'adresse HTTPS complète affichée à la fin de votre déploiement.",
+  "Use HTTPS without credentials, query strings or fragments. Never paste a key or token here.": "Utilisez une adresse HTTPS sans information de connexion, sans paramètre après ? ni fragment après #. Ne collez jamais de clé ou de jeton ici.",
   "Commands prepared locally. No network test has run; nothing has been saved.": "Commandes préparées localement. Aucun test réseau effectué, aucune donnée sauvegardée.",
-  "Start Inspector / PowerShell": "Lancer Inspector / PowerShell",
-  "Start Inspector / bash": "Lancer Inspector / bash",
+  "Start Inspector / PowerShell": "Lancer MCP Inspector / PowerShell",
+  "Start Inspector / bash": "Lancer MCP Inspector / bash",
   "VS Code user configuration / URL only": "Configuration utilisateur VS Code / adresse seule",
-  "Requires Node.js 22.19.0 or newer. Inspect the npx installation prompt. Open Inspector's printed local URL; keep its private launch token to yourself. For VS Code, use MCP: Add Server and a private user configuration.": "Node.js 22.19.0 minimum. Lisez la demande d'installation npx. Ouvrez l'URL locale affichée par Inspector et gardez son jeton privé. Dans VS Code : MCP: Add Server et configuration utilisateur privée.",
-  "Sign-in still needs the right client.": "La connexion exige le bon client.",
-  "Microsoft Entra requires an approved public client ID, exact redirect URI and scopes. VS Code approval does not authorize Inspector. Use browser sign-in and no client secret. For module 02, follow its secure system-key input flow; this URL-only configuration cannot authenticate it.": "Entra exige un ID de client public approuvé, une adresse de retour exacte et des étendues. L'approbation de VS Code ne couvre pas Inspector. Connexion navigateur, sans secret client. Au module 02, suivez la saisie sécurisée de la clé système : l'adresse seule ne suffit pas.",
-  "In a browser-only codespace, OAuth callbacks can differ. Prefer VS Code desktop with private local port forwarding for authenticated Inspector sessions. Never expose Inspector publicly or disable its authentication.": "Dans un codespace ouvert seulement au navigateur, le retour OAuth peut différer. Préférez VS Code desktop avec ports privés pour Inspector authentifié. Ne rendez pas Inspector public et ne désactivez pas son authentification.",
-  "Practice launcher: Inspector 2.9.0, verified installable here. The GitHub 2.11.0 source candidate is not yet available from the configured registry. Commands stop if the pinned package is unavailable; they never switch registry or silently choose another version.": "Lanceur : Inspector 2.9.0, installation vérifiée ici. La candidate GitHub 2.11.0 n'était pas disponible dans le registre configuré. Les commandes s'arrêtent si le paquet épinglé manque, sans changer de registre ni de version.",
-  "Not sure what to ask?": "Besoin d'une idée d'appel ?",
-  "Discover without invoking a tool": "Découvrir sans appeler d'outil",
-  "Make one read-only call": "Faire un seul appel en lecture",
-  "Prepare a write, but do not execute it": "Préparer une écriture sans l'exécuter",
-  "Use only my connected workshop MCP server. List its available tools and describe their input schemas and read/write effects. Do not invoke any tool. If the server is not connected, say so; do not invent results.": "Utilise uniquement mon serveur MCP de workshop connecté. Liste les outils disponibles, leurs schémas d'entrée et leurs effets de lecture ou écriture. N'appelle aucun outil. Si le serveur n'est pas connecté, dis-le sans inventer de résultat.",
-  "Use only my connected workshop MCP server. If get_service_health is advertised, call it once with synthetic arguments that match its input schema. Show whether a real tool invocation succeeded or returned an MCP error. If it is not available, stop. Do not call any write tool.": "Utilise uniquement mon serveur MCP de workshop connecté. Si get_service_health est annoncé, appelle-le une seule fois avec des arguments synthétiques conformes à son schéma. Indique si l'appel réel a réussi ou renvoyé une erreur MCP. S'il est absent, arrête. Aucun outil d'écriture.",
-  "For my synthetic workshop environment only, inspect the advertised create_ticket schema and prepare one schema-valid synthetic request. Explain its side effect and required app role. Do not invoke it. Wait for my explicit approval of this individual call; keep the client's approval control enabled.": "Pour mon environnement synthétique de workshop seulement, lis le schéma annoncé de create_ticket et prépare une requête synthétique conforme. Explique son effet et le rôle applicatif requis. Ne l'exécute pas. Attends mon accord explicite pour cet appel unique ; garde l'approbation du client active.",
-  "What to verify, and why": "Quoi vérifier et pourquoi",
-  "From open tools to governed access.": "Des outils ouverts aux accès gouvernés.",
-  "Build one Model Context Protocol (MCP) server. Add identity, enforce permissions, then see who called what. Follow the modules in order, at your own pace.": "Construisez un serveur Model Context Protocol (MCP). Ajoutez l'identité, imposez les permissions, puis observez qui appelle quoi. Suivez les modules dans l'ordre, à votre rythme.",
-  "The workshop is being built.": "Le workshop est en construction.",
-  "Modules without a published guide show their design outline, not runnable participant steps. Build status is shared repository evidence, not your personal completion.": "Sans guide publié, un module affiche sa conception, pas des étapes exécutables. Le statut décrit le dépôt partagé, pas votre progression personnelle.",
-  "Try your deployed MCP": "Tester votre MCP déployé",
+  "Requires Node.js 22.19.0 or newer. Inspect the npx installation prompt. Open Inspector's printed local URL; keep its private launch token to yourself. For VS Code, use MCP: Add Server and a private user configuration.": "Installez Node.js 22.19.0 ou une version plus récente. Vérifiez la demande d'installation de npx. Ouvrez l'adresse locale affichée par Inspector et ne partagez pas son jeton de session. Dans VS Code, utilisez MCP: Add Server avec une configuration utilisateur privée.",
+  "Sign-in still needs the right client.": "Suivez la procédure de connexion du module",
+  "Microsoft Entra requires an approved public client ID, exact redirect URI and scopes. VS Code approval does not authorize Inspector. Use browser sign-in and no client secret. For module 02, follow its secure system-key input flow; this URL-only configuration cannot authenticate it.": "Chaque outil doit avoir son propre accord dans Microsoft Entra : identifiant d'application cliente publique, adresse de retour et autorisations déléguées (scopes). L'accord donné à VS Code ne vaut pas pour Inspector. Connectez-vous dans le navigateur, sans secret client. Au module 02, utilisez la saisie protégée de la clé système prévue par le guide ; l'adresse seule ne suffit pas.",
+  "In a browser-only codespace, OAuth callbacks can differ. Prefer VS Code desktop with private local port forwarding for authenticated Inspector sessions. Never expose Inspector publicly or disable its authentication.": "Dans Codespaces, la connexion depuis le navigateur peut utiliser une autre adresse de retour OAuth. Pour Inspector, privilégiez VS Code installé sur votre poste avec une redirection privée des ports. Ne rendez jamais Inspector public et ne désactivez pas son authentification.",
+  "Practice launcher: Inspector 2.9.0, verified installable here. The GitHub 2.11.0 source candidate is not yet available from the configured registry. Commands stop if the pinned package is unavailable; they never switch registry or silently choose another version.": "Les commandes utilisent Inspector 2.9.0, dont l'installation a été vérifiée. La version 2.11.0 publiée sur GitHub n'était pas disponible dans le registre de paquets configuré lors du contrôle. Si la version prévue manque, la commande s'arrête au lieu de choisir une autre version ou un autre registre.",
+  "Not sure what to ask?": "Par quoi commencer ?",
+  "Discover without invoking a tool": "1. Afficher les outils disponibles, sans les exécuter",
+  "Make one read-only call": "2. Tester un outil sans modifier de données",
+  "Prepare a write, but do not execute it": "Préparer la création d'un ticket, sans la lancer",
+  "Use only my connected workshop MCP server. List its available tools and describe their input schemas and read/write effects. Do not invoke any tool. If the server is not connected, say so; do not invent results.": "Utilise uniquement le serveur MCP de l'atelier auquel je suis connecté. Présente les outils disponibles, les informations à leur fournir et ce qu'ils permettent de lire ou de modifier. N'exécute aucun outil. Si le serveur n'est pas connecté, indique-le sans inventer de résultat.",
+  "Use only my connected workshop MCP server. If get_service_health is advertised, call it once with synthetic arguments that match its input schema. Show whether a real tool invocation succeeded or returned an MCP error. If it is not available, stop. Do not call any write tool.": "Utilise uniquement le serveur MCP de l'atelier auquel je suis connecté. Si l'outil get_service_health est disponible, exécute-le une seule fois avec des données fictives qui respectent le format demandé. Indique si l'exécution a réussi ou si le serveur a renvoyé une erreur MCP. Si cet outil n'est pas disponible, arrête-toi. N'utilise aucun outil qui modifie des données.",
+  "For my synthetic workshop environment only, inspect the advertised create_ticket schema and prepare one schema-valid synthetic request. Explain its side effect and required app role. Do not invoke it. Wait for my explicit approval of this individual call; keep the client's approval control enabled.": "Dans mon environnement de test de l'atelier uniquement, vérifie le format demandé par l'outil create_ticket et prépare une demande avec des données fictives. Explique ce qu'elle va créer et le rôle applicatif nécessaire. Ne lance pas l'outil. Attends mon accord explicite pour cette demande précise et conserve la confirmation manuelle dans le client.",
+  "What to verify, and why": "Résultats attendus et aide en cas de problème",
+  "From open tools to governed access.": "Apprenez à sécuriser un serveur MCP",
+  "Build one Model Context Protocol (MCP) server. Add identity, enforce permissions, then see who called what. Follow the modules in order, at your own pace.": "Créez un serveur qui expose des outils grâce au Model Context Protocol (MCP). Ajoutez la connexion des utilisateurs, limitez leurs actions, puis vérifiez qui a utilisé quoi. Avancez dans l'ordre, à votre rythme.",
+  "The workshop is being built.": "L'atelier est encore en préparation.",
+  "Modules without a published guide show their design outline, not runnable participant steps. Build status is shared repository evidence, not your personal completion.": "Les modules sans guide publié présentent seulement les exercices prévus. Leur statut indique l'avancement de la préparation de l'atelier, pas votre progression personnelle.",
+  "Try your deployed MCP": "Tester votre serveur déployé",
   "The route": "Le parcours",
-  "Optional facilitator demo": "Démonstration facultative du facilitateur",
-  "Remove workshop-owned resources": "Retirer les ressources appartenant au workshop",
-  "Design outline": "Conception prévue",
-  "Participant guide": "Guide participant",
-  "Optional / facilitator demo": "Facultatif / facilitateur",
+  "Optional facilitator demo": "Démonstration facultative de l'animateur",
+  "Remove workshop-owned resources": "Supprimer uniquement les ressources créées pour l'atelier",
+  "Design outline": "Exercice prévu",
+  "Participant guide": "Guide du participant",
+  "Optional / facilitator demo": "Facultatif / démonstration de l'animateur",
   "Cleanup": "Nettoyage",
-  "Workshop module": "Module du workshop",
-  "Design outline - participant guide not published.": "Conception prévue - guide participant non publié.",
-  "These are the planned outcomes and requirements. Do not treat them as deployment instructions. The complete steps, commands, validation and cleanup will appear here when the module README is added.": "Voici les objectifs et prérequis prévus, pas une procédure de déploiement. Étapes, commandes, validation et nettoyage apparaîtront avec le vrai README du module.",
-  "Follow the guide in order. Run its validation before continuing. Use only non-production resources.": "Suivez le guide dans l'ordre. Validez avant de poursuivre. Ressources hors production uniquement.",
+  "Workshop module": "Module de l'atelier",
+  "Design outline - participant guide not published.": "Exercice prévu : le guide n'est pas encore publié.",
+  "These are the planned outcomes and requirements. Do not treat them as deployment instructions. The complete steps, commands, validation and cleanup will appear here when the module README is added.": "Ce résumé explique ce que vous apprendrez, pas comment déployer les ressources. Attendez le guide complet avec les commandes, les vérifications et le nettoyage.",
+  "Follow the guide in order. Run its validation before continuing. Use only non-production resources.": "Suivez les étapes dans l'ordre, puis lancez les vérifications avant de poursuivre. Utilisez uniquement un environnement de test hors production.",
   "Try this stage": "Mettre cette étape en pratique",
-  "Open the call workspace": "Ouvrir l'espace d'appels",
-  "Need a hint? Understand what this stage proves.": "Un indice ? Comprendre ce que cette étape prouve.",
-  "Repository build status and evidence": "Statut et preuves de construction du dépôt",
+  "Open the call workspace": "Préparer un test du serveur",
+  "Need a hint? Understand what this stage proves.": "Besoin d'aide pour cette étape ?",
+  "Repository build status and evidence": "Avancement de la préparation et vérifications effectuées",
   "No validation evidence recorded.": "Aucune preuve de validation enregistrée.",
-  "No build notes.": "Aucune note de construction.",
+  "No build notes.": "Aucune note de préparation.",
   "Previous and next module": "Module précédent et suivant",
-  "Build decisions.": "Décisions de construction.",
-  "Implementation choices still to resolve. These do not require participant input in this interface.": "Choix techniques encore à résoudre. Aucune saisie participant n'est demandée dans cette interface.",
+  "Build decisions.": "Choix techniques à confirmer.",
+  "Implementation choices still to resolve. These do not require participant input in this interface.": "Ces choix concernent les personnes qui préparent l'atelier. Vous n'avez rien à renseigner ici.",
   "Page not found.": "Page introuvable.",
   "Choose a module from the route, or return to the workshop overview.": "Choisissez un module ou revenez à la vue d'ensemble.",
   "Content is unavailable.": "Contenu indisponible.",
@@ -1425,31 +1465,39 @@ const french = {
   "Important": "Important",
   "Warning": "Attention",
   "Danger": "Danger",
-  "Architecture and security flow": "Architecture et flux de sécurité",
-  "Planned target - not deployed or validated": "Cible prévue - ni déployée ni validée",
+  "Architecture and security flow": "Comprendre les échanges et les protections",
+  "Planned target - not deployed or validated": "Architecture prévue, pas encore déployée ni validée",
   "Scroll the diagram or open its full-size SVG.": "Faites défiler le schéma ou ouvrez le SVG en taille réelle.",
   "Open SVG": "Ouvrir le SVG",
   "Open PNG": "Ouvrir le PNG",
   "Editable draw.io source": "Source draw.io éditable",
   "Diagram unavailable. Check the published assets and refresh; no deployment is implied.": "Schéma indisponible. Vérifiez les fichiers publiés puis actualisez ; aucun déploiement n'est présumé.",
-  "Why this boundary matters": "Pourquoi cette frontière compte",
+  "Why this boundary matters": "Pour aller plus loin : comprendre les protections",
   "Next step": "Étape suivante",
-  "This is navigation, not a claim that the current stage passed. Run the published validator before continuing.": "Ce lien permet de naviguer, pas d'attester une réussite. Exécutez le vrai validateur avant de poursuivre.",
+  "This is navigation, not a claim that the current stage passed. Run the published validator before continuing.": "Avant de passer à la suite, lancez le script de vérification du module et corrigez les erreurs. Ouvrir le lien suivant ne valide pas l'étape.",
   "Core path: clean up": "Parcours principal : nettoyer",
   "Optional: explore other clients first": "Facultatif : explorer d'autres clients",
   "Cleanup first, then repeat only with a new approved environment and prefix.": "Vérifiez le nettoyage avant de recommencer avec un environnement et un préfixe approuvés.",
   "Original repository decisions and evidence remain in English.": "Les décisions et preuves du dépôt conservent leur texte original anglais.",
-  "French participant guide not published. Read the original English guide before executing its commands.": "Guide participant français non publié. Lisez le vrai guide anglais avant d'en exécuter les commandes.",
-  "Read the original English participant guide": "Lire le guide participant original en anglais",
-  "Your deployment, not a shared demo tenant.": "Votre déploiement, pas un tenant de démonstration partagé.",
-  "Choose and verify your approved non-production tenant and subscription in your own terminal. Keep IDs out of the board. These context helpers do not deploy or validate a workshop module.": "Choisissez et vérifiez tenant et abonnement de test approuvés dans votre terminal. Pas d'identifiants dans le board. Ces sélecteurs ne déploient et ne valident aucun module.",
-  "Read the context and permission guide": "Lire le guide de contexte et de permissions",
+  "French participant guide not published. Read the original English guide before executing its commands.": "Ce guide n'est pas encore disponible en français. Lisez la version anglaise avant de lancer les commandes.",
+  "Read the original English participant guide": "Lire le guide du participant en anglais",
+  "Your deployment, not a shared demo tenant.": "Utilisez votre propre environnement de test",
+  "Choose and verify your approved non-production tenant and subscription in your own terminal. Keep IDs out of the board. These context helpers do not deploy or validate a workshop module.": "L'annuaire Microsoft Entra contient les identités ; l'abonnement Azure contient les ressources facturées. Sélectionnez ceux qui sont autorisés pour vos tests, dans votre terminal. Ne saisissez pas leurs identifiants dans cette page. Cette sélection ne déploie rien et ne valide aucun module.",
+  "Read the context and permission guide": "Vérifier votre environnement Azure et vos droits",
   "Select Azure context / PowerShell": "Choisir le contexte Azure / PowerShell",
   "Select Azure context / bash": "Choisir le contexte Azure / bash",
-  "Read the script first. Run it in the same terminal used for the real module. No credentials or IDs are collected here.": "Lisez d'abord le script. Exécutez-le dans le terminal du vrai module. Aucun identifiant n'est recueilli ici.",
+  "Read the script first. Run it in the same terminal used for the real module. No credentials or IDs are collected here.": "Lisez le script avant de le lancer et gardez le même terminal pour la suite du module. Cette page ne recueille aucun identifiant.",
   "Technologies covered": "Technologies abordées",
   "Independent training. Product marks identify technologies, not endorsement.": "Formation indépendante. Les marques identifient les technologies, sans approbation de leurs titulaires.",
   "Read the full governance guide": "Lire le guide complet de gouvernance",
+  "Start with module 00. It checks your tools and explains how to prepare your test environment.": "Commencez par le module 00 : il vérifie les outils et vous guide dans la préparation de votre environnement de test.",
+  "Installation and preparation details": "Pour aller plus loin : installation et préparation",
+  "Using bash": "Vous utilisez bash ?",
+  "Workspace and launch options": "Autres options pour ouvrir votre environnement",
+  "Connection details and advanced settings": "Pour aller plus loin : connexion et paramètres techniques",
+  "Follow your module's sign-in instructions. An address alone does not grant access. Never enter a client secret here or turn off client approval.": "Suivez la procédure de connexion du module. L'adresse du serveur ne suffit pas à vous autoriser l'accès. Ne saisissez aucun secret client ici et gardez la confirmation manuelle des actions activée.",
+  "A successful HTTP response can still contain a tool error. Check the actual tool result in your client, not just the assistant's answer.": "Un code HTTP 200 ne garantit pas que l'outil a réussi. Vérifiez le résultat de l'exécution dans votre outil de test, pas seulement la réponse de l'assistant.",
+  "Try a write operation (approval required)": "Pour aller plus loin : préparer une action qui modifie des données",
 };
 '@
 
@@ -1611,6 +1659,58 @@ const fixture = "# Progress\n\n| Module | Title | Status | Validated on | Eviden
     "|---|---|---|---|---|---|\n" +
     ids.map((id) => `| ${id} | Synthetic module ${id} | todo | | | Keep note |`).join("\n") +
     "\n\n## Open decisions\n- Synthetic decision.\n\n## Deviations from the build plan\nNone yet.\n";
+
+test("French labels use the reviewed wording and copied prompts preserve the safety instructions", () => {
+    const source = readFileSync(new URL("./locale-fr.js", import.meta.url), "utf8");
+    const french = new Function(`${source}; return french;`)();
+    assert.equal(french["Not sure what to ask?"], "Par quoi commencer ?");
+    assert.equal(french["Make the call. Understand the boundary."], "Testez votre serveur, puis vérifiez le résultat.");
+    assert.equal(french["Copy prompt"], "Copier la consigne");
+    assert.equal(french["Why this boundary matters"], "Pour aller plus loin : comprendre les protections");
+    assert.doesNotMatch(Object.values(french).join("\n"), /idée d'appel|Comprenez la frontière|vrai README|vrai guide/);
+    const prompts = Object.entries(french).filter(([key]) =>
+        key.startsWith("Use only my connected workshop") || key.startsWith("For my synthetic workshop"));
+    assert.equal(prompts.length, 3);
+    assert.match(prompts[0][1], /N'exécute aucun outil/);
+    assert.match(prompts[1][1], /une seule fois/);
+    assert.match(prompts[1][1], /N'utilise aucun outil qui modifie/);
+    assert.match(prompts[2][1], /rôle applicatif nécessaire/);
+    assert.match(prompts[2][1], /accord explicite.*confirmation manuelle/);
+});
+
+test("Markdown disclosures are closed by default, support nesting and code fences, and never render arbitrary HTML", () => {
+    const html = readFileSync(new URL("./board.html", import.meta.url), "utf8");
+    const start = html.indexOf("function markdown(");
+    const end = html.indexOf("function notice(", start);
+    assert.ok(start > 0 && end > start);
+    const element = (tag, text) => ({
+        tag, children: text === undefined ? [] : [text],
+        append(...children) { this.children.push(...children); },
+    });
+    const render = new Function("element", "inline", "notice",
+        `${html.slice(start, end)}; return markdown;`)(element, (node, text) => node.append(text),
+        () => element("aside"));
+    const rendered = render("À retenir.\n<details>\n<summary>Pour aller plus loin</summary>\n\n" +
+        "Précisions.\n\n<details>\n<summary>Cas avancé</summary>\n\n" +
+        "```text\n</details>\n<script>synthetic</script>\n```\n\n</details>\n\n</details>\n\nSuite.", "docs/fr/PRACTICE.md");
+    const section = rendered.children[1];
+    assert.equal(section.tag, "details");
+    assert.equal(section.open, undefined);
+    assert.equal(section.children[0].tag, "summary");
+    assert.deepEqual(section.children[0].children, ["Pour aller plus loin"]);
+    const nested = section.children[1].children[1];
+    assert.equal(nested.tag, "details");
+    assert.equal(nested.open, undefined);
+    assert.equal(nested.children[1].children[0].tag, "pre");
+    assert.deepEqual(nested.children[1].children[0].children[0].children,
+        ["</details>\n<script>synthetic</script>"]);
+    assert.deepEqual(rendered.children[2].children, ["Suite."]);
+    assert.deepEqual(render("<img src=x onerror=synthetic>", "docs/fr/PRACTICE.md").children[0].children,
+        ["<img src=x onerror=synthetic>"]);
+    assert.throws(() => render("<details>\n<summary>Incomplet</summary>", "docs/fr/PRACTICE.md"), /closing tag/);
+    assert.throws(() => render("<details>\n<summary><img src=x></summary>\n</details>", "docs/fr/PRACTICE.md"),
+        /plain-text summary/);
+});
 
 test("client commands reject credential URLs and quote endpoint data without executing it", () => {
     const html = readFileSync(new URL("./board.html", import.meta.url), "utf8");
@@ -2404,9 +2504,12 @@ $files['assets/architecture/99.fr.svg'] = @'
 '@
 
 $files['assets/architecture/README.fr.md'] = @'
-# Schémas éditables du workshop
+# Schémas modifiables de l'atelier
 
-`workshop.drawio` est la source unique : neuf modules, chacun avec une page anglaise et une page française.
+Pour comprendre une étape, consultez d'abord le schéma dans son module.
+Cette page s'adresse aux personnes qui modifient ou republient les schémas.
+
+`workshop.drawio` est le fichier source commun : neuf modules, chacun avec une page anglaise et une page française.
 Les fichiers `NN.en.svg` / `NN.fr.svg` et PNG correspondants sont générés, jamais retouchés séparément.
 Tous montrent une **cible prévue**, pas une infrastructure déjà déployée.
 Les cadres en pointillés désignent le périmètre nommé : poste local, identité ou ressources Azure.
@@ -2416,11 +2519,14 @@ Graph exige un autre jeton pour sa propre audience.
 
 ## Reproduire les exports
 
+<details>
+<summary>Pour aller plus loin : outils et commandes de génération</summary>
+
 Pour les PNG : Python 3, le paquet Python `playwright` et une installation existante de Chromium ou Edge.
 Installez le paquet avec `python -m pip install playwright==1.62.0`. Aucun paquet ni navigateur n'est installé automatiquement.
 La génération SVG seule et `--check` utilisent uniquement la bibliothèque standard de Python.
 Le générateur local gère le sous-ensemble mxGraph utilisé : texte simple, rectangles carrés, périmètres pointillés,
-SVG incorporés, coordonnées des parents et routage orthogonal ancré. Un style non supporté provoque une erreur.
+SVG incorporés, coordonnées des parents et routage orthogonal ancré. Un style non pris en charge provoque une erreur.
 Ce n'est pas un exporteur draw.io général. Draw.io Desktop était absent ; Edge rasterise le SVG local hors ligne.
 
 ```powershell
@@ -2431,12 +2537,14 @@ python .\scripts\render-architecture.py --browser 'C:\Program Files (x86)\Micros
 python3 ./scripts/render-architecture.py --browser "$(command -v chromium)"
 ```
 
-Indiquez le chemin réel de votre navigateur. `--svg-only` regénère les SVG sans navigateur mais **pas les PNG**.
-Regénérez les deux avant publication. Examinez les PNG et le board après un changement de disposition.
+Indiquez le chemin réel de votre navigateur. `--svg-only` régénère les SVG sans navigateur mais **pas les PNG**.
+Régénérez les deux avant publication. Examinez les PNG et le tableau après un changement de disposition.
 `python .\scripts\render-architecture.py --check` vérifie la cohérence sans navigateur ni modification des exports.
 Chaque PNG contient l'empreinte SHA-256 de son SVG source ; une paire périmée provoque un échec.
 Contrôles : segments complets, traversée de composants, intersections et recouvrement d'arêtes, écart parallèle
 de 16 pixels, approche perpendiculaire des flèches, capacité du texte et icônes autonomes.
+
+</details>
 
 ## Provenance et droits
 
@@ -2452,8 +2560,8 @@ Microsoft conserve les droits. Les icônes d'architecture Azure et Entra sont pe
 et la documentation selon leurs conditions, **pas sous la licence MIT du dépôt**.
 Les logos d'entreprise restent soumis aux règles de marques Microsoft ; ce dépôt n'accorde pas de permission générale.
 Vérifiez la permission applicable à votre diffusion avant publication ou marketing.
-Conservez couleurs, proportions et noms. Les marques identifient les technologies, pas le workshop.
-Ce workshop indépendant n'est pas approuvé ou sponsorisé par Microsoft.
+Conservez les couleurs, les proportions et les noms. Les marques identifient les technologies, pas l'atelier.
+Cet atelier indépendant n'est ni approuvé ni sponsorisé par Microsoft.
 
 ## Sources
 
@@ -4427,80 +4535,131 @@ Last verified: 2026-10-14. No subscription was accessed or resource deployed to 
 '@
 
 $files['docs/fr/BUILD-PLAN.md'] = @'
-# Parcours prévu - Governed MCP on Azure
+# Le parcours de l'atelier
 
-Version pédagogique française. Le [plan technique original](../BUILD-PLAN.md) reste la référence de construction.
-Un module par session, branche et PR. Le module 00 est implémenté localement ; aucun module n'est validé dans Azure.
-Une conception n'est pas une commande de déploiement. Lire le guide publié et valider avant de poursuivre.
+Ce parcours présente ce que vous apprendrez à chaque étape. Suivez les modules dans l'ordre.
+Le module 00 est disponible ; sa validation dans Azure reste à faire. Les autres modules sont encore prévus.
+N'utilisez pas ces résumés comme procédure de déploiement : suivez le guide du module lorsqu'il est publié.
+Le [plan technique en anglais](../BUILD-PLAN.md) s'adresse aux personnes qui construisent l'atelier.
 
 ## 00 - Prérequis et environnement
 
-**Préparer :** outils épinglés, dev container, précontrôle, région, quotas, budget et demande d'identité.
-Choisir tenant et abonnement de test ; distinguer administration Entra, création de ressources et attribution de rôles.
-**À démontrer :** vrai précontrôle réussi et demande exploitable par l'administrateur d'identité.
-**Implémentation disponible :** guide EN/FR, précontrôle en lecture seule avec contexte explicite,
-demande d'identité, versions d'outils épinglées et paramètres privés stables.
-Le socle Terraform ajoute un App Service public B1 facultatif, désactivé par défaut.
-Les tests locaux de schéma, plans simulés, scripts et serveur sont distincts de la validation Azure et
-de la construction du conteneur, toujours en attente. Aucun runtime MCP ni racine Entra n'est implémenté.
+**Objectif :** vérifier vos outils et préparer un environnement de test autorisé.
+**À vérifier :** les contrôles réussissent et l'administrateur comprend la demande de configuration Entra.
+
+<details>
+<summary>Pour aller plus loin : ce qui est disponible et ce qui reste à valider</summary>
+
+Le guide bilingue, les scripts de vérification en lecture seule et la demande Entra sont disponibles.
+Les versions des outils sont fixées et chaque participant conserve ses paramètres privés.
+Terraform prépare le groupe et un portail App Service B1 facultatif, payant et désactivé par défaut.
+Les tests locaux ne remplacent ni un déploiement dans Azure ni un démarrage du conteneur.
+Aucun serveur MCP ni code Terraform Entra n'est encore implémenté.
+
+</details>
 
 ## 01 - Découvrir MCP sans Azure
 
-**Construire :** serveur C# local minimal sur entrées/sorties standard (stdio), outils et données synthétiques.
-Connecter VS Code puis Inspector ; négocier la version du protocole.
-**À démontrer :** découverte réelle, appel réussi, approbation client visible. Aucun coût Azure ni modèle requis.
+**Objectif :** afficher les outils d'un serveur local, puis en exécuter un avec des données fictives.
+**À vérifier :** une exécution réelle et une confirmation manuelle disponible dans le client.
+Aucun coût Azure ni modèle d'IA n'est nécessaire pour les tests de protocole avec Inspector.
+Le serveur C# utilise ses entrées et sorties standard (stdio), pas une adresse HTTPS.
 
 ## 02 - Serveur par clé, niveau 0
 
-**Construire :** Functions Flex Consumption, Storage, télémétrie et identité managée avec Terraform.
-Les cinq outils restent synthétiques ; l'écriture crée un message de file. Outils d'identité simulés jusqu'à 05.
-**À démontrer :** 401 sans clé système MCP, 200 et résultat MCP réussi avec la clé.
-Autorisation webhook `System`, jamais accès anonyme. Cette étape est brève et ne représente pas la cible d'entreprise.
+**Objectif :** comprendre qu'une clé partagée protège l'accès sans identifier chaque utilisateur.
+**À vérifier :** HTTP 401 sans clé ; HTTP 200 et réussite de l'outil avec la bonne clé.
+Cette étape payante reste courte et ne représente pas la protection finale.
+
+<details>
+<summary>Pour aller plus loin : services et protection de la clé</summary>
+
+Terraform préparera Azure Functions Flex Consumption, le stockage, la télémétrie et une identité managée.
+Les outils utiliseront des données fictives ; `create_ticket` ajoutera un message à une file de stockage.
+Les accès liés à l'identité resteront simulés jusqu'au module 05.
+Le point d'entrée gardera le niveau d'autorisation `System`, jamais un accès anonyme.
+
+</details>
 
 ## 03 - Identité Microsoft Entra, niveau 1
 
-**Construire :** application MCP, audience propre, étendue `user_impersonation`, rôles Tools.Read, Tools.Write,
-Tools.Execute.All, affectation requise, clients préautorisés et authentification intégrée.
-Métadonnées de ressource protégée (PRM) en **Preview**. Pas de secret client.
-**À démontrer :** 401 sans jeton ou avec mauvaise audience ; Alice et Bob affectés ; Eve exclue.
+**Objectif :** autoriser les utilisateurs prévus, plutôt que toute personne possédant une clé.
+**À vérifier :** Alice et Bob peuvent se connecter, pas Eve. Un jeton absent ou destiné à un autre service est refusé.
+
+<details>
+<summary>Pour aller plus loin : application, autorisations et rôles</summary>
+
+L'application MCP aura sa propre audience, l'autorisation déléguée `user_impersonation` et les rôles
+Tools.Read, Tools.Write et Tools.Execute.All. Les utilisateurs devront être affectés à l'application.
+L'authentification intégrée et les clients préautorisés prépareront la connexion sans secret client.
+Les métadonnées de ressource protégée (PRM) sont en **Preview**.
+Les tests sans jeton ou avec une mauvaise audience doivent renvoyer HTTP 401.
+
+</details>
 
 ## 04 - API Management comme entrée unique, niveau 2
 
-**Construire :** APIM Standard v2, API de gestion MCP `2025-09-01-preview` en **Preview**,
-validation Entra, contrôle de rôle par outil, limite de débit et filtre IP.
-Intégration réseau sortante, point de terminaison privé, DNS privé, accès public Function désactivé.
-APIM et Functions protègent une seule ressource logique MCP. Zéro octet de corps dans les diagnostics.
-**À démontrer :** écriture Bob 403 ; Alice 200 et succès MCP ; débit 429 ; Function directe refusée.
+**Objectif :** imposer le passage par la passerelle API Management.
+**À vérifier :** Bob ne peut pas créer de ticket, Alice le peut après approbation.
+Un nombre excessif d'appels est limité et l'accès direct à la Function est refusé.
+
+<details>
+<summary>Pour aller plus loin : réseau privé et contrôles de la passerelle</summary>
+
+API Management (APIM) Standard v2 utilisera l'API de gestion MCP `2025-09-01-preview`, en **Preview**.
+La passerelle vérifiera les jetons Entra et le rôle requis par outil. Elle limitera le débit et filtrera les adresses IP.
+L'intégration au réseau sortant, un point de terminaison privé et la résolution privée des noms (DNS)
+permettront de joindre la Function sans accès public.
+APIM et Functions protégeront le même service MCP. Les journaux ne contiendront aucun corps de requête ou de réponse.
+Les résultats attendus sont HTTP 403 pour Bob, HTTP 200 et réussite pour Alice, HTTP 429 au-delà du débit autorisé.
 L'option 04b REST vers MCP ne remplace pas le serveur principal.
+
+</details>
 
 ## 05 - On-Behalf-Of et accès applicatif, niveau 3
 
-**Construire :** `whoami` vers Graph et `read_report_as_user` vers Storage avec On-Behalf-Of (OBO).
-`read_report_as_app` utilise explicitement une identité managée. Aucun jeton MCP transmis aux API cibles.
+**Objectif :** comparer les droits de l'utilisateur et ceux de l'application.
+**À vérifier :** la lecture au nom de l'utilisateur réussit pour Alice et échoue pour Bob ;
+la lecture avec les droits de l'application donne le même résultat aux deux.
+
+<details>
+<summary>Pour aller plus loin : délégation et identité managée</summary>
+
+`whoami` appellera Microsoft Graph et `read_report_as_user` appellera Azure Storage avec On-Behalf-Of (OBO).
+`read_report_as_app` utilisera une identité managée. Aucun jeton MCP ne sera transmis aux API cibles.
 Les identités managées et la fédération remplacent les secrets clients.
-**À démontrer :** lecture déléguée autorisée pour Alice, refusée pour Bob ; même résultat applicatif pour les deux.
-Noter HTTP et erreur MCP : un 403 cible peut être contenu dans HTTP 200.
+Examinez le code HTTP et l'erreur MCP : un refus du stockage peut être contenu dans une réponse HTTP 200.
+
+</details>
 
 ## 06 - Observation et inventaire, niveau 4
 
-**Construire :** requêtes Kusto Query Language (KQL) ou workbook avec outil, appelant authentifié, statut, latence
-et corrélation. Inscrire uniquement l'adresse gouvernée dans Azure API Center.
-**À démontrer :** qui appelle quoi et avec quel résultat, sans stocker jetons, prompts, arguments ou résultats.
-API Center n'est ni une étape de routage ni une autorisation. Option Microsoft 365 BYO : **Preview**, facilitateur seulement.
+**Objectif :** savoir qui a utilisé quel outil et avec quel résultat, sans enregistrer les données échangées.
+**À vérifier :** les journaux ne contiennent ni jetons, ni consignes, ni paramètres ou résultats d'outils.
+Azure API Center répertorie l'adresse de la passerelle ; il ne relaie pas les appels et ne donne aucun droit.
+
+<details>
+<summary>Pour aller plus loin : analyser les métadonnées</summary>
+
+Des requêtes Kusto Query Language (KQL) ou un classeur d'analyse montreront le nom de l'outil,
+l'identifiant de l'appelant authentifié, le statut, la durée et l'identifiant de corrélation.
+L'inventaire Microsoft 365 est facultatif, en **Preview**, et réservé à l'animateur.
+
+</details>
 
 ## 07 - Clients supplémentaires, facultatif
 
-**Démontrer :** le même serveur gouverné depuis un client Foundry ou Copilot Studio officiellement supporté
-et sans secret. Revérifier licences, identité et statut **Preview** des fonctions choisies.
+**Objectif :** utiliser le même serveur depuis un client Foundry ou Copilot Studio officiellement pris en charge,
+sans secret. Vérifiez les licences, l'identité utilisée et les fonctions en **Preview**.
 L'authentification OAuth manuelle Copilot Studio exigeant un secret reste reportée.
-Cette démonstration du facilitateur ne bloque pas le nettoyage.
+Cette démonstration de l'animateur ne doit pas retarder le nettoyage.
 
 ## 99 - Nettoyage
 
-**Retirer :** ressources du workload d'abord, puis uniquement objets Entra, utilisateurs de test et affectations créés.
-Lire le plan de destruction et obtenir l'approbation ; préserver identités fournies et infrastructure partagée.
-**À démontrer :** inventaire des ressources du workshop vide, rôles et objets créés comptabilisés, rétention vérifiée.
-Arrêter aussi Inspector et les codespaces inutilisés.
+**Objectif :** supprimer les ressources créées pour l'atelier, puis les identités et rôles créés pour les tests.
+Examinez le plan de suppression et faites-le approuver. Préservez les ressources partagées et les comptes existants.
+**À vérifier :** aucune ressource de l'atelier ne reste facturée ; les rôles, identités et durées de conservation sont vérifiés.
+Arrêtez aussi Inspector et les codespaces inutilisés.
 
 ## Sources
 
@@ -4509,22 +4668,22 @@ Dernière vérification : 2026-10-14.
 '@
 
 $files['docs/fr/COPILOT-RUNBOOK.md'] = @'
-# Construire le workshop avec GitHub Copilot app
+# Préparer l'atelier avec l'application GitHub Copilot
 
-Ce runbook construit le workshop, il ne remplace pas les futurs guides participant.
+Ce guide s'adresse aux personnes qui construisent l'atelier, pas aux participants qui suivent les exercices.
 **Un module = une session = une branche = une pull request (PR).** Fusionnez avant le module suivant.
-Les modules ne sont pas encore implémentés ni validés.
+Le module 00 est implémenté localement ; aucun module n'est encore validé dans Azure.
 
 Les participants peuvent travailler sans ce processus de construction :
-[choisir leur environnement](GETTING-STARTED.md), VS Code en dev container ou terminal local,
+[choisir leur environnement](GETTING-STARTED.md), VS Code avec un conteneur de développement ou un terminal local,
 vérifier les outils puis préparer leurs paramètres privés et le groupe Terraform.
-Le board s'ouvre par défaut sur `#/start`. Choisir un environnement ne valide aucun module.
+Le tableau s'ouvre par défaut sur `#/start`. Choisir un environnement ne valide aucun module.
 
 ## Avant de commencer
 
 Installez et connectez GitHub Copilot app selon la politique de votre organisation.
 Les versions candidates de Git, GitHub CLI, Azure CLI, Terraform, PowerShell 7, Node.js, .NET et Functions Core Tools
-sont décrites dans le [registre de sources](REFERENCES.md). Le module 00 doit les épingler et les vérifier.
+sont décrites dans les [références](REFERENCES.md). Le module 00 fixe leurs versions et prévoit les contrôles.
 Choisissez votre [tenant et abonnement de test](DEPLOYMENT.md). L'administrateur d'identité approuve séparément
 applications, consentements et comptes de test Alice, Bob et Eve. Aucun identifiant réel dans le dépôt.
 
@@ -4561,9 +4720,12 @@ L'agent suit `.github/skills/workshop-module-builder/SKILL.md` et `.github/copil
 Il doit présenter le plan Terraform, les objets Entra, rôles, coûts, Preview et nettoyage puis attendre votre
 approbation explicite avant tout changement cloud.
 
-## Séquence et prompts
+## Consignes à copier dans Copilot
 
-Les prompts ci-dessous peuvent être copiés dans une session Copilot. Ils ne sont pas exécutés par le board.
+Les consignes ci-dessous sont à copier dans une session Copilot. Le tableau ne les exécute pas.
+
+<details>
+<summary>Pour aller plus loin : consignes de construction P1 à P9 et documentation</summary>
 
 ### P1 - Plan global, sans code
 
@@ -4625,14 +4787,14 @@ Toute création ou modification nécessite mon accord préalable.
 
 ```text
 Utilise workshop-module-builder pour le module 99. Présente le vrai plan de destruction et attends mon accord.
-Retire le workload avant les seuls objets Entra créés par le workshop. Préserve identités fournies et ressources
+Supprime les ressources Azure avant les seuls objets Entra créés pour l'atelier. Préserve les identités fournies et les ressources
 partagées. Vérifie inventaire, rôles, réseau privé, rétention et coûts restants.
 ```
 
 ### PD - Documentation en parallèle
 
 ```text
-Écris les concepts et le guide facilitateur à partir du plan et des modules réellement validés.
+Écris les explications et le guide de l'animateur à partir du plan et des modules réellement validés.
 Synchronise les explications françaises et les schémas éditables. Ne modifie ni code de module ni infrastructure.
 Mets à jour les sources et ouvre une PR.
 ```
@@ -4644,29 +4806,33 @@ Vérifie les neuf invariants, l'absence de contenu privé, les liens, les mentio
 sur un abonnement neuf. Liste les écarts dans une PR. Ne corrige que ce qui est sûr et approuvé.
 ```
 
-Le module 07 est une démonstration facultative du facilitateur ; il ne bloque jamais le nettoyage.
-Avant le jour du workshop : répétition 00 à 06 sur un abonnement de test neuf, puis 99 ; coûts vérifiés et vidéos de secours.
+</details>
 
-## Utiliser le board
+Le module 07 est une démonstration facultative de l'animateur ; il ne doit pas retarder le nettoyage.
+Avant l'atelier, répétez les modules 00 à 06 puis 99 sur un abonnement de test neuf.
+Vérifiez les coûts et préparez des vidéos de secours.
+
+## Utiliser le tableau
 
 Demandez « Affiche le Workshop build board ». Le SDK canvas Copilot est en **Preview**, indépendant d'un agent Foundry.
 Choisissez EN ou FR. `?lang=fr#/module/04` ouvre directement le module 04 en français.
 L'URL conserve le choix de langue ; aucun compte ni suivi personnel n'est créé.
 Les pages incluent schémas, gouvernance, références, contexte Azure et espace de test.
 
-Le board ne change ni statut ni ressource et n'exécute aucune commande. Il affiche le README réel lorsqu'il existe ;
+Le tableau ne change aucun statut ni aucune ressource et n'exécute aucune commande. Il affiche le guide publié lorsqu'il existe ;
 sinon, une conception explicitement non exécutable. Si un futur README français manque, il le dit et permet de
 lire l'original anglais sans prétendre l'avoir traduit.
 Les décisions et preuves de construction conservent leur texte original anglais, clairement signalé.
 
-Dans **Tester votre MCP**, seule une adresse HTTPS sans clé ni paramètre reste en mémoire de page.
+Dans **Tester votre serveur MCP**, seule une adresse HTTPS sans clé ni paramètre reste en mémoire de page.
 Les copies de commandes, configurations et prompts ne font aucun appel réseau MCP.
 Codespaces ouvre le choix de création de la branche publiée, pas une machine prête ni les modifications non poussées.
 Inspector reste privé, authentifié et sans stockage de jetons. Chaque client Entra demande sa propre approbation.
 
 Les actions agent restent `get_progress`, `set_module_status` et `list_open_decisions`.
 L'écriture de statut exige la révision courante. `validated` exige date et vraie preuve du validateur.
-Le board ne certifie pas cette preuve. N'y mettez ni jetons, prompts, arguments, résultats ni données réelles de comptes.
+Le tableau ne certifie pas cette preuve. N'y mettez ni jetons, consignes, paramètres ou résultats d'outils,
+ni données réelles de comptes.
 
 ## Sources
 
@@ -4676,173 +4842,211 @@ Dernière vérification : 2026-10-14.
 '@
 
 $files['docs/fr/DEPLOYMENT.md'] = @'
-# Votre tenant. Votre abonnement. Votre décision.
+# Préparer votre environnement Azure
 
-Le serveur Model Context Protocol (MCP) doit être déployé dans **votre environnement de test approuvé**.
-Cette page prépare le contexte de déploiement. Elle ne déploie rien et ne certifie pas vos permissions.
-Commencez par [choisir dev container ou outils locaux](GETTING-STARTED.md).
-Le preflight en lecture seule, le validateur et la demande d'identité du module 00 sont disponibles.
-Terraform contient le socle groupe et le portail App Service public facultatif ; aucun runtime MCP n'est implémenté.
+Utilisez uniquement un environnement de test **approuvé et hors production**.
+Cette page vous aide à le sélectionner ; elle ne déploie rien et ne garantit pas vos droits.
+Si ce n'est pas déjà fait, [choisissez votre environnement de travail](GETTING-STARTED.md).
 
-> [!IMPORTANT]
-> Le tenant Microsoft Entra contient les identités, applications et consentements. L'abonnement Azure porte les
-> ressources facturées. Le groupe de ressources délimite les ressources du workshop. Ce sont des périmètres
-> différents, avec des responsabilités administratives distinctes.
+Trois notions suffisent pour commencer :
 
-## 1. Définir le périmètre avant la connexion
+- **L'annuaire Microsoft Entra**, aussi appelé tenant, contient les utilisateurs et les applications.
+- **L'abonnement Azure** contient les ressources et porte les frais.
+- **Le groupe de ressources** rassemble les ressources de votre déploiement.
 
-Choisissez un tenant de test approuvé et un abonnement Azure rattaché à cet annuaire.
-Confirmez le préfixe participant, le groupe de ressources, le propriétaire, l'expiration, la région, le budget et
-la fenêtre de nettoyage. N'utilisez ni données de production, ni session empruntée, ni environnement non approuvé.
-Les identifiants de tenant et d'abonnement restent dans votre terminal privé, jamais dans le board ou le dépôt.
+Ces trois périmètres n'ont pas forcément le même administrateur. Gardez leurs identifiants dans votre
+terminal privé, jamais dans ce tableau ou dans le dépôt.
 
-| Responsabilité | Autorité nécessaire | Ce que cela ne donne pas |
-|---|---|---|
-| Déployer les ressources | Opérations approuvées sur le groupe de ressources du workshop | Contributor ne permet pas d'attribuer des rôles. |
-| Configurer les identités | Un administrateur d'identité approuve applications, rôles applicatifs, utilisateurs de test et consentements | Un rôle Azure ne donne pas l'administration Entra. |
-| Attribuer l'accès aux ressources | Autorisation distincte d'attribuer les rôles au périmètre exact | Ne pas demander Owner sur l'abonnement par défaut. |
-| Utiliser un client | ID de client public approuvé, adresse de retour exacte et étendues autorisées | La préautorisation de VS Code ne couvre pas Inspector. |
-| Réutiliser des identifiants | Le propriétaire fournit les objets existants et leur périmètre | Ne pas modifier ni supprimer ces identités existantes. |
+## 1. Confirmer les choix avec l'administrateur
 
-## 2. Choisir et vérifier dans votre terminal
+Vérifiez l'annuaire, l'abonnement, le groupe, la région et le budget autorisés.
+Choisissez aussi une date de nettoyage et un libellé de propriétaire sans information personnelle.
+N'utilisez pas de données de production ni la session d'une autre personne.
 
-Lisez le sélecteur de contexte avant de l'exécuter. Il lance la connexion interactive Azure CLI, choisit votre
-abonnement et vérifie les deux identifiants ainsi que l'état de l'abonnement. Il ne crée aucune ressource et
-n'attribue aucun rôle. Les substitutions d'authentification incompatibles provoquent un arrêt explicite.
-Votre confirmation atteste l'approbation : elle ne détecte pas automatiquement un environnement de production.
+<details>
+<summary>Pour aller plus loin : qui approuve quoi ?</summary>
 
-### PowerShell 7
+| Besoin | À faire approuver |
+|---|---|
+| Déployer les ressources | Les opérations nécessaires sur le groupe de l'atelier |
+| Configurer les identités | Les applications, rôles applicatifs, comptes de test et consentements Microsoft Entra |
+| Attribuer des droits sur les ressources | Les attributions de rôles, limitées au périmètre nécessaire |
+| Connecter VS Code ou Inspector | Les paramètres de chaque application cliente ; l'accord pour l'une ne couvre pas l'autre |
+| Utiliser des objets existants | Leur périmètre d'utilisation, sans les modifier ni les supprimer |
 
-Depuis votre copie locale du dépôt, dans un terminal PowerShell :
+Le rôle Contributeur (Contributor) ne permet pas d'attribuer des rôles.
+Un rôle Azure ne donne pas de droit d'administration Entra.
+Ne demandez pas le rôle Propriétaire (Owner) sur l'abonnement pour contourner ces limites.
+
+</details>
+
+## 2. Sélectionner l'environnement dans votre terminal
+
+Lisez le script, puis lancez-le depuis le dossier principal du dépôt :
 
 ```powershell
 & .\scripts\select-azure-context.ps1 -Language fr
 ```
 
-Utilisez `&` dans le processus PowerShell courant, **pas** un nouveau processus `pwsh -File`.
-Le script définit `ARM_TENANT_ID` et `ARM_SUBSCRIPTION_ID` uniquement dans ce processus.
-Il utilise `az login --tenant`, `az account set --subscription` et `az account show`.
-Respectez la connexion navigateur et l'authentification multifacteur de votre organisation. Aucun mot de passe
-ni secret client n'est nécessaire.
+Il ouvre la connexion Azure dans le navigateur, sélectionne l'abonnement demandé et vérifie le contexte.
+Respectez l'authentification multifacteur de votre organisation.
+Le script ne crée aucune ressource et n'attribue aucun rôle.
 
-### bash
+**Gardez ce même terminal pour Terraform.** Lancez le script avec `&`, pas dans un nouveau processus
+`pwsh -File` : les paramètres de contexte doivent rester disponibles pour la suite.
+Si le script échoue, arrêtez-vous. Ne poursuivez pas avec l'ancien abonnement sélectionné.
+
+<details>
+<summary>Vous utilisez bash ?</summary>
 
 ```bash
 source ./scripts/select-azure-context.sh fr
 ```
 
-Sourcez le script dans le même terminal bash. L'exécution avec `bash script.sh` est refusée : les variables
-disparaîtraient avec le processus enfant. Les contrôles correspondent à ceux de la version PowerShell.
+Utilisez bien `source`, pas `bash script.sh`, pour conserver les variables dans le terminal courant.
+Les contrôles sont les mêmes qu'avec PowerShell.
 
-> [!WARNING]
-> Un échec impose l'arrêt, pas la poursuite avec l'ancien abonnement par défaut.
-> Sélectionnez à nouveau le contexte approuvé avant Terraform. Ne collez jamais de sortie
-> `az account get-access-token` ici. Ces sélecteurs ciblent Azure public ; un cloud souverain nécessite une
-> configuration distincte et revue.
+</details>
 
-## 3. Lire le vrai module avant tout déploiement payant
+<details>
+<summary>Pour aller plus loin : fonctionnement du sélecteur de contexte</summary>
 
-1. Terminez les contrôles publiés du module 00, puis l'exercice MCP local du module 01. Choisir un contexte
-   ne valide pas ces modules.
-2. Préparez le fichier participant privé avec le guide de démarrage. Conservez suffixe aléatoire et état Terraform.
-   `infra/workload` ne gère qu'un groupe dédié ou lit un groupe approuvé, pas un serveur MCP.
-   Attendez le vrai guide, la validation et le nettoyage de chaque module runtime. Aucun bouton Deploy dans le board.
-3. Dans le même terminal, vérifiez le tenant et l'abonnement des providers réels de `infra/workload`.
-   AzureRM et AzAPI doivent cibler votre abonnement, AzureAD le tenant approuvé.
-   Un paramètre explicite ou un alias de provider peut remplacer les variables d'environnement. Lisez chaque
-   provider et le plan.
-4. L'administrateur d'identité examine séparément `infra/entra`. Lorsque la création est ignorée, lisez les
-   identifiants fournis sans modifier les objets. Utilisez identités managées et fédération, jamais un secret client.
-5. Vérifiez disponibilité régionale, quotas, politiques, tags et estimation. API Management Standard v2 facture
-   une capacité provisionnée. Points de terminaison privés, stockage, télémétrie, API Center et agents optionnels
-   peuvent également entraîner des coûts.
-   Un nom aléatoire limite les collisions mais ne remet pas à zéro les quotas régionaux ou de l'abonnement partagé.
-6. Lisez les ressources exactes et les périmètres de rôles du plan Terraform. L'application nécessite une
-   approbation explicite dans la session de déploiement. Revérifiez le contexte après un changement de terminal,
-   d'abonnement, de provider ou d'authentification.
-7. Exécutez le vrai validateur du module. Conservez seulement les métadonnées autorisées et lignes PASS.
-   Ne poursuivez pas avant sa réussite.
+Le script utilise `az login --tenant`, `az account set --subscription` et `az account show`.
+Il définit `ARM_TENANT_ID` et `ARM_SUBSCRIPTION_ID` dans le processus courant uniquement.
+Il refuse les paramètres d'authentification incompatibles plutôt que de les ignorer.
+La confirmation demandée atteste votre accord ; elle ne détecte pas automatiquement un environnement de production.
 
-## 4. Appeler le serveur réellement déployé
+Ces scripts concernent Azure public. Un cloud souverain nécessite une configuration distincte, à examiner
+avant utilisation. Ne collez jamais la sortie de `az account get-access-token` dans cette page.
 
-Utilisez l'adresse issue des **sorties de votre déploiement**. Le module 01 utilise les entrées/sorties standard
-(stdio), pas HTTPS. Le module 02 démontre brièvement une protection par clé système. Le module 03 ajoute
-l'identité des utilisateurs affectés. Dès le module 04, seul l'URL API Management est destiné aux clients :
-la Function devient privée.
+</details>
 
-Connectez le client approuvé au bon tenant avec son adresse de retour exacte et ses étendues.
-Alice, Bob et Eve désignent des personas fictifs associés à des comptes de test dédiés.
-Ne saisissez ni jeton, ni clé, ni identifiants de connexion dans le board.
-Préparez les commandes dans **Tester votre MCP**, puis exécutez et inspectez les appels dans le client officiel.
-Un HTTP 200 peut contenir une erreur d'outil MCP. Chaque écriture synthétique exige un rôle explicite et une
-approbation individuelle.
+## 3. Suivre le module avant de déployer
 
-> [!TIP]
-> Prédisez le résultat : pas de jeton donne 401 ; une écriture de Bob à la passerelle donne 403 ; un dépassement
-> de débit donne 429. Pour la délégation, lisez aussi le résultat MCP. Un refus peut être le résultat attendu.
+Terminez les vérifications du [module 00](../../modules/00-prerequisites/README.fr.md), puis l'exercice local
+du module 01 lorsqu'il sera disponible. Sélectionner un abonnement ne valide pas un module.
 
-## 5. Arrêter les coûts et préserver les objets partagés
+Le code Terraform actuel prépare le groupe et un portail App Service public facultatif, désactivé par défaut.
+Le serveur MCP et les modules suivants ne sont pas encore implémentés. Attendez leurs guides de déploiement,
+de vérification et de nettoyage. Ce tableau n'a pas de bouton qui déploie tout l'atelier.
 
-Après les étapes payantes, suivez le module 99. Le module 07 est facultatif.
-Examinez le nettoyage des ressources avant celui des identités. Supprimez uniquement les ressources,
-affectations et comptes créés pour le workshop, après approbation explicite. Préservez les identités fournies et
-l'infrastructure partagée. Vérifiez les tags, le réseau privé, l'inventaire, la rétention et la suppression
-récupérable. Arrêtez également Inspector et les codespaces inutilisés.
+> [!IMPORTANT]
+> Avant toute création payante, examinez le plan Terraform, les droits, les quotas et les coûts.
+> L'application du plan exige un accord explicite. Conservez les mêmes paramètres et le même état Terraform.
+
+<details>
+<summary>Pour aller plus loin : ce qu'il faut examiner dans un plan Terraform</summary>
+
+Vérifiez les ressources créées et les périmètres des rôles. Les fournisseurs Terraform AzureRM et AzAPI
+doivent cibler l'abonnement approuvé ; AzureAD doit cibler l'annuaire approuvé.
+Un paramètre explicite ou un alias peut remplacer une variable d'environnement.
+Revérifiez le contexte après tout changement de terminal, d'abonnement, de fournisseur ou de connexion.
+Ces fournisseurs et l'infrastructure Entra seront ajoutés dans les modules concernés.
+
+L'administrateur d'identité examine séparément `infra/entra` lorsqu'il sera implémenté.
+Les objets fournis par l'organisation ne doivent être ni modifiés ni supprimés.
+Utilisez des identités managées et la fédération, jamais de secret client.
+
+Vérifiez aussi les régions disponibles, les quotas partagés, les règles Azure Policy et les étiquettes.
+API Management Standard v2 facture une capacité réservée. Réseau privé, stockage, télémétrie,
+API Center et clients facultatifs peuvent ajouter des frais.
+Des noms aléatoires évitent certains conflits de noms, pas les limites de capacité.
+
+</details>
+
+## 4. Tester votre serveur après son déploiement
+
+Utilisez l'adresse fournie par **votre déploiement** dans [Tester votre serveur MCP](PRACTICE.md).
+Le module 01 fonctionne localement. Le module 02 utilise brièvement une clé système.
+Le module 03 ajoute la connexion des utilisateurs.
+À partir du module 04, utilisez uniquement API Management ; la Function devient privée.
+
+Alice, Bob et Eve sont des personnages fictifs associés à des comptes de test dédiés.
+Une action qui modifie des données exige le rôle prévu et une approbation pour cette action précise.
+Un refus peut être le résultat attendu : n'accordez pas plus de droits pour obtenir une réponse positive.
+Un code HTTP 200 peut contenir une erreur d'outil MCP.
+
+## 5. Nettoyer après les étapes payantes
+
+Suivez le module 99 après avoir examiné et fait approuver les suppressions.
+Supprimez uniquement les ressources et les identités créées pour l'atelier.
+Préservez les groupes et les comptes existants. Arrêtez Inspector et les codespaces inutilisés.
+Le module 07 est facultatif ; il ne doit pas retarder le nettoyage.
+
+<details>
+<summary>Pour aller plus loin : vérifier qu'il ne reste rien de facturable</summary>
+
+Nettoyez les ressources avant les identités créées pour l'atelier.
+Vérifiez les étiquettes, le réseau privé, les attributions de rôles et l'inventaire.
+Examinez aussi les durées de conservation et les suppressions récupérables.
+Arrêter un service ne signifie pas nécessairement arrêter tous ses frais.
+
+</details>
 
 ## Sources
 
 - [Choix du tenant et de l'abonnement avec Azure CLI](https://learn.microsoft.com/cli/azure/manage-azure-subscriptions-azure-cli).
 - [Connexion interactive Azure CLI](https://learn.microsoft.com/cli/azure/authenticate-azure-cli-interactively).
-- [Autorité d'attribution des rôles Azure](https://learn.microsoft.com/azure/role-based-access-control/role-assignments-cli).
+- [Attribution des rôles Azure](https://learn.microsoft.com/azure/role-based-access-control/role-assignments-cli).
 - [Configuration et authentification AzureRM](https://registry.terraform.io/providers/hashicorp/azurerm/5.9.0/docs).
-- [Plan technique original en anglais](../BUILD-PLAN.md) et [guide pratique français](PRACTICE.md).
+- [Plan technique original en anglais](../BUILD-PLAN.md) et [guide de test](PRACTICE.md).
 
-Dernière vérification : 2026-10-14. Aucun abonnement n'a été consulté et aucune ressource n'a été déployée.
+Dernière vérification : 2026-10-14. Aucun abonnement consulté et aucune ressource déployée lors de la préparation.
 '@
 
 $files['docs/fr/GETTING-STARTED.md'] = @'
-# Choisir votre environnement dès le départ
+# Bien démarrer
 
-Utilisez **Visual Studio Code (VS Code)** en dev container, ou votre terminal local.
-Les deux chemins utilisent les mêmes scripts, paramètres privés et racine Terraform.
-Visual Studio IDE est un autre produit : les instructions conteneur concernent l'extension Dev Containers de VS Code.
-Ni Copilot ni le canvas ne sont requis pour lire les guides Markdown et exécuter les scripts.
+Choisissez où exécuter les commandes : sur votre poste, dans un conteneur de développement avec
+**Visual Studio Code (VS Code)**, ou dans GitHub Codespaces. Les exercices et les scripts sont les mêmes.
+Vous pouvez suivre les guides sans Copilot ni ce tableau.
 
-## 1. Choisir un chemin
+## 1. Choisir votre environnement de travail
 
-| Chemin | Prérequis | Démarrage |
+| Environnement | Ce qu'il vous faut | Pour commencer |
 |---|---|---|
-| VS Code en dev container | VS Code, extension Dev Containers, moteur de conteneurs Linux approuvé et accessible, accès aux paquets publics | Ouvrir la copie locale avec `code .`, puis **Dev Containers: Reopen in Container**. |
+| VS Code avec un conteneur de développement | VS Code, l'extension Dev Containers et un moteur de conteneurs Linux autorisé par votre organisation | Ouvrir le dépôt avec `code .`, puis choisir **Dev Containers: Reopen in Container** dans la palette de commandes. |
 | Terminal local | Git, PowerShell 7.4+, Azure CLI, Terraform, SDK .NET, Node.js, Functions Core Tools | Garder la copie locale. Installer les outils selon les règles de votre organisation. |
-| Codespaces, facultatif | Accès GitHub, quota et coûts approuvés | [Choisir branche et machine](https://codespaces.new/olivMertens/workshop-mcp). La même `.devcontainer` est utilisée après publication des fichiers. |
+| Codespaces, facultatif | Un compte GitHub avec du quota disponible et un accord pour les frais éventuels | [Choisir la branche et la machine](https://codespaces.new/olivMertens/workshop-mcp). Seuls les fichiers publiés sur cette branche seront disponibles. |
 
-Le conteneur monte la copie du dépôt. Il ne monte pas explicitement votre dossier d'identifiants Azure ni le socket
-du moteur, ne vous connecte pas à Azure et ne déploie rien. Vérifiez les scripts des Features et le partage Git de
-VS Code avant d'approuver le dépôt. Le moteur est lui-même une frontière de confiance privilégiée.
-Gardez les ports Inspector privés, via VS Code desktop et un transfert privé, jamais public.
+Gardez les ports de MCP Inspector privés. Ne partagez pas votre dossier de connexion Azure avec le conteneur.
+La configuration du conteneur a été vérifiée, mais son démarrage et celui de Codespaces restent à tester.
+En cas de problème avec le conteneur, le terminal local reste une possibilité si votre organisation l'autorise.
+
+<details>
+<summary>Pour aller plus loin : fonctionnement du conteneur et compatibilité Docker ou Podman</summary>
+
+Le conteneur accède aux fichiers du dépôt. Il ne partage pas explicitement votre dossier de connexion Azure
+ni la connexion de contrôle du moteur de conteneurs, ne vous connecte pas à Azure et ne déploie rien.
+Vérifiez les scripts d'installation et le partage Git de VS Code avant d'approuver le dépôt.
+Les instructions concernent VS Code, pas l'environnement de développement Visual Studio.
 
 ### Dans le dev container
 
-L'image Ubuntu 24.04 et les Features officielles sont fixées par empreinte dans `.devcontainer/devcontainer.json`.
+L'image Ubuntu 24.04 et les composants d'installation officiels (Features) sont fixés par empreinte
+dans `.devcontainer/devcontainer.json`.
 Versions choisies : Azure CLI 2.88.0, Terraform 1.16.6, SDK .NET 10.0.402, PowerShell 7.6.6,
 Node.js 22.22.0 et Functions Core Tools 4.14.0. Le script de création installe Core Tools puis lance
-le **même** `check-tools.ps1` que le chemin local. Les dépendances téléchargées et extensions éditeur peuvent
-évoluer : ces empreintes ne figent pas tous les dépôts de paquets. Révisez les versions délibérément.
+le **même** `check-tools.ps1` que sur le poste local. Les dépendances téléchargées et les extensions de l'éditeur
+peuvent évoluer : ces empreintes ne figent pas tous les paquets. Toute mise à jour doit être examinée.
 
 Docker doit répondre à `docker version` et `docker info`, pas seulement être installé.
 Pour Podman 5+, suivez [la procédure VS Code](https://code.visualstudio.com/remote/advancedcontainers/docker-options) :
 vérifiez `podman version`, `podman info` et, sur Windows/macOS, `podman machine list`, puis réglez
 **Dev Containers: Docker Path** sur `podman`. Ne créez pas une nouvelle machine et n'exposez pas de socket TCP
-comme contournement. VS Code ne supporte pas officiellement tous les clients compatibles Docker.
+comme contournement. VS Code ne prend pas officiellement en charge tous les clients compatibles Docker.
 Cette configuration n'utilise ni Compose ni conteneurs imbriqués.
 
 **Limite de vérification :** configuration et empreintes publiques vérifiées, mais aucun moteur accessible sur le
 poste de création. La construction, les deux architectures Linux et l'exécution Codespaces restent à vérifier
 au jalon du module 00. Un fichier présent ne prouve pas que votre moteur ou votre proxy fonctionne.
 En cas d'échec : **Dev Containers: Show Container Log**. Corrigez l'erreur réelle de registre, proxy ou plateforme ;
-ne désactivez pas les certificats et ne changez pas silencieusement de moteur. Le chemin local reste possible si approuvé.
+ne désactivez pas la vérification des certificats et ne changez pas de moteur sans examen.
 
-### Dans le terminal local
+</details>
+
+<details>
+<summary>Installer les outils sur votre poste : versions et liens officiels</summary>
 
 Installez les versions compatibles avec votre système depuis les sources officielles :
 
@@ -4857,9 +5061,11 @@ Installez les versions compatibles avec votre système depuis les sources offici
 | Functions Core Tools | 4.5.0+, inférieur à 5 | [Installation officielle](https://learn.microsoft.com/azure/azure-functions/functions-run-local) |
 
 Choisissez Core Tools v4, pas la CLI Functions v5 distincte en **Preview**.
-Certains lanceurs npm téléchargent le binaire au premier appel. Le contrôle refuse les wrappers incomplets connus
-au lieu de lancer ce téléchargement. Terminez séparément l'installation approuvée ; un paquet listé ne prouve
-pas que son binaire fonctionne. Aucun script ne modifie automatiquement votre poste ou moteur.
+Certains lanceurs npm téléchargent le programme au premier appel. Le contrôle détecte les installations
+incomplètes connues et s'arrête au lieu de déclencher ce téléchargement. Terminez l'installation selon la
+procédure approuvée. Aucun script ne modifie automatiquement votre poste ou votre moteur de conteneurs.
+
+</details>
 
 ## 2. Vérifier le terminal réellement utilisé
 
@@ -4876,10 +5082,11 @@ bash ./scripts/check-tools.sh
 PowerShell reste requis sur macOS/Linux. Corrigez chaque `FAIL`.
 Ce contrôle exécute uniquement des commandes de version locales : ni permissions Azure, ni quota, ni déploiement.
 
-## 3. Préparer des noms privés et isolés
+## 3. Préparer vos paramètres de déploiement
 
-Lisez le script. Choisissez préfixe participant, région approuvée, étiquette propriétaire non sensible et date courte
-de nettoyage. Les exemples suivants utilisent des étiquettes synthétiques, pas un compte ou une région imposés.
+Choisissez votre préfixe de participant, une région approuvée, un libellé de propriétaire sans information
+personnelle et une date de nettoyage proche. Adaptez les exemples : `p01`, `alice` et `westeurope`
+ne sont pas des valeurs imposées.
 
 ```powershell
 $expiry = [datetime]::UtcNow.AddDays(1).ToString('yyyy-MM-dd')
@@ -4891,10 +5098,21 @@ read -r -p 'Date de nettoyage approuvée (yyyy-MM-dd) : ' expiry
 bash ./scripts/prepare-workshop.sh -ParticipantPrefix p01 -Location westeurope -Owner alice -Expiry "$expiry"
 ```
 
-Le fichier `.workshop/participant.tfvars.json`, ignoré par Git, conserve un suffixe aléatoire cryptographique
-de dix caractères hexadécimaux. Le script ne contacte pas Azure. Le même appel réutilise le fichier sans changement ;
-des paramètres différents provoquent un arrêt. Conservez ce fichier et l'état Terraform jusqu'au nettoyage.
-La date est une étiquette, **pas une suppression automatique**.
+Le script crée un fichier privé, `.workshop/participant.tfvars.json`, que Git ne publie pas.
+Il y conserve une terminaison aléatoire pour distinguer vos noms de ressources de ceux des autres participants.
+Relancer la même commande réutilise le fichier ; changer les paramètres provoque un arrêt.
+Conservez ce fichier et l'état Terraform, qui permet de retrouver les ressources déployées, jusqu'au nettoyage.
+Le script ne contacte pas Azure. La date est un rappel, **pas une suppression automatique**.
+
+Si l'administrateur vous fournit un groupe, ajoutez `-ExistingResourceGroupName` avec son nom dès la
+première préparation. Terraform ne gérera pas ce groupe existant et ne le supprimera pas.
+
+> [!WARNING]
+> Des noms différents ne donnent pas de quota supplémentaire. Vérifiez la capacité et les coûts
+> avant tout déploiement. Ne recréez pas vos paramètres pour contourner une erreur.
+
+<details>
+<summary>Pour aller plus loin : noms des ressources et groupes existants</summary>
 
 Nouveau groupe : `rg-mcp-<participant>-<suffixe>`. Les futurs noms globaux reprennent ce suffixe :
 Storage utilise `stmcp<participant><suffixe>`, au plus 23 lettres minuscules/chiffres ;
@@ -4908,19 +5126,20 @@ ou suppression. Les futures ressources filles gardent le suffixe participant.
 Créer un groupe exige une autorisation distincte au niveau abonnement ; Contributor sur un groupe existant
 ne permet pas de créer un groupe voisin. Préférez le chemin groupe existant plutôt qu'élargir les rôles.
 
-> [!WARNING]
-> Changer de nom ou de groupe ne remet pas à zéro les quotas d'abonnement, de région ou de service.
-> Vérifiez capacité partagée, règles de l'organisation, disponibilité des noms et coûts API Management séparément.
-> En cas de nom refusé, enquêtez avant le premier apply. Ne renommez pas à la légère un groupe déjà déployé.
+En cas de nom refusé, recherchez la cause avant le premier déploiement. Ne renommez pas un groupe déjà
+déployé sans examiner les conséquences.
+
+</details>
 
 ## 4. Comprendre le périmètre Terraform
 
-`infra/workload` contient le socle groupe, les futurs noms MCP et un **App Service public facultatif**.
-Le portail payant est désactivé par défaut ; [le guide](HOSTING.md) explique activation persistante et déploiement.
-Il ne déploie ni Functions, réseau, API Management, identité ni serveur MCP.
-Le [module 00](../../modules/00-prerequisites/README.fr.md), le preflight en lecture seule et la demande
-administrateur sont disponibles. Exécutez les contrôles réels avant le plan du groupe.
-Les validations Azure et du conteneur restent à réaliser.
+Continuez avec le [module 00](../../modules/00-prerequisites/README.fr.md).
+Le code Terraform actuel prépare le groupe et, sur demande, un portail App Service public payant.
+Il ne déploie pas encore de serveur MCP, de réseau privé ni d'API Management.
+Les validations dans Azure et dans le conteneur restent à réaliser.
+
+<details>
+<summary>Pour aller plus loin : examiner un plan Terraform et conserver son état</summary>
 
 Suivez [le guide de contexte Azure](DEPLOYMENT.md) dans **le même terminal** que Terraform.
 Ensuite, uniquement dans une session de déploiement approuvée, examinez le plan réel :
@@ -4937,7 +5156,7 @@ terraform -chdir=infra/workload init -lockfile=readonly &&
 terraform -chdir=infra/workload plan -var-file=../../.workshop/participant.tfvars.json -out=../../.workshop/workload.tfplan
 ```
 
-Plan peut lire Azure. Le board n'exécute aucune commande. Pas d'apply avant approbation du plan exact,
+La commande `plan` peut consulter Azure. Le tableau n'exécute aucune commande. Pas d'`apply` avant approbation du plan exact,
 des permissions, du quota et des coûts. Pas de `-auto-approve`. L'enregistrement automatique des fournisseurs
 est désactivé : un administrateur enregistre séparément ceux requis. Les attributions de rôles et Entra sont distincts.
 Jamais de rôle Owner global, secret client ou abonnement de production comme contournement.
@@ -4946,9 +5165,10 @@ Gardez une seule copie et un seul état pour le déploiement. Le conteneur mont�
 un autre clone ou codespace a un autre état local. N'y redéployez pas : restaurez paramètres et état de façon privée
 ou configurez d'abord un backend distant approuvé et isolé. Ne publiez ni état, plan, paramètres ou identifiants CLI.
 
-Continuez le module 00 puis l'exercice MCP local du module 01, avec leurs jalons de publication et validation.
-Après les étapes payantes, suivez le module 99. Examinez destroy contre le même état ; préservez groupes et identités
-existants. Ne supprimez pas un groupe entier pour contourner un nettoyage incomplet.
+Après les étapes payantes, suivez le module 99. Examinez le plan de suppression avec le même état.
+Préservez les groupes et identités existants. Ne supprimez pas un groupe entier pour contourner un nettoyage incomplet.
+
+</details>
 
 ## Sources
 
@@ -4965,22 +5185,28 @@ Dernière vérification : 2026-10-14. Les contrôles locaux/simulés ne valident
 $files['docs/fr/HOSTING.md'] = @'
 # Publier les guides et déployer les ressources séparément
 
+Ce guide s'adresse aux personnes qui hébergent l'atelier. Pour simplement le suivre,
+commencez par le [guide de démarrage](GETTING-STARTED.md) : vous n'avez pas besoin de publier le portail.
+
 Le portail public et les services Model Context Protocol (MCP) Azure sont deux déploiements distincts.
 Le portail aide à préparer l'environnement. Il ne collecte pas les identifiants Azure, n'accepte aucune clé
 de déploiement partagée et ne reçoit aucun accès aux tenants participants.
 
-| Élément | Hébergement conseillé | Frontière d'identité |
+| Élément | Hébergement conseillé | Accès et responsabilités |
 |---|---|---|
 | Guides EN/FR, schémas et choix d'environnement | GitHub Pages | Contenu statique public, sans connexion Azure ni droit de déploiement. |
 | Copie publique Azure facultative | App Service Linux B1 du participant, activé explicitement dans Terraform | Guides publics. Entra autorise le déploiement, pas l'accès visiteur. |
 | Copie interne facultative | App Service **ou** Azure Container Apps désigné | Conception distincte ; connexion visiteur sans secret non implémentée ici. |
-| Ressources MCP participant | Abonnement et groupe non-production approuvés du participant | Terraform exécuté depuis son terminal authentifié, après revue du plan. |
+| Ressources MCP du participant | Abonnement et groupe de test approuvés | Terraform exécuté depuis son terminal connecté à Azure, après examen du plan. |
 
 App Service et Azure Container Apps (ACA) sont des services différents.
-Y héberger le portail ne déploie pas le workshop. L'architecture MCP reste Azure Functions derrière API Management ;
+Y héberger le portail ne déploie pas les services de l'atelier. L'architecture MCP reste Azure Functions derrière API Management ;
 elle ne devient pas automatiquement une application ACA.
 
 ## Construire le portail
+
+<details>
+<summary>Publier sur GitHub Pages : préparation et étapes détaillées</summary>
 
 Depuis la racine du dépôt, avec Node.js 22.19+ :
 
@@ -5004,7 +5230,7 @@ Les chemins relatifs fonctionnent aussi sous `/workshop-mcp/`.
 
 Accueil : `#/start`. Français : `?lang=fr#/start`. Anglais : `?lang=en#/start`.
 Les routes utilisent le fragment, sans serveur applicatif ou réécriture GitHub Pages.
-Le site lit son JSON statique. La préparation de connexion reste en mémoire ; les vrais appels restent dans le client.
+Le site lit ses fichiers statiques. L'adresse saisie reste en mémoire de page ; seuls vos outils de test appellent le serveur MCP.
 
 ## Publier sur GitHub Pages
 
@@ -5027,14 +5253,20 @@ Adresse attendue après publication réussie pour ce dépôt : `https://olivmert
 **Cela ne signifie pas que le site est en ligne.** Pages était désactivé lors de la préparation ;
 aucun workflow lancé ni réglage distant modifié. Vérifiez droits, visibilité et limites Pages/Actions de votre offre.
 
+</details>
+
 ## Héberger les guides dans un tenant
 
+<details>
+<summary>Pour aller plus loin : hébergement interne et accès des visiteurs</summary>
+
 La même sortie statique peut être servie par une application App Service ou ACA existante et approuvée.
-Avant le déploiement, désignez ressource exacte, abonnement, groupe, runtime/image, règles réseau et authentification,
-propriété du contenu existant, coûts et retour arrière. Ne remplacez pas une application et ne créez ni accès,
+Avant le déploiement, précisez la ressource, l'abonnement, le groupe, l'environnement d'exécution ou l'image,
+les règles réseau, l'authentification, le propriétaire du contenu, les coûts et la procédure de retour arrière.
+Ne remplacez pas une application et ne créez ni accès,
 permission ou configuration Entra sans approbation explicite. Pas d'application de production comme raccourci.
 
-Pour un portail privé, examinez l'authentification Entra intégrée supportée par le service choisi,
+Pour un portail privé, examinez l'authentification Entra intégrée prise en charge par le service choisi,
 les règles d'accès et les paramètres mono-tenant d'émetteur/audience. Un écran de connexion ne suffit pas.
 Identité managée pour l'accès applicatif autorisé ; fédération OpenID Connect (OIDC) pour un pipeline approuvé.
 Pas de profil de publication copié, de clé permanente ou de secret client.
@@ -5043,29 +5275,34 @@ Un parcours de connexion au portail privé sans secret n'est pas encore établi 
 Les identifiants réels et la résolution de cible restent dans la session privée de déploiement, pas ce dépôt public.
 Aucune connexion Azure de l'auteur ni découverte/modification d'applications pendant cette préparation.
 
+</details>
+
 ## Portail public facultatif sur App Service
 
 Ce chemin implémenté héberge la **même application monopage (SPA) publique**, pas un site interne authentifié.
-Il utilise App Service Linux Basic B1 et Node.js 22 LTS (support longue durée).
+Il utilise App Service Linux Basic B1 et Node.js 22 LTS (version maintenue à long terme).
 Ni registre de conteneurs, construction d'image, secret client, profil de publication ou clé de déploiement.
 ACA n'est pas implémenté dans cette itération. Suivez d'abord le
 [module 00](../../modules/00-prerequisites/README.fr.md).
 Une seule racine `infra/workload` et un seul état. L'activation reste dans les paramètres privés ;
 un prochain plan ordinaire ne désactive pas implicitement le portail.
 
-**Coût :** le worker B1 dédié est facturé en continu. Vérifiez prix régionaux et règles de l'abonnement.
+**Coût :** l'instance B1 dédiée est facturée en continu. Vérifiez les prix de la région et les règles de l'abonnement.
 Arrêter le site ne supprime pas la facturation du plan. HTTPS et Transport Layer Security (TLS) 1.2+ sont imposés ;
-File Transfer Protocol (FTP) et publication basique sont désactivés.
+File Transfer Protocol (FTP) et publication par authentification de base sont désactivés.
 Le serveur en lecture seule n'enregistre ni corps, paramètres de requête, identifiants ou résultats.
 Il expose seulement 50 fichiers publics et `/health`, jamais l'API du canvas.
-GitHub Pages reste le choix le plus simple pour un workshop public partagé.
+GitHub Pages reste le choix le plus simple pour un atelier public.
+
+<details>
+<summary>Déployer le portail sur App Service : préparation, contrôles et approbations</summary>
 
 ### Préparer et examiner localement
 
 Terminez d'abord le déploiement du **socle seul** du [guide de démarrage](GETTING-STARTED.md),
 portail encore désactivé, ou utilisez le groupe fourni par l'administrateur.
 Examinez et approuvez séparément le plan sauvegardé avant de l'appliquer.
-Le preflight du portail exige que ce groupe existe.
+Le script de vérification du portail exige que ce groupe existe.
 
 Répétez votre commande initiale `prepare-workshop.ps1`, avec **les mêmes** préfixe, région, propriétaire,
 date et éventuel groupe existant, en ajoutant `-EnablePublicPortal`.
@@ -5089,23 +5326,24 @@ node portal-dist/server.mjs
 Le serveur local écoute sur la boucle locale, port 8080. Examinez les deux langues et les schémas ;
 arrêtez-le avec Ctrl+C. `portal-dist`, ignoré par Git, contient exactement 52 fichiers :
 les 50 éléments publics, le manifeste d'empreintes et le serveur sans dépendance externe.
-Le constructeur refuse un dossier existant ; choisissez un nouveau `--output` pour reconstruire.
+Le script de construction refuse un dossier existant ; choisissez un nouveau `--output` pour reconstruire.
 En App Service, le serveur respecte `PORT` et n'écoute extérieurement que lorsque cette variable est définie.
 
 ### Vérifier capacité et coût en privé
 
-Le groupe doit déjà exister pour le preflight du portail : examinez/appliquez d'abord le plan du
+Le groupe doit déjà exister pour les contrôles du portail : examinez et faites approuver le plan du
 [socle seul](GETTING-STARTED.md), **avant** d'activer le portail, avec son approbation distincte.
 Un groupe fourni par l'administrateur n'est ni créé ni importé.
 
 L'administrateur examine séparément l'enregistrement de `Microsoft.Web` si nécessaire.
-Vérifiez disponibilité B1 Linux, quota régional de workers, règles et coût d'un worker.
+Vérifiez la disponibilité de B1 Linux, le quota régional d'instances, les règles et le coût d'une instance.
 Pour le futur `-Stage mcp`, consultez **Diagnose and solve problems > Flex Consumption Quota** :
 la demande maximale en mémoire est partagée entre participants. Les noms aléatoires ne changent pas les quotas.
-Le contrôle `mcp` lit les régions Flex et le runtime .NET 10 isolé ; il ne construit pas les modules suivants.
+Le contrôle `mcp` vérifie les régions Flex et la prise en charge de .NET 10 en processus isolé.
+Il ne construit pas les modules suivants.
 
 Conservez la preuve dans `.workshop/capacity-review.json`, ignoré par Git, jamais dans le tableau.
-Cet exemple **échoue volontairement** jusqu'à la vraie revue de la cible, de la capacité, de l'heure UTC et du coût :
+Cet exemple **échoue volontairement** tant que l'abonnement, la capacité, l'heure UTC et le coût n'ont pas été vérifiés :
 
 ```json
 {
@@ -5120,7 +5358,7 @@ Cet exemple **échoue volontairement** jusqu'à la vraie revue de la cible, de l
 ```
 
 Pour Flex, utilisez `stage: "mcp"` et `unit: "MB"`. Plafond par défaut : 2048 Mo fois 10 instances.
-Passez les vrais `-FlexMemoryMB` et `-FlexMaximumInstances` à `scripts/preflight.ps1` si le plan diffère.
+Adaptez `-FlexMemoryMB` et `-FlexMaximumInstances` dans l'appel à `scripts/preflight.ps1` si le plan diffère.
 La preuve doit correspondre à abonnement, région et étape, dater de moins de 24 heures et jamais du futur.
 C'est une **revue humaine de quota/coût**, pas une lecture automatique du quota ni une réservation.
 Les capacités API Management/réseau/télémétrie et les règles attendent le vrai plan du module concerné.
@@ -5164,21 +5402,29 @@ bash ./scripts/deploy-portal.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId "$ARM
 Un plan sauvegardé s'applique sans nouvelle question Terraform : **ne collez pas le bloc entier avant approbation**.
 L'envoi du code demande une confirmation distincte pour l'application participant nommée.
 `-WhatIf` réalise les lectures, mais ne crée pas de ZIP et ne transfère rien.
-Le script vérifie cible, étiquettes, plan, runtime, TLS et publication basique désactivée.
+Le script vérifie la cible, les étiquettes, le plan, l'environnement d'exécution, TLS
+et la désactivation de la publication par authentification de base.
 Il crée ensuite un ZIP privé et utilise `az webapp deploy` avec Entra, sans récupérer d'identifiants de publication.
 Il refuse un ZIP existant : choisissez un nouveau `-PackagePath` privé lors d'une nouvelle publication.
-Pour revenir en arrière, utilisez le précédent bundle approuvé avec un nouveau chemin ZIP et les mêmes contrôles.
+Pour revenir en arrière, utilisez les fichiers de la précédente version approuvée,
+avec un nouveau chemin ZIP et les mêmes contrôles.
 
 Vérifiez `terraform output public_portal_url`, `/health` HTTPS (200 et `{"status":"ok"}`),
 accueil, deux langues, schémas et préparation du client sur le vrai site avant de partager l'adresse.
 Aucun plan Azure réel, apply, transfert ou contrôle de site déployé n'a été exécuté pendant la création.
 Les preuves actuelles sont locales : schéma Terraform, plans simulés, serveur et déploiement synthétique.
 
-## Clean up
+</details>
 
-Le preflight ne crée rien. Si cette racine a été appliquée, examinez destroy contre les **mêmes paramètres et état**.
-Il retire toutes les ressources workshop de cet état, pas seulement le portail.
+## Nettoyer
+
+Les contrôles préalables ne créent rien. Si vous avez appliqué le code Terraform,
+examinez le plan de suppression avec les **mêmes paramètres et le même état**.
+Il retire toutes les ressources de l'atelier suivies dans cet état, pas seulement le portail.
 Après ajout de modules ultérieurs dans le même état, ne l'utilisez que pour une suppression complète voulue.
+
+<details>
+<summary>Préparer un plan de suppression et le faire approuver</summary>
 
 ```powershell
 terraform -chdir=infra/workload plan -destroy -var-file=../../.workshop/participant.tfvars.json -out=../../.workshop/destroy.tfplan
@@ -5200,11 +5446,13 @@ Le groupe existant administrateur reste une source de données, jamais une cible
 Le groupe dédié non vide reste protégé. Conservez paramètres et état privés jusqu'à vérification de la suppression.
 Ne supprimez pas un groupe entier pour masquer des ressources non suivies.
 
+</details>
+
 ## Ressources du participant
 
 Suivez [le choix d'environnement](GETTING-STARTED.md) puis [le contexte Azure](DEPLOYMENT.md).
 Le participant se connecte à son tenant dans son terminal ou dev container, garde suffixe aléatoire et état privé,
-puis examine le plan destiné à son groupe. Rôles Azure et consentement Entra sont distincts.
+puis examine le plan destiné à son groupe. Les rôles Azure et le consentement Entra sont deux autorisations distinctes.
 Une automatisation propre au participant nécessite sa fédération limitée et ses approbations ;
 le portail public ne devient pas une console de déploiement multi-tenant.
 
@@ -5230,30 +5478,31 @@ Dernière vérification : 2026-10-14. Préparation locale uniquement, sans publi
 '@
 
 $files['docs/fr/LEARNING-GUIDE.md'] = @'
-# Comprendre les frontières de gouvernance
+# Comprendre les protections du serveur
 
-Lisez une étape, prédisez son résultat, puis utilisez son vrai guide et son validateur lorsqu'ils seront publiés.
-Ces explications décrivent le workshop **prévu**, pas un service déjà déployé.
-Les schémas séparent requêtes, identité et administration ; ils ne lancent aucune opération.
+Pour chaque étape, cherchez à comprendre ce qui est autorisé et ce qui doit être refusé.
+Utilisez ensuite le guide et le script de vérification du module lorsqu'ils sont publiés.
+Les schémas décrivent l'architecture **prévue**, pas un service déjà déployé.
 
 > [!IMPORTANT]
-> L'authentification répond à « qui appelle ? ». L'autorisation répond à « que peut faire cette identité ? ».
-> L'approbation client répond à « l'humain autorise-t-il cette action précise ? ». Ces trois contrôles se complètent.
+> Se connecter permet de savoir qui vous êtes. Vos droits déterminent ce que vous pouvez faire.
+> La confirmation manuelle permet d'accepter ou de refuser une action précise. Aucun de ces contrôles ne remplace les autres.
 
 ## 00 - Prérequis et environnement
 
-**Objectif :** choisir outils, tenant, abonnement, permissions et budget.
-L'administrateur d'identité contrôle applications et consentements Entra. L'opérateur Azure gère les ressources.
-Le contrôle d'accès fondé sur les rôles (RBAC) nécessite une autorité distincte pour attribuer ces rôles.
+**Objectif :** vérifier les outils, l'environnement Azure et le budget autorisés.
+L'administrateur Entra gère les identités ; l'administrateur Azure gère les ressources.
+Le droit de déployer des ressources ne donne pas forcément le droit d'attribuer des rôles.
 
 **Schéma :** une ligne prépare les identités Entra ; l'autre prépare l'abonnement de test.
 Ce ne sont pas des appels MCP. Un codespace est une machine de développement, pas un tenant.
 
 > [!TIP]
-> Commencez par le guide de contexte Azure du board. Identifiez le responsable des approbations d'identité.
-> Ne demandez pas Owner par défaut.
+> Commencez par le guide Azure du tableau. Demandez qui approuve les identités.
+> Ne demandez pas le rôle Propriétaire (Owner) pour simplifier l'exercice.
 
-**Preuve attendue :** le vrai précontrôle et la demande d'identité sont prêts. Choisir l'abonnement ne suffit pas.
+**Résultat attendu :** les vérifications du module 00 réussissent et la demande Entra est comprise.
+Choisir l'abonnement ne suffit pas.
 **Suite :** module 01 après réussite du validateur publié du module 00. Aucune ressource cloud dans le module 01.
 
 **Approfondir :** [tenant et abonnement](https://learn.microsoft.com/cli/azure/manage-azure-subscriptions-azure-cli),
@@ -5261,9 +5510,10 @@ Ce ne sont pas des appels MCP. Un codespace est une machine de développement, p
 
 ## 01 - Découvrir MCP sans Azure
 
-**Objectif :** distinguer découverte et exécution. Model Context Protocol (MCP) permet à un client de découvrir
-des outils et leurs schémas puis de les appeler. Les entrées/sorties standard (stdio) servent au local ;
-Streamable HTTP sert aux étapes distantes. Une ouverture d'URL dans un navigateur ne teste pas la découverte d'outils.
+**Objectif :** afficher les outils disponibles, puis en exécuter un.
+Model Context Protocol (MCP) permet au client de connaître les outils et les informations qu'ils attendent.
+Le serveur local communique avec le client par ses entrées et sorties standard (stdio).
+Les serveurs distants utilisent Streamable HTTP. Ouvrir une adresse dans le navigateur ne teste pas les outils.
 
 **Schéma :** client local, serveur local, outil synthétique. Ni Entra, ni passerelle, ni ressource cloud payante.
 Les annotations d'outil aident le client mais ne font pas respecter les autorisations.
@@ -5271,7 +5521,7 @@ Les annotations d'outil aident le client mais ne font pas respecter les autorisa
 > [!IMPORTANT]
 > Conservez l'approbation humaine des écritures. Vérifiez la trace d'appel réelle, pas seulement la réponse de l'assistant.
 
-**Preuve attendue :** vraie liste d'outils, résultat synthétique réel et contrôle d'approbation visible.
+**Résultat attendu :** les outils s'affichent, l'un d'eux s'exécute avec des données fictives et la confirmation manuelle reste disponible.
 **Suite :** module 02 seulement après validation et approbation du déploiement payant de test.
 
 **Approfondir :** [architecture MCP](https://modelcontextprotocol.io/specification/2026-07-28/architecture),
@@ -5281,28 +5531,30 @@ Les annotations d'outil aident le client mais ne font pas respecter les autorisa
 
 ## 02 - Une clé n'est pas une identité utilisateur
 
-**Objectif :** montrer les limites d'un accès partagé. L'extension MCP d'Azure Functions utilise la clé système
-`mcp_extension` et l'autorisation de webhook `System`. « Ouvert » signifie sans identité individuelle, pas anonyme.
+**Objectif :** comprendre qu'une clé partagée ne permet pas de savoir qui l'utilise.
+L'extension MCP d'Azure Functions utilise la clé système `mcp_extension`.
+Le point d'entrée conserve le niveau d'autorisation `System`. « Ouvert » ne signifie pas « sans protection ».
 
 **Schéma :** le client muni de la clé appelle Functions ; une écriture synthétique atteint une file Azure Storage.
 Les outils dépendant d'une identité restent explicitement simulés jusqu'au module 05.
 
 > [!WARNING]
 > Gardez cette étape brève. Ne désactivez jamais la protection du webhook. Pas de clé dans une URL ou un en-tête enregistré.
-> Toute personne possédant la clé peut appeler les actions exposées : ce n'est pas la cible d'entreprise.
+> Toute personne possédant la clé peut utiliser les outils exposés : ce n'est pas une protection suffisante pour l'entreprise.
 
-**Preuve attendue :** HTTP 401 sans clé ; HTTP 200 et résultat MCP réussi avec la bonne clé.
+**Résultat attendu :** HTTP 401 sans clé ; HTTP 200 et réussite de l'outil avec la bonne clé.
 **Suite :** module 03 pour remplacer la démonstration de clé partagée par l'authentification des utilisateurs affectés.
 
 **Approfondir :** [exemple Functions épinglé](https://github.com/Azure-Samples/remote-mcp-functions-dotnet/tree/468c518c884ec318e3001b9573254c9e775409c9),
 [liaisons MCP](https://learn.microsoft.com/azure/azure-functions/functions-bindings-mcp).
 
-## 03 - Identité, étendue et rôle applicatif
+## 03 - Connexion des utilisateurs et rôles applicatifs
 
-**Objectif :** n'accepter que les jetons destinés à cette ressource MCP.
-La plateforme valide émetteur, tenant, audience et expiration, puis les étendues déléguées et rôles applicatifs
-sont contrôlés. N'écrivez pas votre propre validateur JSON Web Token (JWT).
-Une étendue décrit ce que le client peut faire pour l'utilisateur ; un rôle indique qui peut faire l'opération.
+**Objectif :** n'accepter que les jetons d'accès destinés au serveur MCP.
+La plateforme vérifie qui a émis le jeton, l'annuaire, le service destinataire (audience) et la date d'expiration.
+Les autorisations déléguées (scopes) définissent ce que le client peut demander pour l'utilisateur.
+Les rôles applicatifs définissent les actions permises à cet utilisateur ou à une application.
+Utilisez les contrôles de la plateforme et les bibliothèques officielles, pas un validateur de jetons écrit à la main.
 
 **Schéma :** la connexion remet d'abord un jeton au client. Une ligne séparée montre ensuite le client appeler
 la Function avec ce jeton. Entra ne relaie pas les appels d'outils.
@@ -5310,19 +5562,20 @@ Les métadonnées de ressource protégée (PRM) sont en **Preview**.
 
 > [!IMPORTANT]
 > Alice et Bob sont affectés ; Eve ne l'est pas. Une connexion réussie ne donne pas tous les outils.
-> Utilisez des claims fictifs, jamais un jeton réel dans un site de décodage, un chat ou un fichier.
+> Pour expliquer le contenu d'un jeton, utilisez des exemples fictifs. Ne copiez jamais un jeton réel dans un site de décodage, une conversation ou un fichier.
 
-**Preuve attendue :** HTTP 401 sans jeton ou avec la mauvaise audience ; Alice et Bob se connectent ;
+**Résultat attendu :** HTTP 401 sans jeton ou avec un jeton destiné à un autre service ; Alice et Bob se connectent ;
 Eve ne peut pas obtenir le jeton nécessitant une affectation. Les contrôles d'outil arrivent au module 04.
 **Suite :** module 04 : API Management devient le point d'entrée imposé.
 
 **Approfondir :** [autorisation MCP et PRM](https://learn.microsoft.com/azure/app-service/configure-authentication-mcp),
 [rôles applicatifs](https://learn.microsoft.com/entra/identity-platform/howto-add-app-roles-in-apps).
 
-## 04 - Une passerelle imposée, pas une URL de confort
+## 04 - Passer obligatoirement par API Management
 
-**Objectif :** API Management (APIM) contrôle audience MCP exacte, étendue, rôle et débit.
-APIM et Functions protègent une seule ressource logique MCP. N'ajoutez pas d'audience acceptée pour faire passer un test.
+**Objectif :** tous les appels passent par API Management (APIM), qui vérifie les droits et limite le nombre d'appels.
+APIM et Functions protègent le même service MCP. Le jeton doit être destiné à ce service.
+N'ajoutez pas d'autre audience acceptée pour faire réussir un test.
 L'API de gestion MCP `2025-09-01-preview` est en **Preview**. Ce n'est pas l'offre AI Gateway en preview.
 
 **Schéma :** client, APIM Standard v2, Function privée. L'intégration réseau sortante et le DNS privé assurent
@@ -5332,9 +5585,11 @@ la connectivité ; la désactivation de l'accès public empêche le contournemen
 > Testez aussi le refus d'accès direct à la Function. Une passerelle fonctionnelle ne suffit pas.
 > N'attribuez pas Tools.Write à Bob pour rendre la démonstration artificiellement positive.
 
-**Preuve attendue :** écriture synthétique approuvée de Bob : HTTP 403 à la passerelle ; Alice : HTTP 200 et
-résultat réussi ; dépassement de débit : 429 ; accès direct refusé ; zéro octet de corps dans les journaux.
-**Suite :** module 05 : quels droits atteignent les données ?
+**Résultat attendu :** création de ticket avec des données fictives, approuvée pour chaque test :
+HTTP 403 pour Bob ; HTTP 200 et réussite de l'outil pour Alice.
+Un dépassement de débit renvoie HTTP 429 ; l'accès direct est refusé.
+Les journaux ne contiennent aucun corps de requête ou de réponse.
+**Suite :** module 05 pour comprendre quels droits sont utilisés pour lire les données.
 
 **Approfondir :** [exposer un serveur existant](https://learn.microsoft.com/azure/api-management/expose-existing-mcp-server),
 [validation de jeton](https://learn.microsoft.com/azure/api-management/validate-azure-ad-token-policy),
@@ -5343,13 +5598,14 @@ résultat réussi ; dépassement de débit : 429 ; accès direct refusé ; zéro
 
 ## 05 - Accès délégué ou applicatif
 
-**Objectif :** le flux On-Behalf-Of (OBO) obtient un **autre jeton** pour l'API cible en conservant le contexte utilisateur.
-L'identité managée (MI) obtient un jeton applicatif avec ses propres droits limités à la ressource.
-Bibliothèques officielles et fédération évitent les secrets clients.
+**Objectif :** comparer deux façons d'accéder aux données.
+L'accès délégué On-Behalf-Of (OBO) agit au nom de l'utilisateur et conserve ses droits.
+L'accès applicatif utilise une identité managée, avec ses propres droits sur la ressource.
+Chaque accès obtient un **autre jeton**, destiné à l'API appelée ; le jeton MCP n'est jamais transmis.
 
-**Schéma :** deux lignes indépendantes conservent APIM. La première utilise un jeton Storage délégué ;
-la seconde un jeton Storage d'identité managée. `whoami` obtient séparément un jeton Microsoft Graph pour l'audience
-Graph : Graph n'est pas le point de terminaison Storage représenté.
+**Schéma :** les deux parcours passent par API Management. Le premier utilise un jeton délégué pour Azure Storage ;
+le second utilise un jeton de l'identité managée pour le même stockage.
+L'outil `whoami` appelle séparément Microsoft Graph avec un jeton destiné à Graph, pas à Storage.
 
 > [!WARNING]
 > Ne transmettez jamais le jeton MCP à Graph ou Storage. Une identité applicative n'usurpe pas l'utilisateur.
@@ -5360,67 +5616,67 @@ Graph : Graph n'est pas le point de terminaison Storage représenté.
 | `read_report_as_user` | Autorisé | Refus de la ressource cible | Ceux de l'utilisateur |
 | `read_report_as_app` | Même rapport synthétique autorisé | Même rapport synthétique autorisé | Ceux de l'identité managée |
 
-**Preuve attendue :** les quatre cas. Notez le statut de transport et l'erreur MCP :
+**Résultat attendu :** les quatre cas du tableau. Notez le code HTTP et l'éventuelle erreur MCP :
 un refus HTTP 403 de Storage peut se trouver dans une enveloppe HTTP 200.
 **Suite :** module 06 pour observer les métadonnées sans capturer le contenu.
 
-**Approfondir :** [frontière des jetons OBO](https://learn.microsoft.com/entra/identity-platform/v2-oauth2-on-behalf-of-flow),
+**Approfondir :** [fonctionnement des jetons OBO](https://learn.microsoft.com/entra/identity-platform/v2-oauth2-on-behalf-of-flow),
 [fédération sans secret](https://learn.microsoft.com/entra/workload-id/workload-identity-federation-config-app-trust-managed-identity).
 
-## 06 - Observer les métadonnées, inventorier les adresses
+## 06 - Suivre les appels et répertorier le serveur
 
-**Objectif :** savoir qui a appelé quel outil et avec quel résultat sans enregistrer le corps.
-Conservez seulement ID objet de l'appelant authentifié, nom d'outil fixe, statut, latence et ID de corrélation.
-Kusto Query Language (KQL) permet de corréler ces champs autorisés.
+**Objectif :** savoir qui a utilisé quel outil et avec quel résultat, sans enregistrer les données échangées.
+Conservez uniquement l'identifiant de l'appelant authentifié, le nom de l'outil, le statut, la durée et
+l'identifiant de corrélation. Ces informations sont des métadonnées.
 
 **Schéma :** chemin des requêtes, télémétrie et enregistrement d'inventaire sont séparés.
 Application Insights reçoit des métadonnées, pas le contenu. Azure API Center référence l'URL de la passerelle ;
 il ne relaie pas les requêtes, n'authentifie pas les clients et ne donne aucun droit sur les outils.
 
 > [!WARNING]
-> Zéro octet de corps aux niveaux de diagnostic hérités, côté client et backend.
-> Ni jetons, prompts, arguments, résultats, ni export de transcript Inspector.
-> L'inventaire Microsoft 365 optionnel est en **Preview**, réservé au facilitateur.
+> Aucun contenu de requête ou de réponse dans les journaux, y compris les configurations héritées.
+> Ne conservez ni jetons, ni consignes, ni paramètres, ni résultats d'outils et n'exportez pas les traces Inspector.
+> L'inventaire Microsoft 365 facultatif est en **Preview**, réservé à l'animateur.
 
-**Preuve attendue :** trace d'appel limitée aux métadonnées, requêtes de refus utiles et URL gouvernée dans l'inventaire.
+**Résultat attendu :** des traces limitées aux métadonnées, des requêtes permettant d'examiner les refus et l'adresse de la passerelle dans l'inventaire.
 **Suite :** module 99 pour arrêter les coûts. Le module 07 est une branche facultative, pas un prérequis.
 
 **Approfondir :** [télémétrie APIM](https://learn.microsoft.com/azure/api-management/api-management-howto-app-insights),
 [enregistrement API Center](https://learn.microsoft.com/azure/api-center/register-discover-mcp-server),
 [inventaire Microsoft 365 BYO, Preview](https://learn.microsoft.com/microsoft-365/admin/manage/manage-byo-mcp-server).
 
-## 07 - Clients facultatifs, même frontière
+## 07 - D'autres clients, les mêmes protections
 
 **Objectif :** comparer client délégué et identité applicative sans modifier les protections du serveur.
 Le schéma montre une **connexion optionnelle prévue**, pas un agent Foundry créé ni un agent Copilot Studio configuré.
 
-**Schéma :** client optionnel, même passerelle gouvernée, Function privée.
-Identifiez qui appelle MCP avant d'interpréter les résultats. Revérifiez Preview, licences, étendues,
-adresse de retour et authentification sans secret pour le client retenu.
+**Schéma :** un client facultatif passe par la même passerelle pour accéder à la Function privée.
+Vérifiez l'identité utilisée, les licences et les fonctions en Preview.
+La connexion du client choisi doit être prise en charge sans secret.
 
 > [!IMPORTANT]
 > Reportez le parcours OAuth manuel documenté de Copilot Studio s'il exige un secret client.
 > Une fonction appelée « identity passthrough » n'autorise pas à transmettre le jeton MCP aux API cibles.
 
-**Preuve attendue :** connexion sans secret, explicitement approuvée et officiellement supportée seulement.
+**Résultat attendu :** une connexion sans secret, approuvée et officiellement prise en charge.
 Aucun client supplémentaire n'est requis pour finir le parcours principal.
 **Suite :** module 99, même si cette démonstration est ignorée.
 
 **Approfondir :** [authentification Foundry, certains flux en Preview](https://learn.microsoft.com/azure/foundry/agents/how-to/mcp-authentication),
 [MCP dans Copilot Studio](https://learn.microsoft.com/microsoft-copilot-studio/mcp-add-existing-server-to-agent).
 
-## 99 - Nettoyer uniquement ce que possède le workshop
+## 99 - Supprimer uniquement ce que l'atelier a créé
 
 **Objectif :** arrêter les coûts et supprimer les affectations créées sans toucher aux ressources partagées.
 Les deux lignes du schéma représentent des opérations administratives, pas des appels d'outils.
 
 > [!WARNING]
 > Examinez le vrai plan de destruction et obtenez l'approbation explicite.
-> Nettoyez d'abord les ressources, puis seulement les objets Entra créés pour le workshop.
+> Nettoyez d'abord les ressources, puis seulement les objets Entra créés pour l'atelier.
 > Préservez identifiants fournis, comptes existants et infrastructure partagée.
 
-**Preuve attendue :** aucune ressource taguée appartenant au workshop ; objets d'identité créés et affectations
-de rôles comptabilisés ; inventaire, rétention et suppression récupérable vérifiés.
+**Résultat attendu :** aucune ressource portant l'étiquette de l'atelier ne subsiste ; les identités créées et
+les rôles attribués sont tous pris en compte. Vérifiez l'inventaire, les durées de conservation et les suppressions récupérables.
 Arrêtez les clients et codespaces inutilisés.
 **Suite :** retour à l'accueil, ou nouveau préfixe approuvé après vérification du nettoyage.
 
@@ -5429,7 +5685,7 @@ Arrêtez les clients et codespaces inutilisés.
 
 ## Sources
 
-Le registre du board contient les liens officiels complets, exemples épinglés, licences et contrôles de compatibilité.
+La page des références rassemble les liens officiels, les versions retenues, les licences et les limites de compatibilité.
 Voir [REFERENCES.md](REFERENCES.md), [DEPLOYMENT.md](DEPLOYMENT.md) et [PRACTICE.md](PRACTICE.md).
 Dernière vérification : 2026-10-14. Synthèses pédagogiques originales, pas reproduction des documentations tierces.
 '@
@@ -5437,158 +5693,171 @@ Dernière vérification : 2026-10-14. Synthèses pédagogiques originales, pas r
 $files['docs/fr/PRACTICE.md'] = @'
 # Tester votre serveur MCP
 
-Ce guide accompagne **votre serveur déjà déployé**. Il ne déploie pas le workshop.
-Le board prépare les commandes ; votre client Model Context Protocol (MCP) effectue les appels.
-Un exemple ou un résultat attendu n'est pas une preuve de test.
+Ce guide sert à tester **votre serveur déjà déployé**, pas à le déployer.
+Le tableau prépare les commandes. VS Code ou MCP Inspector les exécute.
+Un résultat attendu dans le guide n'est pas un test déjà réussi.
 
-## Choisir votre poste de travail
+## Commencer par un test simple
 
-- **Local :** ouvrez le dépôt dans Visual Studio Code (VS Code), avec les prérequis du module 00.
-  La commande locale ouvre le dossier courant : exécutez-la depuis votre copie existante.
-- **Codespaces :** le lien ouvre l'écran de création GitHub. Vérifiez branche, taille, payeur et quota.
-  Les changements locaux non poussés ne sont pas inclus. Le dev container du workshop n'est pas encore publié.
-- **Inspector avec authentification :** préférez le poste local, ou VS Code desktop connecté au codespace
-  avec redirection privée des ports. Dans un codespace ouvert seulement dans le navigateur, l'origine du retour
-  OAuth peut changer. N'exposez jamais Inspector publiquement et ne désactivez pas son authentification.
-  Arrêtez Inspector avec Ctrl+C ; arrêtez les codespaces inutilisés. Leur stockage peut rester facturé.
-
-## Choisir votre environnement Azure
-
-Lisez d'abord **Votre contexte Azure**. Le tenant porte les identités ; l'abonnement porte les ressources et les coûts.
-Sélectionnez et vérifiez les deux dans votre terminal avec les sélecteurs fournis. Les identifiants ne vont pas
-dans le board. Le serveur appelé doit être celui de votre déploiement approuvé, pas un exemple partagé.
-Les guides et validateurs des modules ne sont pas encore publiés.
-
-## Connecter sans déplacer les identifiants
-
-1. Récupérez l'adresse exacte dans les sorties de votre déploiement. Utilisez Streamable HTTP pour le distant.
-   Dès le module 04, utilisez uniquement la passerelle API Management, jamais l'adresse privée de la Function.
-2. Saisissez seulement cet URL HTTPS dans le board. Ni clé, ni jeton, ni paramètres d'URL.
-   La valeur reste en mémoire de page : ni envoi au serveur du board, ni stockage, ni ajout au suivi.
-3. Dans VS Code : **MCP: Add Server**, type HTTP, puis adresse du serveur. Préférez la configuration utilisateur
-   privée. Fusionnez l'entrée avec les serveurs existants ; ne remplacez pas le fichier complet.
-4. Pour Inspector, copiez la commande PowerShell ou bash dans votre terminal. Version épinglée : **2.9.0** ;
-   Node.js 22.19.0 minimum. Examinez la demande d'installation `npx`. Ouvrez l'URL locale affichée par le lanceur :
-   elle contient une capacité privée de session, à ne pas partager.
-5. La version GitHub 2.11.0 retenue comme candidate source n'était pas disponible dans le registre npm configuré
-   le 2026-10-14. Les commandes s'arrêtent si 2.9.0 n'est pas disponible. Elles ne changent pas de registre et
-   ne contournent aucune alerte de sécurité. Le client négocie explicitement la génération de protocole.
-6. Les identifiants Inspector restent en mémoire ; les jetons OAuth ne sont pas persistés. Utilisez une connexion
-   ponctuelle, pas un catalogue enregistré. N'enregistrez ni n'exportez les en-têtes d'authentification :
-   les valeurs d'en-tête de catalogue peuvent rester en clair malgré le stockage protégé des secrets.
-7. Pour Entra, demandez l'ID de client **public** approuvé, l'adresse de retour exacte et les étendues de ce client.
-   Entra ne propose pas d'enregistrement dynamique de clients. Laissez le secret client vide.
-   L'approbation de VS Code n'approuve pas Inspector. Arrêtez si le flux exige un secret ou des droits supplémentaires.
-8. Au module 02, utilisez la saisie sécurisée prévue par le guide pour la clé système `mcp_extension`.
-   Une configuration avec URL seule ne suffit volontairement pas. Pas de clé dans URL, argument de commande,
-   en-tête enregistré, chat, journal ou dépôt. Ce n'est pas l'exercice OAuth.
+1. Ouvrez l'environnement choisi au module 00 et sélectionnez uniquement le serveur de l'atelier.
+2. Affichez les outils disponibles : **Tools / List Tools** dans Inspector, ou **MCP: List Servers**
+   et le sélecteur d'outils dans VS Code.
+3. Commencez par `get_service_health` s'il est disponible. Lisez les informations demandées par l'outil
+   et utilisez seulement des données fictives. S'il n'est pas disponible, arrêtez-vous.
+4. Lancez **Call Tool** dans Inspector, ou utilisez la consigne proposée dans le tableau avec VS Code.
+   Vérifiez la trace de l'exécution, pas seulement la réponse de l'assistant.
+5. Comparez le résultat avec celui du module. Un code HTTP 200 peut contenir une erreur MCP.
+   Lancez ensuite le script de vérification du module, s'il est publié.
 
 > [!IMPORTANT]
-> Les métadonnées de ressource protégée (PRM) App Service sont en Preview.
-> Connexion réussie, confiance dans le client et approbation d'outil ne remplacent pas les contrôles serveur.
+> Ne collez jamais de clé ou de jeton dans ce tableau. Ne désactivez pas la confirmation manuelle.
+> `create_ticket` modifie les données de test et peut entraîner des coûts : chaque exécution
+> nécessite le rôle prévu et votre accord explicite pour cette action précise.
 
-## Effectuer un vrai appel
+## Se connecter au bon serveur
 
-1. Sélectionnez uniquement le serveur du workshop dans le client. Dans Inspector, utilisez **Tools / List Tools**.
-   Dans VS Code, utilisez **MCP: List Servers** et le sélecteur d'outils. Un badge connecté ne prouve pas qu'un outil fonctionne.
-2. Lisez les noms et schémas annoncés. Commencez par `get_service_health` s'il existe. Respectez son vrai schéma ;
-   n'inventez ni champs ni résultats. Utilisez exclusivement des données synthétiques.
-3. Dans Inspector, sélectionnez l'outil et cliquez explicitement **Call Tool**. Dans VS Code, utilisez les prompts
-   proposés puis inspectez la trace d'appel, pas seulement le texte de l'assistant.
-4. Comparez statut de transport et résultat MCP. Un HTTP 200 peut transporter une erreur d'outil.
-   Un outil absent n'est pas une réussite de contrôle d'accès. Reconnectez après un changement de module.
-5. Réalisez les cas négatifs avec les seuls comptes de test dédiés. N'empruntez pas la session d'une autre personne.
-   Un refus peut être correct ; n'accordez pas davantage de droits pour obtenir du vert.
-6. `create_ticket` crée un message de file et peut entraîner des coûts. Chaque appel exige un rôle explicite et
-   une approbation humaine individuelle. N'activez pas l'approbation automatique. **Call Tool** n'approuve qu'un seul appel.
-7. Lisez puis lancez le validateur publié du module. Le board n'affiche la commande que si le README et le script
-   existent. Le script peut effectuer de vrais appels, écrire des données synthétiques et nécessiter une approbation.
+Récupérez l'adresse dans les sorties de **votre déploiement approuvé**.
+À partir du module 04, utilisez uniquement l'adresse d'API Management, jamais celle de la Function privée.
+Au module 01, le serveur fonctionne localement : suivez son guide, sans saisir d'adresse HTTPS.
 
-## Comparer le résultat
+Dans VS Code, lancez **MCP: Add Server**, choisissez HTTP et saisissez l'adresse.
+Utilisez une configuration utilisateur privée sans remplacer les autres serveurs déjà configurés.
+Pour Inspector, lisez les précisions ci-dessous avant de lancer la commande.
 
-Ces observations sont des objectifs, pas des tests déjà réussis.
+<details>
+<summary>Pour aller plus loin : installer Inspector et se connecter en toute sécurité</summary>
 
-| Étape | Exercice | Observation attendue | Ce que cela prouve |
-|---|---|---|---|
-| 01 | Lister et appeler l'outil local | Vraie liste et vrai résultat MCP | Découvrir n'est pas exécuter. |
-| 02 | Sans clé puis avec la clé système | HTTP 401, puis HTTP 200 et résultat réussi | Posséder une clé n'identifie pas l'utilisateur. |
-| 03 | Sans jeton ou mauvaise audience | HTTP 401 ; Eve ne peut pas obtenir le jeton requis | Le jeton est destiné à cette ressource. |
-| 04 | Écriture approuvée, Bob puis Alice | HTTP 403 pour Bob ; HTTP 200 et succès pour Alice | Tools.Read n'accorde pas Tools.Write. |
-| 04 | Débit et accès direct au backend | HTTP 429 au seuil ; Function directe refusée | La passerelle est imposée. |
-| 05 | `read_report_as_user`, Alice et Bob | Alice réussit ; Bob est refusé en aval, parfois dans HTTP 200 | OBO conserve les droits utilisateur. |
-| 05 | `read_report_as_app`, Alice et Bob | Même rapport synthétique autorisé | Droits de l'identité managée. |
-| 06 | Trace et inventaire | Outil, ID objet, statut, latence, corrélation ; passerelle dans API Center | Observer ne signifie pas capturer le contenu ; inventorier n'autorise pas. |
+Les commandes utilisent Inspector **2.9.0** et demandent Node.js 22.19.0 minimum.
+Vérifiez la demande d'installation de `npx`, puis ouvrez l'adresse locale affichée.
+Elle contient un accès privé à votre session : ne la partagez pas.
+La version 2.11.0 publiée sur GitHub n'était pas disponible dans le registre de paquets configuré lors du
+contrôle du 2026-10-14. Si la version prévue manque, la commande s'arrête sans changer de registre ni de version.
 
-Ne conservez ni jetons, prompts, arguments, ni résultats comme preuves. Seulement les métadonnées approuvées et
-lignes PASS/FAIL du validateur. N'exportez pas les transcripts Network/Protocol d'Inspector : ils peuvent contenir
-corps et identifiants. Les outils d'identité restent simulés avant le module 05.
+Utilisez une connexion ponctuelle, pas un catalogue enregistré. Les identifiants restent en mémoire ;
+les jetons OAuth ne sont pas enregistrés de façon persistante. N'enregistrez et n'exportez aucun en-tête
+d'authentification : les en-têtes d'un catalogue peuvent rester lisibles même si les secrets sont protégés.
+Le client négocie la version du protocole ; n'inventez pas de messages de connexion pour contourner une erreur.
 
-## En cas de blocage
+Pour Microsoft Entra, demandez à l'administrateur les paramètres approuvés pour **ce client** :
+identifiant d'application cliente publique, adresse de retour et autorisations déléguées (scopes).
+L'accord donné à VS Code ne vaut pas pour Inspector. Entra ne crée pas automatiquement un enregistrement
+pour un nouveau client. Laissez le secret client vide ; arrêtez-vous si le parcours exige un secret ou
+des droits supplémentaires.
 
-- **Pas d'outils :** vérifiez serveur sélectionné, transport, adresse et implémentation réelle ; reconnectez.
-  Ouvrir l'adresse dans un navigateur ne teste pas `tools/list`.
-- **HTTP 401 :** vérifiez identité du client, tenant, audience, expiration et étendues approuvées.
-  Utilisez la connexion du client, pas un site de décodage de jeton.
-- **HTTP 403 :** vérifiez le rôle applicatif ou la permission de ressource attendue.
-  Un refus prévu pour Bob n'est pas une raison de lui donner Tools.Write ou des droits sur l'abonnement.
-- **HTTP 200 avec erreur :** lisez l'indicateur d'erreur MCP ; le statut externe ne suffit pas.
-- **HTTP 429 :** attendez la fenêtre prévue. Ne désactivez pas la limite et ne bouclez pas sans borne.
-- **Délai ou retour OAuth :** vérifiez réseau, adresse de retour et redirection privée des ports.
-  N'exposez ni Function privée ni Inspector pour contourner le problème.
+Au module 02, utilisez uniquement la saisie protégée de la clé système `mcp_extension` prévue par le guide.
+L'adresse seule ne permet pas de se connecter. Aucune clé dans l'URL, les arguments de commande,
+un en-tête enregistré, la conversation, les journaux ou le dépôt.
+Les métadonnées de ressource protégée (PRM) d'App Service sont en **Preview** (préversion).
 
-## 00 - Comprendre votre environnement
+</details>
 
-**À prouver :** outils, identités, région et budget sont prêts.
-**Indice :** une permission Azure ne donne pas l'administration Entra. Un codespace n'est pas un tenant.
-**Si cela bloque :** demande d'identité précise, pas Owner ni secret client. Le vrai précontrôle reste à publier.
+<details>
+<summary>Pour aller plus loin : utiliser Codespaces ou vérifier le contexte Azure</summary>
 
-## 01 - Découvrir avant d'appeler
+[Choisissez votre environnement](GETTING-STARTED.md), puis suivez le [guide Azure](DEPLOYMENT.md).
+L'annuaire Microsoft Entra contient les identités ; l'abonnement Azure contient les ressources et les coûts.
+Gardez leurs identifiants dans votre terminal privé.
 
-**À prouver :** découverte et appel réels sur stdio.
-**Indice :** utilisez la commande de démarrage du README ; aucun endpoint HTTP ici.
-**Si cela bloque :** vérifiez la trace réelle et le protocole négocié, sans fabriquer de messages d'initialisation.
+Codespaces n'inclut que les fichiers publiés sur la branche choisie. Vérifiez cette branche, la taille de la
+machine, les quotas et la prise en charge des frais. La configuration du conteneur est disponible,
+mais son exécution et celle de Codespaces restent à vérifier.
 
-## 02 - Voir les limites d'une clé
+Pour Inspector avec connexion utilisateur, privilégiez VS Code installé sur votre poste, éventuellement
+connecté au codespace avec une redirection privée des ports. La connexion depuis le seul navigateur
+peut utiliser une autre adresse de retour OAuth. Ne rendez jamais Inspector public et ne désactivez pas
+son authentification. Arrêtez-le avec Ctrl+C. Arrêtez les codespaces inutilisés ; leur stockage peut rester facturé.
 
-**À prouver :** la clé protège l'entrée, mais ne distingue pas Alice et Bob.
-**Indice :** clé système MCP, pas une clé Function choisie au hasard. Gardez l'autorisation du webhook.
-**Si cela bloque :** 401 sans clé est correct. Les outils OBO et app-only sont encore des simulations.
+</details>
 
-## 03 - Séparer identité, étendue et rôle
+## Résultats attendus
 
-**À prouver :** jeton destiné au serveur, étendue du client et rôles utilisateur corrects ; Eve reste non affectée.
-**Indice :** identifiez le compte réellement connecté et le client préautorisé.
-**Si cela bloque :** revoyez consentement et affectation avec l'administrateur. Pas de jeton Graph pour MCP ni d'audience élargie.
+Ces résultats décrivent les exercices prévus. Ils ne prouvent pas que votre déploiement a été testé.
 
-## 04 - Prouver l'absence de contournement
+| Module | Test | Résultat attendu |
+|---|---|---|
+| 01 | Afficher puis exécuter un outil local | Une liste d'outils et un résultat réel |
+| 02 | Essayer sans clé, puis avec la clé système | HTTP 401, puis HTTP 200 et réussite de l'outil |
+| 03 | Essayer sans jeton, puis avec un jeton destiné à un autre service | HTTP 401 ; Eve ne peut pas obtenir le jeton requis |
+| 04 | Préparer une création de ticket avec Bob, puis Alice, avec approbation | HTTP 403 pour Bob ; HTTP 200 et réussite pour Alice |
+| 04 | Dépasser la limite de débit ; essayer l'accès direct à la Function | HTTP 429 ; accès direct refusé |
+| 05 | Lire avec `read_report_as_user`, en tant qu'Alice puis Bob | Alice réussit ; Bob est refusé par le stockage, parfois dans une réponse HTTP 200 |
+| 05 | Lire avec `read_report_as_app`, en tant qu'Alice puis Bob | Le même rapport fictif est accessible aux deux |
+| 06 | Examiner une trace et l'inventaire | Métadonnées autorisées uniquement ; adresse de la passerelle dans API Center |
 
-**À prouver :** identité, rôle par outil, débit et réseau sont imposés. API de gestion MCP en Preview.
-**Indice :** l'écriture synthétique approuvée de Bob doit donner un 403. Testez Alice séparément avec son approbation.
-**Si cela bloque :** vérifiez le refus de la Function privée et les métadonnées. Ne réactivez pas son accès public.
+Utilisez seulement les comptes de test dédiés. Ne reprenez pas la session d'une autre personne.
+Un refus prévu est une réussite du contrôle : ne donnez pas plus de droits à Bob pour obtenir une réponse positive.
+Les outils qui dépendent de l'identité restent simulés avant le module 05.
 
-## 05 - Identifier les droits qui atteignent la donnée
+Ne conservez comme preuves que les métadonnées autorisées et les lignes `PASS` ou `FAIL`.
+N'exportez pas les traces Network/Protocol d'Inspector : elles peuvent contenir des jetons,
+des consignes, les paramètres des outils ou leurs résultats.
 
-**À prouver :** OBO obtient un autre jeton avec contexte utilisateur ; app-only utilise une identité managée.
-**Indice :** prédisez les quatre cas Alice/Bob et as_user/as_app. Lisez HTTP et l'erreur MCP.
-**Si cela bloque :** vérifiez les droits exacts du conteneur. Pas de repli développeur ni de rôle élargi.
+## En cas de problème
 
-## 06 - Observer sans collecter le contenu
+- **Aucun outil affiché :** vérifiez le serveur sélectionné, l'adresse et le mode de connexion, puis reconnectez-vous.
+  Ouvrir l'adresse dans un navigateur ne remplace pas la découverte des outils.
+- **HTTP 401 :** vérifiez le compte connecté et les paramètres de connexion avec le guide.
+  N'utilisez pas de site de décodage pour examiner un jeton réel.
+- **HTTP 403 :** comparez avec le résultat attendu. Si l'accès devrait être autorisé, faites vérifier le rôle requis.
+- **HTTP 200 avec une erreur MCP :** l'outil n'a pas réussi ; lisez le détail dans le client.
+- **HTTP 429 :** attendez le délai prévu. Ne désactivez pas la limite et ne relancez pas en boucle.
+- **Connexion qui n'aboutit pas :** vérifiez le réseau, l'adresse de retour et les ports privés avec le guide.
+  Ne rendez pas publics Inspector ou la Function pour contourner le problème.
 
-**À prouver :** savoir qui appelle quoi sans enregistrer le corps. API Center inventorie, sans autoriser.
-**Indice :** corrélation à partir des métadonnées approuvées ; pas de requête ou réponse sérialisée.
-**Si cela bloque :** contrôlez les diagnostics. N'activez pas les journaux de corps et n'exportez pas de transcript Inspector.
+## 00 - Préparer votre environnement
 
-## 07 - Réutiliser la frontière, pas le jeton
+**À vérifier :** les outils fonctionnent et votre environnement de test est approuvé.
+**Conseil :** un droit Azure ne donne pas de droit d'administration dans Microsoft Entra.
+**En cas de problème :** utilisez le guide du module 00 et faites préciser les droits nécessaires par l'administrateur.
 
-**À prouver :** un client optionnel utilise la même entrée gouvernée.
-**Indice :** utilisateur ou application ? Vérifiez licences, Preview et retour OAuth. Démonstration du facilitateur seulement.
-**Si cela bloque :** reportez tout flux exigeant un secret client. Aucun transfert du jeton MCP aux API cibles.
+## 01 - Afficher les outils avant de les utiliser
 
-## 99 - Arrêter la facture, préserver le partagé
+**À vérifier :** le client affiche les outils du serveur local et peut en exécuter un.
+**Conseil :** reprenez la commande de démarrage du guide ; cette étape n'utilise pas d'adresse HTTPS.
+**En cas de problème :** vérifiez la trace et la version du protocole, sans fabriquer de messages de connexion.
 
-**À prouver :** supprimer créations et affectations du workshop, préserver identités et infrastructure existantes.
-**Indice :** nettoyage ressources et identités sont séparés. Arrêtez Inspector et les codespaces inutilisés.
-**Si cela bloque :** examinez inventaire tagué, rétention et suppression récupérable. Pas de suppression large non revue.
+## 02 - Comprendre les limites d'une clé partagée
+
+**À vérifier :** la clé protège l'accès, mais ne distingue pas Alice de Bob.
+**Conseil :** utilisez la clé système MCP prévue, pas une autre clé de la Function. Un refus HTTP 401 sans clé est normal.
+**En cas de problème :** gardez la protection du point d'entrée activée. Les accès liés à l'identité sont encore simulés.
+
+## 03 - Vérifier qui se connecte et avec quels droits
+
+**À vérifier :** le jeton est destiné au serveur MCP ; Alice et Bob sont autorisés à se connecter, pas Eve.
+**Conseil :** vérifiez le compte réellement connecté et l'application cliente utilisée.
+**En cas de problème :** faites vérifier le consentement et les affectations. N'acceptez pas un jeton destiné à Graph.
+
+## 04 - Imposer le passage par API Management
+
+**À vérifier :** les droits, la limite de débit et l'interdiction d'accès direct sont respectés.
+**Conseil :** testez Bob puis Alice séparément, en approuvant chaque action qui modifie des données.
+**En cas de problème :** ne réactivez pas l'accès public à la Function. L'API de gestion MCP est en **Preview**.
+
+## 05 - Comprendre quels droits servent à lire les données
+
+**À vérifier :** l'accès délégué utilise les droits de l'utilisateur ; l'accès applicatif utilise ceux de l'application.
+**Conseil :** prévoyez les résultats pour Alice et Bob avec chacun des deux outils, puis comparez-les.
+**En cas de problème :** vérifiez les droits sur le conteneur de stockage. Ne remplacez pas l'utilisateur par le développeur.
+
+## 06 - Suivre les appels sans enregistrer leur contenu
+
+**À vérifier :** vous savez qui a utilisé quel outil et avec quel résultat, sans conserver les données échangées.
+**Conseil :** reliez les événements grâce à l'identifiant de corrélation, pas au contenu des requêtes.
+**En cas de problème :** vérifiez les paramètres des journaux. API Center répertorie les serveurs, sans donner de droits d'accès.
+
+## 07 - Utiliser un autre client sans changer les protections
+
+**À vérifier :** le client facultatif utilise la même passerelle et une connexion officiellement prise en charge.
+**Conseil :** cette démonstration est réservée à l'animateur ; vérifiez licences, identité et fonctions en **Preview**.
+**En cas de problème :** reportez tout parcours qui exige un secret client. Ne transmettez pas le jeton MCP aux API cibles.
+
+## 99 - Supprimer les ressources de l'atelier
+
+**À vérifier :** les ressources et affectations créées pour l'atelier sont supprimées ; les ressources partagées sont préservées.
+**Conseil :** nettoyez séparément les ressources Azure et les identités. Arrêtez Inspector et les codespaces inutilisés.
+**En cas de problème :** examinez l'inventaire, les durées de conservation et les suppressions récupérables.
+Ne lancez pas de suppression globale sans examen et approbation.
 
 ## Sources
 
@@ -5600,15 +5869,16 @@ corps et identifiants. Les outils d'identité restent simulés avant le module 0
 - [Création d'un codespace](https://docs.github.com/en/codespaces/developing-in-a-codespace/creating-a-codespace-for-a-repository).
 - [Redirection privée des ports](https://docs.github.com/en/codespaces/developing-in-a-codespace/forwarding-ports-in-your-codespace).
 - [Autorisation App Service et PRM, Preview](https://learn.microsoft.com/azure/app-service/configure-authentication-mcp).
-- [Contexte Azure](DEPLOYMENT.md) et [registre complet](REFERENCES.md).
+- [Contexte Azure](DEPLOYMENT.md) et [références complètes](REFERENCES.md).
 
-Dernière vérification : 2026-10-14. Les recettes de lancement ne prouvent ni compatibilité déployée ni validation d'un module.
+Dernière vérification : 2026-10-14. Préparer une commande ne valide ni la connexion au serveur ni un module.
 '@
 
 $files['docs/fr/REFERENCES.md'] = @'
-# Références du workshop
+# Références de l'atelier
 
-Ces liens officiels expliquent les mécanismes montrés dans le board. Les synthèses françaises sont originales ;
+Ces liens officiels permettent d'approfondir les sujets abordés. Vous n'avez pas besoin de tout lire pour commencer :
+suivez d'abord le guide du module. Les synthèses françaises sont originales ;
 les pages externes peuvent rester en anglais. La vérification des sources ne prouve pas qu'un déploiement fonctionne.
 Le [registre technique original](../sources.md) détaille aussi chaque fichier inspecté et les limites de réutilisation.
 
@@ -5622,28 +5892,33 @@ Retenez le suffixe aléatoire par participant ; il réduit les collisions mais n
 - [Moteurs alternatifs](https://code.visualstudio.com/remote/advancedcontainers/docker-options) : sélection explicite de Podman 5+, pas de bascule automatique.
 - [Features officielles](https://github.com/devcontainers/features) : empreintes figées dans la configuration, versions d'outils choisies ; construction toujours à valider.
 - [Nommage Azure](https://learn.microsoft.com/azure/azure-resource-manager/management/resource-name-rules), [quotas](https://learn.microsoft.com/azure/azure-resource-manager/management/azure-subscription-service-limits) : distinguer unicité des noms et capacité partagée.
-- [Groupe AzureRM](https://registry.terraform.io/providers/hashicorp/azurerm/5.9.0/docs/resources/resource_group), [source de données existante](https://registry.terraform.io/providers/hashicorp/azurerm/5.9.0/docs/data-sources/resource_group) : ne gérer que les objets du workshop.
+- [Groupe AzureRM](https://registry.terraform.io/providers/hashicorp/azurerm/5.9.0/docs/resources/resource_group), [lecture d'un groupe existant](https://registry.terraform.io/providers/hashicorp/azurerm/5.9.0/docs/data-sources/resource_group) : ne gérer que les objets créés pour l'atelier.
 - [Tests simulés Terraform](https://developer.hashicorp.com/terraform/language/tests/mocking) : vérifier les plans sans appel Azure, sans prétendre valider un déploiement.
 
 Dernière vérification : 2026-10-14. Aucun moteur accessible pour valider l'exécution du conteneur sur le poste de création.
 
-## Exemples et versions épinglés
+## Pour aller plus loin : exemples et versions retenues
+
+<details>
+<summary>Consulter les versions exactes, les licences et les limites connues</summary>
 
 | Source | Version / instantané | Usage et limite |
 |---|---|---|
 | [Functions .NET](https://github.com/Azure-Samples/remote-mcp-functions-dotnet/tree/468c518c884ec318e3001b9573254c9e775409c9) | `468c518c884ec318e3001b9573254c9e775409c9` | Base serveur, MIT ; conserver les notices si adaptation. Le host.json amont Anonymous ne convient pas au module 02. |
 | [SDK C#](https://github.com/modelcontextprotocol/csharp-sdk/tree/6fa3825973949a9c4f0cd8af344e15a8db09dc35) | 2.2.0, `6fa3825973949a9c4f0cd8af344e15a8db09dc35` | Introduction stdio ; transition de licences Apache-2.0/MIT à vérifier fichier par fichier. Documentation CC-BY-4.0. |
 | [AI Gateway labs](https://github.com/Azure-Samples/AI-Gateway/tree/1679e3137d2fe7592d2a668d77ff71550d35b69e) | `1679e3137d2fe7592d2a668d77ff71550d35b69e` | Patrons PRM, politiques et inventaire, MIT. Pas d'import de catalogues ou notebooks complets. |
-| [Inspector 2.9.0](https://github.com/modelcontextprotocol/inspector/tree/ae865a19178ddf6f375780a02e9c77c4cf4da184) | Version installable vérifiée | Commandes du board, mémoire seule et négociation du protocole. |
+| [Inspector 2.9.0](https://github.com/modelcontextprotocol/inspector/tree/ae865a19178ddf6f375780a02e9c77c4cf4da184) | Installation vérifiée | Commandes du tableau, identifiants en mémoire uniquement et négociation du protocole. |
 | [Release Inspector 2.11.0](https://github.com/modelcontextprotocol/inspector/releases/tag/2.11.0) | Candidate de comparaison | Release GitHub disponible mais paquet absent du registre configuré lors du test. Aucun changement silencieux de version ou de registre. |
-| [Spécification MCP](https://modelcontextprotocol.io/specification/2026-07-28) | 2026-07-28 | Référence d'enseignement ; vérifier le protocole réellement supporté par chaque client. |
+| [Spécification MCP](https://modelcontextprotocol.io/specification/2026-07-28) | 2026-07-28 | Référence de l'atelier ; vérifier le protocole réellement pris en charge par chaque client. |
+
+</details>
 
 ## 00 - Environnement, tenant et abonnement
 
 - [Module 00 publié](../../modules/00-prerequisites/README.fr.md), [hébergement public facultatif](HOSTING.md) et [demande administrateur](../requests/identity-request.md).
 - [Terraform 1.16.6](https://releases.hashicorp.com/terraform/1.16.6/) : binaire de test vérifié par empreinte officielle ; conteneur toujours à construire.
 - [Autorisations effectives ARM](https://learn.microsoft.com/rest/api/authorization/permissions/list-for-resource-group) : actions moins exclusions par enregistrement, pagination limitée au même périmètre.
-- [Node App Service](https://learn.microsoft.com/azure/app-service/configure-language-nodejs), [déploiement Entra](https://learn.microsoft.com/azure/app-service/deploy-authentication-types), [package en lecture seule](https://learn.microsoft.com/azure/app-service/deploy-run-package) : B1 facultatif, publication basique désactivée, aucune clé.
+- [Node App Service](https://learn.microsoft.com/azure/app-service/configure-language-nodejs), [déploiement Entra](https://learn.microsoft.com/azure/app-service/deploy-authentication-types), [paquet en lecture seule](https://learn.microsoft.com/azure/app-service/deploy-run-package) : B1 facultatif, publication par authentification de base désactivée, aucune clé.
 - [Choisir tenant et abonnement](https://learn.microsoft.com/cli/azure/manage-azure-subscriptions-azure-cli) : contexte Azure CLI.
 - [Connexion interactive](https://learn.microsoft.com/cli/azure/authenticate-azure-cli-interactively) : navigateur et multifacteur, jamais mot de passe dans une commande.
 - [Attribution de rôles Azure](https://learn.microsoft.com/azure/role-based-access-control/role-assignments-cli) : autorité distincte et portée minimale.
@@ -5712,7 +5987,7 @@ Dernière vérification : 2026-10-14. Aucune publication ni modification Azure/E
 ## Schémas et droits des icônes
 
 [Provenance des icônes et reproduction des schémas](../../assets/architecture/README.md).
-Les marques restent la propriété de leurs titulaires et ne représentent pas le logo du workshop.
+Les marques restent la propriété de leurs titulaires et ne représentent pas le logo de l'atelier.
 Le SDK canvas Copilot est en **Preview**.
 
 Dernière vérification : 2026-10-14. Les statuts et preuves restent dans le fichier canonique `docs/PROGRESS.md`.
@@ -6653,6 +6928,10 @@ A module is `validated` only when its validate script passes on a fresh subscrip
   Official-checksum-verified Terraform 1.16.6 and Core Tools 4.14.0 ARM64 were installed in session scope for checks,
   not substituted globally. Container execution and fresh-subscription preflight/real plan/apply remain unverified.
   Module 01 must not start before real module 00 validation.
+- French editorial revision: participant-facing labels and all French guides reviewed for natural phrasing.
+  Beginner instructions appear first; technical setup and advanced context use closed, keyboard-accessible
+  disclosure sections in both the board and static exports. Safety requirements, module status and cloud
+  approval gates are unchanged. This is a language/readability change, not Azure or container validation.
 '@
 
 $files['docs/requests/identity-request.md'] = @'
@@ -7378,51 +7657,44 @@ pwsh -NoProfile -File "$root/cleanup.ps1" "$@"
 '@
 
 $files['modules/00-prerequisites/README.fr.md'] = @'
-# 00 - Preparer l'environnement approuve
+# 00 - Préparer votre environnement de test
 
 [English](README.md)
 
-## Goal
+## Objectif
 
-Choisissez un terminal local ou un conteneur de developpement Visual Studio Code.
-Verifiez les outils et votre cible Azure hors production. Preparez la demande a l'administrateur Microsoft Entra.
+Choisir où travailler, vérifier les outils et confirmer que vous pouvez utiliser votre environnement Azure de test.
+Vous préparerez aussi les informations à transmettre à l'administrateur Microsoft Entra.
 
-## Why it matters
+## Pourquoi cette étape est importante
 
-Un outil installe ne prouve ni les autorisations ni la capacite disponible.
-Les noms aleatoires evitent les collisions ; ils ne changent pas les quotas partages.
-Votre terminal s'authentifie dans Azure, jamais le portail public.
+Un outil installé ne garantit pas que vous avez les droits ou la capacité nécessaires dans Azure.
+Les noms propres à chaque participant limitent les conflits, mais n'augmentent pas les quotas disponibles.
 
-## What you deploy
+## Ce que vous déployez
 
-Le preflight ne deploie **rien**. Il lit le contexte, les regions, les fournisseurs et les droits accordes.
-La racine Terraform partagee peut creer un groupe isole ou lire un groupe existant sans le gerer.
-Le [portail public facultatif](../../docs/fr/HOSTING.md) ajoute un plan App Service payant et un site,
-uniquement sur activation explicite. Aucun serveur Model Context Protocol (MCP) n'est encore deploye.
+**Les scripts de vérification ne créent aucune ressource.** Ils consultent votre configuration et vos droits.
+Terraform permet, séparément et après approbation, de créer un groupe de ressources dédié ou d'utiliser
+un groupe fourni par l'administrateur. Le [portail public facultatif](../../docs/fr/HOSTING.md) est payant
+et désactivé par défaut. Aucun serveur Model Context Protocol (MCP) n'est encore déployé.
 
-## Prerequisites and required roles
+## Prérequis et droits nécessaires
 
-Suivez le [choix du poste](../../docs/fr/GETTING-STARTED.md).
-Versions retenues : Terraform 1.16.6, AzureRM 5.9.0, Azure CLI 2.88.0, kit de developpement .NET 10,
-PowerShell 7.4+, Node.js 22.19+ et Functions Core Tools v4 >= 4.5.0.
-L'interface de commande Functions v5 distincte est en **Preview** et n'est pas retenue.
+Commencez par [choisir votre environnement de travail](../../docs/fr/GETTING-STARTED.md).
+Utilisez uniquement un annuaire Microsoft Entra et un abonnement Azure autorisés pour des tests hors production.
+L'annuaire contient les identités ; l'abonnement contient les ressources facturées.
 
-Un nouveau groupe exige les droits de lecture, creation et suppression de groupes au niveau abonnement.
-Pour un groupe fourni par l'administrateur, restez dans son perimetre. Ne demandez pas Owner par commodite.
-Le script evalue les actions Azure Resource Manager (ARM) autorisees moins les exclusions de chaque enregistrement,
-puis combine les autorisations. Une autre attribution peut autoriser une action exclue ailleurs.
-La pagination reste sur le meme hote HTTPS et le meme perimetre.
-Les refus explicites et Azure Policy restent a examiner : une autorisation accordee ne garantit pas le deploiement.
+Si votre administrateur vous fournit un groupe de ressources, utilisez-le. Ne demandez pas le rôle
+Propriétaire (Owner) sur tout l'abonnement pour simplifier l'exercice.
+Aucun droit d'administration Entra n'est nécessaire à cette étape. La
+[demande destinée à l'administrateur](../../docs/requests/identity-request.md), en anglais,
+prépare les besoins du module 03.
 
-Aucun droit Entra d'administration n'est necessaire ici. L'administrateur traite separement la
-[demande precise](../../docs/requests/identity-request.md) avant le module 03.
-Le script n'enregistre aucun fournisseur et n'attribue aucun role.
-
-## Steps
+## Étapes
 
 ### PowerShell
 
-Depuis la racine, dans le terminal effectivement choisi :
+Depuis le dossier principal du dépôt, dans le terminal que vous utiliserez pour l'atelier :
 
 ```powershell
 $ErrorActionPreference = 'Stop'
@@ -7433,13 +7705,91 @@ $expiry = [datetime]::UtcNow.AddDays(1).ToString('yyyy-MM-dd')
 & .\modules\00-prerequisites\validate.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID
 ```
 
-Adaptez la region, les libelles et la date approuves. Si un groupe est fourni, ajoutez
-`-ExistingResourceGroupName` des la premiere preparation. Conservez le suffixe et l'etat Terraform.
-Lisez le selecteur : il demande les identifiants prives et `NONPROD`, ouvre la connexion et selectionne
-l'abonnement. Le preflight ne se connecte pas et ne change pas le contexte.
-Ne publiez aucun identifiant de compte, jeton ou reponse de compte dans le tableau, Git ou le chat.
+Adaptez `p01`, la région, le libellé du propriétaire et la date aux choix approuvés pour votre atelier.
+La date sert de rappel : elle ne déclenche pas de suppression automatique.
+Pour un groupe existant, ajoutez `-ExistingResourceGroupName` avec son nom dès le premier appel à
+`prepare-workshop.ps1`. Conservez le fichier de paramètres privé et l'état Terraform jusqu'au nettoyage.
 
-Les tests locaux sont distincts :
+Le sélecteur vous demande les identifiants de l'annuaire et de l'abonnement, puis la confirmation `NONPROD`.
+Il ouvre la connexion Azure et sélectionne l'abonnement. **Gardez le même terminal pour la suite.**
+Ne copiez aucune clé, aucun jeton ni aucune information de compte dans le tableau, le dépôt ou la conversation.
+
+<details>
+<summary>Vous utilisez bash ?</summary>
+
+PowerShell doit aussi être installé : les scripts bash appellent les mêmes contrôles.
+
+```bash
+bash ./scripts/check-tools.sh
+read -r -p 'Date de nettoyage approuvée (yyyy-MM-dd) : ' expiry
+bash ./scripts/prepare-workshop.sh -ParticipantPrefix p01 -Location westeurope -Owner alice -Expiry "$expiry"
+source ./scripts/select-azure-context.sh fr
+bash ./modules/00-prerequisites/validate.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId "$ARM_SUBSCRIPTION_ID"
+```
+
+</details>
+
+## Résultat attendu
+
+Chaque contrôle réussi affiche `PASS`. En cas d'erreur, corrigez le problème avant de poursuivre.
+Les lectures Azure attendent un code HTTP 200 ; les contrôles locaux indiquent `N/A`, car ils ne font pas
+de requête réseau. Le script n'enregistre aucun fournisseur de ressources et n'attribue aucun rôle.
+
+Le conteneur et Codespaces n'ont pas encore été testés à l'exécution sur le poste de préparation.
+Si vous utilisez l'un de ces environnements, les contrôles doivent y réussir : un test sur votre poste ne suffit pas.
+
+## Vérifier avant de poursuivre
+
+Exécutez `validate.ps1` ou `validate.sh` dans l'abonnement de test approuvé.
+Notez la date, le type d'environnement et les lignes `PASS` non sensibles dans `docs/PROGRESS.md`.
+Vérifiez aussi que la demande Entra est comprise et pourra être transmise en privé à l'administrateur.
+Ne commencez le module 01 qu'après la réussite de cette validation réelle.
+
+## En cas de problème
+
+- **Mauvais abonnement :** relancez le sélecteur dans le terminal utilisé pour l'atelier.
+- **Droits manquants :** demandez à l'administrateur de vérifier l'action refusée sur le groupe concerné.
+- **Fournisseur non enregistré :** faites examiner son enregistrement par l'administrateur ; le script ne le fera pas.
+- **Quota insuffisant :** vérifiez la capacité partagée. Changer les noms des ressources ne résout pas le problème.
+- **Functions Core Tools ne démarre pas :** terminez son installation selon la procédure approuvée.
+- **Blocage par Azure Policy :** examinez la règle avec l'administrateur ; ne la désactivez pas.
+
+## Nettoyer
+
+```powershell
+& .\modules\00-prerequisites\cleanup.ps1
+```
+
+Avec bash : `bash ./modules/00-prerequisites/cleanup.sh`.
+Les vérifications n'ont rien créé. Ce script conserve vos paramètres privés et votre état Terraform.
+Si vous avez déployé le groupe ou le portail, suivez la
+[procédure de suppression à faire approuver](../../docs/fr/HOSTING.md#nettoyer).
+Arrêter le site n'arrête pas la facturation de son plan. Ne supprimez jamais un groupe partagé.
+
+## Pour aller plus loin
+
+<details>
+<summary>Versions des outils, droits vérifiés et limites du contrôle</summary>
+
+Versions retenues : Terraform 1.16.6, fournisseur AzureRM 5.9.0, Azure CLI 2.88.0, kit de développement .NET 10,
+PowerShell 7.4+, Node.js 22.19+ et Functions Core Tools v4 >= 4.5.0.
+La CLI Functions v5, distincte, est en **Preview** (préversion) et n'est pas utilisée.
+
+Créer un groupe demande des droits de lecture, de création et de suppression au niveau de l'abonnement.
+Un groupe existant évite de demander ces droits, mais nécessite toujours les autorisations prévues sur ce groupe.
+Le script examine les actions autorisées par Azure Resource Manager (ARM), déduit les exclusions de chaque
+ensemble de permissions, puis combine les ensembles. Les pages de résultats doivent rester sur le même
+serveur HTTPS et dans le même périmètre. Les refus explicites et les règles Azure Policy peuvent encore
+empêcher un déploiement, même si ces contrôles réussissent.
+
+Le mode « nouveau groupe » vérifie aussi la limite de 980 groupes par abonnement.
+Cette vérification n'est pas nécessaire si vous utilisez un groupe existant.
+Le script de vérification ne vous connecte pas et ne change pas l'abonnement sélectionné.
+
+</details>
+
+<details>
+<summary>Tester les scripts localement, sans valider un déploiement Azure</summary>
 
 ```powershell
 terraform -chdir=infra/workload init -backend=false -lockfile=readonly
@@ -7447,76 +7797,29 @@ if ($LASTEXITCODE -ne 0) { throw 'Provider initialization failed.' }
 & .\modules\00-prerequisites\validate.ps1 -Offline
 ```
 
-### bash
-
-Les wrappers utilisent le meme PowerShell, egalement present dans le conteneur.
-
 ```bash
-bash ./scripts/check-tools.sh
-read -r -p 'Date de nettoyage approuvee (yyyy-MM-dd) : ' expiry
-bash ./scripts/prepare-workshop.sh -ParticipantPrefix p01 -Location westeurope -Owner alice -Expiry "$expiry"
-source ./scripts/select-azure-context.sh fr
-bash ./modules/00-prerequisites/validate.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId "$ARM_SUBSCRIPTION_ID"
 terraform -chdir=infra/workload init -backend=false -lockfile=readonly &&
 bash ./modules/00-prerequisites/validate.sh -Offline
 ```
 
-Pour une etape payante ulterieure, utilisez `-Stage portal` ou `-Stage mcp`, avec une preuve privee
-`-CapacityReviewPath` decrite dans le [guide d'hebergement](../../docs/fr/HOSTING.md).
-La base `mcp` anticipe les futurs services ; elle ne valide pas leurs ressources imbriquees ou leur fonctionnement.
-Elle verifie aussi les droits d'attribution de roles : prevoyez leur execution separee par l'administrateur,
-pas une elevation des droits de tous les participants. Les futurs modules preciseront leurs operations exactes.
+Ces tests utilisent des réponses fictives et des fournisseurs Terraform simulés.
+Leur réussite ne valide **ni votre abonnement Azure ni le conteneur**.
 
-## What you should see
+</details>
 
-Chaque controle affiche `PASS` ou s'arrete sur une erreur. HTTP designe le protocole de transfert hypertexte.
-Les lectures Azure attendent HTTP 200 ; les controles locaux affichent `N/A`.
-Les erreurs CLI n'affichent pas les reponses de compte. Le mode nouveau groupe verifie la limite documentee
-de 980 groupes ; le mode groupe existant n'exige pas de quota pour un groupe supplementaire.
+<details>
+<summary>Préparer une étape payante ultérieure</summary>
 
-Les tests hors ligne utilisent des reponses synthetiques et des fournisseurs simules.
-Leur derniere ligne indique explicitement que le module n'est **pas valide dans Azure**.
-Un controle sur l'hote ne valide pas le conteneur. L'execution du conteneur et de Codespaces reste
-non verifiee sur le poste de creation, faute de moteur approuve accessible.
+Les options `-Stage portal` et `-Stage mcp` demandent une vérification privée de capacité et de coût,
+fournie avec `-CapacityReviewPath`. Consultez le [guide d'hébergement](../../docs/fr/HOSTING.md).
+Le mode `mcp` prépare les besoins futurs : il ne valide pas les services qui restent à construire.
+Il vérifie aussi la possibilité d'attribuer des rôles. Faites réaliser ces attributions séparément par
+l'administrateur plutôt que d'élargir les droits de tous les participants.
 
-## Validate
+</details>
 
-Executez `validate.ps1` ou `validate.sh` dans l'abonnement de test approuve.
-Consignez l'etape, le type de terminal, la date et les lignes PASS non sensibles dans `docs/PROGRESS.md`.
-Avant de declarer le module valide, confirmez que la demande d'identite est comprise et peut etre transmise
-en prive. N'etendez pas cette validation a une autre route ou aux capacites des services futurs.
-Ne commencez le module 01 qu'apres la validation reelle du module 00.
-
-## Troubleshooting
-
-- Mauvais contexte ou surcharge d'authentification : utilisez un terminal interactif approuve et separe.
-- Fournisseur absent : faites examiner l'enregistrement du fournisseur nomme par l'administrateur.
-- Droit manquant : verifiez l'action et le perimetre. Preferez un groupe existant aux droits d'abonnement elargis.
-- Capacite insuffisante : examinez quotas, nombre maximal d'instances et demande totale du groupe de participants.
-- Wrapper npm Core Tools sans binaire : terminez l'installation approuvee. Le controle ne lance pas de telechargement.
-- Refus Policy lors du plan reel : traitez le refus ; ne desactivez pas le controle.
-
-## Clean up
-
-```powershell
-& .\modules\00-prerequisites\cleanup.ps1
-```
-
-```bash
-bash ./modules/00-prerequisites/cleanup.sh
-```
-
-Le preflight n'a rien cree. Le nettoyage conserve les parametres et l'etat prives.
-Si vous avez applique le Terraform du groupe ou du portail, suivez son
-[plan de destruction a revoir](../../docs/fr/HOSTING.md#clean-up).
-Arreter le site ne supprime pas son plan payant. Ne supprimez jamais un groupe partage pour contourner Terraform.
-
-## Go further
-
-Consultez la [gouvernance](../../docs/fr/LEARNING-GUIDE.md), la [demande Entra](../../docs/requests/identity-request.md)
-et le [schema prevu](../../assets/architecture/00.fr.svg).
-Le portail facultatif contient de la documentation publique ; ce n'est ni un site interne authentifie,
-ni une console de deploiement inter-tenants.
+Consultez aussi les [explications sur la sécurité](../../docs/fr/LEARNING-GUIDE.md) et le
+[schéma de cette étape](../../assets/architecture/00.fr.svg).
 
 ## Sources
 
@@ -7527,11 +7830,11 @@ ni une console de deploiement inter-tenants.
 - [Outils Functions](https://learn.microsoft.com/azure/azure-functions/functions-run-local).
 - [API des autorisations](https://learn.microsoft.com/rest/api/authorization/permissions/list-for-resource-group).
 - [Limites Azure](https://learn.microsoft.com/azure/azure-resource-manager/management/azure-subscription-service-limits).
-- [Capacite et runtimes Flex](https://learn.microsoft.com/azure/azure-functions/flex-consumption-plan).
+- [Capacité et versions d'exécution Flex](https://learn.microsoft.com/azure/azure-functions/flex-consumption-plan).
 - [Conteneurs VS Code](https://code.visualstudio.com/docs/devcontainers/containers).
 - [Versions et sources retenues](../../docs/sources.md).
 
-Last verified: 2026-10-14. Tests locaux uniquement ; aucune validation Azure ou du conteneur a ce stade.
+Dernière vérification : 2026-10-14. Les tests locaux ne remplacent pas la validation dans Azure et dans le conteneur.
 '@
 
 $files['modules/00-prerequisites/README.md'] = @'

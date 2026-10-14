@@ -91,7 +91,7 @@ export function readJourney(root, progress) {
             }),
             documents: {
                 gettingStarted: document(french ? "Choisir votre environnement" : "Choose your workspace", "GETTING-STARTED.md"),
-                practice: { title: french ? "Tester votre MCP" : "Try your MCP", sourcePath: [...base, "PRACTICE.md"].join("/"), content: practice },
+                practice: { title: french ? "Tester votre serveur MCP" : "Try your MCP", sourcePath: [...base, "PRACTICE.md"].join("/"), content: practice },
                 runbook: document(french ? "Construire avec Copilot" : "Build runbook", "COPILOT-RUNBOOK.md"),
                 sources: document(french ? "Références vérifiées" : "Verified sources", french ? "REFERENCES.md" : "sources.md"),
                 governance: { title: french ? "Comprendre la gouvernance" : "Understand governance",
@@ -100,11 +100,11 @@ export function readJourney(root, progress) {
                 hosting: document(french ? "Publier ou héberger les guides" : "Publish or host the guides", "HOSTING.md"),
                 ...(available(["docs", "requests", "identity-request.md"]) ? {
                     [french ? "originalIdentityRequest" : "identityRequest"]:
-                        document(french ? "Demande administrateur (original anglais)" : "Identity administrator request",
+                        document(french ? "Demande à l'administrateur (version anglaise)" : "Identity administrator request",
                             "identity-request.md", ["docs", "requests"]),
                 } : {}),
                 architecture: document(french ? "Schémas et icônes" : "Diagrams and icons", french ? "README.fr.md" : "README.md", ["assets", "architecture"]),
-                plan: document(french ? "Parcours prévu" : "Technical build plan", "BUILD-PLAN.md"),
+                plan: document(french ? "Le parcours de l'atelier" : "Technical build plan", "BUILD-PLAN.md"),
                 ...(french ? {
                     originalSources: document("Registre technique original (anglais)", "sources.md", ["docs"]),
                     originalArchitecture: document("Provenance détaillée (original anglais)", "README.md", ["assets", "architecture"]),

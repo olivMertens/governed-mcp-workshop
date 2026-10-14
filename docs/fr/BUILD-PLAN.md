@@ -1,77 +1,128 @@
-# Parcours prévu - Governed MCP on Azure
+# Le parcours de l'atelier
 
-Version pédagogique française. Le [plan technique original](../BUILD-PLAN.md) reste la référence de construction.
-Un module par session, branche et PR. Le module 00 est implémenté localement ; aucun module n'est validé dans Azure.
-Une conception n'est pas une commande de déploiement. Lire le guide publié et valider avant de poursuivre.
+Ce parcours présente ce que vous apprendrez à chaque étape. Suivez les modules dans l'ordre.
+Le module 00 est disponible ; sa validation dans Azure reste à faire. Les autres modules sont encore prévus.
+N'utilisez pas ces résumés comme procédure de déploiement : suivez le guide du module lorsqu'il est publié.
+Le [plan technique en anglais](../BUILD-PLAN.md) s'adresse aux personnes qui construisent l'atelier.
 
 ## 00 - Prérequis et environnement
 
-**Préparer :** outils épinglés, dev container, précontrôle, région, quotas, budget et demande d'identité.
-Choisir tenant et abonnement de test ; distinguer administration Entra, création de ressources et attribution de rôles.
-**À démontrer :** vrai précontrôle réussi et demande exploitable par l'administrateur d'identité.
-**Implémentation disponible :** guide EN/FR, précontrôle en lecture seule avec contexte explicite,
-demande d'identité, versions d'outils épinglées et paramètres privés stables.
-Le socle Terraform ajoute un App Service public B1 facultatif, désactivé par défaut.
-Les tests locaux de schéma, plans simulés, scripts et serveur sont distincts de la validation Azure et
-de la construction du conteneur, toujours en attente. Aucun runtime MCP ni racine Entra n'est implémenté.
+**Objectif :** vérifier vos outils et préparer un environnement de test autorisé.
+**À vérifier :** les contrôles réussissent et l'administrateur comprend la demande de configuration Entra.
+
+<details>
+<summary>Pour aller plus loin : ce qui est disponible et ce qui reste à valider</summary>
+
+Le guide bilingue, les scripts de vérification en lecture seule et la demande Entra sont disponibles.
+Les versions des outils sont fixées et chaque participant conserve ses paramètres privés.
+Terraform prépare le groupe et un portail App Service B1 facultatif, payant et désactivé par défaut.
+Les tests locaux ne remplacent ni un déploiement dans Azure ni un démarrage du conteneur.
+Aucun serveur MCP ni code Terraform Entra n'est encore implémenté.
+
+</details>
 
 ## 01 - Découvrir MCP sans Azure
 
-**Construire :** serveur C# local minimal sur entrées/sorties standard (stdio), outils et données synthétiques.
-Connecter VS Code puis Inspector ; négocier la version du protocole.
-**À démontrer :** découverte réelle, appel réussi, approbation client visible. Aucun coût Azure ni modèle requis.
+**Objectif :** afficher les outils d'un serveur local, puis en exécuter un avec des données fictives.
+**À vérifier :** une exécution réelle et une confirmation manuelle disponible dans le client.
+Aucun coût Azure ni modèle d'IA n'est nécessaire pour les tests de protocole avec Inspector.
+Le serveur C# utilise ses entrées et sorties standard (stdio), pas une adresse HTTPS.
 
 ## 02 - Serveur par clé, niveau 0
 
-**Construire :** Functions Flex Consumption, Storage, télémétrie et identité managée avec Terraform.
-Les cinq outils restent synthétiques ; l'écriture crée un message de file. Outils d'identité simulés jusqu'à 05.
-**À démontrer :** 401 sans clé système MCP, 200 et résultat MCP réussi avec la clé.
-Autorisation webhook `System`, jamais accès anonyme. Cette étape est brève et ne représente pas la cible d'entreprise.
+**Objectif :** comprendre qu'une clé partagée protège l'accès sans identifier chaque utilisateur.
+**À vérifier :** HTTP 401 sans clé ; HTTP 200 et réussite de l'outil avec la bonne clé.
+Cette étape payante reste courte et ne représente pas la protection finale.
+
+<details>
+<summary>Pour aller plus loin : services et protection de la clé</summary>
+
+Terraform préparera Azure Functions Flex Consumption, le stockage, la télémétrie et une identité managée.
+Les outils utiliseront des données fictives ; `create_ticket` ajoutera un message à une file de stockage.
+Les accès liés à l'identité resteront simulés jusqu'au module 05.
+Le point d'entrée gardera le niveau d'autorisation `System`, jamais un accès anonyme.
+
+</details>
 
 ## 03 - Identité Microsoft Entra, niveau 1
 
-**Construire :** application MCP, audience propre, étendue `user_impersonation`, rôles Tools.Read, Tools.Write,
-Tools.Execute.All, affectation requise, clients préautorisés et authentification intégrée.
-Métadonnées de ressource protégée (PRM) en **Preview**. Pas de secret client.
-**À démontrer :** 401 sans jeton ou avec mauvaise audience ; Alice et Bob affectés ; Eve exclue.
+**Objectif :** autoriser les utilisateurs prévus, plutôt que toute personne possédant une clé.
+**À vérifier :** Alice et Bob peuvent se connecter, pas Eve. Un jeton absent ou destiné à un autre service est refusé.
+
+<details>
+<summary>Pour aller plus loin : application, autorisations et rôles</summary>
+
+L'application MCP aura sa propre audience, l'autorisation déléguée `user_impersonation` et les rôles
+Tools.Read, Tools.Write et Tools.Execute.All. Les utilisateurs devront être affectés à l'application.
+L'authentification intégrée et les clients préautorisés prépareront la connexion sans secret client.
+Les métadonnées de ressource protégée (PRM) sont en **Preview**.
+Les tests sans jeton ou avec une mauvaise audience doivent renvoyer HTTP 401.
+
+</details>
 
 ## 04 - API Management comme entrée unique, niveau 2
 
-**Construire :** APIM Standard v2, API de gestion MCP `2025-09-01-preview` en **Preview**,
-validation Entra, contrôle de rôle par outil, limite de débit et filtre IP.
-Intégration réseau sortante, point de terminaison privé, DNS privé, accès public Function désactivé.
-APIM et Functions protègent une seule ressource logique MCP. Zéro octet de corps dans les diagnostics.
-**À démontrer :** écriture Bob 403 ; Alice 200 et succès MCP ; débit 429 ; Function directe refusée.
+**Objectif :** imposer le passage par la passerelle API Management.
+**À vérifier :** Bob ne peut pas créer de ticket, Alice le peut après approbation.
+Un nombre excessif d'appels est limité et l'accès direct à la Function est refusé.
+
+<details>
+<summary>Pour aller plus loin : réseau privé et contrôles de la passerelle</summary>
+
+API Management (APIM) Standard v2 utilisera l'API de gestion MCP `2025-09-01-preview`, en **Preview**.
+La passerelle vérifiera les jetons Entra et le rôle requis par outil. Elle limitera le débit et filtrera les adresses IP.
+L'intégration au réseau sortant, un point de terminaison privé et la résolution privée des noms (DNS)
+permettront de joindre la Function sans accès public.
+APIM et Functions protégeront le même service MCP. Les journaux ne contiendront aucun corps de requête ou de réponse.
+Les résultats attendus sont HTTP 403 pour Bob, HTTP 200 et réussite pour Alice, HTTP 429 au-delà du débit autorisé.
 L'option 04b REST vers MCP ne remplace pas le serveur principal.
+
+</details>
 
 ## 05 - On-Behalf-Of et accès applicatif, niveau 3
 
-**Construire :** `whoami` vers Graph et `read_report_as_user` vers Storage avec On-Behalf-Of (OBO).
-`read_report_as_app` utilise explicitement une identité managée. Aucun jeton MCP transmis aux API cibles.
+**Objectif :** comparer les droits de l'utilisateur et ceux de l'application.
+**À vérifier :** la lecture au nom de l'utilisateur réussit pour Alice et échoue pour Bob ;
+la lecture avec les droits de l'application donne le même résultat aux deux.
+
+<details>
+<summary>Pour aller plus loin : délégation et identité managée</summary>
+
+`whoami` appellera Microsoft Graph et `read_report_as_user` appellera Azure Storage avec On-Behalf-Of (OBO).
+`read_report_as_app` utilisera une identité managée. Aucun jeton MCP ne sera transmis aux API cibles.
 Les identités managées et la fédération remplacent les secrets clients.
-**À démontrer :** lecture déléguée autorisée pour Alice, refusée pour Bob ; même résultat applicatif pour les deux.
-Noter HTTP et erreur MCP : un 403 cible peut être contenu dans HTTP 200.
+Examinez le code HTTP et l'erreur MCP : un refus du stockage peut être contenu dans une réponse HTTP 200.
+
+</details>
 
 ## 06 - Observation et inventaire, niveau 4
 
-**Construire :** requêtes Kusto Query Language (KQL) ou workbook avec outil, appelant authentifié, statut, latence
-et corrélation. Inscrire uniquement l'adresse gouvernée dans Azure API Center.
-**À démontrer :** qui appelle quoi et avec quel résultat, sans stocker jetons, prompts, arguments ou résultats.
-API Center n'est ni une étape de routage ni une autorisation. Option Microsoft 365 BYO : **Preview**, facilitateur seulement.
+**Objectif :** savoir qui a utilisé quel outil et avec quel résultat, sans enregistrer les données échangées.
+**À vérifier :** les journaux ne contiennent ni jetons, ni consignes, ni paramètres ou résultats d'outils.
+Azure API Center répertorie l'adresse de la passerelle ; il ne relaie pas les appels et ne donne aucun droit.
+
+<details>
+<summary>Pour aller plus loin : analyser les métadonnées</summary>
+
+Des requêtes Kusto Query Language (KQL) ou un classeur d'analyse montreront le nom de l'outil,
+l'identifiant de l'appelant authentifié, le statut, la durée et l'identifiant de corrélation.
+L'inventaire Microsoft 365 est facultatif, en **Preview**, et réservé à l'animateur.
+
+</details>
 
 ## 07 - Clients supplémentaires, facultatif
 
-**Démontrer :** le même serveur gouverné depuis un client Foundry ou Copilot Studio officiellement supporté
-et sans secret. Revérifier licences, identité et statut **Preview** des fonctions choisies.
+**Objectif :** utiliser le même serveur depuis un client Foundry ou Copilot Studio officiellement pris en charge,
+sans secret. Vérifiez les licences, l'identité utilisée et les fonctions en **Preview**.
 L'authentification OAuth manuelle Copilot Studio exigeant un secret reste reportée.
-Cette démonstration du facilitateur ne bloque pas le nettoyage.
+Cette démonstration de l'animateur ne doit pas retarder le nettoyage.
 
 ## 99 - Nettoyage
 
-**Retirer :** ressources du workload d'abord, puis uniquement objets Entra, utilisateurs de test et affectations créés.
-Lire le plan de destruction et obtenir l'approbation ; préserver identités fournies et infrastructure partagée.
-**À démontrer :** inventaire des ressources du workshop vide, rôles et objets créés comptabilisés, rétention vérifiée.
-Arrêter aussi Inspector et les codespaces inutilisés.
+**Objectif :** supprimer les ressources créées pour l'atelier, puis les identités et rôles créés pour les tests.
+Examinez le plan de suppression et faites-le approuver. Préservez les ressources partagées et les comptes existants.
+**À vérifier :** aucune ressource de l'atelier ne reste facturée ; les rôles, identités et durées de conservation sont vérifiés.
+Arrêtez aussi Inspector et les codespaces inutilisés.
 
 ## Sources
 

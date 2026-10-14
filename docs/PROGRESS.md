@@ -85,3 +85,7 @@ A module is `validated` only when its validate script passes on a fresh subscrip
   Official-checksum-verified Terraform 1.16.6 and Core Tools 4.14.0 ARM64 were installed in session scope for checks,
   not substituted globally. Container execution and fresh-subscription preflight/real plan/apply remain unverified.
   Module 01 must not start before real module 00 validation.
+- French editorial revision: participant-facing labels and all French guides reviewed for natural phrasing.
+  Beginner instructions appear first; technical setup and advanced context use closed, keyboard-accessible
+  disclosure sections in both the board and static exports. Safety requirements, module status and cloud
+  approval gates are unchanged. This is a language/readability change, not Azure or container validation.
