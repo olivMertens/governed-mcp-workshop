@@ -1,7 +1,8 @@
 # 🔐 Governed MCP on Azure — hands-on workshop
 
 > ⚠️ **Work in progress.** Module 00 preparation and module 01's local MCP exercise are implemented.
-> Modules 02–07 and 99 remain planned. Module 01's client-approval observation is still manual.
+> Module 02 (open server) is authored with offline checks only; it is not deployed or validated.
+> Modules 03–07 and 99 remain planned. Module 01's client-approval observation is still manual.
 > Nothing has been validated on a real Azure subscription yet. Details: [what is available](docs/IMPLEMENTATION-STATUS.md).
 
 Take one MCP server from **open** to **governed** on Azure, alone, in **your own non-production** subscription.
@@ -94,7 +95,7 @@ Expected: `PASS local MCP checks complete (expected HTTP N/A; stdio, no Azure).`
 Then follow the [EN guide](modules/01-discover-mcp/README.md) or [guide français](modules/01-discover-mcp/README.fr.md)
 to discover/call the tool with Inspector and observe approval in VS Code.
 **No presenter portal, Azure sign-in or Terraform is needed for this local exercise.**
-Stop before module 02: cloud runtime modules are not implemented yet.
+Module 02 deploys real Azure resources: start it only after module 00 validation and explicit plan/cost approval.
 
 📸 This is the module 00 guide, not a deployed Azure result:
 
@@ -106,7 +107,7 @@ Stop before module 02: cloud runtime modules are not implemented yet.
 |---|---|---|---|---|
 | 00 | 🧰 Prerequisites and environment | ✅ Required | 🟡 Built, offline checks only | [Open](modules/00-prerequisites/README.md) |
 | 01 | 🔍 Discover MCP (no Azure) | ✅ Required | 🟡 Local SDK + Inspector checks pass; manual approval pending | [Open](modules/01-discover-mcp/README.md) · [FR](modules/01-discover-mcp/README.fr.md) |
-| 02 | 🔑 Server protected by a key (level 0) | ✅ Required | ⚪ Planned | [Plan](docs/BUILD-PLAN.md#02--an-open-mcp-server-level-0) |
+| 02 | 🔑 Server protected by a key (level 0) | ✅ Required | 🟡 Authored; offline checks pass, not deployed | [Open](modules/02-open-server/README.md) · [FR](modules/02-open-server/README.fr.md) |
 | 03 | 🪪 Microsoft Entra identity (level 1) | ✅ Required | ⚪ Planned | [Plan](docs/BUILD-PLAN.md#03--identity-with-microsoft-entra-level-1) |
 | 04 | 🚪 API Management as the only entry (level 2) | ✅ Required | ⚪ Planned | [Plan](docs/BUILD-PLAN.md#04--api-management-as-the-only-entry-point-level-2) |
 | 05 | 👤 On-Behalf-Of vs app-only (level 3) | ✅ Required | ⚪ Planned | [Plan](docs/BUILD-PLAN.md#05--who-carries-the-rights-on-behalf-of-vs-app-only-level-3) |
@@ -114,7 +115,7 @@ Stop before module 02: cloud runtime modules are not implemented yet.
 | 07 | 🤖 Other clients (Foundry, Copilot Studio) | ➕ Optional | ⚪ Planned | [Plan](docs/BUILD-PLAN.md#07--optional-other-clients) |
 | 99 | 🧹 Clean up | ♻️ As soon as you create resources | ⚪ Planned | [Plan](docs/BUILD-PLAN.md#99--clean-up) |
 
-> 💡 **00 and 01 have runnable guides.** The other rows link to their implementation plan.
+> 💡 **00, 01 and 02 have guides.** The other rows link to their implementation plan.
 > A published guide or local `PASS` is not proof of a completed Azure workshop.
 
 ## 🧭 Open the board

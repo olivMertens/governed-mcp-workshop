@@ -8,7 +8,7 @@ A module is `validated` only when its validate script passes on a fresh subscrip
 |---|---|---|---|---|---|
 | 00 | Prerequisites and environment | validated | 2026-10-14 | Live local-terminal validator: explicit context, region, Microsoft.Resources registration, required ARM grants and group capacity PASS; isolated offline suite 14/14 and Terraform tests 11/11 PASS. | Validated on the selected non-production local-terminal route without creating resources. The optional dev-container/Codespaces route remains unverified and is not implied by this result. |
 | 01 | Discover MCP (no Azure) | in-progress | | Real local SDK validator and Inspector 2.9.0 tools/list + tools/call pass; protocol 2026-07-28 with SDK client. | EN/FR guide, locked .NET 10 stdio server and client config implemented. Manual VS Code approval observation remains pending; no Azure needed here. |
-| 02 | An "open" MCP server (level 0) | todo | | | |
+| 02 | An "open" MCP server (level 0) | in-progress | | Offline validator: host.json System, no anonymous level, no secret pattern, identity-only Terraform, 24/24 unit tests, Terraform fmt/validate and 18/18 mock runs PASS. | Authored, offline checks pass, not deployed/validated. User approved author-only scope: no plan/apply, no Azure or Entra change. Live HTTP 401/200 checks pending an approved deployment. |
 | 03 | Identity with Microsoft Entra (level 1) | todo | | | |
 | 04 | API Management as the only entry point (level 2) | todo | | | |
 | 05 | On-Behalf-Of vs app-only (level 3) | todo | | | |
@@ -36,6 +36,36 @@ A module is `validated` only when its validate script passes on a fresh subscrip
   group; accept an approved existing group without managing it. Shared quotas still require cohort capacity checks.
 
 ## Deviations from the build plan
+- Module 02 author-only implementation (2026-10-14), explicitly scoped by the user: build code, Terraform,
+  guides and validators; run only local/offline checks. No `terraform plan` against Azure, no apply, no Azure or
+  Microsoft Entra change. Module 01 is still `in-progress` (manual approval observation), so this is an authoring
+  exception to "previous module validated first", not deployment authorization.
+  Offline evidence (`validate.ps1 -Offline`, Windows, Terraform 1.16.6, AzureRM 5.9.0 mocks, .NET SDK 10.0.402):
+  `PASS host.json MCP webhook authorization level is System (expected HTTP 401 without the mcp_extension key).`
+  `PASS no anonymous authorization level in server source (expected HTTP N/A).`
+  `PASS no key, SAS, connection-string or client-secret pattern in module 02 files (expected HTTP N/A).`
+  `PASS Terraform disables Storage shared keys, uses managed identity and outputs no key (expected HTTP N/A).`
+  `PASS locked build and tool unit tests: synthetic results, strict inputs, no write without the exact shape (expected HTTP N/A).`
+  `PASS Terraform format, schema and mock-only plans, including module 02 opt-in (expected HTTP N/A; no live plan/apply).`
+  `PASS offline checks only. Module 02 is NOT deployed or Azure-validated by this result.`
+  Synthetic node tests cover the live validator (401 without key, 401 with a wrong key, 200 initialize/tools/list,
+  fail-closed on an anonymous endpoint or an extra tool, key never printed) and the clean-up guard (deletes only
+  module 02 resources, refuses foreign changes or updates, idempotent when empty).
+  Deviations: upstream `host.json` uses `Anonymous`; this module uses `System`. Upstream grants account-wide
+  Storage Queue Data Contributor for the MCP extension; Learn documents queue use only for the deprecated SSE
+  transport, so the host gets Storage Blob Data Owner only and `create_ticket` gets Storage Queue Data Message
+  Sender on the `tickets` queue only. Recheck at first deployment: if the host requires queues for Streamable HTTP,
+  stop and ask before widening a role. AzureRM 5.9.0 writes a key-less `AzureWebJobsStorage` string for identity
+  storage; the configuration overrides it with an empty value so the host uses `AzureWebJobsStorage__*` identity
+  settings. This causes an expected in-place app-settings diff on every plan and must be verified on first deployment.
+  The upstream preview MCP SDK package, Graph, QR, Apps, Blob and OpenTelemetry packages are not used. The Functions
+  Worker SDK still restores its generated extension project (WebJobs MCP extension 1.5.0) at build time, outside the
+  package lock. The opt-in is a private `.workshop/module02.tfvars.json` var file, not a new participant parameter,
+  so module 00 parameter validation is unchanged; later plans must keep passing it. Module 01 node tests failed
+  locally only because the user's running `workshop-local` server locked its DLL and an uncommitted local
+  `.vscode/mcp.json` edit; they pass in a clean worktree.
+  Open: first deployment, live validator run, VS Code connection with the secure input, key rotation, Flex .NET 10
+  runtime availability in the chosen region, cost approval.
 - Module 01 local implementation (2026-10-14), explicitly requested by the user while module 00's
   cloud/container gate is pending. This is a scoped authoring/local-execution exception, not cloud authorization.
   SDK 2.2.0 and Hosting 10.0.13 are pinned with a transitive package lock; upstream license notices retained.

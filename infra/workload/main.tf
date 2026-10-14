@@ -23,12 +23,16 @@ locals {
   compact_prefix = substr(var.participant_prefix, 0, 6)
   legacy_suffix  = length(var.resource_suffix) == 10
   names = {
-    resource_group = coalesce(var.existing_resource_group_name, "rg-${local.stem}")
-    storage        = local.legacy_suffix ? "stmcp${var.participant_prefix}${var.resource_suffix}" : "st${local.compact_prefix}${var.resource_suffix}"
-    function_app   = local.legacy_suffix ? "func-${local.stem}" : "func-mcp-${local.compact_prefix}-${var.resource_suffix}"
-    api_management = "apim-${local.stem}"
-    portal_plan    = "plan-${local.stem}-portal"
-    portal_app     = "web-${local.stem}-portal"
+    resource_group       = coalesce(var.existing_resource_group_name, "rg-${local.stem}")
+    storage              = local.legacy_suffix ? "stmcp${var.participant_prefix}${var.resource_suffix}" : "st${local.compact_prefix}${var.resource_suffix}"
+    function_app         = local.legacy_suffix ? "func-${local.stem}" : "func-mcp-${local.compact_prefix}-${var.resource_suffix}"
+    api_management       = "apim-${local.stem}"
+    portal_plan          = "plan-${local.stem}-portal"
+    portal_app           = "web-${local.stem}-portal"
+    function_plan        = "plan-${local.stem}-func"
+    function_identity    = "id-${local.stem}-func"
+    log_analytics        = "log-${local.stem}"
+    application_insights = "appi-${local.stem}"
   }
   tags = {
     workshop = local.stem
@@ -54,7 +58,7 @@ output "resource_group_name" {
 }
 
 output "resource_names" {
-  description = "Planned MCP service names only. No MCP endpoint is created. The separate public portal is optional."
+  description = "Deterministic service names. Module 02 MCP resources exist only when enable_mcp_server is true; later names stay planned. The public portal is optional."
   value       = local.names
 }
 
