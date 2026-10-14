@@ -2,7 +2,11 @@
 
 By default this root manages one dedicated workshop resource group, or reads an approved existing group.
 An explicit persistent opt-in adds a public Linux App Service B1 portal; see [hosting](../../docs/HOSTING.md).
-It does not deploy an MCP server. Planned MCP service names are outputs for later modules, not created resources.
+An explicit module 02 opt-in (`enable_mcp_server = true`, default false) adds the level 0 MCP server:
+Flex Consumption Function App, Storage with shared keys disabled, a `tickets` queue, Log Analytics,
+Application Insights and one user-assigned managed identity with three resource-scoped role assignments
+(see [module 02](../../modules/02-open-server/README.md) and `mcp-server.tf`). Without the opt-in, nothing changes.
+Later service names (API Management) remain planned outputs, not created resources.
 Terraform requires 1.16.6+ below 2; AzureRM is locked to 5.9.0.
 
 Start with [workspace preparation](../../docs/GETTING-STARTED.md), or [the French guide](../../docs/fr/GETTING-STARTED.md).
@@ -51,8 +55,10 @@ terraform -chdir=infra/workload test
 ```
 
 The tests use a mock Azure provider and plan-only runs. They create no Azure resources.
-Eleven runs cover new/existing groups, legacy compatibility, 64-bit names at minimum/maximum prefix lengths,
+Eleven foundation runs cover new/existing groups, legacy compatibility, 64-bit names at minimum/maximum prefix lengths,
 shared-group isolation, invalid names, default-off hosting and the opt-in TLS/runtime settings.
+Seven module 02 runs (`tests/mcp_server.tftest.hcl`) cover default-off, identity-only storage, no key or SAS in app settings,
+exact role scopes, the optional IPv4 allow-list, existing groups and rejected open/malformed ranges or unbounded scale.
 Module 00's [offline validator](../../modules/00-prerequisites/README.md#validate) also covers local HTTP,
 bundle integrity, private-file exclusion, and synthetic preflight/deployment failures.
 
@@ -63,5 +69,7 @@ bundle integrity, private-file exclusion, and synthetic preflight/deployment fai
 - [Linux web app](https://registry.terraform.io/providers/hashicorp/azurerm/5.9.0/docs/resources/linux_web_app).
 - [App Service secretless deployment](https://learn.microsoft.com/azure/app-service/deploy-authentication-types).
 - [Terraform mocks](https://developer.hashicorp.com/terraform/language/tests/mocking).
+- [AzureRM 5.9.0 Flex Consumption](https://github.com/hashicorp/terraform-provider-azurerm/blob/v5.9.0/website/docs/r/function_app_flex_consumption.html.markdown).
+- [Flex Consumption plan](https://learn.microsoft.com/azure/azure-functions/flex-consumption-plan).
 
 Last verified: 2026-10-14. Mock tests do not establish Azure deployment compatibility.

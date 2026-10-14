@@ -63,3 +63,35 @@ variable "public_portal_enabled" {
   nullable    = false
   description = "Explicit opt-in to a paid B1 Linux App Service for public documentation only. Not an MCP server or tenant deployment control plane."
 }
+
+variable "enable_mcp_server" {
+  type        = bool
+  default     = false
+  nullable    = false
+  description = "Module 02 opt-in: Flex Consumption MCP server, Storage, ticket queue, telemetry and managed identity. Default off keeps the module 00 foundation unchanged."
+}
+
+variable "mcp_allowed_ip_ranges" {
+  type        = list(string)
+  default     = []
+  nullable    = false
+  description = "Optional module 02 inbound IPv4 allow-list in CIDR form. Empty keeps the key-protected endpoint public; any entry denies all other sources."
+  validation {
+    condition = length(var.mcp_allowed_ip_ranges) <= 10 && alltrue([
+      for range in var.mcp_allowed_ip_ranges :
+      can(cidrhost(range, 0)) && can(regex("^\\d{1,3}(\\.\\d{1,3}){3}/(8|9|[12]\\d|3[0-2])$", range))
+    ])
+    error_message = "Use at most 10 IPv4 CIDR ranges with a prefix of /8 to /32. Never allow 0.0.0.0/0."
+  }
+}
+
+variable "mcp_maximum_instance_count" {
+  type        = number
+  default     = 10
+  nullable    = false
+  description = "Flex Consumption scale-out ceiling for the workshop server; keeps cost bounded."
+  validation {
+    condition     = var.mcp_maximum_instance_count >= 1 && var.mcp_maximum_instance_count <= 40 && floor(var.mcp_maximum_instance_count) == var.mcp_maximum_instance_count
+    error_message = "Use a whole number from 1 to 40 for the workshop."
+  }
+}

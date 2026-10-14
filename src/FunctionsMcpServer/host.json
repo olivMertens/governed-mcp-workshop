@@ -1,0 +1,21 @@
+{
+  "version": "2.0",
+  "logging": {
+    "logLevel": {
+      "default": "Warning",
+      "Function": "Information",
+      "Host.Results": "Information"
+    }
+  },
+  "extensions": {
+    "mcp": {
+      "serverName": "workshop-open-mcp",
+      "serverVersion": "0.2.0",
+      "instructions": "Workshop level 0. Synthetic data only. Never send real names, tickets, tokens or secrets.",
+      "encryptClientState": true,
+      "system": {
+        "webhookAuthorizationLevel": "System"
+      }
+    }
+  }
+}
