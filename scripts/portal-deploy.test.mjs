@@ -33,7 +33,7 @@ $expiry=[datetime]::UtcNow.AddDays(1).ToString('yyyy-MM-dd')
 $global:expectedExpiry=$expiry
 $path=Join-Path $directory 'parameters.json'
 $zipPath=Join-Path $directory 'public.zip'
-$parameters=@{participant_prefix='p01';resource_suffix='0123456789';location='westeurope';owner='alice';
+$parameters=@{participant_prefix='p01';resource_suffix='0123456789abcdef';location='westeurope';owner='alice';
     expiry=$expiry;existing_resource_group_name=$null;public_portal_enabled=$true}
 function global:az {
     $global:LASTEXITCODE=0
@@ -41,10 +41,10 @@ function global:az {
     $result = if ($args[0] -eq 'rest' -and $args[1] -eq '--method' -and $args[2] -eq 'get') {
         @{properties=@{allow=($global:scenario -eq 'basic-enabled')}}
     } elseif ($args[0] -eq 'webapp' -and $args[1] -eq 'show') {
-        @{id="/subscriptions/$global:subscription/resourceGroups/rg-mcp-p01-0123456789/providers/Microsoft.Web/sites/web-mcp-p01-0123456789-portal";
-            httpsOnly=$true;defaultHostName='web-mcp-p01-0123456789-portal.azurewebsites.net';
-            serverFarmId="/subscriptions/$global:subscription/resourceGroups/rg-mcp-p01-0123456789/providers/Microsoft.Web/serverfarms/plan-mcp-p01-0123456789-portal";
-            tags=@{workshop='mcp-p01-0123456789';owner=$(if ($global:scenario -eq 'wrong-owner') {'bob'} else {'alice'});expiry=$global:expectedExpiry}}
+        @{id="/subscriptions/$global:subscription/resourceGroups/rg-mcp-p01-0123456789abcdef/providers/Microsoft.Web/sites/web-mcp-p01-0123456789abcdef-portal";
+            httpsOnly=$true;defaultHostName='web-mcp-p01-0123456789abcdef-portal.azurewebsites.net';
+            serverFarmId="/subscriptions/$global:subscription/resourceGroups/rg-mcp-p01-0123456789abcdef/providers/Microsoft.Web/serverfarms/plan-mcp-p01-0123456789abcdef-portal";
+            tags=@{workshop='mcp-p01-0123456789abcdef';owner=$(if ($global:scenario -eq 'wrong-owner') {'bob'} else {'alice'});expiry=$global:expectedExpiry}}
     } elseif ($args[0] -eq 'webapp' -and $args[1] -eq 'config' -and $args[2] -eq 'show') {
         @{linuxFxVersion=$(if ($global:scenario -eq 'wrong-runtime') {'NODE|20-lts'} else {'NODE|22-lts'});
             appCommandLine='node server.mjs';ftpsState='Disabled';minTlsVersion='1.2';scmMinTlsVersion='1.2'}

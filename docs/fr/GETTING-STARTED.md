@@ -103,6 +103,8 @@ bash ./scripts/prepare-workshop.sh -ParticipantPrefix p01 -Location westeurope -
 
 Le script crée un fichier privé, `.workshop/participant.tfvars.json`, que Git ne publie pas.
 Il y conserve une terminaison aléatoire pour distinguer vos noms de ressources de ceux des autres participants.
+Même si tout le monde choisit `p01`, chaque préparation indépendante produit ses propres noms.
+Chacun doit utiliser sa propre copie du dépôt, ses paramètres privés et son état Terraform : ne les copiez pas d'un autre participant.
 Relancer la même commande réutilise le fichier ; changer les paramètres provoque un arrêt.
 Conservez ce fichier et l'état Terraform, qui permet de retrouver les ressources déployées, jusqu'au nettoyage.
 Le script ne contacte pas Azure. La date est un rappel, **pas une suppression automatique**.
@@ -117,11 +119,27 @@ première préparation. Terraform ne gérera pas ce groupe existant et ne le sup
 <details>
 <summary>Pour aller plus loin : noms des ressources et groupes existants</summary>
 
-Nouveau groupe : `rg-mcp-<participant>-<suffixe>`. Les futurs noms globaux reprennent ce suffixe :
-Storage utilise `stmcp<participant><suffixe>`, au plus 23 lettres minuscules/chiffres ;
-Functions et API Management ont leur préfixe de service. Les sorties Terraform sont des **noms prévus**,
-pas des serveurs déployés. L'aléatoire réduit le risque de collision sans le supprimer : vérifiez la disponibilité.
+Une nouvelle préparation conserve un suffixe de 16 caractères hexadécimaux minuscules, soit 64 bits aléatoires.
+Les anciennes préparations à 10 caractères et tous leurs noms sont conservés sans modification.
+Dans le tableau, `participant` comporte 2 à 8 lettres minuscules ou chiffres et commence par une lettre.
+`court` désigne ses six premiers caractères, ou le préfixe entier s'il est plus court.
+Le suffixe aléatoire n'est jamais raccourci.
+
+| Ressource | Nom d'une nouvelle préparation | Contrainte Azure |
+|---|---|---|
+| Nouveau groupe de ressources | `rg-mcp-<participant>-<suffixe>` | 1 à 90 caractères ; unique dans l'abonnement |
+| Compte Storage, prévu | `st<court><suffixe>` | 3 à 24 lettres minuscules ou chiffres ; unique au niveau mondial |
+| Application Functions, prévue | `func-mcp-<court>-<suffixe>` | Nom d'application unique au niveau mondial ; limité ici à 32 caractères pour préserver l'identifiant de l'hôte |
+| API Management, prévu | `apim-mcp-<participant>-<suffixe>` | 1 à 50 lettres, chiffres ou traits d'union ; unique au niveau mondial |
+| Plan App Service facultatif | `plan-mcp-<participant>-<suffixe>-portal` | 1 à 60 caractères ; unique dans le groupe |
+| Application du portail facultatif | `web-mcp-<participant>-<suffixe>-portal` | 2 à 60 lettres, chiffres ou traits d'union ; nom d'application unique au niveau mondial |
+
+Les sorties Terraform sont des **noms prévus**, pas des serveurs déployés ni une réservation de noms.
+L'aléatoire réduit le risque de collision sans le supprimer : vérifiez la disponibilité avant le déploiement.
 Ne régénérez jamais le suffixe pour résoudre un problème de quota ou réparer un déploiement existant.
+Si les paramètres ont disparu mais qu'un état local, des métadonnées de stockage de l'état ou un plan enregistré
+sont encore présents aux emplacements connus, le script s'arrête. Restaurez le fichier privé d'origine.
+Un état distant ou enregistré ailleurs n'est pas toujours détectable.
 
 Pour un groupe fourni par l'administrateur, ajoutez son nom exact avec `-ExistingResourceGroupName` au **premier**
 appel. Terraform lit ce groupe par une source de données : aucun import, renommage, changement d'étiquettes
@@ -131,6 +149,11 @@ ne permet pas de créer un groupe voisin. Préférez le chemin groupe existant p
 
 En cas de nom refusé, recherchez la cause avant le premier déploiement. Ne renommez pas un groupe déjà
 déployé sans examiner les conséquences.
+
+Les noms d'outils, les valeurs du protocole, les autorisations et rôles applicatifs, ainsi que les noms de zones
+privées du système de noms de domaine (DNS) imposés par les services, ne doivent pas être rendus aléatoires.
+Les modules d'identité et de réseau, encore à construire, devront aussi vérifier l'isolation des participants
+et l'absence de chevauchement des plages d'adresses.
 
 </details>
 

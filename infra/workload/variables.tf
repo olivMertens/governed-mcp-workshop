@@ -9,10 +9,10 @@ variable "participant_prefix" {
 
 variable "resource_suffix" {
   type        = string
-  description = "Stable 40-bit random suffix from the private preparation script. Never regenerate during an active deployment."
+  description = "Stable 64-bit random suffix from the private preparation script. Existing 40-bit suffixes remain unchanged. Never regenerate during an active deployment."
   validation {
-    condition     = can(regex("^[a-f0-9]{10}$", var.resource_suffix))
-    error_message = "Use the 10-character lowercase hex suffix in your private participant file."
+    condition     = can(regex("^([a-f0-9]{10}|[a-f0-9]{16})$", var.resource_suffix))
+    error_message = "Use the saved 16-character lowercase hex suffix, or preserve an existing 10-character legacy suffix."
   }
 }
 

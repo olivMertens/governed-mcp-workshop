@@ -6,7 +6,7 @@ A module is `validated` only when its validate script passes on a fresh subscrip
 
 | Module | Title | Status | Validated on | Evidence (PASS lines or PR) | Notes |
 |---|---|---|---|---|---|
-| 00 | Prerequisites and environment | in-progress |  | Offline only: script/HTTP checks and 5 mock plans; not fresh-subscription evidence. | EN/FR guide, explicit read-only preflight, identity request and optional public B1 hosting implemented. Container and approved Azure target/plan still pending. |
+| 00 | Prerequisites and environment | in-progress |  | Offline only: 33 script/HTTP tests and 11 mock plans; not fresh-subscription evidence. | EN/FR guide, explicit read-only preflight, identity request and optional public B1 hosting implemented. Container and approved Azure target/plan still pending. |
 | 01 | Discover MCP (no Azure) | todo | | | |
 | 02 | An "open" MCP server (level 0) | todo | | | |
 | 03 | Identity with Microsoft Entra (level 1) | todo | | | |
@@ -89,3 +89,10 @@ A module is `validated` only when its validate script passes on a fresh subscrip
   Beginner instructions appear first; technical setup and advanced context use closed, keyboard-accessible
   disclosure sections in both the board and static exports. Safety requirements, module status and cloud
   approval gates are unchanged. This is a language/readability change, not Azure or container validation.
+- Participant naming hardening (2026-10-14): new private parameters save 64 cryptographic random bits once.
+  Storage and Function names retain every random bit within their 24/32-character limits; all legacy names are preserved.
+  `PASS 100 independent participants, one shared group, identical inputs and unchanged reruns`;
+  `PASS legacy stability, invalid suffix rejection and six missing-parameter guards`.
+  Eleven mock-only Terraform plans cover service-name constraints, shared-group isolation, real portal name wiring
+  and invalid inputs. All 33 local tests pass. EN/FR guides explain separate checkouts/state, preserved existing groups,
+  fixed protocol configuration and shared quotas. No global name reservation, real Azure plan or deployment was performed.

@@ -43,7 +43,7 @@ if (Test-Path -LiteralPath $path) {
     $keys = @($configuration.Keys) + 'resource_suffix', 'public_portal_enabled'
     $expectedCount = $configuration.Count + 1 + $(if ($existing.ContainsKey('public_portal_enabled')) { 1 } else { 0 })
     if ($existing.Count -ne $expectedCount -or ($existing.Keys | Where-Object { $_ -notin $keys }) -or
-        $existing.resource_suffix -isnot [string] -or $existing.resource_suffix -cnotmatch '^[a-f0-9]{10}$' -or
+        $existing.resource_suffix -isnot [string] -or $existing.resource_suffix -cnotmatch '^([a-f0-9]{10}|[a-f0-9]{16})$' -or
         ($existing.ContainsKey('public_portal_enabled') -and $existing.public_portal_enabled -isnot [bool])) {
         throw 'Invalid participant file. Restore the original private parameters; do not regenerate names for deployed resources.'
     }
@@ -63,8 +63,20 @@ if (Test-Path -LiteralPath $path) {
         Write-Output 'PASS public portal explicitly opted in; existing names and state preserved. Review the paid-resource plan before applying.'
     } else { Write-Output 'PASS existing participant parameters reused unchanged.' }
 } else {
+    $workload = Join-Path (Split-Path $PSScriptRoot -Parent) 'infra' 'workload'
+    $statePaths = @(
+        (Join-Path $workload 'terraform.tfstate'),
+        (Join-Path $workload 'terraform.tfstate.backup'),
+        (Join-Path $workload 'terraform.tfstate.d'),
+        (Join-Path $workload '.terraform' 'terraform.tfstate')
+    )
+    $savedPlans = @(Get-ChildItem -LiteralPath $directory -File -Force |
+        Where-Object { $_.Name -match '\.(tfplan|tfstate)(\.backup)?$' })
+    if (($statePaths | Where-Object { Test-Path -LiteralPath $_ }) -or $savedPlans.Count -gt 0) {
+        throw 'Participant parameters are missing but local state or saved plans exist. Restore the original private parameters; refusing to generate replacement names.'
+    }
     if ($EnablePublicPortal) { $configuration.public_portal_enabled = $true }
-    $configuration.resource_suffix = [Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(5)).ToLowerInvariant()
+    $configuration.resource_suffix = [Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(8)).ToLowerInvariant()
     $bytes = [Text.UTF8Encoding]::new($false).GetBytes(($configuration | ConvertTo-Json) + "`n")
     $stream = [IO.File]::Open($path, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
     try { $stream.Write($bytes) } finally { $stream.Dispose() }

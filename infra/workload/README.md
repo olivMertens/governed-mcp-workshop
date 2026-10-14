@@ -8,6 +8,11 @@ Terraform requires 1.16.6+ below 2; AzureRM is locked to 5.9.0.
 Start with [workspace preparation](../../docs/GETTING-STARTED.md), or [the French guide](../../docs/fr/GETTING-STARTED.md).
 Both workstation routes use this root and the same private `.workshop/participant.tfvars.json`.
 Keep one private state per participant. Do not share state or generate new names on every module.
+Fresh preparations use a saved 64-bit cryptographic suffix, even when participant labels are identical.
+Storage and Function names shorten only the human prefix to six characters, keeping all random bits
+within the Storage 24-character and Functions host-ID 32-character limits.
+Legacy 10-character suffixes keep every original name. See the start guide's naming table.
+Restore missing private parameters rather than generating replacements for an existing deployment.
 
 New-group mode requires approved group-creation authority at subscription scope.
 Existing-group mode uses only a data source and does not manage the group or its tags.
@@ -46,7 +51,8 @@ terraform -chdir=infra/workload test
 ```
 
 The tests use a mock Azure provider and plan-only runs. They create no Azure resources.
-Five runs cover new/existing groups, isolation, invalid names, default-off hosting and the opt-in TLS/runtime settings.
+Eleven runs cover new/existing groups, legacy compatibility, 64-bit names at minimum/maximum prefix lengths,
+shared-group isolation, invalid names, default-off hosting and the opt-in TLS/runtime settings.
 Module 00's [offline validator](../../modules/00-prerequisites/README.md#validate) also covers local HTTP,
 bundle integrity, private-file exclusion, and synthetic preflight/deployment failures.
 

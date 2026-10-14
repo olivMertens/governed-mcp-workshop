@@ -60,7 +60,7 @@ function Read-WorkshopParameters {
     $value = Get-Content -LiteralPath $item.FullName -Raw | ConvertFrom-Json -AsHashtable -ErrorAction Stop
     $patterns = @{
         participant_prefix = '^[a-z][a-z0-9]{1,7}$'
-        resource_suffix = '^[a-f0-9]{10}$'
+        resource_suffix = '^([a-f0-9]{10}|[a-f0-9]{16})$'
         location = '^[a-z][a-z0-9]+$'
         owner = '^[a-z][a-z0-9-]{1,31}$'
         expiry = '^\d{4}-\d{2}-\d{2}$'

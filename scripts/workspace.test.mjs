@@ -7,10 +7,11 @@ import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-function powershell(source, t) {
+function powershell(source, t, timeout = 30000) {
     const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-Command", source],
-        { encoding: "utf8", timeout: 30000 });
+        { encoding: "utf8", timeout });
     if (result.error?.code === "ENOENT") { t.skip("PowerShell 7.4+ is required."); return null; }
+    assert.ifError(result.error);
     return result;
 }
 
@@ -58,6 +59,121 @@ Write-Output 'PASS stable parameters and safe rejection'
     assert.match(result.stdout, /PASS stable parameters and safe rejection/);
 });
 
+test("100 participants with identical shared-group inputs get independent 64-bit suffixes and stable reruns", (t) => {
+    const directory = mkdtempSync(join(tmpdir(), "workshop-cohort-"));
+    t.after(() => rmSync(directory, { recursive: true, force: true }));
+    const result = powershell(`
+$ErrorActionPreference = 'Stop'
+function az { throw 'Cohort preparation must never call Azure.' }
+. '${join(root, "scripts", "context-common.ps1").replaceAll("'", "''")}'
+$source = '${join(root, "scripts", "prepare-workshop.ps1").replaceAll("'", "''")}'
+$root = '${directory.replaceAll("'", "''")}'
+$expiry = [datetime]::UtcNow.AddDays(1).ToString('yyyy-MM-dd')
+$suffixes = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+for ($index = 0; $index -lt 100; $index++) {
+  $workspace = Join-Path $root "participant-$index"
+  $scripts = Join-Path $workspace 'scripts'
+  [void][IO.Directory]::CreateDirectory($scripts)
+  $script = Join-Path $scripts 'prepare-workshop.ps1'
+  Copy-Item -LiteralPath $source -Destination $script
+  $arguments = @{ParticipantPrefix='p01';Location='westeurope';Owner='alice';Expiry=$expiry;
+    ExistingResourceGroupName='rg-synthetic-shared'}
+  & $script @arguments | Out-Null
+  $path = Join-Path $workspace '.workshop' 'participant.tfvars.json'
+  $before = [IO.File]::ReadAllText($path)
+  $parameters = Read-WorkshopParameters -Path $path
+  if ($parameters.resource_suffix -cnotmatch '^[a-f0-9]{16}$' -or -not $suffixes.Add($parameters.resource_suffix)) {
+    throw 'A fresh participant suffix is malformed or duplicated.'
+  }
+  if ($parameters.existing_resource_group_name -cne 'rg-synthetic-shared') { throw 'Shared group was changed.' }
+  & $script @arguments | Out-Null
+  if ([IO.File]::ReadAllText($path) -cne $before) { throw 'A rerun changed participant names.' }
+}
+if ($suffixes.Count -ne 100) { throw 'Cohort isolation failed.' }
+Write-Output 'PASS 100 independent participants, one shared group, identical inputs and unchanged reruns'
+`, t, 120000);
+    if (!result) return;
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /PASS 100 independent participants/);
+});
+
+test("legacy suffixes stay byte-for-byte stable and missing parameters never replace known state or plans", (t) => {
+    const directory = mkdtempSync(join(tmpdir(), "workshop-naming-guard-"));
+    t.after(() => rmSync(directory, { recursive: true, force: true }));
+    const result = powershell(`
+$ErrorActionPreference = 'Stop'
+function az { throw 'Naming safety must not call Azure.' }
+. '${join(root, "scripts", "context-common.ps1").replaceAll("'", "''")}'
+$root = '${directory.replaceAll("'", "''")}'
+$source = '${join(root, "scripts", "prepare-workshop.ps1").replaceAll("'", "''")}'
+$expiry = [datetime]::UtcNow.AddDays(1).ToString('yyyy-MM-dd')
+$arguments = @{ParticipantPrefix='abcdefgh';Location='westeurope';Owner='alice';Expiry=$expiry}
+$scripts = Join-Path $root 'legacy' 'scripts'
+[void][IO.Directory]::CreateDirectory($scripts)
+$script = Join-Path $scripts 'prepare-workshop.ps1'
+Copy-Item -LiteralPath $source -Destination $script
+& $script @arguments | Out-Null
+$path = Join-Path $root 'legacy' '.workshop' 'participant.tfvars.json'
+$parameters = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json -AsHashtable
+$parameters.resource_suffix = '0123456789'
+[IO.File]::WriteAllText($path, ($parameters | ConvertTo-Json))
+$before = [IO.File]::ReadAllText($path)
+& $script @arguments | Out-Null
+if ([IO.File]::ReadAllText($path) -cne $before -or (Read-WorkshopParameters -Path $path).resource_suffix -cne '0123456789') {
+  throw 'Legacy parameters were migrated or rejected.'
+}
+foreach ($suffix in @('012345678', '01234567890', '0123456789abcde', '0123456789abcdeg', '0123456789ABCDEF')) {
+  $parameters.resource_suffix = $suffix
+  [IO.File]::WriteAllText($path, ($parameters | ConvertTo-Json))
+  $rejected = 0
+  try { & $script @arguments | Out-Null } catch { $rejected++ }
+  try { Read-WorkshopParameters -Path $path | Out-Null } catch { $rejected++ }
+  if ($rejected -ne 2) { throw 'Malformed saved suffix was accepted.' }
+}
+$cases = @(
+  @('infra','workload','terraform.tfstate'),
+  @('infra','workload','terraform.tfstate.backup'),
+  @('infra','workload','terraform.tfstate.d'),
+  @('infra','workload','.terraform','terraform.tfstate'),
+  @('.workshop','workload.tfplan'),
+  @('.workshop','terraform.tfstate.backup')
+)
+for ($index=0; $index -lt $cases.Count; $index++) {
+  $workspace = Join-Path $root "guard-$index"
+  $scripts = Join-Path $workspace 'scripts'
+  [void][IO.Directory]::CreateDirectory($scripts)
+  $script = Join-Path $scripts 'prepare-workshop.ps1'
+  Copy-Item -LiteralPath $source -Destination $script
+  $artifact = $workspace
+  foreach ($part in $cases[$index]) { $artifact = Join-Path $artifact $part }
+  [void][IO.Directory]::CreateDirectory((Split-Path $artifact -Parent))
+  if ($artifact.EndsWith('.d')) { [void][IO.Directory]::CreateDirectory($artifact) }
+  else { [IO.File]::WriteAllText($artifact, 'synthetic private artifact') }
+  $rejected = $false
+  try { & $script @arguments | Out-Null }
+  catch { $rejected = $_.Exception.Message -match 'Restore the original private parameters' }
+  if (-not $rejected -or (Test-Path -LiteralPath (Join-Path $workspace '.workshop' 'participant.tfvars.json'))) {
+    throw 'Missing participant parameters silently produced replacement resource names.'
+  }
+  if (-not (Test-Path -LiteralPath $artifact)) { throw 'Existing state/plan was removed.' }
+}
+$workspace = Join-Path $root 'providers-only'
+$scripts = Join-Path $workspace 'scripts'
+[void][IO.Directory]::CreateDirectory($scripts)
+[void][IO.Directory]::CreateDirectory((Join-Path $workspace 'infra' 'workload' '.terraform' 'providers'))
+$script = Join-Path $scripts 'prepare-workshop.ps1'
+Copy-Item -LiteralPath $source -Destination $script
+& $script @arguments | Out-Null
+if ((Read-WorkshopParameters -Path (Join-Path $workspace '.workshop' 'participant.tfvars.json')).resource_suffix.Length -ne 16) {
+  throw 'Provider initialization without state must not block a genuinely new participant.'
+}
+Write-Output 'PASS legacy stability, invalid suffix rejection and six missing-parameter guards'
+`, t);
+    if (!result) return;
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /PASS legacy stability/);
+});
+
 test("shared tool checks accept working tools and reject incompatible versions without Azure login", (t) => {
     const script = join(root, "scripts", "check-tools.ps1").replaceAll("'", "''");
     for (const compatible of [true, false]) {
@@ -98,7 +214,7 @@ test("bash preparation calls the same PowerShell implementation and persists its
     assert.equal(result.status, 0, result.stderr);
     const parameters = JSON.parse(readFileSync(join(directory, ".workshop", "participant.tfvars.json"), "utf8"));
     assert.equal(parameters.participant_prefix, "p02");
-    assert.match(parameters.resource_suffix, /^[a-f0-9]{10}$/);
+    assert.match(parameters.resource_suffix, /^[a-f0-9]{16}$/);
 });
 
 test("dev container pins public images/features and uses the common checker without credential mounts", () => {

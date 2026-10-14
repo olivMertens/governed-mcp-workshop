@@ -6,6 +6,8 @@ Module 00 creates no identity. Review the later module's exact plan before appro
 ## Requested scope and ownership
 
 One non-production, single-tenant workshop deployment per participant, with a stable participant suffix.
+Use the participant suffix in display labels; use Entra-generated identifiers for object identity and a unique API audience.
+The role/scope values below stay fixed within each application; do not randomize their protocol values.
 Record the tenant, owner, expiry, existing application/object identifiers and approval privately.
 The identity administrator owns registrations, enterprise applications, assignments and consent.
 The participant owns only approved workload resources. Accept existing IDs without importing, modifying or deleting
@@ -39,6 +41,8 @@ Record the exact issuer, subject and audience from the reviewed plan privately b
 ## Test assignments and separate Azure data roles
 
 Use dedicated synthetic test personas or approved existing test users; never real business data.
+Alice, Bob and Eve are teaching labels, not instructions to create the same three accounts for every participant.
+Agree on isolated test accounts or reviewed assignments per participant; never modify another participant's assignments.
 
 | Persona | MCP user app roles | Azure data access |
 |---|---|---|

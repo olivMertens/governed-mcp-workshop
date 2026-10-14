@@ -19,12 +19,16 @@ provider "azurerm" {
 }
 
 locals {
-  stem = "mcp-${var.participant_prefix}-${var.resource_suffix}"
+  stem           = "mcp-${var.participant_prefix}-${var.resource_suffix}"
+  compact_prefix = substr(var.participant_prefix, 0, 6)
+  legacy_suffix  = length(var.resource_suffix) == 10
   names = {
     resource_group = coalesce(var.existing_resource_group_name, "rg-${local.stem}")
-    storage        = "stmcp${var.participant_prefix}${var.resource_suffix}"
-    function_app   = "func-${local.stem}"
+    storage        = local.legacy_suffix ? "stmcp${var.participant_prefix}${var.resource_suffix}" : "st${local.compact_prefix}${var.resource_suffix}"
+    function_app   = local.legacy_suffix ? "func-${local.stem}" : "func-mcp-${local.compact_prefix}-${var.resource_suffix}"
     api_management = "apim-${local.stem}"
+    portal_plan    = "plan-${local.stem}-portal"
+    portal_app     = "web-${local.stem}-portal"
   }
   tags = {
     workshop = local.stem
