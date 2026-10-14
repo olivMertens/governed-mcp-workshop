@@ -3,7 +3,8 @@
 Build the modules in this order, one session and one branch per module.
 Do not start a module until the previous one validates.
 Scoped user-approved exception (2026-10-14): author and run the Azure-independent module 01 locally while
-module 00's cloud/container validation is pending. This does not approve cloud work or validate module 00.
+module 00's environment validation was pending. Module 00 later validated on the approved local-terminal route;
+that result does not validate the optional container/Codespaces route or approve any resource creation.
 
 ## End-state architecture
 

@@ -6,8 +6,8 @@ A module is `validated` only when its validate script passes on a fresh subscrip
 
 | Module | Title | Status | Validated on | Evidence (PASS lines or PR) | Notes |
 |---|---|---|---|---|---|
-| 00 | Prerequisites and environment | in-progress |  | Offline only: 35 script/HTTP tests and 11 mock plans; not fresh-subscription evidence. | EN/FR guide, explicit read-only preflight, identity request and optional public B1 hosting implemented. Container and approved Azure target/plan still pending. |
-| 01 | Discover MCP (no Azure) | in-progress | | Real local SDK validator and Inspector 2.9.0 tools/list + tools/call pass; protocol 2026-07-28 with SDK client. | EN/FR guide, locked .NET 10 stdio server and client config implemented. Manual VS Code approval and preceding environment gate remain pending; no Azure needed here. |
+| 00 | Prerequisites and environment | validated | 2026-10-14 | Live local-terminal validator: explicit context, region, Microsoft.Resources registration, required ARM grants and group capacity PASS; isolated offline suite 14/14 and Terraform tests 11/11 PASS. | Validated on the selected non-production local-terminal route without creating resources. The optional dev-container/Codespaces route remains unverified and is not implied by this result. |
+| 01 | Discover MCP (no Azure) | in-progress | | Real local SDK validator and Inspector 2.9.0 tools/list + tools/call pass; protocol 2026-07-28 with SDK client. | EN/FR guide, locked .NET 10 stdio server and client config implemented. Manual VS Code approval observation remains pending; no Azure needed here. |
 | 02 | An "open" MCP server (level 0) | todo | | | |
 | 03 | Identity with Microsoft Entra (level 1) | todo | | | |
 | 04 | API Management as the only entry point (level 2) | todo | | | |

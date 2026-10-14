@@ -235,11 +235,12 @@ et l'absence de chevauchement des plages d'adresses.
 Continuez avec le [module 00](../../modules/00-prerequisites/README.fr.md).
 Le code Terraform actuel prépare le groupe et, sur demande, un portail App Service public payant.
 Il ne déploie pas encore de serveur MCP, de réseau privé ni d'API Management.
-Les validations dans Azure et dans le conteneur restent à réaliser.
+Le parcours terminal local a été validé sur la cible de préparation, sans créer de ressource.
+Chaque participant doit refaire ces contrôles pour sa propre cible ; le parcours conteneur/Codespaces reste non vérifié.
 Le [module 01 local](../../modules/01-discover-mcp/README.fr.md) est maintenant exécutable avec .NET 10 et PowerShell 7.
 Il ne demande ni connexion Azure, ni Terraform, ni portail présentateur.
 Les contrôles SDK et Inspector réussissent en local ; l'approbation du client reste à observer manuellement.
-Les jalons du module 00 restent nécessaires avant les exercices cloud.
+Terminez le module 00 sur l'environnement réellement choisi avant les exercices cloud.
 
 ### Se connecter à son tenant de test
 
