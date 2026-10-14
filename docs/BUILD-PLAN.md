@@ -2,6 +2,8 @@
 
 Build the modules in this order, one session and one branch per module.
 Do not start a module until the previous one validates.
+Scoped user-approved exception (2026-10-14): author and run the Azure-independent module 01 locally while
+module 00's cloud/container validation is pending. This does not approve cloud work or validate module 00.
 
 ## End-state architecture
 
@@ -44,6 +46,10 @@ Personas:
 - **Show:** tools/list, a tool call, the approval prompt in the client.
 - **Validate:** Inspector lists the tools and returns a result. Check the negotiated protocol version: the current
   specification uses per-request metadata, while older clients use an initialization handshake. Do not mix message shapes.
+- **Implemented locally:** [EN/FR guide](../modules/01-discover-mcp/README.md), .NET 10 stdio server,
+  SDK 2.2.0 and Hosting 10.0.13 with a package lock. One read-only `get_service_health` tool returns fixed synthetic data.
+  The real SDK validator and Inspector 2.9.0 discovery/call pass. VS Code approval remains an explicit manual check;
+  no write tool is exposed before its role and approval controls exist. No Azure or Preview dependency.
 
 ## 02 — An "open" MCP server (level 0)
 - **Take:** https://github.com/Azure-Samples/remote-mcp-functions-dotnet

@@ -1,5 +1,12 @@
 {
   "servers": {
+    "workshop-local": {
+      "type": "stdio",
+      "command": "dotnet",
+      "args": [
+        "${workspaceFolder}/modules/01-discover-mcp/server/bin/Release/net10.0/Workshop.LocalMcp.dll"
+      ]
+    },
     "microsoft-learn": {
       "type": "http",
       "url": "https://learn.microsoft.com/api/mcp"

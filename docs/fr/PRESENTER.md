@@ -4,7 +4,8 @@
 
 **Vous hébergez les guides. Les participants réalisent leurs propres exercices.**
 Publier le portail ne déploie pas le serveur Model Context Protocol (MCP).
-Seul le module 00 est implémenté ; les modules suivants restent prévus.
+La préparation du module 00 et l'exercice local du 01 sont implémentés ; les modules 02 et suivants restent prévus.
+Les participants peuvent faire le [module 01](../../modules/01-discover-mcp/README.fr.md) sans attendre votre portail ou un déploiement Azure.
 
 ## 1. Préparer votre espace présentateur
 
@@ -68,14 +69,15 @@ if ($health.StatusCode -ne 200 -or $health.Content -cne '{"status":"ok"}') {
 "Student link (English): $portal/?lang=en#/start"
 ```
 
-Ouvrez les deux liens. Vérifiez le changement de langue, le module 00 et les schémas avant de les envoyer.
+Ouvrez les deux liens. Vérifiez le changement de langue, les modules 00/01 et les schémas avant de les envoyer.
 Ne partagez pas une adresse calculée à l'avance ou un site non vérifié.
 
 Message prêt à transmettre :
 
 > Ouvrez le lien de l'atelier, choisissez votre langue et votre environnement, puis suivez le module 00.
 > Utilisez uniquement votre tenant et votre abonnement de test approuvés. Vous n'avez pas à héberger le portail.
-> Ne transmettez aucun identifiant de connexion ni jeton. Les modules suivants ne sont pas encore exécutables.
+> Le module 01 fonctionne en local sans Azure. Les modules 02 et suivants ne sont pas encore exécutables.
+> Ne transmettez aucun identifiant de connexion ni jeton.
 
 ## 5. Terminer sans laisser de frais inutiles
 
