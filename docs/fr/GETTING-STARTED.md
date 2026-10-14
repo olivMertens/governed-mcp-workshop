@@ -9,6 +9,56 @@ Choisissez où exécuter les commandes : sur votre poste, dans un conteneur de d
 **Visual Studio Code (VS Code)**, ou dans GitHub Codespaces. Les exercices et les scripts sont les mêmes.
 Vous pouvez suivre les guides sans Copilot ni ce tableau.
 
+## 0. Récupérer le dépôt sur votre poste
+
+Pour le terminal local ou un conteneur VS Code, commencez par une copie du dépôt.
+Avec Codespaces, passez directement au choix d'environnement ci-dessous.
+
+**Sous Windows, si Git et PowerShell 7 ne sont pas installés**, utilisez ces commandes une par une
+dans votre terminal, après accord de votre organisation :
+
+```powershell
+winget install --id Git.Git --exact
+winget install --id Microsoft.PowerShell --exact
+```
+
+Fermez le terminal, puis ouvrez **PowerShell 7** (`pwsh`), pas Windows PowerShell 5.1.
+Si WinGet est indisponible ou bloqué, utilisez les installateurs officiels du tableau plus bas ;
+ne contournez pas les règles de votre poste.
+
+**Cloner `main`**, dans un dossier de votre compte utilisateur :
+
+```powershell
+$ErrorActionPreference = 'Stop'
+New-Item -ItemType Directory -Path "$HOME\source" -Force | Out-Null
+Set-Location "$HOME\source"
+git clone --branch main https://github.com/olivMertens/workshop-mcp.git
+if ($LASTEXITCODE -ne 0) { throw 'Le clonage a echoue. Ne poursuivez pas dans un autre dossier.' }
+Set-Location .\workshop-mcp
+```
+
+**Résultat attendu :** `README.md`, `scripts` et `infra` sont présents dans le dossier courant.
+Toutes les commandes suivantes partent de ce dossier. Si VS Code est installé, ouvrez-le avec `code .`.
+Chaque participant utilise sa propre copie ; aucun compte GitHub ni GitHub CLI n'est nécessaire pour cloner ce dépôt public.
+
+<details>
+<summary>Vous avez déjà une copie ? La retrouver et la mettre à jour</summary>
+
+Revenez dans **votre copie d'origine**, surtout si des ressources ont déjà été déployées.
+Vérifiez que vous êtes sur `main` avec `git branch --show-current`.
+Avec un dossier suivi par Git sans modifications locales :
+
+```powershell
+if (git status --porcelain) { throw 'Conservez vos modifications locales avant la mise a jour.' }
+git pull --ff-only
+if ($LASTEXITCODE -ne 0) { throw 'Mise a jour refusee. Ne forcez pas la fusion.' }
+```
+
+Conservez `.workshop` et l'état Terraform privés. Ne supprimez pas ces fichiers, ne reclonez pas pour
+« repartir de zéro » et ne lancez pas `git clean` pour résoudre un problème de mise à jour.
+
+</details>
+
 ## 1. Choisir votre environnement de travail
 
 | Environnement | Ce qu'il vous faut | Pour commencer |
@@ -53,8 +103,24 @@ ne désactivez pas la vérification des certificats et ne changez pas de moteur 
 
 </details>
 
-<details>
-<summary>Installer les outils sur votre poste : versions et liens officiels</summary>
+### Installer les outils pour le terminal local
+
+Le conteneur et Codespaces prévoient leur propre installation ; n'installez pas tout deux fois.
+Sous Windows, installez uniquement les outils manquants ou trop anciens. Exécutez les commandes
+une par une, vérifiez leur résultat et respectez les demandes d'autorisation de votre organisation.
+
+| Outil | Commande Windows ou installateur |
+|---|---|
+| Azure CLI, pour se connecter à Azure | `winget install --id Microsoft.AzureCLI --exact` |
+| Terraform, pour préparer les déploiements | `winget install --id Hashicorp.Terraform --exact` |
+| SDK .NET 10, pour le serveur C# | `winget install --id Microsoft.DotNet.SDK.10 --exact` |
+| Node.js, version LTS prise en charge | `winget install --id OpenJS.NodeJS.LTS --exact` |
+| Azure Functions Core Tools **v4** | [Installateurs Windows officiels](https://learn.microsoft.com/azure/azure-functions/functions-run-local#install-the-azure-functions-core-tools) : choisissez la version compatible avec votre poste. |
+
+Fermez et rouvrez **PowerShell 7** après installation, puis revenez dans le dossier du dépôt.
+WinGet propose les versions de son catalogue : le contrôle de l'étape 2 vérifie les minimums acceptés ci-dessous.
+Si une version est trop ancienne, utilisez l'installation officielle ou demandez l'aide de votre administrateur.
+Sur macOS/Linux, suivez les liens officiels correspondant à votre système.
 
 Installez les versions compatibles avec votre système depuis les sources officielles :
 
@@ -72,8 +138,6 @@ Choisissez Core Tools v4, pas la CLI Functions v5 distincte en **Preview**.
 Certains lanceurs npm téléchargent le programme au premier appel. Le contrôle détecte les installations
 incomplètes connues et s'arrête au lieu de déclencher ce téléchargement. Terminez l'installation selon la
 procédure approuvée. Aucun script ne modifie automatiquement votre poste ou votre moteur de conteneurs.
-
-</details>
 
 ## 2. Vérifier le terminal réellement utilisé
 
@@ -169,6 +233,27 @@ Le code Terraform actuel prépare le groupe et, sur demande, un portail App Serv
 Il ne déploie pas encore de serveur MCP, de réseau privé ni d'API Management.
 Les validations dans Azure et dans le conteneur restent à réaliser.
 
+### Se connecter à son tenant de test
+
+Après la préparation de l'étape 3, lancez dans **le même terminal PowerShell 7** :
+
+```powershell
+$ErrorActionPreference = 'Stop'
+& .\scripts\select-azure-context.ps1 -Language fr
+& .\modules\00-prerequisites\validate.ps1 `
+    -TenantId $env:ARM_TENANT_ID `
+    -SubscriptionId $env:ARM_SUBSCRIPTION_ID
+```
+
+Le sélecteur demande les identifiants du tenant et de l'abonnement **approuvés**, puis la confirmation `NONPROD`.
+Il lance `az login --tenant`, sélectionne l'abonnement avec `az account set` et vérifie le contexte.
+Les variables `ARM_TENANT_ID` et `ARM_SUBSCRIPTION_ID` restent dans ce terminal pour Terraform.
+L'administrateur vous fournit ces identifiants en privé ; ne les copiez pas dans GitHub ou dans le portail.
+
+**Résultat attendu :** vérification du contexte, puis `PASS module 00 foundation environment checks.`
+La connexion ne donne pas de nouveaux droits et les contrôles ne créent aucune ressource.
+En cas d'échec, arrêtez-vous et consultez le [guide de contexte Azure](DEPLOYMENT.md).
+
 <details>
 <summary>Pour aller plus loin : examiner un plan Terraform et conserver son état</summary>
 
@@ -203,6 +288,8 @@ Préservez les groupes et identités existants. Ne supprimez pas un groupe entie
 
 ## Sources
 
+- [Azure CLI sous Windows](https://learn.microsoft.com/cli/azure/install-azure-cli-windows), [SDK .NET sous Windows](https://learn.microsoft.com/dotnet/core/install/windows).
+- [Installation PowerShell](https://learn.microsoft.com/powershell/scripting/install/installing-powershell), [Terraform](https://developer.hashicorp.com/terraform/install), [Functions Core Tools v4](https://learn.microsoft.com/azure/azure-functions/functions-run-local).
 - [Dev Containers VS Code](https://code.visualstudio.com/docs/devcontainers/containers), [moteurs alternatifs](https://code.visualstudio.com/remote/advancedcontainers/docker-options).
 - [Features officielles](https://github.com/devcontainers/features), [spécification](https://containers.dev/implementors/json_reference/).
 - [Nommage Azure](https://learn.microsoft.com/azure/azure-resource-manager/management/resource-name-rules), [quotas](https://learn.microsoft.com/azure/azure-resource-manager/management/azure-subscription-service-limits).

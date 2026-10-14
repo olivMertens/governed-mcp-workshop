@@ -137,6 +137,7 @@ references used to resolve design choices.
 
 | Module | Reference | Use and status |
 |---|---|---|
+| 00 | [Azure CLI Windows installation](https://learn.microsoft.com/cli/azure/install-azure-cli-windows), [.NET Windows installation](https://learn.microsoft.com/dotnet/core/install/windows), [PowerShell installation](https://learn.microsoft.com/powershell/scripting/install/installing-powershell) | EN/FR local setup: WinGet options, reopen the terminal, SDK rather than runtime, and explicit tenant selection. No installer executed during this documentation update. Verified 2026-10-14. |
 | 00 | [Subscription locations API](https://learn.microsoft.com/rest/api/resources/subscriptions/list-locations?view=rest-resources-2022-12-01) | Explicit-subscription read-only region discovery. Avoid the unsupported `az account list-locations --subscription` option. Verified 2026-10-14. |
 | 00/02 | [Functions custom remote MCP quickstart](https://learn.microsoft.com/azure/azure-functions/scenario-custom-remote-mcp-server) | Local run/deploy outline; C# SDK prerequisites lag the pinned sample. |
 | 00/02 | [Functions MCP bindings](https://learn.microsoft.com/azure/azure-functions/functions-bindings-mcp) | Isolated worker, endpoint, system key and host.json configuration. |

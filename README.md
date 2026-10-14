@@ -16,6 +16,8 @@ Take one MCP server from **open** to **governed** on Azure, alone, in **your own
 The presenter shares the deployed portal's `?lang=fr#/start` or `?lang=en#/start` link.
 Participants do not deploy another portal or use the presenter's administrator account.
 No live portal URL is available until deployment and HTTPS checks succeed.
+Working locally? Start with [clone and installation](docs/GETTING-STARTED.md#0-get-the-repository-onto-your-computer)
+or [clonage et installation en français](docs/fr/GETTING-STARTED.md#0-récupérer-le-dépôt-sur-votre-poste).
 
 ![The workshop board: choose your workspace](assets/screenshots/start.en.png)
 
