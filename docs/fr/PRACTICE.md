@@ -1,6 +1,8 @@
 # Tester votre serveur MCP
 
 Ce guide sert à tester **votre serveur déjà déployé**, pas à le déployer.
+**Sans Azure :** commencez par le [module 01 local](../../modules/01-discover-mcp/README.fr.md),
+avec ses commandes réelles et sans champ d'adresse distante.
 Le tableau prépare les commandes. VS Code ou MCP Inspector les exécute.
 Un résultat attendu dans le guide n'est pas un test déjà réussi.
 
@@ -121,6 +123,9 @@ des consignes, les paramètres des outils ou leurs résultats.
 
 **À vérifier :** le client affiche les outils du serveur local et peut en exécuter un.
 **Conseil :** reprenez la commande de démarrage du guide ; cette étape n'utilise pas d'adresse HTTPS.
+Lancez `pwsh -File .\modules\01-discover-mcp\validate.ps1` à la racine, puis démarrez `workshop-local`
+dans VS Code ou utilisez Inspector avec le [guide exécutable](../../modules/01-discover-mcp/README.fr.md).
+`get_service_health` avec `service=workshop-api` renvoie `healthy` fictif, pas un contrôle Azure.
 **En cas de problème :** vérifiez la trace et la version du protocole, sans fabriquer de messages de connexion.
 
 ## 02 - Comprendre les limites d'une clé partagée

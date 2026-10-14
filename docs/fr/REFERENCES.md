@@ -50,6 +50,11 @@ Dernière vérification : 2026-10-14. Aucun moteur accessible pour valider l'ex�
 
 ## 01 - Protocole et clients
 
+- [Module 01 exécutable](../../modules/01-discover-mcp/README.fr.md) : serveur local .NET 10, SDK 2.2.0
+  et Hosting 10.0.13 verrouillés ; découverte et appel réels vérifiés avec le SDK et Inspector 2.9.0.
+  L'approbation VS Code reste manuelle. Aucun déploiement Azure ni fonctionnalité Preview ici.
+- [Approbations VS Code](https://code.visualstudio.com/docs/agents/run/approvals) : permissions manuelles
+  et choix par outil ; ne pas activer l'approbation globale.
 - [Architecture](https://modelcontextprotocol.io/specification/2026-07-28/architecture), [transports](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports), [outils](https://modelcontextprotocol.io/specification/2026-07-28/server/tools), [autorisation](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization).
 - [VS Code MCP](https://code.visualstudio.com/docs/agent-customization/mcp-servers) : configuration, confiance et approbations.
 - [Documentation Inspector](https://modelcontextprotocol.io/docs/tools/inspector), [client web](https://modelcontextprotocol.io/docs/2026-07-28/tools/inspector/web), [configuration](https://modelcontextprotocol.io/docs/2026-07-28/tools/inspector/configuration), [autorisation](https://modelcontextprotocol.io/docs/2026-07-28/tools/inspector/authorization).

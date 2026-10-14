@@ -1,6 +1,7 @@
 # 🔐 Governed MCP on Azure — hands-on workshop
 
-> ⚠️ **Work in progress.** Module 00 is built and checked offline only. Modules 01–07 and 99 are planned.
+> ⚠️ **Work in progress.** Module 00 preparation and module 01's local MCP exercise are implemented.
+> Modules 02–07 and 99 remain planned. Module 01's client-approval observation is still manual.
 > Nothing has been validated on a real Azure subscription yet. Details: [what is available](docs/IMPLEMENTATION-STATUS.md).
 
 Take one MCP server from **open** to **governed** on Azure, alone, in **your own non-production** subscription.
@@ -80,7 +81,20 @@ If a check fails, use [module 00 troubleshooting](modules/00-prerequisites/READM
 do not register providers or widen permissions as a workaround.
 These commands do not deploy a resource group, MCP server, Entra identity or gateway.
 The [module 00 guide](modules/00-prerequisites/README.md) also covers offline checks and cleanup.
-**Stop here for now: modules 01–07 and 99 are not implemented.**
+
+### 🔍 PowerShell: run module 01 without Azure
+
+With .NET 10 and PowerShell 7 installed, run from the repository root:
+
+```powershell
+& .\modules\01-discover-mcp\validate.ps1
+```
+
+Expected: `PASS local MCP checks complete (expected HTTP N/A; stdio, no Azure).`
+Then follow the [EN guide](modules/01-discover-mcp/README.md) or [guide français](modules/01-discover-mcp/README.fr.md)
+to discover/call the tool with Inspector and observe approval in VS Code.
+**No presenter portal, Azure sign-in or Terraform is needed for this local exercise.**
+Stop before module 02: cloud runtime modules are not implemented yet.
 
 📸 This is the module 00 guide, not a deployed Azure result:
 
@@ -91,7 +105,7 @@ The [module 00 guide](modules/00-prerequisites/README.md) also covers offline ch
 | # | Module | Need it? | Status | Guide |
 |---|---|---|---|---|
 | 00 | 🧰 Prerequisites and environment | ✅ Required | 🟡 Built, offline checks only | [Open](modules/00-prerequisites/README.md) |
-| 01 | 🔍 Discover MCP (no Azure) | ✅ Required | ⚪ Planned | [Plan](docs/BUILD-PLAN.md#01--discover-mcp-no-azure) |
+| 01 | 🔍 Discover MCP (no Azure) | ✅ Required | 🟡 Local SDK + Inspector checks pass; manual approval pending | [Open](modules/01-discover-mcp/README.md) · [FR](modules/01-discover-mcp/README.fr.md) |
 | 02 | 🔑 Server protected by a key (level 0) | ✅ Required | ⚪ Planned | [Plan](docs/BUILD-PLAN.md#02--an-open-mcp-server-level-0) |
 | 03 | 🪪 Microsoft Entra identity (level 1) | ✅ Required | ⚪ Planned | [Plan](docs/BUILD-PLAN.md#03--identity-with-microsoft-entra-level-1) |
 | 04 | 🚪 API Management as the only entry (level 2) | ✅ Required | ⚪ Planned | [Plan](docs/BUILD-PLAN.md#04--api-management-as-the-only-entry-point-level-2) |
@@ -100,8 +114,8 @@ The [module 00 guide](modules/00-prerequisites/README.md) also covers offline ch
 | 07 | 🤖 Other clients (Foundry, Copilot Studio) | ➕ Optional | ⚪ Planned | [Plan](docs/BUILD-PLAN.md#07--optional-other-clients) |
 | 99 | 🧹 Clean up | ♻️ As soon as you create resources | ⚪ Planned | [Plan](docs/BUILD-PLAN.md#99--clean-up) |
 
-> 💡 **Why only module 00 is a link to a guide?** It is the only implemented guide, but its Azure validation is still pending.
-> The other rows link to their plan: what they will take, build, show and validate.
+> 💡 **00 and 01 have runnable guides.** The other rows link to their implementation plan.
+> A published guide or local `PASS` is not proof of a completed Azure workshop.
 
 ## 🧭 Open the board
 

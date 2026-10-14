@@ -34,6 +34,13 @@ test("public site exports only the allowlist, with no capability, root URLs, pri
         assert.match(language.documents.presenter.content, /\?lang=fr#\/start/);
         assert.match(language.documents.presenter.content, /\?lang=en#\/start/);
         assert.match(language.documents.gettingStarted.content, /PRESENTER\.md/);
+        const local = language.modules.find((module) => module.module === "01");
+        assert.equal(local.status, "in-progress");
+        assert.match(local.guide, /get_service_health/);
+        assert.match(local.guide, /isError: false/);
+        assert.equal(local.validation.powershell, "modules/01-discover-mcp/validate.ps1");
+        assert.equal(local.validation.bash, "modules/01-discover-mcp/validate.sh");
+        assert.equal(language.modules.find((module) => module.module === "02").guide, null);
         for (const module of language.modules) {
             assert.match(module.diagramSource.content, /^flowchart LR\n/);
             assert.ok(language.documents.architecture.content.replaceAll("\r\n", "\n").includes(module.diagramSource.content));

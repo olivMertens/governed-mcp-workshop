@@ -2439,6 +2439,13 @@ $files['.mcp.json'] = @'
 $files['.vscode/mcp.json'] = @'
 {
   "servers": {
+    "workshop-local": {
+      "type": "stdio",
+      "command": "dotnet",
+      "args": [
+        "${workspaceFolder}/modules/01-discover-mcp/server/bin/Release/net10.0/Workshop.LocalMcp.dll"
+      ]
+    },
     "microsoft-learn": {
       "type": "http",
       "url": "https://learn.microsoft.com/api/mcp"
@@ -4613,6 +4620,8 @@ $files['docs/BUILD-PLAN.md'] = @'
 
 Build the modules in this order, one session and one branch per module.
 Do not start a module until the previous one validates.
+Scoped user-approved exception (2026-10-14): author and run the Azure-independent module 01 locally while
+module 00's cloud/container validation is pending. This does not approve cloud work or validate module 00.
 
 ## End-state architecture
 
@@ -4655,6 +4664,10 @@ Personas:
 - **Show:** tools/list, a tool call, the approval prompt in the client.
 - **Validate:** Inspector lists the tools and returns a result. Check the negotiated protocol version: the current
   specification uses per-request metadata, while older clients use an initialization handshake. Do not mix message shapes.
+- **Implemented locally:** [EN/FR guide](../modules/01-discover-mcp/README.md), .NET 10 stdio server,
+  SDK 2.2.0 and Hosting 10.0.13 with a package lock. One read-only `get_service_health` tool returns fixed synthetic data.
+  The real SDK validator and Inspector 2.9.0 discovery/call pass. VS Code approval remains an explicit manual check;
+  no write tool is exposed before its role and approval controls exist. No Azure or Preview dependency.
 
 ## 02 — An "open" MCP server (level 0)
 - **Take:** https://github.com/Azure-Samples/remote-mcp-functions-dotnet
@@ -5265,7 +5278,8 @@ $files['docs/fr/BUILD-PLAN.md'] = @'
 # Le parcours de l'atelier
 
 Ce parcours présente ce que vous apprendrez à chaque étape. Suivez les modules dans l'ordre.
-Le module 00 est disponible ; sa validation dans Azure reste à faire. Les autres modules sont encore prévus.
+Les modules 00 et 01 ont des guides exécutables ; les contrôles Azure du 00 restent en attente.
+Le module 01 est local et indépendant d'Azure. Les modules 02 à 07 et 99 restent prévus.
 N'utilisez pas ces résumés comme procédure de déploiement : suivez le guide du module lorsqu'il est publié.
 Le [plan technique en anglais](../BUILD-PLAN.md) s'adresse aux personnes qui construisent l'atelier.
 
@@ -5291,6 +5305,9 @@ Aucun serveur MCP ni code Terraform Entra n'est encore implémenté.
 **À vérifier :** une exécution réelle et une confirmation manuelle disponible dans le client.
 Aucun coût Azure ni modèle d'IA n'est nécessaire pour les tests de protocole avec Inspector.
 Le serveur C# utilise ses entrées et sorties standard (stdio), pas une adresse HTTPS.
+Le [guide exécutable](../../modules/01-discover-mcp/README.fr.md) fournit les commandes PowerShell et les résultats.
+Un outil de lecture, `get_service_health`, est disponible. Le script et Inspector 2.9.0 ont réussi en local.
+L'observation de l'approbation dans VS Code reste manuelle. Aucun portail présentateur n'est nécessaire.
 
 ## 02 - Serveur par clé, niveau 0
 
@@ -5734,6 +5751,10 @@ Vous n'avez besoin ni d'un autre App Service ni du compte administrateur du pré
 Sans portail, suivez directement ces guides Markdown.
 **Présentateur :** utilisez le [guide de publication séparé](PRESENTER.md).
 
+**Essayer MCP sans Azure :** après le clonage et l'installation de .NET 10/PowerShell 7,
+suivez le [module 01](../../modules/01-discover-mcp/README.fr.md).
+Le portail du présentateur est seulement un hébergement facultatif des guides.
+
 Choisissez où exécuter les commandes : sur votre poste, dans un conteneur de développement avec
 **Visual Studio Code (VS Code)**, ou dans GitHub Codespaces. Les exercices et les scripts sont les mêmes.
 Vous pouvez suivre les guides sans Copilot ni ce tableau.
@@ -5961,6 +5982,10 @@ Continuez avec le [module 00](../../modules/00-prerequisites/README.fr.md).
 Le code Terraform actuel prépare le groupe et, sur demande, un portail App Service public payant.
 Il ne déploie pas encore de serveur MCP, de réseau privé ni d'API Management.
 Les validations dans Azure et dans le conteneur restent à réaliser.
+Le [module 01 local](../../modules/01-discover-mcp/README.fr.md) est maintenant exécutable avec .NET 10 et PowerShell 7.
+Il ne demande ni connexion Azure, ni Terraform, ni portail présentateur.
+Les contrôles SDK et Inspector réussissent en local ; l'approbation du client reste à observer manuellement.
+Les jalons du module 00 restent nécessaires avant les exercices cloud.
 
 ### Se connecter à son tenant de test
 
@@ -6327,14 +6352,15 @@ Dernière vérification : 2026-10-14. Préparation locale uniquement, sans publi
 $files['docs/fr/IMPLEMENTATION-STATUS.md'] = @'
 # Ce qui est réellement disponible
 
-Le dépôt public contient du code de préparation utilisable, pas un atelier déjà déployé dans Azure.
+Le dépôt public contient du code de préparation et un exercice MCP local utilisables, pas un atelier déjà déployé dans Azure.
 Le [suivi de construction](../PROGRESS.md) indique les contrôles réalisés. **Aucun module n'est encore validé dans Azure.**
 
 | Élément | Disponible dans cette branche | Reste à faire |
 |---|---|---|
 | Environnement participant | Vérification des outils, choix explicite du tenant et de l'abonnement, noms stables et état individuel | Exécuter le conteneur et valider une cible Azure approuvée |
 | Portail documentaire public | Application bilingue, Terraform App Service et script de déploiement avec contrôles | Examiner un plan réel, approuver les frais, déployer et vérifier le site |
-| Serveur MCP | Objectifs et schémas du parcours | Construire Functions, Storage et les outils à partir du module 02 |
+| Découverte MCP locale, module 01 | Serveur stdio .NET 10, contrôles SDK et Inspector, guide EN/FR et configuration VS Code | Observer l'approbation par appel ; le jalon d'environnement précédent reste ouvert |
+| Serveur MCP Azure, à partir du 02 | Objectifs et schémas du parcours | Construire Functions, Storage et les outils cloud |
 | Identités managées | Modèle de droits et demande à l'administrateur | Créer les identités, les attributions ciblées et la fédération approuvée dans les modules concernés |
 | Microsoft Entra | Audience, autorisations, rôles et profils de test définis | Construire le code d'identité, puis vérifier les consentements et les accès |
 | Passerelle API Management | Architecture Standard v2 et contrôles attendus | Construire la passerelle, le réseau privé et les règles d'autorisation |
@@ -6349,8 +6375,9 @@ Chaque module affiche aussi son schéma dans l'application. Le code Mermaid se t
 Ces schémas montrent une **cible prévue** : ils ne prouvent pas que les ressources existent.
 
 Commencez par le [guide du module 00](../../modules/00-prerequisites/README.fr.md).
-Les modules suivants restent des plans tant que leurs guides et contrôles ne sont pas construits.
-La construction du module suivant attend la validation du précédent.
+Le [module 01](../../modules/01-discover-mcp/README.fr.md) fonctionne sans Azure ni portail présentateur.
+Sa construction locale a été explicitement approuvée pendant l'attente des contrôles Azure/conteneur du 00.
+Les modules 02 et suivants restent des plans. Les validations cloud et approbations de déploiement ne sont pas levées.
 
 <details>
 <summary>Pour aller plus loin : identités, Foundry et passerelle IA</summary>
@@ -6637,6 +6664,8 @@ $files['docs/fr/PRACTICE.md'] = @'
 # Tester votre serveur MCP
 
 Ce guide sert à tester **votre serveur déjà déployé**, pas à le déployer.
+**Sans Azure :** commencez par le [module 01 local](../../modules/01-discover-mcp/README.fr.md),
+avec ses commandes réelles et sans champ d'adresse distante.
 Le tableau prépare les commandes. VS Code ou MCP Inspector les exécute.
 Un résultat attendu dans le guide n'est pas un test déjà réussi.
 
@@ -6757,6 +6786,9 @@ des consignes, les paramètres des outils ou leurs résultats.
 
 **À vérifier :** le client affiche les outils du serveur local et peut en exécuter un.
 **Conseil :** reprenez la commande de démarrage du guide ; cette étape n'utilise pas d'adresse HTTPS.
+Lancez `pwsh -File .\modules\01-discover-mcp\validate.ps1` à la racine, puis démarrez `workshop-local`
+dans VS Code ou utilisez Inspector avec le [guide exécutable](../../modules/01-discover-mcp/README.fr.md).
+`get_service_health` avec `service=workshop-api` renvoie `healthy` fictif, pas un contrôle Azure.
 **En cas de problème :** vérifiez la trace et la version du protocole, sans fabriquer de messages de connexion.
 
 ## 02 - Comprendre les limites d'une clé partagée
@@ -6824,7 +6856,8 @@ $files['docs/fr/PRESENTER.md'] = @'
 
 **Vous hébergez les guides. Les participants réalisent leurs propres exercices.**
 Publier le portail ne déploie pas le serveur Model Context Protocol (MCP).
-Seul le module 00 est implémenté ; les modules suivants restent prévus.
+La préparation du module 00 et l'exercice local du 01 sont implémentés ; les modules 02 et suivants restent prévus.
+Les participants peuvent faire le [module 01](../../modules/01-discover-mcp/README.fr.md) sans attendre votre portail ou un déploiement Azure.
 
 ## 1. Préparer votre espace présentateur
 
@@ -6888,14 +6921,15 @@ if ($health.StatusCode -ne 200 -or $health.Content -cne '{"status":"ok"}') {
 "Student link (English): $portal/?lang=en#/start"
 ```
 
-Ouvrez les deux liens. Vérifiez le changement de langue, le module 00 et les schémas avant de les envoyer.
+Ouvrez les deux liens. Vérifiez le changement de langue, les modules 00/01 et les schémas avant de les envoyer.
 Ne partagez pas une adresse calculée à l'avance ou un site non vérifié.
 
 Message prêt à transmettre :
 
 > Ouvrez le lien de l'atelier, choisissez votre langue et votre environnement, puis suivez le module 00.
 > Utilisez uniquement votre tenant et votre abonnement de test approuvés. Vous n'avez pas à héberger le portail.
-> Ne transmettez aucun identifiant de connexion ni jeton. Les modules suivants ne sont pas encore exécutables.
+> Le module 01 fonctionne en local sans Azure. Les modules 02 et suivants ne sont pas encore exécutables.
+> Ne transmettez aucun identifiant de connexion ni jeton.
 
 ## 5. Terminer sans laisser de frais inutiles
 
@@ -6967,6 +7001,11 @@ Dernière vérification : 2026-10-14. Aucun moteur accessible pour valider l'ex�
 
 ## 01 - Protocole et clients
 
+- [Module 01 exécutable](../../modules/01-discover-mcp/README.fr.md) : serveur local .NET 10, SDK 2.2.0
+  et Hosting 10.0.13 verrouillés ; découverte et appel réels vérifiés avec le SDK et Inspector 2.9.0.
+  L'approbation VS Code reste manuelle. Aucun déploiement Azure ni fonctionnalité Preview ici.
+- [Approbations VS Code](https://code.visualstudio.com/docs/agents/run/approvals) : permissions manuelles
+  et choix par outil ; ne pas activer l'approbation globale.
 - [Architecture](https://modelcontextprotocol.io/specification/2026-07-28/architecture), [transports](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports), [outils](https://modelcontextprotocol.io/specification/2026-07-28/server/tools), [autorisation](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization).
 - [VS Code MCP](https://code.visualstudio.com/docs/agent-customization/mcp-servers) : configuration, confiance et approbations.
 - [Documentation Inspector](https://modelcontextprotocol.io/docs/tools/inspector), [client web](https://modelcontextprotocol.io/docs/2026-07-28/tools/inspector/web), [configuration](https://modelcontextprotocol.io/docs/2026-07-28/tools/inspector/configuration), [autorisation](https://modelcontextprotocol.io/docs/2026-07-28/tools/inspector/authorization).
@@ -7040,6 +7079,9 @@ $files['docs/GETTING-STARTED.md'] = @'
 You do not need another App Service or the presenter's administrator account.
 Without a portal, follow these Markdown guides.
 **Presenter:** use the separate [publishing how-to](PRESENTER.md).
+
+**Try MCP without Azure first:** after cloning and installing .NET 10/PowerShell 7,
+use [module 01](../modules/01-discover-mcp/README.md). The presenter portal is optional documentation hosting.
 
 Use **Visual Studio Code (VS Code)** with a dev container, or use your own terminal.
 These are two routes to the same scripts, private participant parameters and Terraform root.
@@ -7298,7 +7340,9 @@ checkout preserves files, but a different clone or codespace has different local
 restore the private parameters and state securely, or configure an approved isolated remote backend first.
 Do not commit, upload to the board or share state, saved plans, CLI credentials or participant files.
 
-Continue with module 00 and its publication/validation gates, then module 01's local MCP exercise.
+The [module 01 local exercise](../modules/01-discover-mcp/README.md) is now runnable with .NET 10 and PowerShell 7,
+without Azure sign-in, Terraform or the presenter portal. Its validator and Inspector CLI checks pass locally;
+client approval remains manual. Module 00's cloud/container gates still apply before cloud work.
 After paid stages, follow module 99. Review destroy against the same state; preserve existing groups and identities.
 Do not delete an entire group to bypass an incomplete Terraform cleanup.
 
@@ -7588,14 +7632,15 @@ Last verified: 2026-10-14. Local preparation only; no public-site or Azure deplo
 $files['docs/IMPLEMENTATION-STATUS.md'] = @'
 # What is actually available?
 
-The public repository contains working preparation code, not a deployed Azure workshop.
+The public repository contains working preparation code and a runnable local MCP exercise, not a deployed Azure workshop.
 Read [build progress](PROGRESS.md) for evidence. **No module is Azure-validated yet.**
 
 | Area | Available in this branch | Still required |
 |---|---|---|
 | Participant environment | Tool checks, explicit tenant/subscription selection, private stable names and separate state | Execute the dev container and validate an approved Azure target |
 | Public documentation portal | Bilingual single-page application, App Service Terraform and guarded deployment script | Review a real plan, approve costs, deploy and verify the site |
-| MCP server | Learning targets and diagrams | Functions, Storage and tool implementation from module 02 |
+| Local MCP discovery (01) | .NET 10 stdio server, SDK validator, Inspector CLI checks, EN/FR guide and VS Code configuration | Observe the manual per-call client approval; preceding environment gate remains open |
+| Azure MCP server (02 onward) | Learning targets and diagrams | Functions, Storage and cloud tool implementation from module 02 |
 | Managed identities | Permission model and administrator request | Create identities, scoped role assignments and approved federation in their modules |
 | Microsoft Entra | Audience, scope, role and test-persona requirements | Implement the identity root, then validate consent and authorization |
 | API Management gateway | Standard v2 design and planned checks | Implement the gateway, private network and authorization policies |
@@ -7609,8 +7654,9 @@ in the application, with a closed-by-default Mermaid source section.
 The diagrams are **planned targets**. They never imply that the shown resources exist.
 
 For module 00, follow the [published guide](../modules/00-prerequisites/README.md).
-Later modules remain outlines until their guides and validators are implemented.
-Do not begin the next module's implementation before the previous module validates.
+Module 01's [local exercise](../modules/01-discover-mcp/README.md) runs without Azure or the presenter portal.
+Its local authoring was explicitly approved while module 00's cloud/container gate remains pending.
+Modules 02 onward remain outlines. Cloud validation and exact deployment approvals are not waived.
 
 ## Identity and gateway boundaries
 
@@ -7872,6 +7918,8 @@ $files['docs/PRACTICE.md'] = @'
 # Try your MCP server
 
 This is a client-side practice guide for a server you have already deployed. It does not deploy the workshop.
+**Starting without Azure?** Use [module 01's local stdio exercise](../modules/01-discover-mcp/README.md) first.
+It has real commands and does not use the remote-endpoint field below.
 The canvas prepares commands and prompts; your chosen MCP client makes the real calls.
 An example or an expected result is not a recorded test result.
 
@@ -7987,6 +8035,9 @@ This module needs no Azure deployment or model-hosting subscription.
 
 **First hint:** use the server startup command in the module README. There is no HTTP endpoint for a stdio server.
 The remote connection field is for later modules, not a replacement for that local startup command.
+Run `pwsh -File .\modules\01-discover-mcp\validate.ps1` from the repository root,
+then start `workshop-local` in VS Code or use the pinned Inspector CLI commands in the guide.
+Call `get_service_health` with `service=workshop-api`; expect synthetic `healthy`, not an Azure health check.
 
 **If it still fails:** check the actual tool-call record and negotiated protocol. Current Inspector supports
 legacy and modern protocol eras; let the client negotiate instead of copying initialization messages by hand.
@@ -8091,7 +8142,8 @@ $files['docs/PRESENTER.md'] = @'
 
 **You host the public guides. Participants run their own exercises.**
 Publishing the portal does not deploy the Model Context Protocol (MCP) server.
-Only module 00 is implemented; later modules remain planned.
+Module 00 preparation and module 01's local exercise are implemented; modules 02 onward remain planned.
+Students can run [module 01](../modules/01-discover-mcp/README.md) without waiting for your portal or Azure deployment.
 
 ## 1. Prepare your presenter workspace
 
@@ -8155,14 +8207,15 @@ if ($health.StatusCode -ne 200 -or $health.Content -cne '{"status":"ok"}') {
 "Lien participant (francais) : $portal/?lang=fr#/start"
 ```
 
-Open both links. Check language switching, module 00 and diagrams before sending them.
+Open both links. Check language switching, modules 00/01 and diagrams before sending them.
 Never send a guessed URL or one that has not passed these checks.
 
 Suggested student message:
 
 > Open the workshop link, choose your language and workspace, then follow module 00.
 > Use only your approved test tenant and subscription. You do not need to host the portal.
-> Do not send credentials or tokens. Later modules are planned, not runnable exercises yet.
+> Module 01 runs locally without Azure. Modules 02 onward are planned, not runnable exercises yet.
+> Do not send credentials or tokens.
 
 ## 5. Close the session safely
 
@@ -8190,7 +8243,7 @@ A module is `validated` only when its validate script passes on a fresh subscrip
 | Module | Title | Status | Validated on | Evidence (PASS lines or PR) | Notes |
 |---|---|---|---|---|---|
 | 00 | Prerequisites and environment | in-progress |  | Offline only: 35 script/HTTP tests and 11 mock plans; not fresh-subscription evidence. | EN/FR guide, explicit read-only preflight, identity request and optional public B1 hosting implemented. Container and approved Azure target/plan still pending. |
-| 01 | Discover MCP (no Azure) | todo | | | |
+| 01 | Discover MCP (no Azure) | in-progress | | Real local SDK validator and Inspector 2.9.0 tools/list + tools/call pass; protocol 2026-07-28 with SDK client. | EN/FR guide, locked .NET 10 stdio server and client config implemented. Manual VS Code approval and preceding environment gate remain pending; no Azure needed here. |
 | 02 | An "open" MCP server (level 0) | todo | | | |
 | 03 | Identity with Microsoft Entra (level 1) | todo | | | |
 | 04 | API Management as the only entry point (level 2) | todo | | | |
@@ -8219,6 +8272,24 @@ A module is `validated` only when its validate script passes on a fresh subscrip
   group; accept an approved existing group without managing it. Shared quotas still require cohort capacity checks.
 
 ## Deviations from the build plan
+- Module 01 local implementation (2026-10-14), explicitly requested by the user while module 00's
+  cloud/container gate is pending. This is a scoped authoring/local-execution exception, not cloud authorization.
+  SDK 2.2.0 and Hosting 10.0.13 are pinned with a transitive package lock; upstream license notices retained.
+  One synthetic read-only health tool, no external calls, write tools, HTTP listener or payload logs.
+  `PASS tools/list exposes exactly one read tool (expected HTTP N/A; stdio).`
+  `PASS exact synthetic result for workshop-api (expected HTTP N/A; stdio).`
+  `PASS exact synthetic result for ticket-queue (expected HTTP N/A; stdio).`
+  `PASS unknown service returns a tool error (expected HTTP N/A; stdio).`
+  `PASS missing service returns a tool error (expected HTTP N/A; stdio).`
+  `PASS write tool is not exposed (expected HTTP N/A; stdio).`
+  `PASS server remains responsive after rejected inputs (expected HTTP N/A; stdio).`
+  `PASS no server stderr logging during tested calls (expected HTTP N/A; stdio).`
+  `PASS local MCP checks complete (expected HTTP N/A; stdio, no Azure).`
+  Real Inspector 2.9.0 CLI discovery/call succeeded. SDK client negotiated 2026-07-28.
+  PowerShell and Git Bash wrappers pass. The 37-test local regression suite passes, including real stdio
+  execution and EN/FR static exports with module 01's guide/validator and module 02 still marked planned.
+  Manual VS Code approval is documented but not observed; no fresh-container/cloud claim.
+  Module 00 and 01 remain in-progress. No Azure or Microsoft Entra change and no Preview feature used here.
 - Presenter preparation (2026-10-14): separate EN/FR presenter how-to and participant entry points.
   Live local-terminal foundation preflight passed on an explicitly resolved private test target:
   `PASS subscription region (expected HTTP 200; availability is not a capacity reservation)`;
@@ -8283,7 +8354,7 @@ A module is `validated` only when its validate script passes on a fresh subscrip
 - Authoring tool boundary: ordinary installation had Terraform 1.16.5 and an incomplete npm Core Tools shim.
   Official-checksum-verified Terraform 1.16.6 and Core Tools 4.14.0 ARM64 were installed in session scope for checks,
   not substituted globally. Container execution and fresh-subscription preflight/real plan/apply remain unverified.
-  Module 01 must not start before real module 00 validation.
+  The subsequent user-approved local-only module 01 exception is recorded above; cloud gates are unchanged.
 - French editorial revision: participant-facing labels and all French guides reviewed for natural phrasing.
   Beginner instructions appear first; technical setup and advanced context use closed, keyboard-accessible
   disclosure sections in both the board and static exports. Safety requirements, module status and cloud
@@ -8397,6 +8468,7 @@ $files['docs/sources.md'] = @'
 
 Last verified: 2026-10-14. This is a design assessment, not evidence of a successful deployment.
 Links were read from public upstream sources. No upstream application code has been vendored in this preparation.
+Module 01 now adapts the SDK bootstrap pattern; its provenance and complete upstream license are retained separately.
 Versions below are reproducible reference selections or compatibility-test candidates, not a promise that every
 combination has been tested together.
 
@@ -8459,6 +8531,29 @@ traditional App Service. ACA/private-portal authentication remains separate and 
 Local public server, ZIP boundary and synthetic deployment/preflight tests do not prove a live deployment.
 
 ## Upstream snapshots
+
+### Module 01 local implementation
+
+Last verified: 2026-10-14. [Runnable EN/FR guide](../modules/01-discover-mcp/README.md)
+and [license/provenance](../modules/01-discover-mcp/UPSTREAM.md).
+The official SDK 2.2.0 quickstart and actual v2 source APIs were used, not the unversioned documentation site's v1 redirect.
+NuGet packages ModelContextProtocol 2.2.0 and Microsoft.Extensions.Hosting 10.0.13 are exact pins with a transitive lock.
+The official SDK negotiates protocol 2026-07-28 in the actual local validator.
+Pinned Inspector 2.9.0 CLI also discovers and calls the same compiled server.
+The modern protocol rejects legacy `ping`; the validator proves recovery after rejected input by repeating
+`tools/list`, not by assuming that an API present in the SDK is supported in every protocol era.
+These are local process tests, not future Functions/APIM compatibility or manual approval evidence.
+
+- [SDK quickstart at the selected commit](https://github.com/modelcontextprotocol/csharp-sdk/blob/6fa3825973949a9c4f0cd8af344e15a8db09dc35/docs/concepts/getting-started.md).
+- [SDK session/version API](https://github.com/modelcontextprotocol/csharp-sdk/blob/6fa3825973949a9c4f0cd8af344e15a8db09dc35/src/ModelContextProtocol.Core/McpSession.cs).
+- [SDK stdio process/environment/stderr options](https://github.com/modelcontextprotocol/csharp-sdk/blob/6fa3825973949a9c4f0cd8af344e15a8db09dc35/src/ModelContextProtocol.Core/Client/StdioClientTransportOptions.cs).
+- [Tool annotations and errors](https://github.com/modelcontextprotocol/csharp-sdk/blob/6fa3825973949a9c4f0cd8af344e15a8db09dc35/src/ModelContextProtocol.Core/Server/McpServerToolAttribute.cs).
+- [NuGet SDK](https://www.nuget.org/packages/ModelContextProtocol/2.2.0) and [Hosting](https://www.nuget.org/packages/Microsoft.Extensions.Hosting/10.0.13).
+- [VS Code approvals](https://code.visualstudio.com/docs/agents/run/approvals): Manual permissions, individual pre-approval
+  and per-tool false eligibility; client settings can change the actual prompt. No global auto-approval.
+- [MCP Inspector](https://modelcontextprotocol.io/docs/tools/inspector): CLI discovery and explicit call, memory-only settings.
+
+### Selected upstreams
 
 | Upstream | Selected snapshot | What was inspected | License and reuse boundary |
 |---|---|---|---|
@@ -9559,10 +9654,1190 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 pwsh -NoProfile -File "$root/validate.ps1" "$@"
 '@
 
+$files['modules/01-discover-mcp/cleanup.ps1'] = @'
+#requires -Version 7.4
+[CmdletBinding()]
+param()
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+Write-Output 'PASS no Azure resources or persistent tool data created by module 01 (expected HTTP N/A).'
+Write-Output 'MANUAL CHECK: stop workshop-local in MCP: List Servers; stop Inspector with Ctrl+C in its terminal.'
+Write-Output 'MANUAL CHECK: you may leave workshop-local configured but stopped; do not remove other servers.'
+Write-Output 'KEEP private module 00 parameters and Terraform state. This script does not delete files or stop unrelated processes.'
+'@
+
+$files['modules/01-discover-mcp/cleanup.sh'] = @'
+#!/usr/bin/env bash
+set -euo pipefail
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+exec pwsh -NoProfile -File "$root/cleanup.ps1" "$@"
+'@
+
+$files['modules/01-discover-mcp/csharp-sdk-LICENSE.txt'] = @'
+The MCP project is undergoing a licensing transition from the MIT License to the Apache License, Version 2.0 ("Apache-2.0"). All new code and specification contributions to the project are licensed under Apache-2.0. Documentation contributions (excluding specifications) are licensed under CC-BY-4.0.
+
+Contributions for which relicensing consent has been obtained are licensed under Apache-2.0. Contributions made by authors who originally licensed their work under the MIT License and who have not yet granted explicit permission to relicense remain licensed under the MIT License.
+
+No rights beyond those granted by the applicable original license are conveyed for such contributions.
+
+---
+
+                                 Apache License
+                           Version 2.0, January 2004
+                        http://www.apache.org/licenses/
+
+   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+
+   1. Definitions.
+
+      "License" shall mean the terms and conditions for use, reproduction,
+      and distribution as defined by Sections 1 through 9 of this document.
+
+      "Licensor" shall mean the copyright owner or entity authorized by
+      the copyright owner that is granting the License.
+
+      "Legal Entity" shall mean the union of the acting entity and all
+      other entities that control, are controlled by, or are under common
+      control with that entity. For the purposes of this definition,
+      "control" means (i) the power, direct or indirect, to cause the
+      direction or management of such entity, whether by contract or
+      otherwise, or (ii) ownership of fifty percent (50%) or more of the
+      outstanding shares, or (iii) beneficial ownership of such entity.
+
+      "You" (or "Your") shall mean an individual or Legal Entity
+      exercising permissions granted by this License.
+
+      "Source" form shall mean the preferred form for making modifications,
+      including but not limited to software source code, documentation
+      source, and configuration files.
+
+      "Object" form shall mean any form resulting from mechanical
+      transformation or translation of a Source form, including but
+      not limited to compiled object code, generated documentation,
+      and conversions to other media types.
+
+      "Work" shall mean the work of authorship, whether in Source or
+      Object form, made available under the License, as indicated by a
+      copyright notice that is included in or attached to the work
+      (an example is provided in the Appendix below).
+
+      "Derivative Works" shall mean any work, whether in Source or Object
+      form, that is based on (or derived from) the Work and for which the
+      editorial revisions, annotations, elaborations, or other modifications
+      represent, as a whole, an original work of authorship. For the purposes
+      of this License, Derivative Works shall not include works that remain
+      separable from, or merely link (or bind by name) to the interfaces of,
+      the Work and Derivative Works thereof.
+
+      "Contribution" shall mean any work of authorship, including
+      the original version of the Work and any modifications or additions
+      to that Work or Derivative Works thereof, that is intentionally
+      submitted to the Licensor for inclusion in the Work by the copyright
+      owner or by an individual or Legal Entity authorized to submit on behalf
+      of the copyright owner. For the purposes of this definition, "submitted"
+      means any form of electronic, verbal, or written communication sent
+      to the Licensor or its representatives, including but not limited to
+      communication on electronic mailing lists, source code control systems,
+      and issue tracking systems that are managed by, or on behalf of, the
+      Licensor for the purpose of discussing and improving the Work, but
+      excluding communication that is conspicuously marked or otherwise
+      designated in writing by the copyright owner as "Not a Contribution."
+
+      "Contributor" shall mean Licensor and any individual or Legal Entity
+      on behalf of whom a Contribution has been received by Licensor and
+      subsequently incorporated within the Work.
+
+   2. Grant of Copyright License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      copyright license to reproduce, prepare Derivative Works of,
+      publicly display, publicly perform, sublicense, and distribute the
+      Work and such Derivative Works in Source or Object form.
+
+   3. Grant of Patent License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      (except as stated in this section) patent license to make, have made,
+      use, offer to sell, sell, import, and otherwise transfer the Work,
+      where such license applies only to those patent claims licensable
+      by such Contributor that are necessarily infringed by their
+      Contribution(s) alone or by combination of their Contribution(s)
+      with the Work to which such Contribution(s) was submitted. If You
+      institute patent litigation against any entity (including a
+      cross-claim or counterclaim in a lawsuit) alleging that the Work
+      or a Contribution incorporated within the Work constitutes direct
+      or contributory patent infringement, then any patent licenses
+      granted to You under this License for that Work shall terminate
+      as of the date such litigation is filed.
+
+   4. Redistribution. You may reproduce and distribute copies of the
+      Work or Derivative Works thereof in any medium, with or without
+      modifications, and in Source or Object form, provided that You
+      meet the following conditions:
+
+      (a) You must give any other recipients of the Work or
+          Derivative Works a copy of this License; and
+
+      (b) You must cause any modified files to carry prominent notices
+          stating that You changed the files; and
+
+      (c) You must retain, in the Source form of any Derivative Works
+          that You distribute, all copyright, patent, trademark, and
+          attribution notices from the Source form of the Work,
+          excluding those notices that do not pertain to any part of
+          the Derivative Works; and
+
+      (d) If the Work includes a "NOTICE" text file as part of its
+          distribution, then any Derivative Works that You distribute must
+          include a readable copy of the attribution notices contained
+          within such NOTICE file, excluding those notices that do not
+          pertain to any part of the Derivative Works, in at least one
+          of the following places: within a NOTICE text file distributed
+          as part of the Derivative Works; within the Source form or
+          documentation, if provided along with the Derivative Works; or,
+          within a display generated by the Derivative Works, if and
+          wherever such third-party notices normally appear. The contents
+          of the NOTICE file are for informational purposes only and
+          do not modify the License. You may add Your own attribution
+          notices within Derivative Works that You distribute, alongside
+          or as an addendum to the NOTICE text from the Work, provided
+          that such additional attribution notices cannot be construed
+          as modifying the License.
+
+      You may add Your own copyright statement to Your modifications and
+      may provide additional or different license terms and conditions
+      for use, reproduction, or distribution of Your modifications, or
+      for any such Derivative Works as a whole, provided Your use,
+      reproduction, and distribution of the Work otherwise complies with
+      the conditions stated in this License.
+
+   5. Submission of Contributions. Unless You explicitly state otherwise,
+      any Contribution intentionally submitted for inclusion in the Work
+      by You to the Licensor shall be under the terms and conditions of
+      this License, without any additional terms or conditions.
+      Notwithstanding the above, nothing herein shall supersede or modify
+      the terms of any separate license agreement you may have executed
+      with Licensor regarding such Contributions.
+
+   6. Trademarks. This License does not grant permission to use the trade
+      names, trademarks, service marks, or product names of the Licensor,
+      except as required for reasonable and customary use in describing the
+      origin of the Work and reproducing the content of the NOTICE file.
+
+   7. Disclaimer of Warranty. Unless required by applicable law or
+      agreed to in writing, Licensor provides the Work (and each
+      Contributor provides its Contributions) on an "AS IS" BASIS,
+      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+      implied, including, without limitation, any warranties or conditions
+      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
+      PARTICULAR PURPOSE. You are solely responsible for determining the
+      appropriateness of using or redistributing the Work and assume any
+      risks associated with Your exercise of permissions under this License.
+
+   8. Limitation of Liability. In no event and under no legal theory,
+      whether in tort (including negligence), contract, or otherwise,
+      unless required by applicable law (such as deliberate and grossly
+      negligent acts) or agreed to in writing, shall any Contributor be
+      liable to You for damages, including any direct, indirect, special,
+      incidental, or consequential damages of any character arising as a
+      result of this License or out of the use or inability to use the
+      Work (including but not limited to damages for loss of goodwill,
+      work stoppage, computer failure or malfunction, or any and all
+      other commercial damages or losses), even if such Contributor
+      has been advised of the possibility of such damages.
+
+   9. Accepting Warranty or Additional Liability. While redistributing
+      the Work or Derivative Works thereof, You may choose to offer,
+      and charge a fee for, acceptance of support, warranty, indemnity,
+      or other liability obligations and/or rights consistent with this
+      License. However, in accepting such obligations, You may act only
+      on Your own behalf and on Your sole responsibility, not on behalf
+      of any other Contributor, and only if You agree to indemnify,
+      defend, and hold each Contributor harmless for any liability
+      incurred by, or claims asserted against, such Contributor by reason
+      of your accepting any such warranty or additional liability.
+
+   END OF TERMS AND CONDITIONS
+
+---
+
+MIT License
+
+Copyright (c) 2024-2026 Model Context Protocol a Series of LF Projects, LLC.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+Creative Commons Attribution 4.0 International (CC-BY-4.0)
+
+Documentation in this project (excluding specifications) is licensed under
+CC-BY-4.0. See https://creativecommons.org/licenses/by/4.0/legalcode for
+the full license text.
+'@
+
+$files['modules/01-discover-mcp/README.fr.md'] = @'
+# 01 - Découvrir MCP en local
+
+[English](README.md)
+
+## Objectif
+
+Afficher un outil du protocole de contexte de modèle (MCP), lire ses paramètres, puis l'appeler réellement.
+**Ce module est exécutable maintenant. Aucun déploiement Azure, portail présentateur ou connexion n'est nécessaire.**
+
+## Pourquoi cette étape compte
+
+Découvrir un outil ne l'exécute pas. Une réponse du modèle ne prouve pas qu'un appel a eu lieu.
+L'approbation du client ne remplace pas l'autorisation du serveur. Ici, on ne teste ni identité ni rôle.
+
+## Ce que vous déployez
+
+Rien dans Azure. Votre client lance un processus C# par ses entrées et sorties standard, dites stdio.
+Il expose uniquement `get_service_health`, avec des données fictives fixes, sans appeler d'autre service.
+Aucune adresse HTTP, donnée persistante, écriture ni journalisation du contenu des échanges.
+
+![Découverte locale : architecture](../../assets/architecture/01.fr.svg)
+
+Ce schéma explique le parcours ; il ne prouve pas qu'un service est déployé.
+Aucune fonctionnalité **Preview** n'est utilisée ici. Les préversions des étapes suivantes restent indiquées dans leurs modules.
+
+## Prérequis et rôles nécessaires
+
+- Votre propre [copie du dépôt](../../docs/fr/GETTING-STARTED.md#0-récupérer-le-dépôt-sur-votre-poste).
+- PowerShell 7.4+ et le kit de développement .NET 10 (SDK). Vérifiez `pwsh --version` et `dotnet --list-sdks`.
+- Un accès autorisé aux paquets. Les versions sont fixées et verrouillées ; ne contournez pas les contrôles réseau.
+- Node.js 22.19+ et npm pour l'exercice facultatif avec Inspector.
+- Visual Studio Code (VS Code) avec GitHub Copilot pour observer l'approbation manuelle.
+  Les contrôles de protocole ne demandent ni modèle ni abonnement Copilot. L'utilisation de Copilot peut consommer votre forfait.
+
+**Aucun rôle Azure.** Vous pouvez faire cet exercice sans Azure pendant que les contrôles Azure du module 00 restent en attente.
+Ils restent nécessaires, avec les approbations de déploiement, avant tout exercice dans le cloud.
+
+## Étapes
+
+### PowerShell
+
+Ouvrez PowerShell 7 à la racine du dépôt. Arrêtez-vous si une commande échoue.
+
+**1. Construire et vérifier le serveur local.**
+
+```powershell
+& .\modules\01-discover-mcp\validate.ps1
+```
+
+Le script restaure les paquets verrouillés, compile en Release, lance son serveur, l'appelle, puis l'arrête.
+Il n'installe aucun service permanent et n'utilise pas votre connexion Azure.
+
+**2. L'inspecter sans modèle d'IA, avec un second client facultatif.**
+
+```powershell
+$server = (Resolve-Path .\modules\01-discover-mcp\server\bin\Release\net10.0\Workshop.LocalMcp.dll).Path
+$env:MCP_INSPECTOR_SECRET_STORE = 'memory'
+$env:MCP_INSPECTOR_PERSIST_TOKENS = 'none'
+npx @modelcontextprotocol/inspector@2.9.0 --cli dotnet $server --method tools/list
+if ($LASTEXITCODE -ne 0) { throw 'Inspector discovery failed.' }
+npx @modelcontextprotocol/inspector@2.9.0 --cli dotnet $server --method tools/call --tool-name get_service_health --tool-arg service=workshop-api
+if ($LASTEXITCODE -ne 0) { throw 'Inspector tool call failed.' }
+```
+
+Examinez la demande d'installation de npm. Chaque commande lance et ferme son propre serveur.
+Ces commandes affichent des résultats fictifs, pas des identifiants cloud.
+Ne réutilisez pas un enregistrement de terminal pour les modules suivants.
+
+**3. Connecter VS Code et observer une approbation.**
+
+Ouvrez cette copie du dépôt dans VS Code. Le fichier `.vscode/mcp.json` contient `workshop-local`
+et conserve le serveur Microsoft Learn. Lancez **MCP: List Servers**, choisissez **workshop-local**, puis **Start**.
+La configuration lance directement le fichier DLL compilé. Ne le démarrez pas à la main dans un autre terminal.
+Aucune adresse à coller.
+
+Utilisez une conversation locale avec **Manual permissions**, pas Allow all ni Autopilot.
+Avec Agent Host, choisissez l'isolation Folder ; une session worktree peut imposer Allow all.
+Dans **Chat: Manage Tool Approval**, désactivez la préapprobation de cet outil.
+Si la confirmation est encore ignorée, utilisez le réglage documenté
+`chat.tools.eligibleForAutoApproval`, avec `false` pour l'identifiant réel de l'outil affiché par votre client.
+N'activez pas l'approbation globale et ne modifiez pas une règle de votre organisation.
+La confiance accordée au dossier et le démarrage du serveur ne sont pas une approbation d'appel.
+
+Sélectionnez uniquement `workshop-local` dans les outils du chat et envoyez :
+
+> Appelle get_service_health une seule fois avec service workshop-api. Demande mon approbation avant l'appel.
+> Ne remplace pas l'outil par une commande de terminal et n'invente pas le résultat.
+
+Vérifiez le vrai nom et les paramètres, puis approuvez **une seule fois**.
+Dépliez l'appel et examinez son résultat, pas seulement la réponse de l'assistant.
+Si votre client ne permet pas d'imposer une approbation par appel, notez **non vérifié**.
+Le script automatique ne peut pas prouver qu'une personne a vu une confirmation.
+
+### Bash
+
+Le même script utilise PowerShell 7, sans seconde implémentation du serveur :
+
+```bash
+bash ./modules/01-discover-mcp/validate.sh
+server="$PWD/modules/01-discover-mcp/server/bin/Release/net10.0/Workshop.LocalMcp.dll"
+export MCP_INSPECTOR_SECRET_STORE=memory MCP_INSPECTOR_PERSIST_TOKENS=none
+npx @modelcontextprotocol/inspector@2.9.0 --cli dotnet "$server" --method tools/list
+npx @modelcontextprotocol/inspector@2.9.0 --cli dotnet "$server" --method tools/call --tool-name get_service_health --tool-arg service=workshop-api
+```
+
+Faites ensuite l'exercice VS Code ci-dessus dans la même copie.
+Exécutez les commandes séparément et arrêtez-vous si le code de sortie est différent de zéro.
+
+## Ce que vous devez voir
+
+| Action | Résultat attendu | Ce que cela signifie |
+|---|---|---|
+| `tools/list` | Un seul outil, `get_service_health`, avec le paramètre texte obligatoire `service` | Vous avez découvert un contrat, pas exécuté un outil. |
+| `service=workshop-api` | `isError: false`, `status: healthy` | Un appel réel renvoie une santé fictive. |
+| `service=ticket-queue` | `isError: false`, `status: degraded` | Un état fictif dégradé n'est pas une erreur de protocole. |
+| Service inconnu | `isError: true` | L'outil refuse cette entrée ; il ne vérifie pas Azure. |
+| `create_ticket` | Outil absent ou appel rejeté | Aucun outil d'écriture ici ; ce n'est pas un refus fondé sur un rôle. |
+
+Exemple **fictif** de `structuredContent`, également renvoyé dans un bloc texte :
+
+```json
+{"service":"workshop-api","status":"healthy","source":"synthetic","environment":"local-only"}
+```
+
+Le script affiche notamment :
+
+```text
+PASS tools/list exposes exactly one read tool (expected HTTP N/A; stdio).
+PASS exact synthetic result for workshop-api (expected HTTP N/A; stdio).
+PASS unknown service returns a tool error (expected HTTP N/A; stdio).
+PASS local MCP checks complete (expected HTTP N/A; stdio, no Azure).
+MANUAL CHECK: client approval prompts are not tested by this validator.
+```
+
+**Statut HTTP : sans objet.** stdio relie des processus locaux ; ce n'est pas un service HTTP.
+Le contrôle entre clients et serveurs du SDK a négocié le protocole `2026-07-28` sur le poste de construction.
+Inspector 2.9.0 a également découvert et appelé le serveur. Laissez les clients négocier ; ne fabriquez pas de dialogue de connexion.
+Ces résultats ne prouvent pas la compatibilité des futurs modules Functions ou passerelle.
+
+## Valider
+
+Relancez `validate.ps1` ou `validate.sh`. Chaque contrôle automatique doit afficher `PASS`, avec un code de sortie 0.
+Le script vérifie le protocole, la liste exacte, le schéma, les indications de lecture seule,
+les deux résultats fictifs complets, les entrées inconnues ou manquantes et le rejet d'un nom d'outil d'écriture.
+Il n'enregistre que les contrôles, pas les paramètres, résultats ou échanges du protocole.
+
+Observez séparément l'approbation et le résultat dans VS Code. Une réussite automatique ne valide pas cette observation.
+Le module reste `in-progress` tant que l'approbation manuelle et le jalon d'environnement précédent ne sont pas consignés.
+
+## Dépannage
+
+| Problème | À vérifier |
+|---|---|
+| .NET 10 absent ou restauration impossible | Suivez le guide d'installation et rouvrez PowerShell. Utilisez votre accès aux paquets autorisé ; ne désactivez pas TLS. |
+| Fichier DLL introuvable | Lancez d'abord le script dans votre copie. Ne copiez pas les fichiers compilés d'un autre participant. |
+| Aucun outil dans VS Code | Démarrez `workshop-local`, actualisez les outils et vérifiez l'erreur réelle de démarrage. |
+| Aucune approbation | Vérifiez les permissions, la préapprobation de l'outil et les règles de l'organisation. Un résultat n'est pas une confirmation. |
+| Inspector ne démarre pas | Vérifiez Node/npm et la version fixée dans votre registre. Ne changez pas silencieusement la version ou le registre géré. |
+| Le client demande une URL | Vous avez choisi HTTP au lieu de stdio. Ce serveur n'a pas d'adresse réseau. |
+
+## Nettoyer
+
+Arrêtez `workshop-local` avec **MCP: List Servers**. Les commandes Inspector s'arrêtent seules.
+Puis lancez :
+
+```powershell
+& .\modules\01-discover-mcp\cleanup.ps1
+```
+
+```bash
+bash ./modules/01-discover-mcp/cleanup.sh
+```
+
+L'aide rappelle les actions manuelles ; elle ne tue pas d'autres processus et ne supprime aucun fichier.
+Les fichiers compilés restent dans `server/bin` et `server/obj`, ignorés par Git, pour réutilisation.
+Conservez les paramètres et l'état privés du module 00. Aucun nettoyage Azure n'est nécessaire ici.
+
+## Aller plus loin
+
+Essayez `ticket-queue` après avoir prédit le résultat. Expliquez pourquoi une indication de lecture seule n'est pas un contrôle d'accès.
+Lisez ensuite le [plan du module 02](../../docs/fr/BUILD-PLAN.md#02---serveur-par-clé-niveau-0).
+Son serveur cloud reste à construire ; le serveur local ne le déploie pas.
+Le portail facultatif du présentateur ne sert que ces instructions.
+
+## Sources
+
+- [Démarrage C# SDK 2.2.0, version figée](https://github.com/modelcontextprotocol/csharp-sdk/blob/6fa3825973949a9c4f0cd8af344e15a8db09dc35/docs/concepts/getting-started.md).
+- [Réutilisation et licences, en anglais](UPSTREAM.md).
+- [Transports MCP](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports) et [outils](https://modelcontextprotocol.io/specification/2026-07-28/server/tools).
+- [MCP Inspector](https://modelcontextprotocol.io/docs/tools/inspector).
+- [Configuration MCP de VS Code](https://code.visualstudio.com/docs/agent-customization/mcp-servers) et [approbations](https://code.visualstudio.com/docs/agents/run/approvals).
+
+Dernière vérification : 2026-10-14. Exécution locale Windows avec le SDK et Inspector, pas une validation Azure ou de l'approbation dans l'interface.
+'@
+
+$files['modules/01-discover-mcp/README.md'] = @'
+# 01 - Discover MCP locally
+
+[Français](README.fr.md)
+
+## Goal
+
+Discover a Model Context Protocol (MCP) tool, read its input schema, then make a real call.
+**You can run this module now. No Azure deployment, presenter portal or sign-in is required.**
+
+## Why it matters
+
+Discovery is not execution. A model's answer is not proof that a tool ran.
+Client approval is not server authorization. This local exercise does not test identity or roles.
+
+## What you deploy
+
+Nothing in Azure. Your client starts one C# process using standard input/output (stdio).
+It exposes only `get_service_health`. It returns fixed synthetic data and makes no downstream calls.
+The server has no HTTP listener, persistent data, write tool or payload logging.
+
+![Local discovery architecture](../../assets/architecture/01.en.svg)
+
+The diagram is a learning view, not evidence of a deployed service.
+No **Preview** feature is used by this module. Later Preview features remain labeled in their own modules.
+
+## Prerequisites and required roles
+
+- Your own [checkout](../../docs/GETTING-STARTED.md#0-get-the-repository-onto-your-computer).
+- PowerShell 7.4+ and the .NET 10 software development kit (SDK). Check `pwsh --version` and `dotnet --list-sdks`.
+- Package download access. Dependencies are pinned and locked; do not bypass certificate or registry controls.
+- Node.js 22.19+ and npm for the optional Inspector exercise.
+- Visual Studio Code (VS Code) with GitHub Copilot access for the manual client-approval exercise.
+  Protocol tests do not need a model or a Copilot subscription. Copilot usage can consume your plan's allowance.
+
+**Azure roles: none.** You may do this offline-from-Azure exercise while module 00's Azure checks are pending.
+Those checks and deployment approvals are still required before any cloud exercise.
+
+## Steps
+
+### PowerShell
+
+Open PowerShell 7 in the repository root. Stop on any failed command.
+
+**1. Build and verify the local server.**
+
+```powershell
+& .\modules\01-discover-mcp\validate.ps1
+```
+
+The validator restores locked packages, builds Release, starts its own server, calls it, then closes it.
+It does not install a background service or use your Azure session.
+
+**2. Inspect it without an AI model (optional second client).**
+
+```powershell
+$server = (Resolve-Path .\modules\01-discover-mcp\server\bin\Release\net10.0\Workshop.LocalMcp.dll).Path
+$env:MCP_INSPECTOR_SECRET_STORE = 'memory'
+$env:MCP_INSPECTOR_PERSIST_TOKENS = 'none'
+npx @modelcontextprotocol/inspector@2.9.0 --cli dotnet $server --method tools/list
+if ($LASTEXITCODE -ne 0) { throw 'Inspector discovery failed.' }
+npx @modelcontextprotocol/inspector@2.9.0 --cli dotnet $server --method tools/call --tool-name get_service_health --tool-arg service=workshop-api
+if ($LASTEXITCODE -ne 0) { throw 'Inspector tool call failed.' }
+```
+
+Review npm's package-install prompt. Each command starts and closes its own server.
+These commands print synthetic results, not cloud credentials. Do not reuse transcript recording for later modules.
+
+**3. Connect VS Code and observe one approval.**
+
+Open this checkout in VS Code. Its reviewed `.vscode/mcp.json` contains `workshop-local` and preserves
+the Microsoft Learn server. Run **MCP: List Servers**, select **workshop-local**, then **Start**.
+The configuration runs the built DLL directly; do not start it manually in a second terminal.
+There is no endpoint URL to paste.
+
+Use a local chat session with **Manual permissions**, not Allow all or Autopilot.
+For Agent Host sessions, use Folder isolation; worktree sessions can force Allow all.
+Run **Chat: Manage Tool Approval** and turn off pre-approval for this tool.
+If a confirmation is still skipped, use the documented per-tool
+`chat.tools.eligibleForAutoApproval` setting with `false` for the actual tool identifier shown by your client.
+Do not enable global auto-approval or change organization policy.
+Workspace Trust and starting a server are different from approving a tool call.
+
+Select only `workshop-local` in the tool picker and send:
+
+> Call get_service_health once with service workshop-api. Ask for my approval before the tool runs.
+> Do not substitute a terminal command or invent the result.
+
+Review the actual tool name and arguments; approve **once**.
+Expand the tool-call record and inspect its result, not only the assistant's answer.
+If your client cannot enforce per-call approval, record this exercise as **not verified**.
+The validator cannot prove that a human saw a dialog.
+
+### Bash
+
+The same validator runs through PowerShell 7; no separate server implementation:
+
+```bash
+bash ./modules/01-discover-mcp/validate.sh
+server="$PWD/modules/01-discover-mcp/server/bin/Release/net10.0/Workshop.LocalMcp.dll"
+export MCP_INSPECTOR_SECRET_STORE=memory MCP_INSPECTOR_PERSIST_TOKENS=none
+npx @modelcontextprotocol/inspector@2.9.0 --cli dotnet "$server" --method tools/list
+npx @modelcontextprotocol/inspector@2.9.0 --cli dotnet "$server" --method tools/call --tool-name get_service_health --tool-arg service=workshop-api
+```
+
+Run the VS Code exercise above from the same checkout.
+Keep each command separate and stop if its exit code is nonzero.
+
+## What you should see
+
+| Action | Expected result | Meaning |
+|---|---|---|
+| `tools/list` | Exactly one tool, `get_service_health`; required string input `service` | You discovered a schema, not a result. |
+| `service=workshop-api` | `isError: false`, `status: healthy` | A real call returned synthetic health data. |
+| `service=ticket-queue` | `isError: false`, `status: degraded` | Degraded synthetic health is not a protocol failure. |
+| Unknown service | `isError: true` | The tool rejects unsupported input; it does not check Azure. |
+| `create_ticket` | Tool absent / rejected | This module exposes no writes, not a role-based denial. |
+
+Example **synthetic** `structuredContent`, also returned as a text block:
+
+```json
+{"service":"workshop-api","status":"healthy","source":"synthetic","environment":"local-only"}
+```
+
+The validator prints, among other checks:
+
+```text
+PASS tools/list exposes exactly one read tool (expected HTTP N/A; stdio).
+PASS exact synthetic result for workshop-api (expected HTTP N/A; stdio).
+PASS unknown service returns a tool error (expected HTTP N/A; stdio).
+PASS local MCP checks complete (expected HTTP N/A; stdio, no Azure).
+MANUAL CHECK: client approval prompts are not tested by this validator.
+```
+
+**HTTP status: not applicable.** stdio is a local process transport, not an HTTP service.
+The SDK-to-SDK check negotiated protocol `2026-07-28` on the authoring host.
+Inspector 2.9.0 also listed and called the server successfully. Let clients negotiate; do not handcraft a handshake.
+These observations do not prove compatibility with future Functions or gateway modules.
+
+## Validate
+
+Rerun `validate.ps1` or `validate.sh` above. Every automatic check must say `PASS`, with exit code 0.
+It checks protocol negotiation, exact discovery/schema/annotations, both complete synthetic results,
+unknown and missing service inputs, and rejection of a write-tool name.
+It logs only concise checks, not tool arguments/results or protocol transcripts.
+
+Separately observe the client approval and result in VS Code. Do not mark that manual check passed
+because the automated validator succeeded.
+The module remains `in-progress` until the manual check and the preceding environment gate are recorded.
+
+## Troubleshooting
+
+| Symptom | Check |
+|---|---|
+| .NET 10 missing / restore fails | Follow the installation guide. Reopen PowerShell. Use approved package/proxy access; do not disable TLS checks. |
+| DLL not found | Run the validator first, from this checkout. Do not copy another participant's build output. |
+| No tools in VS Code | Start `workshop-local`, refresh tools and select the correct server. Check its actual startup error. |
+| No approval | Check permission level, per-tool pre-approval and organization settings. Do not confuse a result with a confirmation. |
+| Inspector fails | Check Node/npm and the pinned package in your configured registry. Do not silently change the pin or managed registry. |
+| A browser URL is requested | You selected HTTP instead of stdio. This server has no URL. |
+
+## Clean up
+
+Stop `workshop-local` through **MCP: List Servers** when finished. Inspector CLI commands stop themselves.
+Then run:
+
+```powershell
+& .\modules\01-discover-mcp\cleanup.ps1
+```
+
+```bash
+bash ./modules/01-discover-mcp/cleanup.sh
+```
+
+The helper reports manual actions; it does not kill other processes or delete files.
+Build artifacts stay in ignored `server/bin` and `server/obj` for reuse.
+Keep module 00's private parameters/state. No Azure teardown is needed for module 01.
+
+## Go further
+
+Try `ticket-queue` and predict its result first. Explain why a read-only annotation is a hint, not an access check.
+Then read the [module 02 plan](../../docs/BUILD-PLAN.md#02--an-open-mcp-server-level-0).
+Its cloud server is not implemented yet; do not infer that this local server deploys it.
+The presenter's optional portal hosts these instructions only.
+
+## Sources
+
+- [C# SDK 2.2.0 quickstart, pinned commit](https://github.com/modelcontextprotocol/csharp-sdk/blob/6fa3825973949a9c4f0cd8af344e15a8db09dc35/docs/concepts/getting-started.md).
+- [Reuse and license notices](UPSTREAM.md).
+- [MCP transports](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports) and [tools](https://modelcontextprotocol.io/specification/2026-07-28/server/tools).
+- [MCP Inspector](https://modelcontextprotocol.io/docs/tools/inspector).
+- [VS Code MCP configuration](https://code.visualstudio.com/docs/agent-customization/mcp-servers) and [tool approvals](https://code.visualstudio.com/docs/agents/run/approvals).
+
+Last verified: 2026-10-14. Local Windows SDK/Inspector execution, not Azure or manual UI approval evidence.
+'@
+
+$files['modules/01-discover-mcp/server/packages.lock.json'] = @'
+{
+  "version": 1,
+  "dependencies": {
+    "net10.0": {
+      "Microsoft.Extensions.Hosting": {
+        "type": "Direct",
+        "requested": "[10.0.13, 10.0.13]",
+        "resolved": "10.0.13",
+        "contentHash": "Q+hmPoDqeHipHyJcY7mDCQiLDUcn9jIgjoCThcgaOgjLTTT3ApTe8p6M2+twsDyfKuuCsKhSNlnNjaaggtXxRA==",
+        "dependencies": {
+          "Microsoft.Extensions.Configuration": "10.0.13",
+          "Microsoft.Extensions.Configuration.Abstractions": "10.0.13",
+          "Microsoft.Extensions.Configuration.Binder": "10.0.13",
+          "Microsoft.Extensions.Configuration.CommandLine": "10.0.13",
+          "Microsoft.Extensions.Configuration.EnvironmentVariables": "10.0.13",
+          "Microsoft.Extensions.Configuration.FileExtensions": "10.0.13",
+          "Microsoft.Extensions.Configuration.Json": "10.0.13",
+          "Microsoft.Extensions.Configuration.UserSecrets": "10.0.13",
+          "Microsoft.Extensions.DependencyInjection": "10.0.13",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.13",
+          "Microsoft.Extensions.Diagnostics": "10.0.13",
+          "Microsoft.Extensions.FileProviders.Abstractions": "10.0.13",
+          "Microsoft.Extensions.FileProviders.Physical": "10.0.13",
+          "Microsoft.Extensions.Hosting.Abstractions": "10.0.13",
+          "Microsoft.Extensions.Logging": "10.0.13",
+          "Microsoft.Extensions.Logging.Abstractions": "10.0.13",
+          "Microsoft.Extensions.Logging.Configuration": "10.0.13",
+          "Microsoft.Extensions.Logging.Console": "10.0.13",
+          "Microsoft.Extensions.Logging.Debug": "10.0.13",
+          "Microsoft.Extensions.Logging.EventLog": "10.0.13",
+          "Microsoft.Extensions.Logging.EventSource": "10.0.13",
+          "Microsoft.Extensions.Options": "10.0.13"
+        }
+      },
+      "ModelContextProtocol": {
+        "type": "Direct",
+        "requested": "[2.2.0, 2.2.0]",
+        "resolved": "2.2.0",
+        "contentHash": "4Pb9u02Nwsp0poueDsqNdyGRojFxOYpljB7zDBsq+aHL+Afou3OgxlBc3GWFVnsRMRJrUtWqDh3s6k2JgPzmrQ==",
+        "dependencies": {
+          "Microsoft.Extensions.Caching.Abstractions": "10.0.10",
+          "Microsoft.Extensions.Hosting.Abstractions": "10.0.10",
+          "ModelContextProtocol.Core": "[2.2.0]"
+        }
+      },
+      "Microsoft.Extensions.AI.Abstractions": {
+        "type": "Transitive",
+        "resolved": "10.8.3",
+        "contentHash": "K0B05oApxmviWalNHPMBBcRC7erKiDATz3ENNR/jqTR9JwIwLRefgDhj2jCRwL1aca99pXUe0qyQC73/xIuZig=="
+      },
+      "Microsoft.Extensions.Caching.Abstractions": {
+        "type": "Transitive",
+        "resolved": "10.0.10",
+        "contentHash": "4ZFBNE+jzR+CrWWlhOesnmywCW7pYKT0dxyAQRdL11yJwxe4jvcAu31eorFtEkoFeCDcUTeNssgPv2yaRRptaQ==",
+        "dependencies": {
+          "Microsoft.Extensions.Primitives": "10.0.10"
+        }
+      },
+      "Microsoft.Extensions.Configuration": {
+        "type": "Transitive",
+        "resolved": "10.0.13",
+        "contentHash": "inhujYI/nikhmLxYI6ZEcaCgZ28ipJsKMPPxxr2XWf3vM0Q2P+E9R3hDHABZOLBxzD3gjpgcbSH/+hd2+gvI2A==",
+        "dependencies": {
+          "Microsoft.Extensions.Configuration.Abstractions": "10.0.13",
+          "Microsoft.Extensions.Primitives": "10.0.13"
+        }
+      },
+      "Microsoft.Extensions.Configuration.Abstractions": {
+        "type": "Transitive",
+        "resolved": "10.0.13",
+        "contentHash": "DY4C2qzTt2lOIY3VoscBH/TCwTolI5DKOfgJLuI+k1QUvRNT5vTMS58AOerNiihdVRStO0wEpLeRWA8jytzHBQ==",
+        "dependencies": {
+          "Microsoft.Extensions.Primitives": "10.0.13"
+        }
+      },
+      "Microsoft.Extensions.Configuration.Binder": {
+        "type": "Transitive",
+        "resolved": "10.0.13",
+        "contentHash": "yJJl/b0+W+GEWbu+7viw6C3h2BoNkB69Vlz7s/4e+hm4mYbJqfhdcDSi9sCXJw47blsBaiQd3UDPgDtop92+ug==",
+        "dependencies": {
+          "Microsoft.Extensions.Configuration": "10.0.13",
+          "Microsoft.Extensions.Configuration.Abstractions": "10.0.13"
+        }
+      },
+      "Microsoft.Extensions.Configuration.CommandLine": {
+        "type": "Transitive",
+        "resolved": "10.0.13",
+        "contentHash": "RwdNZ9JdGs8eZmeL5qRe7ugp0Irk3KVkWpC/w1c8kjJwu1R4HvCXYz9kwHZxn45WiaRBG5lphQKtqnBaJOQC+Q==",
+        "dependencies": {
+          "Microsoft.Extensions.Configuration": "10.0.13",
+          "Microsoft.Extensions.Configuration.Abstractions": "10.0.13"
+        }
+      },
+      "Microsoft.Extensions.Configuration.EnvironmentVariables": {
+        "type": "Transitive",
+        "resolved": "10.0.13",
+        "contentHash": "qJK2dm9/AxyPVfqqBaZtjkUFl2hnBR/CQnMJtSO5LdEoyATMqvZjeQVY+8l0oa6PM6qlVe28iMEyXIRQ0wyZjA==",
+        "dependencies": {
+          "Microsoft.Extensions.Configuration": "10.0.13",
+          "Microsoft.Extensions.Configuration.Abstractions": "10.0.13"
+        }
+      },
+      "Microsoft.Extensions.Configuration.FileExtensions": {
+        "type": "Transitive",
+        "resolved": "10.0.13",
+        "contentHash": "kwC1DY55CsqPmDtJAz+7alD3G+gJcM+XwHSZrcRO8mJGYB9hRq1qC6ZH8DL0SPW9WtJ/Bae5ikzPic8SxSv6Vw==",
+        "dependencies": {
+          "Microsoft.Extensions.Configuration": "10.0.13",
+          "Microsoft.Extensions.Configuration.Abstractions": "10.0.13",
+          "Microsoft.Extensions.FileProviders.Abstractions": "10.0.13",
+          "Microsoft.Extensions.FileProviders.Physical": "10.0.13",
+          "Microsoft.Extensions.Primitives": "10.0.13"
+        }
+      },
+      "Microsoft.Extensions.Configuration.Json": {
+        "type": "Transitive",
+        "resolved": "10.0.13",
+        "contentHash": "acCWM2+WR67kBAz6gAhD2zG+IZH9Q2VpKv5le7Msiu0vAMsnnLXpnV3BAzxd8/i+uOEo/dfb2XRYTynRVTDvEg==",
+        "dependencies": {
+          "Microsoft.Extensions.Configuration": "10.0.13",
+          "Microsoft.Extensions.Configuration.Abstractions": "10.0.13",
+          "Microsoft.Extensions.Configuration.FileExtensions": "10.0.13",
+          "Microsoft.Extensions.FileProviders.Abstractions": "10.0.13"
+        }
+      },
+      "Microsoft.Extensions.Configuration.UserSecrets": {
+        "type": "Transitive",
+        "resolved": "10.0.13",
+        "contentHash": "kQ/Tx972unP+ueQL8SSninthIj6w6XP2o0VnJPFC5HQIimPMwEN704MOspEgDkmm4FUL5SuxLEU0bNiW4HEZFA==",
+        "dependencies": {
+          "Microsoft.Extensions.Configuration.Abstractions": "10.0.13",
+          "Microsoft.Extensions.Configuration.Json": "10.0.13",
+          "Microsoft.Extensions.FileProviders.Abstractions": "10.0.13",
+          "Microsoft.Extensions.FileProviders.Physical": "10.0.13"
+        }
+      },
+      "Microsoft.Extensions.DependencyInjection": {
+        "type": "Transitive",
+        "resolved": "10.0.13",
+        "contentHash": "4tnWU9vrU/A8NwYe9Z6wvieZ0EBb/uM82LAT+edNhdepOBWREZ7M7mzb941EIDPJaeOFdbVrDd5+7s9e89U6bQ==",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.13"
+        }
+      },
+      "Microsoft.Extensions.DependencyInjection.Abstractions": {
+        "type": "Transitive",
+        "resolved": "10.0.13",
+        "contentHash": "G2GrGWNAPZBsii2F6AU8n+JT2tC1/I0Ml/e9ZyNCgPjf3hZqronP7o0X91aAynCmVeae8KkSIUNXXeXCNRmdVQ=="
+      },
+      "Microsoft.Extensions.Diagnostics": {
+        "type": "Transitive",
+        "resolved": "10.0.13",
+        "contentHash": "J9ODOrffj1mK3Et69elNsLGRguesPxvThTdVpFmQX7fLNPhIOgqHQfLdGnTBEwNAV3yf8yiyVlpDZNw2qN87Nw==",
+        "dependencies": {
+          "Microsoft.Extensions.Configuration": "10.0.13",
+          "Microsoft.Extensions.Diagnostics.Abstractions": "10.0.13",
+          "Microsoft.Extensions.Options.ConfigurationExtensions": "10.0.13"
+        }
+      },
+      "Microsoft.Extensions.Diagnostics.Abstractions": {
+        "type": "Transitive",
+        "resolved": "10.0.13",
+        "contentHash": "oZzqZze8ed1fLS20HtIrkPxQXGRG/koq09srIw2ptnDHm9RHfwB++d35hosB/cXc55TH7Pshv85O0txongjCIg==",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.13",
+          "Microsoft.Extensions.Options": "10.0.13"
+        }
+      },
+      "Microsoft.Extensions.FileProviders.Abstractions": {
+        "type": "Transitive",
+        "resolved": "10.0.13",
+        "contentHash": "BZDwtN3uoWRghDi5lRRZPDjMMCg2Ds7J6YEYjqka/TLjqnzquEpXyvchrIMeoubwT1ns23ow6PPeAoBHJO81Rw==",
+        "dependencies": {
+          "Microsoft.Extensions.Primitives": "10.0.13"
+        }
+      },
+      "Microsoft.Extensions.FileProviders.Physical": {
+        "type": "Transitive",
+        "resolved": "10.0.13",
+        "contentHash": "U7HkgGCNPICN5k7NVK6dmLsSPSPeO/EbNcuxOl/5qdC9Ahjp9UZWKOvlnUC+rYurmoxIlwyv9e5j0BaQlTOELA==",
+        "dependencies": {
+          "Microsoft.Extensions.FileProviders.Abstractions": "10.0.13",
+          "Microsoft.Extensions.FileSystemGlobbing": "10.0.13",
+          "Microsoft.Extensions.Primitives": "10.0.13"
+        }
+      },
+      "Microsoft.Extensions.FileSystemGlobbing": {
+        "type": "Transitive",
+        "resolved": "10.0.13",
+        "contentHash": "vQVzmAbnzlhXSXA2caYnlxtG9GXxEwtj5bODiWLu06A6iqeJmfBtlfKjuOSJGRy0/CFaNUrm7u9nxEUlljc2Rg=="
+      },
+      "Microsoft.Extensions.Hosting.Abstractions": {
+        "type": "Transitive",
+        "resolved": "10.0.13",
+        "contentHash": "zIrbe9vkIFXxW3mOApIOWXw+xMwX7Cgsptr3ZSlglJt4hW2qp4fB/JU1NHgAevteBNH4PicvU9DsFPHxlnnloA==",
+        "dependencies": {
+          "Microsoft.Extensions.Configuration.Abstractions": "10.0.13",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.13",
+          "Microsoft.Extensions.Diagnostics.Abstractions": "10.0.13",
+          "Microsoft.Extensions.FileProviders.Abstractions": "10.0.13",
+          "Microsoft.Extensions.Logging.Abstractions": "10.0.13"
+        }
+      },
+      "Microsoft.Extensions.Logging": {
+        "type": "Transitive",
+        "resolved": "10.0.13",
+        "contentHash": "fqbiPy4nUp4H2XHKAVQXKN2y3T2h4cFIx1DAAgE6iY9OHkN/OA1cKFi+geJKRWGuX6pS5SFbsjIPWHJqrxE0eg==",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection": "10.0.13",
+          "Microsoft.Extensions.Logging.Abstractions": "10.0.13",
+          "Microsoft.Extensions.Options": "10.0.13"
+        }
+      },
+      "Microsoft.Extensions.Logging.Abstractions": {
+        "type": "Transitive",
+        "resolved": "10.0.13",
+        "contentHash": "aSZEhEig4fvNiw2zs8Z6NyDlniKtq6YjcF3DyHuqTEHcZ2VKA/6itMPZ+dW+yWABWExlDcQwwdbqX1Rcb7W8WQ==",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.13"
+        }
+      },
+      "Microsoft.Extensions.Logging.Configuration": {
+        "type": "Transitive",
+        "resolved": "10.0.13",
+        "contentHash": "OyYJOaE9WbBx1Hp+Dd2zrqeFM0JwH5M/x0VL6tNUv3V18vIAVpix8UjhvY9eW/iXpguEHy68JO/Z9YkBOwftIw==",
+        "dependencies": {
+          "Microsoft.Extensions.Configuration": "10.0.13",
+          "Microsoft.Extensions.Configuration.Abstractions": "10.0.13",
+          "Microsoft.Extensions.Configuration.Binder": "10.0.13",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.13",
+          "Microsoft.Extensions.Logging": "10.0.13",
+          "Microsoft.Extensions.Logging.Abstractions": "10.0.13",
+          "Microsoft.Extensions.Options": "10.0.13",
+          "Microsoft.Extensions.Options.ConfigurationExtensions": "10.0.13"
+        }
+      },
+      "Microsoft.Extensions.Logging.Console": {
+        "type": "Transitive",
+        "resolved": "10.0.13",
+        "contentHash": "i9rn0rHkiCxfNVbf4DRG7LOFcKPy/BioAxS07w6daWvIpLNRjskqDJcGGaYVFWndsq0iTRaS8Msry0t5fRYQug==",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.13",
+          "Microsoft.Extensions.Logging": "10.0.13",
+          "Microsoft.Extensions.Logging.Abstractions": "10.0.13",
+          "Microsoft.Extensions.Logging.Configuration": "10.0.13",
+          "Microsoft.Extensions.Options": "10.0.13"
+        }
+      },
+      "Microsoft.Extensions.Logging.Debug": {
+        "type": "Transitive",
+        "resolved": "10.0.13",
+        "contentHash": "yBig0DNMq+3UgliwxYlUC48dg0fPqvqI5B3ljzmLTrpR6maoKTOO5i9QnPgQUmQoaQWZMgu74fuF6oSDihb6pg==",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.13",
+          "Microsoft.Extensions.Logging": "10.0.13",
+          "Microsoft.Extensions.Logging.Abstractions": "10.0.13"
+        }
+      },
+      "Microsoft.Extensions.Logging.EventLog": {
+        "type": "Transitive",
+        "resolved": "10.0.13",
+        "contentHash": "OAK40lXhgMuvyNwvzW3fxLvvucN8yr5XS7dQRcPmtnPf+Pt1lpbMgao5T4Wa6VdFagtIeDZNgPtV5Ig4xstziQ==",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.13",
+          "Microsoft.Extensions.Logging": "10.0.13",
+          "Microsoft.Extensions.Logging.Abstractions": "10.0.13",
+          "Microsoft.Extensions.Options": "10.0.13",
+          "System.Diagnostics.EventLog": "10.0.13"
+        }
+      },
+      "Microsoft.Extensions.Logging.EventSource": {
+        "type": "Transitive",
+        "resolved": "10.0.13",
+        "contentHash": "SxJu3oczk+TJtHvpgAmCVzEkzx69/obA6GZCbGrbqYqc981YOAyfEprySBdFX7Yc5qatHJKHNTlpGeeBAQkZcA==",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.13",
+          "Microsoft.Extensions.Logging": "10.0.13",
+          "Microsoft.Extensions.Logging.Abstractions": "10.0.13",
+          "Microsoft.Extensions.Options": "10.0.13",
+          "Microsoft.Extensions.Primitives": "10.0.13"
+        }
+      },
+      "Microsoft.Extensions.Options": {
+        "type": "Transitive",
+        "resolved": "10.0.13",
+        "contentHash": "tmMJgdrE4uhf1JcNs9CV9moAHW+hmDuvgMiPpnQxarKaUxqI2eN33sYK5S4l9Uw+rG9PJvlm4qPxMhvolTDTaQ==",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.13",
+          "Microsoft.Extensions.Primitives": "10.0.13"
+        }
+      },
+      "Microsoft.Extensions.Options.ConfigurationExtensions": {
+        "type": "Transitive",
+        "resolved": "10.0.13",
+        "contentHash": "xVO5HhATc09WXuS/RaDmx8ZeWS0mTpT1L0tkEDMSBHtAnNpNsDr0ge0wIO2jinCWWqpq5dL1tRTzpYNVlvyqLw==",
+        "dependencies": {
+          "Microsoft.Extensions.Configuration.Abstractions": "10.0.13",
+          "Microsoft.Extensions.Configuration.Binder": "10.0.13",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.13",
+          "Microsoft.Extensions.Options": "10.0.13",
+          "Microsoft.Extensions.Primitives": "10.0.13"
+        }
+      },
+      "Microsoft.Extensions.Primitives": {
+        "type": "Transitive",
+        "resolved": "10.0.13",
+        "contentHash": "ZjTwxzhiw2TMEzIbUDkMF0dfDB2I4NQgIfKD0ELu9/5Mk+SRGdKZcD0/lvBrRCAPo6KN2r0BW86MRancoyJkoA=="
+      },
+      "ModelContextProtocol.Core": {
+        "type": "Transitive",
+        "resolved": "2.2.0",
+        "contentHash": "FeBfXU6T8k+jw4afg4sfxdEX2rL/e5oKOk9ROOGztu9k47+7Bz08sdaToYt2XvMY1opNbwxYQOFMj6wH9TInhA==",
+        "dependencies": {
+          "Microsoft.Extensions.AI.Abstractions": "10.8.3",
+          "Microsoft.Extensions.Logging.Abstractions": "10.0.10"
+        }
+      },
+      "System.Diagnostics.EventLog": {
+        "type": "Transitive",
+        "resolved": "10.0.13",
+        "contentHash": "DkNjtQyPR5Ud/zHnWHdsOuKbFRL9nIC92Q76z0NmHVDoQm40toLtsGFTIWq7toBoVa6fo/DInL3PLxY3Asixyw=="
+      }
+    }
+  }
+}
+'@
+
+$files['modules/01-discover-mcp/server/Program.cs'] = @'
+using System.ComponentModel;
+using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using ModelContextProtocol;
+using ModelContextProtocol.Protocol;
+using ModelContextProtocol.Server;
+
+if (args is ["--validate"])
+{
+    await Validation.RunAsync();
+    return;
+}
+
+if (args.Length != 0)
+{
+    Console.Error.WriteLine("This server accepts no arguments. Use --validate for local checks.");
+    Environment.ExitCode = 1;
+    return;
+}
+
+var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings { DisableDefaults = true });
+builder.Logging.ClearProviders();
+builder.Services.AddMcpServer()
+    .WithStdioServerTransport()
+    .WithToolsFromAssembly();
+await builder.Build().RunAsync();
+
+[McpServerToolType]
+public static class HealthTools
+{
+    [McpServerTool(Name = "get_service_health", ReadOnly = true, Destructive = false, Idempotent = true, OpenWorld = false)]
+    [Description("Read fixed synthetic health data. No Azure access, network calls or real monitoring.")]
+    public static CallToolResult GetServiceHealth(
+        [Description("Synthetic service name: workshop-api or ticket-queue.")] string service)
+    {
+        if (service is not ("workshop-api" or "ticket-queue"))
+        {
+            throw new McpException("Unknown synthetic service. Use workshop-api or ticket-queue.");
+        }
+
+        var data = JsonSerializer.SerializeToElement(new
+        {
+            service,
+            status = service == "workshop-api" ? "healthy" : "degraded",
+            source = "synthetic",
+            environment = "local-only",
+        });
+        return new CallToolResult
+        {
+            IsError = false,
+            StructuredContent = data,
+            Content = [new TextContentBlock { Text = data.GetRawText() }],
+        };
+    }
+}
+'@
+
+$files['modules/01-discover-mcp/server/Validation.cs'] = @'
+using System.Reflection;
+using System.Text.Json;
+using ModelContextProtocol;
+using ModelContextProtocol.Client;
+using ModelContextProtocol.Protocol;
+
+internal static class Validation
+{
+    internal static async Task RunAsync()
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(45));
+        var stderrLines = 0;
+        var transport = new StdioClientTransport(new StdioClientTransportOptions
+        {
+            Name = "workshop-local-validation",
+            Command = "dotnet",
+            Arguments = [Assembly.GetExecutingAssembly().Location],
+            InheritEnvironmentVariables = false,
+            EnvironmentVariables = StdioClientTransportOptions.GetDefaultEnvironmentVariables(),
+            StandardErrorLines = _ => Interlocked.Increment(ref stderrLines),
+        });
+        await using (var client = await McpClient.CreateAsync(transport, cancellationToken: timeout.Token))
+        {
+            Check(!string.IsNullOrWhiteSpace(client.NegotiatedProtocolVersion), "SDK protocol negotiation");
+            Console.WriteLine($"INFO negotiated MCP protocol: {client.NegotiatedProtocolVersion}");
+
+            var tools = await client.ListToolsAsync(cancellationToken: timeout.Token);
+            Check(tools.Count == 1 && tools[0].Name == "get_service_health", "tools/list exposes exactly one read tool");
+            var tool = tools[0].ProtocolTool;
+            Check(tool.Annotations is { ReadOnlyHint: true, DestructiveHint: false, IdempotentHint: true, OpenWorldHint: false },
+                "read-only synthetic tool annotations");
+            Check(tool.InputSchema.GetProperty("type").GetString() == "object" &&
+                tool.InputSchema.GetProperty("properties").EnumerateObject().Count() == 1 &&
+                tool.InputSchema.GetProperty("properties").TryGetProperty("service", out var schema) &&
+                schema.GetProperty("type").GetString() == "string" &&
+                tool.InputSchema.GetProperty("required").GetArrayLength() == 1 &&
+                tool.InputSchema.GetProperty("required").EnumerateArray().Any(value => value.GetString() == "service"),
+                "required service input schema");
+
+            foreach (var (service, status) in new[] { ("workshop-api", "healthy"), ("ticket-queue", "degraded") })
+            {
+                var result = await client.CallToolAsync("get_service_health",
+                    new Dictionary<string, object?> { ["service"] = service }, cancellationToken: timeout.Token);
+                Check(result.IsError is false && result.StructuredContent is not null, $"tools/call {service} succeeds");
+                var data = result.StructuredContent!.Value;
+                Check(data.EnumerateObject().Count() == 4 &&
+                    data.GetProperty("service").GetString() == service &&
+                    data.GetProperty("status").GetString() == status &&
+                    data.GetProperty("source").GetString() == "synthetic" &&
+                    data.GetProperty("environment").GetString() == "local-only" &&
+                    result.Content is [TextContentBlock text] &&
+                    JsonElement.DeepEquals(JsonSerializer.Deserialize<JsonElement>(text.Text), data),
+                    $"exact synthetic result for {service}");
+            }
+
+            var invalid = await client.CallToolAsync("get_service_health",
+                new Dictionary<string, object?> { ["service"] = "unknown-synthetic-service" }, cancellationToken: timeout.Token);
+            Check(invalid.IsError is true, "unknown service returns a tool error");
+            var missing = await client.CallToolAsync("get_service_health",
+                new Dictionary<string, object?>(), cancellationToken: timeout.Token);
+            Check(missing.IsError is true, "missing service returns a tool error");
+
+            var unknownToolRejected = false;
+            try
+            {
+                await client.CallToolAsync("create_ticket",
+                    new Dictionary<string, object?>(), cancellationToken: timeout.Token);
+            }
+            catch (McpProtocolException error) when (error.ErrorCode == McpErrorCode.InvalidParams)
+            {
+                unknownToolRejected = true;
+            }
+            Check(unknownToolRejected, "write tool is not exposed");
+            var recovered = await client.ListToolsAsync(cancellationToken: timeout.Token);
+            Check(recovered.Count == 1 && recovered[0].Name == "get_service_health",
+                "server remains responsive after rejected inputs");
+        }
+        Check(Volatile.Read(ref stderrLines) == 0, "no server stderr logging during tested calls");
+        Console.WriteLine("PASS local MCP checks complete (expected HTTP N/A; stdio, no Azure).");
+        Console.WriteLine("MANUAL CHECK: client approval prompts are not tested by this validator.");
+    }
+
+    private static void Check(bool passed, string name)
+    {
+        if (!passed)
+        {
+            throw new InvalidOperationException($"FAIL {name} (expected HTTP N/A; stdio).");
+        }
+        Console.WriteLine($"PASS {name} (expected HTTP N/A; stdio).");
+    }
+}
+'@
+
+$files['modules/01-discover-mcp/server/Workshop.LocalMcp.csproj'] = @'
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="ModelContextProtocol" Version="[2.2.0]" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="[10.0.13]" />
+  </ItemGroup>
+</Project>
+'@
+
+$files['modules/01-discover-mcp/UPSTREAM.md'] = @'
+# Module 01 - Sources and reuse
+
+The server bootstrap follows the official C# SDK getting-started pattern:
+[SDK v2.2.0, commit 6fa3825973949a9c4f0cd8af344e15a8db09dc35](https://github.com/modelcontextprotocol/csharp-sdk/tree/6fa3825973949a9c4f0cd8af344e15a8db09dc35).
+The workshop changes that pattern to expose fixed synthetic service health instead of Echo,
+disable logging providers rather than log payload-bearing SDK events, and include a typed local validation client.
+The health logic, checks, wrappers and participant explanations are workshop additions.
+No upstream documentation, full application or Inspector source is copied.
+
+The SDK is transitioning licenses: Apache-2.0 for new/consented contributions, MIT for
+un-relicensed contributions, CC-BY-4.0 for documentation. Its complete upstream notice is retained
+in [csharp-sdk-LICENSE.txt](csharp-sdk-LICENSE.txt). The repository's MIT license does not replace those terms.
+Copyright (c) 2024-2026 Model Context Protocol a Series of LF Projects, LLC.
+
+NuGet dependencies are exactly pinned in `server/Workshop.LocalMcp.csproj`, with transitive versions
+and content hashes in `server/packages.lock.json`. Packages retain their own license metadata.
+Inspector is used as tooling at version 2.9.0; it is not vendored.
+The unversioned C# documentation site currently redirects to v1. This module uses the v2.2.0 source/API instead.
+
+Last verified: 2026-10-14.
+'@
+
+$files['modules/01-discover-mcp/validate.ps1'] = @'
+#requires -Version 7.4
+[CmdletBinding()]
+param()
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+$project = Join-Path $PSScriptRoot 'server' 'Workshop.LocalMcp.csproj'
+Get-Command dotnet -ErrorAction Stop | Out-Null
+& dotnet restore $project --locked-mode --verbosity quiet
+if ($LASTEXITCODE -ne 0) { throw 'FAIL locked package restore (expected HTTP N/A; check SDK, package access and lock file).' }
+& dotnet build $project --no-restore --configuration Release --verbosity quiet
+if ($LASTEXITCODE -ne 0) { throw 'FAIL local server build (expected HTTP N/A).' }
+Write-Output 'PASS locked local server build (expected HTTP N/A).'
+$server = Join-Path $PSScriptRoot 'server' 'bin' 'Release' 'net10.0' 'Workshop.LocalMcp.dll'
+& dotnet $server --validate
+if ($LASTEXITCODE -ne 0) { throw 'FAIL local MCP client/server checks (expected HTTP N/A).' }
+'@
+
+$files['modules/01-discover-mcp/validate.sh'] = @'
+#!/usr/bin/env bash
+set -euo pipefail
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+exec pwsh -NoProfile -File "$root/validate.ps1" "$@"
+'@
+
 $files['README.md'] = @'
 # 🔐 Governed MCP on Azure — hands-on workshop
 
-> ⚠️ **Work in progress.** Module 00 is built and checked offline only. Modules 01–07 and 99 are planned.
+> ⚠️ **Work in progress.** Module 00 preparation and module 01's local MCP exercise are implemented.
+> Modules 02–07 and 99 remain planned. Module 01's client-approval observation is still manual.
 > Nothing has been validated on a real Azure subscription yet. Details: [what is available](docs/IMPLEMENTATION-STATUS.md).
 
 Take one MCP server from **open** to **governed** on Azure, alone, in **your own non-production** subscription.
@@ -9642,7 +10917,20 @@ If a check fails, use [module 00 troubleshooting](modules/00-prerequisites/READM
 do not register providers or widen permissions as a workaround.
 These commands do not deploy a resource group, MCP server, Entra identity or gateway.
 The [module 00 guide](modules/00-prerequisites/README.md) also covers offline checks and cleanup.
-**Stop here for now: modules 01–07 and 99 are not implemented.**
+
+### 🔍 PowerShell: run module 01 without Azure
+
+With .NET 10 and PowerShell 7 installed, run from the repository root:
+
+```powershell
+& .\modules\01-discover-mcp\validate.ps1
+```
+
+Expected: `PASS local MCP checks complete (expected HTTP N/A; stdio, no Azure).`
+Then follow the [EN guide](modules/01-discover-mcp/README.md) or [guide français](modules/01-discover-mcp/README.fr.md)
+to discover/call the tool with Inspector and observe approval in VS Code.
+**No presenter portal, Azure sign-in or Terraform is needed for this local exercise.**
+Stop before module 02: cloud runtime modules are not implemented yet.
 
 📸 This is the module 00 guide, not a deployed Azure result:
 
@@ -9653,7 +10941,7 @@ The [module 00 guide](modules/00-prerequisites/README.md) also covers offline ch
 | # | Module | Need it? | Status | Guide |
 |---|---|---|---|---|
 | 00 | 🧰 Prerequisites and environment | ✅ Required | 🟡 Built, offline checks only | [Open](modules/00-prerequisites/README.md) |
-| 01 | 🔍 Discover MCP (no Azure) | ✅ Required | ⚪ Planned | [Plan](docs/BUILD-PLAN.md#01--discover-mcp-no-azure) |
+| 01 | 🔍 Discover MCP (no Azure) | ✅ Required | 🟡 Local SDK + Inspector checks pass; manual approval pending | [Open](modules/01-discover-mcp/README.md) · [FR](modules/01-discover-mcp/README.fr.md) |
 | 02 | 🔑 Server protected by a key (level 0) | ✅ Required | ⚪ Planned | [Plan](docs/BUILD-PLAN.md#02--an-open-mcp-server-level-0) |
 | 03 | 🪪 Microsoft Entra identity (level 1) | ✅ Required | ⚪ Planned | [Plan](docs/BUILD-PLAN.md#03--identity-with-microsoft-entra-level-1) |
 | 04 | 🚪 API Management as the only entry (level 2) | ✅ Required | ⚪ Planned | [Plan](docs/BUILD-PLAN.md#04--api-management-as-the-only-entry-point-level-2) |
@@ -9662,8 +10950,8 @@ The [module 00 guide](modules/00-prerequisites/README.md) also covers offline ch
 | 07 | 🤖 Other clients (Foundry, Copilot Studio) | ➕ Optional | ⚪ Planned | [Plan](docs/BUILD-PLAN.md#07--optional-other-clients) |
 | 99 | 🧹 Clean up | ♻️ As soon as you create resources | ⚪ Planned | [Plan](docs/BUILD-PLAN.md#99--clean-up) |
 
-> 💡 **Why only module 00 is a link to a guide?** It is the only implemented guide, but its Azure validation is still pending.
-> The other rows link to their plan: what they will take, build, show and validate.
+> 💡 **00 and 01 have runnable guides.** The other rows link to their implementation plan.
+> A published guide or local `PASS` is not proof of a completed Azure workshop.
 
 ## 🧭 Open the board
 
@@ -10072,6 +11360,48 @@ set -euo pipefail
 command -v pwsh >/dev/null || { printf '%s\n' 'FAIL PowerShell 7.4+ is required.' >&2; exit 1; }
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 pwsh -NoProfile -File "$root/deploy-portal.ps1" "$@"
+'@
+
+$files['scripts/local-mcp.test.mjs'] = @'
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const root = fileURLToPath(new URL("../", import.meta.url));
+
+test("module 01 validates the real SDK stdio server without Azure or payload logs", () => {
+    const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-File",
+        join(root, "modules", "01-discover-mcp", "validate.ps1")],
+    { cwd: root, encoding: "utf8", timeout: 120_000 });
+    assert.ifError(result.error);
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    for (const name of [
+        "locked local server build", "SDK protocol negotiation",
+        "tools/list exposes exactly one read tool", "read-only synthetic tool annotations",
+        "required service input schema", "exact synthetic result for workshop-api",
+        "exact synthetic result for ticket-queue", "unknown service returns a tool error",
+        "missing service returns a tool error", "write tool is not exposed",
+        "server remains responsive after rejected inputs",
+        "no server stderr logging during tested calls", "local MCP checks complete",
+    ]) {
+        assert.ok(result.stdout.includes(`PASS ${name} (`), `Missing check: ${name}`);
+    }
+    assert.match(result.stdout, /MANUAL CHECK: client approval prompts are not tested/);
+    assert.doesNotMatch(result.stdout + result.stderr, /"structuredContent"|"service":|"source":/);
+});
+
+test("VS Code local server config preserves Learn and launches the built DLL without approval overrides", () => {
+    const config = JSON.parse(readFileSync(join(root, ".vscode", "mcp.json"), "utf8"));
+    assert.equal(config.servers["microsoft-learn"].url, "https://learn.microsoft.com/api/mcp");
+    assert.deepEqual(config.servers["workshop-local"], {
+        type: "stdio",
+        command: "dotnet",
+        args: ["${workspaceFolder}/modules/01-discover-mcp/server/bin/Release/net10.0/Workshop.LocalMcp.dll"],
+    });
+});
 '@
 
 $files['scripts/package-portal.ps1'] = @'
@@ -11360,6 +12690,13 @@ test("public site exports only the allowlist, with no capability, root URLs, pri
         assert.match(language.documents.presenter.content, /\?lang=fr#\/start/);
         assert.match(language.documents.presenter.content, /\?lang=en#\/start/);
         assert.match(language.documents.gettingStarted.content, /PRESENTER\.md/);
+        const local = language.modules.find((module) => module.module === "01");
+        assert.equal(local.status, "in-progress");
+        assert.match(local.guide, /get_service_health/);
+        assert.match(local.guide, /isError: false/);
+        assert.equal(local.validation.powershell, "modules/01-discover-mcp/validate.ps1");
+        assert.equal(local.validation.bash, "modules/01-discover-mcp/validate.sh");
+        assert.equal(language.modules.find((module) => module.module === "02").guide, null);
         for (const module of language.modules) {
             assert.match(module.diagramSource.content, /^flowchart LR\n/);
             assert.ok(language.documents.architecture.content.replaceAll("\r\n", "\n").includes(module.diagramSource.content));
