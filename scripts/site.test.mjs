@@ -8,6 +8,12 @@ import { buildSite } from "./build-site.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 
+test("Git preserves SVG bytes and binary PNG provenance on Windows checkouts", () => {
+    const attributes = readFileSync(join(root, ".gitattributes"), "utf8");
+    assert.match(attributes, /^\*\.svg text eol=lf$/m);
+    assert.match(attributes, /^\*\.png binary$/m);
+});
+
 test("public site exports only the allowlist, with no capability, root URLs, private files or API dependency", (t) => {
     const temporary = mkdtempSync(join(tmpdir(), "workshop-site-"));
     t.after(() => rmSync(temporary, { recursive: true, force: true }));
