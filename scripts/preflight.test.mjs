@@ -31,9 +31,12 @@ function global:az {
         'cloud show' { @{ name='AzureCloud' }; break }
         'account show' { @{ id=$(if ($global:scenario -eq 'wrong-context') { [guid]::NewGuid().ToString() } else { $global:subscription.ToString() });
             tenantId=$global:tenant.ToString(); state='Enabled'; environmentName='AzureCloud'; userType='user' }; break }
-        'account list-locations' { @(@{name='westeurope'}); break }
         'group show' { @{id="/subscriptions/$global:subscription/resourceGroups/rg-synthetic-admin"}; break }
-        'group list' { if ($global:scenario -eq 'group-quota') { 980 } else { 3 }; break }
+        'group list' {
+            if ($global:scenario -eq 'invalid-groups') { @{count=3} }
+            else { @(1..$(if ($global:scenario -eq 'group-quota') { 980 } else { 3 }) | ForEach-Object { @{name="synthetic-$_"} }) }
+            break
+        }
         'provider list' { @('Microsoft.Resources','Microsoft.Web','Microsoft.App','Microsoft.Storage','Microsoft.ManagedIdentity',
             'Microsoft.Network','Microsoft.Insights','Microsoft.OperationalInsights','Microsoft.ApiManagement','Microsoft.ApiCenter') |
             ForEach-Object { @{ namespace=$_; registrationState=$(if ($global:scenario -eq 'missing-provider' -and $_ -eq 'Microsoft.Web') { 'NotRegistered' } else { 'Registered' }) } }; break }
@@ -42,6 +45,11 @@ function global:az {
         'functionapp list-flexconsumption-runtimes' { @(@{name='dotnet-isolated';version=$(if ($global:scenario -eq 'wrong-runtime') { '8.0' } else { '10.0' })}); break }
         'rest --method' {
             if ($args[2] -ne 'get') { throw 'Write attempt refused by synthetic CLI.' }
+            if ($args[4] -eq "https://management.azure.com/subscriptions/$global:subscription/locations?api-version=2022-12-01") {
+                if ($global:scenario -eq 'invalid-locations') { @{value='not-an-array'} }
+                else { @{value=@(@{name='westeurope'})} }
+                break
+            }
             $global:pageCount++
             $permission = @{actions=@('*');notActions=@()}
             if ($global:scenario -eq 'permission-denied') { $permission.notActions=@('Microsoft.Resources/subscriptions/resourceGroups/write') }
@@ -65,7 +73,7 @@ $path = Join-Path $directory 'parameters.json'
 $reviewPath = Join-Path $directory 'capacity.json'
 foreach ($global:scenario in @('valid', 'pagination', 'wrong-context', 'override', 'permission-denied', 'group-quota',
     'missing-provider', 'cli-error', 'invalid-json', 'unsafe-pagination', 'portal-valid', 'mcp-valid', 'wrong-runtime',
-    'wrong-region', 'missing-review', 'stale-review', 'future-review', 'wrong-review-target', 'insufficient-review', 'unsafe-parameters')) {
+    'wrong-region', 'missing-review', 'stale-review', 'future-review', 'wrong-review-target', 'insufficient-review', 'unsafe-parameters', 'invalid-locations', 'invalid-groups')) {
     $global:pageCount=0
     $global:calls.Clear()
     $stage = if ($global:scenario -in @('portal-valid','missing-provider','missing-review','stale-review','future-review','wrong-review-target','insufficient-review')) { 'portal' }
@@ -101,5 +109,5 @@ foreach ($global:scenario in @('valid', 'pagination', 'wrong-context', 'override
 }
 `], { encoding: "utf8", timeout: 60000 });
     assert.equal(result.status, 0, result.stderr + result.stdout);
-    assert.equal((result.stdout.match(/PASS synthetic /g) ?? []).length, 20);
+    assert.equal((result.stdout.match(/PASS synthetic /g) ?? []).length, 22);
 });

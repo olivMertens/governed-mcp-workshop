@@ -30,6 +30,10 @@ test("public site exports only the allowlist, with no capability, root URLs, pri
     assert.equal(journey.revision, undefined);
     for (const language of [journey, journey.translations.fr]) {
         assert.equal(language.modules.length, 9);
+        assert.match(language.documents.presenter.sourcePath, /PRESENTER\.md$/);
+        assert.match(language.documents.presenter.content, /\?lang=fr#\/start/);
+        assert.match(language.documents.presenter.content, /\?lang=en#\/start/);
+        assert.match(language.documents.gettingStarted.content, /PRESENTER\.md/);
         for (const module of language.modules) {
             assert.match(module.diagramSource.content, /^flowchart LR\n/);
             assert.ok(language.documents.architecture.content.replaceAll("\r\n", "\n").includes(module.diagramSource.content));

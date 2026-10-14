@@ -6,6 +6,17 @@
 Take one MCP server from **open** to **governed** on Azure, alone, in **your own non-production** subscription.
 🇫🇷 [Version française](docs/fr/GETTING-STARTED.md)
 
+## Choose your role
+
+| | Start here |
+|---|---|
+| Presenter | [Publish one shared portal](docs/PRESENTER.md) · [Guide présentateur](docs/fr/PRESENTER.md) |
+| Participant | [Follow the workshop](docs/GETTING-STARTED.md) · [Guide participant](docs/fr/GETTING-STARTED.md) |
+
+The presenter shares the deployed portal's `?lang=fr#/start` or `?lang=en#/start` link.
+Participants do not deploy another portal or use the presenter's administrator account.
+No live portal URL is available until deployment and HTTPS checks succeed.
+
 ![The workshop board: choose your workspace](assets/screenshots/start.en.png)
 
 ## 🚀 Use it in 5 steps

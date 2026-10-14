@@ -1,5 +1,10 @@
 # Bien démarrer
 
+**Participant :** ouvrez le lien envoyé par le présentateur, choisissez EN/FR, puis commencez le module 00.
+Vous n'avez besoin ni d'un autre App Service ni du compte administrateur du présentateur.
+Sans portail, suivez directement ces guides Markdown.
+**Présentateur :** utilisez le [guide de publication séparé](PRESENTER.md).
+
 Choisissez où exécuter les commandes : sur votre poste, dans un conteneur de développement avec
 **Visual Studio Code (VS Code)**, ou dans GitHub Codespaces. Les exercices et les scripts sont les mêmes.
 Vous pouvez suivre les guides sans Copilot ni ce tableau.
@@ -173,7 +178,7 @@ Ensuite, uniquement dans une session de déploiement approuvée, examinez le pla
 ```powershell
 terraform -chdir=infra/workload init -lockfile=readonly
 if ($LASTEXITCODE -ne 0) { throw 'Terraform init failed.' }
-terraform -chdir=infra/workload plan -var-file=../../.workshop/participant.tfvars.json -out=../../.workshop/workload.tfplan
+terraform '-chdir=infra\workload' plan '-var-file=..\..\.workshop\participant.tfvars.json' '-out=..\..\.workshop\workload.tfplan'
 if ($LASTEXITCODE -ne 0) { throw 'Terraform plan failed.' }
 ```
 

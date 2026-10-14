@@ -173,13 +173,13 @@ $ErrorActionPreference = 'Stop'
     -Stage portal -CapacityReviewPath .\.workshop\capacity-review.json
 terraform -chdir=infra/workload init -lockfile=readonly
 if ($LASTEXITCODE -ne 0) { throw 'Terraform init failed.' }
-terraform -chdir=infra/workload plan -var-file=../../.workshop/participant.tfvars.json -out=../../.workshop/portal.tfplan
+terraform '-chdir=infra\workload' plan '-var-file=..\..\.workshop\participant.tfvars.json' '-out=..\..\.workshop\portal.tfplan'
 if ($LASTEXITCODE -ne 0) { throw 'Terraform plan failed.' }
-terraform -chdir=infra/workload show ../../.workshop/portal.tfplan
+terraform '-chdir=infra\workload' show '..\..\.workshop\portal.tfplan'
 if ($LASTEXITCODE -ne 0) { throw 'Terraform plan review failed.' }
 # STOP: obtain explicit approval of this exact saved plan, target and B1 cost.
 # Only after approval:
-terraform -chdir=infra/workload apply ../../.workshop/portal.tfplan
+terraform '-chdir=infra\workload' apply '..\..\.workshop\portal.tfplan'
 if ($LASTEXITCODE -ne 0) { throw 'Terraform apply failed.' }
 & .\scripts\deploy-portal.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID `
     -CapacityReviewPath .\.workshop\capacity-review.json
@@ -218,12 +218,12 @@ Preflight creates nothing. If you applied this iteration's shared root, review a
 not just the portal. Do not run it once later modules share that state unless full workshop teardown is intended.
 
 ```powershell
-terraform -chdir=infra/workload plan -destroy -var-file=../../.workshop/participant.tfvars.json -out=../../.workshop/destroy.tfplan
+terraform '-chdir=infra\workload' plan -destroy '-var-file=..\..\.workshop\participant.tfvars.json' '-out=..\..\.workshop\destroy.tfplan'
 if ($LASTEXITCODE -ne 0) { throw 'Destroy plan failed.' }
-terraform -chdir=infra/workload show ../../.workshop/destroy.tfplan
+terraform '-chdir=infra\workload' show '..\..\.workshop\destroy.tfplan'
 # STOP: review exactly what is deleted and obtain separate approval.
 # Only after approval:
-terraform -chdir=infra/workload apply ../../.workshop/destroy.tfplan
+terraform '-chdir=infra\workload' apply '..\..\.workshop\destroy.tfplan'
 if ($LASTEXITCODE -ne 0) { throw 'Destroy failed.' }
 ```
 

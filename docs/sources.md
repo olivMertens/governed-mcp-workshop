@@ -137,6 +137,7 @@ references used to resolve design choices.
 
 | Module | Reference | Use and status |
 |---|---|---|
+| 00 | [Subscription locations API](https://learn.microsoft.com/rest/api/resources/subscriptions/list-locations?view=rest-resources-2022-12-01) | Explicit-subscription read-only region discovery. Avoid the unsupported `az account list-locations --subscription` option. Verified 2026-10-14. |
 | 00/02 | [Functions custom remote MCP quickstart](https://learn.microsoft.com/azure/azure-functions/scenario-custom-remote-mcp-server) | Local run/deploy outline; C# SDK prerequisites lag the pinned sample. |
 | 00/02 | [Functions MCP bindings](https://learn.microsoft.com/azure/azure-functions/functions-bindings-mcp) | Isolated worker, endpoint, system key and host.json configuration. |
 | 00/02 | [Flex Consumption hosting](https://learn.microsoft.com/azure/azure-functions/flex-consumption-plan) | Linux, scale-to-zero, instance sizing, cost drivers and networking. |

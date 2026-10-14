@@ -24,7 +24,7 @@ Only after context, plan and cost approval:
 ```powershell
 terraform -chdir=infra/workload init -lockfile=readonly
 if ($LASTEXITCODE -ne 0) { throw 'Terraform init failed.' }
-terraform -chdir=infra/workload plan -var-file=../../.workshop/participant.tfvars.json -out=../../.workshop/workload.tfplan
+terraform '-chdir=infra\workload' plan '-var-file=..\..\.workshop\participant.tfvars.json' '-out=..\..\.workshop\workload.tfplan'
 if ($LASTEXITCODE -ne 0) { throw 'Terraform plan failed.' }
 ```
 
@@ -33,7 +33,7 @@ Review the saved plan privately. Apply it only with separate explicit approval.
 When full teardown of this root is intended, prepare a destroy plan with the same var-file and state:
 
 ```powershell
-terraform -chdir=infra/workload plan -destroy -var-file=../../.workshop/participant.tfvars.json -out=../../.workshop/destroy.tfplan
+terraform '-chdir=infra\workload' plan -destroy '-var-file=..\..\.workshop\participant.tfvars.json' '-out=..\..\.workshop\destroy.tfplan'
 if ($LASTEXITCODE -ne 0) { throw 'Terraform destroy plan failed.' }
 ```
 

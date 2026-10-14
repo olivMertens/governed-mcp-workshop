@@ -30,8 +30,12 @@ try {
         if ($groupInfo.id -ne $groupScope) { throw 'Resource group lookup does not match the explicit target.' }
         $permissionScope = $groupScope
     } else { $permissionScope = $scope }
-    $locations = Invoke-WorkshopAzureJson -Arguments @('account', 'list-locations', '--subscription', $subscription)
-    if (-not (@($locations) | Where-Object { $_.name -eq $parameters.location })) {
+    $locations = Invoke-WorkshopAzureJson -Arguments @('rest', '--method', 'get', '--url',
+        "https://management.azure.com$scope/locations?api-version=2022-12-01")
+    if (-not $locations.Contains('value') -or $locations.value -isnot [System.Collections.IList]) {
+        throw 'The subscription locations response is missing its documented array.'
+    }
+    if (-not (@($locations.value) | Where-Object { $_.name -eq $parameters.location })) {
         throw 'FAIL region (expected HTTP 200 and the selected region in the subscription location list).'
     }
     Write-Output 'PASS subscription region (expected HTTP 200; availability is not a capacity reservation)'
@@ -108,8 +112,9 @@ try {
     Write-Output 'PASS required ARM permission grants (expected HTTP 200; deny assignments, policy and deployment approval remain separate)'
 
     if ($Stage -eq 'foundation' -and -not $parameters.existing_resource_group_name) {
-        $count = Invoke-WorkshopAzureJson -Arguments @('group', 'list', '--subscription', $subscription, '--query', 'length(@)')
-        if ($count -isnot [long] -and $count -isnot [int]) { throw 'Resource group count is not an integer.' }
+        $groups = Invoke-WorkshopAzureJson -Arguments @('group', 'list', '--subscription', $subscription)
+        if ($groups -isnot [System.Collections.IList]) { throw 'The resource groups response is missing its documented array.' }
+        $count = $groups.Count
         if ($count -ge 980 -or $count -lt 0) { throw 'FAIL resource group capacity (expected HTTP 200 and fewer than 980 groups).' }
         Write-Output 'PASS resource group capacity (expected HTTP 200; below the documented 980-group limit)'
     } elseif ($Stage -eq 'foundation') {

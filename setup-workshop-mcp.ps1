@@ -1067,6 +1067,7 @@ $files['.github/extensions/workshop-build-board/board.html'] = @'
         ["sources", "Verified sources", "book"], ["runbook", "Build runbook", "book"],
         ["decisions", "Build decisions", "important"],
         ["hosting", "Publish or host the guides", "book"],
+        ...(state?.documents.presenter ? [["presenter", "Presenter guide", "book"]] : []),
       ]) {
         const anchor = link("", `#/${route}`);
         anchor.append(symbol(icon), element("span", title));
@@ -1179,7 +1180,7 @@ await joinSession({
             inputSchema: {
                 type: "object",
                 properties: {
-                    view: { type: "string", enum: ["start", "overview", "practice", "deployment", "governance", "sources", "architecture", "implementation"] },
+                    view: { type: "string", enum: ["start", "overview", "practice", "deployment", "governance", "sources", "architecture", "implementation", "presenter"] },
                     language: { type: "string", enum: ["en", "fr"] },
                 },
                 additionalProperties: false,
@@ -1334,6 +1335,9 @@ export function readJourney(root, progress) {
                     sourcePath: [...base, "LEARNING-GUIDE.md"].join("/"), content: learning },
                 deployment: document(french ? "Votre contexte Azure" : "Your Azure context", "DEPLOYMENT.md"),
                 hosting: document(french ? "Publier ou héberger les guides" : "Publish or host the guides", "HOSTING.md"),
+                ...(available([...base, "PRESENTER.md"]) ? {
+                    presenter: document(french ? "Guide présentateur" : "Presenter guide", "PRESENTER.md"),
+                } : {}),
                 ...(available(["docs", "requests", "identity-request.md"]) ? {
                     [french ? "originalIdentityRequest" : "identityRequest"]:
                         document(french ? "Demande à l'administrateur (version anglaise)" : "Identity administrator request",
@@ -1375,6 +1379,7 @@ export function readJourney(root, progress) {
 
 $files['.github/extensions/workshop-build-board/locale-fr.js'] = @'
 const french = {
+  "Presenter guide": "Guide présentateur",
   "Governed MCP / self-paced workshop": "MCP sur Azure / parcours autonome",
   "Publish or host the guides": "Publier ou héberger les guides",
   "Use Refresh content to retry. If it persists, contact the site maintainer.": "Utilisez Actualiser pour réessayer. Si l'erreur persiste, contactez le responsable du site.",
@@ -5724,6 +5729,11 @@ Dernière vérification : 2026-10-14. Aucun abonnement consulté et aucune resso
 $files['docs/fr/GETTING-STARTED.md'] = @'
 # Bien démarrer
 
+**Participant :** ouvrez le lien envoyé par le présentateur, choisissez EN/FR, puis commencez le module 00.
+Vous n'avez besoin ni d'un autre App Service ni du compte administrateur du présentateur.
+Sans portail, suivez directement ces guides Markdown.
+**Présentateur :** utilisez le [guide de publication séparé](PRESENTER.md).
+
 Choisissez où exécuter les commandes : sur votre poste, dans un conteneur de développement avec
 **Visual Studio Code (VS Code)**, ou dans GitHub Codespaces. Les exercices et les scripts sont les mêmes.
 Vous pouvez suivre les guides sans Copilot ni ce tableau.
@@ -5897,7 +5907,7 @@ Ensuite, uniquement dans une session de déploiement approuvée, examinez le pla
 ```powershell
 terraform -chdir=infra/workload init -lockfile=readonly
 if ($LASTEXITCODE -ne 0) { throw 'Terraform init failed.' }
-terraform -chdir=infra/workload plan -var-file=../../.workshop/participant.tfvars.json -out=../../.workshop/workload.tfplan
+terraform '-chdir=infra\workload' plan '-var-file=..\..\.workshop\participant.tfvars.json' '-out=..\..\.workshop\workload.tfplan'
 if ($LASTEXITCODE -ne 0) { throw 'Terraform plan failed.' }
 ```
 
@@ -6124,13 +6134,13 @@ $ErrorActionPreference = 'Stop'
     -Stage portal -CapacityReviewPath .\.workshop\capacity-review.json
 terraform -chdir=infra/workload init -lockfile=readonly
 if ($LASTEXITCODE -ne 0) { throw 'Terraform init failed.' }
-terraform -chdir=infra/workload plan -var-file=../../.workshop/participant.tfvars.json -out=../../.workshop/portal.tfplan
+terraform '-chdir=infra\workload' plan '-var-file=..\..\.workshop\participant.tfvars.json' '-out=..\..\.workshop\portal.tfplan'
 if ($LASTEXITCODE -ne 0) { throw 'Terraform plan failed.' }
-terraform -chdir=infra/workload show ../../.workshop/portal.tfplan
+terraform '-chdir=infra\workload' show '..\..\.workshop\portal.tfplan'
 if ($LASTEXITCODE -ne 0) { throw 'Terraform plan review failed.' }
 # STOP : obtenir l'approbation du plan exact, de la cible et du cout B1.
 # Seulement apres approbation :
-terraform -chdir=infra/workload apply ../../.workshop/portal.tfplan
+terraform '-chdir=infra\workload' apply '..\..\.workshop\portal.tfplan'
 if ($LASTEXITCODE -ne 0) { throw 'Terraform apply failed.' }
 & .\scripts\deploy-portal.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID `
     -CapacityReviewPath .\.workshop\capacity-review.json
@@ -6177,12 +6187,12 @@ Après ajout de modules ultérieurs dans le même état, ne l'utilisez que pour 
 <summary>Préparer un plan de suppression et le faire approuver</summary>
 
 ```powershell
-terraform -chdir=infra/workload plan -destroy -var-file=../../.workshop/participant.tfvars.json -out=../../.workshop/destroy.tfplan
+terraform '-chdir=infra\workload' plan -destroy '-var-file=..\..\.workshop\participant.tfvars.json' '-out=..\..\.workshop\destroy.tfplan'
 if ($LASTEXITCODE -ne 0) { throw 'Destroy plan failed.' }
-terraform -chdir=infra/workload show ../../.workshop/destroy.tfplan
+terraform '-chdir=infra\workload' show '..\..\.workshop\destroy.tfplan'
 # STOP : examiner les suppressions et obtenir une approbation distincte.
 # Seulement apres approbation :
-terraform -chdir=infra/workload apply ../../.workshop/destroy.tfplan
+terraform '-chdir=infra\workload' apply '..\..\.workshop\destroy.tfplan'
 if ($LASTEXITCODE -ne 0) { throw 'Destroy failed.' }
 ```
 
@@ -6720,6 +6730,103 @@ Ne lancez pas de suppression globale sans examen et approbation.
 Dernière vérification : 2026-10-14. Préparer une commande ne valide ni la connexion au serveur ni un module.
 '@
 
+$files['docs/fr/PRESENTER.md'] = @'
+# Présentateur : publier le portail et partager le lien
+
+[English](../PRESENTER.md)
+
+**Vous hébergez les guides. Les participants réalisent leurs propres exercices.**
+Publier le portail ne déploie pas le serveur Model Context Protocol (MCP).
+Seul le module 00 est implémenté ; les modules suivants restent prévus.
+
+## 1. Préparer votre espace présentateur
+
+Utilisez une copie du dépôt et un état Terraform distincts de ceux des participants.
+L'implémentation se trouve actuellement sur `module-00-prerequisites`, pas sur la branche par défaut.
+Avant la fusion, choisissez cette branche pour votre copie et pour Codespaces. Vérifiez-la avant la session.
+Ne publiez jamais votre compte administrateur, tenant, abonnement, paramètres, état ou plans sauvegardés.
+
+Suivez les [commandes PowerShell du module 00](../../modules/00-prerequisites/README.fr.md) :
+vérifier les outils, préparer les paramètres privés avec un libellé présentateur, sélectionner le contexte de test
+approuvé, puis lancer les contrôles du socle. La date d'expiration est une étiquette, pas une suppression automatique.
+
+## 2. Créer seulement le groupe du portail partagé
+
+Depuis la racine du dépôt, dans le même terminal PowerShell connecté :
+
+```powershell
+terraform '-chdir=infra\workload' init -lockfile=readonly
+if ($LASTEXITCODE -ne 0) { throw 'Terraform init failed.' }
+terraform '-chdir=infra\workload' plan '-var-file=..\..\.workshop\participant.tfvars.json' '-out=..\..\.workshop\presenter-foundation.tfplan'
+if ($LASTEXITCODE -ne 0) { throw 'Foundation plan failed.' }
+terraform '-chdir=infra\workload' show '..\..\.workshop\presenter-foundation.tfplan'
+if ($LASTEXITCODE -ne 0) { throw 'Plan review failed.' }
+```
+
+**STOP : faites approuver cette cible et ce plan exact.** Résultat prévu : un groupe, aucun service.
+Un groupe existant fourni par l'administrateur n'est ni créé ni géré par Terraform.
+Seulement après approbation, exécutez cette commande séparée :
+
+```powershell
+terraform '-chdir=infra\workload' apply '..\..\.workshop\presenter-foundation.tfplan'
+if ($LASTEXITCODE -ne 0) { throw 'Foundation apply failed.' }
+```
+
+## 3. Planifier et publier le portail
+
+Suivez la [procédure App Service](HOSTING.md#portail-public-facultatif-sur-app-service) :
+ajout de `-EnablePublicPortal` avec les paramètres d'origine, construction du contenu public,
+preuve privée de quota et de coût, préflight, examen du plan et publication ZIP authentifiée par Entra.
+
+Résultat prévu : **un plan Linux B1 et une application web** dans ce groupe.
+Ce déploiement ne crée ni identité managée, ni application Entra, ni serveur Functions, ni API Management.
+La lecture du portail est publique ; le déploiement utilise Microsoft Entra, sans clé de publication.
+Le plan B1 reste facturé tant qu'il existe, même si le site est arrêté.
+Le plan du portail et son coût demandent une approbation distincte. Conservez la confirmation d'envoi du ZIP.
+
+## 4. Vérifier, puis partager
+
+Après le déploiement, récupérez l'adresse HTTPS réellement créée :
+
+```powershell
+$portal = terraform '-chdir=infra\workload' output -raw public_portal_url
+if ($LASTEXITCODE -ne 0 -or $portal -notmatch '^https://[a-z0-9.-]+\.azurewebsites\.net$') {
+    throw 'No valid deployed portal URL.'
+}
+$health = Invoke-WebRequest -Uri "$portal/health" -TimeoutSec 30
+if ($health.StatusCode -ne 200 -or $health.Content -cne '{"status":"ok"}') {
+    throw 'Portal health check failed.'
+}
+"Lien participant (francais) : $portal/?lang=fr#/start"
+"Student link (English): $portal/?lang=en#/start"
+```
+
+Ouvrez les deux liens. Vérifiez le changement de langue, le module 00 et les schémas avant de les envoyer.
+Ne partagez pas une adresse calculée à l'avance ou un site non vérifié.
+
+Message prêt à transmettre :
+
+> Ouvrez le lien de l'atelier, choisissez votre langue et votre environnement, puis suivez le module 00.
+> Utilisez uniquement votre tenant et votre abonnement de test approuvés. Vous n'avez pas à héberger le portail.
+> Ne transmettez aucun identifiant de connexion ni jeton. Les modules suivants ne sont pas encore exécutables.
+
+## 5. Terminer sans laisser de frais inutiles
+
+Chaque participant nettoie ses propres ressources. Le présentateur reste responsable du portail partagé.
+Conservez-le jusqu'à la fin de la session, puis examinez et faites approuver le
+[plan de suppression Terraform](HOSTING.md#nettoyer).
+Arrêter le site ne suffit pas à arrêter la facturation du plan.
+Conservez les paramètres privés et l'état jusqu'à la confirmation du nettoyage.
+
+## Sources
+
+- [Authentification du déploiement App Service](https://learn.microsoft.com/azure/app-service/deploy-authentication-types).
+- [Tarifs App Service Linux](https://azure.microsoft.com/pricing/details/app-service/linux/).
+- [Procédure d'hébergement](HOSTING.md).
+
+Dernière vérification : 2026-10-14. Un plan préparé ne prouve pas un déploiement réussi.
+'@
+
 $files['docs/fr/REFERENCES.md'] = @'
 # Références de l'atelier
 
@@ -6841,6 +6948,11 @@ Dernière vérification : 2026-10-14. Les statuts et preuves restent dans le fic
 
 $files['docs/GETTING-STARTED.md'] = @'
 # Choose your workspace first
+
+**Participant:** use the portal link your presenter sends, choose EN/FR, then start at module 00.
+You do not need another App Service or the presenter's administrator account.
+Without a portal, follow these Markdown guides.
+**Presenter:** use the separate [publishing how-to](PRESENTER.md).
 
 Use **Visual Studio Code (VS Code)** with a dev container, or use your own terminal.
 These are two routes to the same scripts, private participant parameters and Terraform root.
@@ -6992,7 +7104,7 @@ Then, only in an approved deployment session, review the actual foundation plan:
 ```powershell
 terraform -chdir=infra/workload init -lockfile=readonly
 if ($LASTEXITCODE -ne 0) { throw 'Terraform init failed.' }
-terraform -chdir=infra/workload plan -var-file=../../.workshop/participant.tfvars.json -out=../../.workshop/workload.tfplan
+terraform '-chdir=infra\workload' plan '-var-file=..\..\.workshop\participant.tfvars.json' '-out=..\..\.workshop\workload.tfplan'
 if ($LASTEXITCODE -ne 0) { throw 'Terraform plan failed.' }
 ```
 
@@ -7203,13 +7315,13 @@ $ErrorActionPreference = 'Stop'
     -Stage portal -CapacityReviewPath .\.workshop\capacity-review.json
 terraform -chdir=infra/workload init -lockfile=readonly
 if ($LASTEXITCODE -ne 0) { throw 'Terraform init failed.' }
-terraform -chdir=infra/workload plan -var-file=../../.workshop/participant.tfvars.json -out=../../.workshop/portal.tfplan
+terraform '-chdir=infra\workload' plan '-var-file=..\..\.workshop\participant.tfvars.json' '-out=..\..\.workshop\portal.tfplan'
 if ($LASTEXITCODE -ne 0) { throw 'Terraform plan failed.' }
-terraform -chdir=infra/workload show ../../.workshop/portal.tfplan
+terraform '-chdir=infra\workload' show '..\..\.workshop\portal.tfplan'
 if ($LASTEXITCODE -ne 0) { throw 'Terraform plan review failed.' }
 # STOP: obtain explicit approval of this exact saved plan, target and B1 cost.
 # Only after approval:
-terraform -chdir=infra/workload apply ../../.workshop/portal.tfplan
+terraform '-chdir=infra\workload' apply '..\..\.workshop\portal.tfplan'
 if ($LASTEXITCODE -ne 0) { throw 'Terraform apply failed.' }
 & .\scripts\deploy-portal.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID `
     -CapacityReviewPath .\.workshop\capacity-review.json
@@ -7248,12 +7360,12 @@ Preflight creates nothing. If you applied this iteration's shared root, review a
 not just the portal. Do not run it once later modules share that state unless full workshop teardown is intended.
 
 ```powershell
-terraform -chdir=infra/workload plan -destroy -var-file=../../.workshop/participant.tfvars.json -out=../../.workshop/destroy.tfplan
+terraform '-chdir=infra\workload' plan -destroy '-var-file=..\..\.workshop\participant.tfvars.json' '-out=..\..\.workshop\destroy.tfplan'
 if ($LASTEXITCODE -ne 0) { throw 'Destroy plan failed.' }
-terraform -chdir=infra/workload show ../../.workshop/destroy.tfplan
+terraform '-chdir=infra\workload' show '..\..\.workshop\destroy.tfplan'
 # STOP: review exactly what is deleted and obtain separate approval.
 # Only after approval:
-terraform -chdir=infra/workload apply ../../.workshop/destroy.tfplan
+terraform '-chdir=infra\workload' apply '..\..\.workshop\destroy.tfplan'
 if ($LASTEXITCODE -ne 0) { throw 'Destroy failed.' }
 ```
 
@@ -7795,6 +7907,102 @@ Do not run an unreviewed broad resource-group deletion.
 Last verified: 2026-10-14. Client launch recipes are not evidence of deployment compatibility or completed modules.
 '@
 
+$files['docs/PRESENTER.md'] = @'
+# Presenter: publish once, share the student link
+
+[Français](fr/PRESENTER.md)
+
+**You host the public guides. Participants run their own exercises.**
+Publishing the portal does not deploy the Model Context Protocol (MCP) server.
+Only module 00 is implemented; later modules remain planned.
+
+## 1. Prepare your presenter workspace
+
+Use a separate checkout and private Terraform state for this shared portal.
+The implementation is currently on `module-00-prerequisites`, not the default branch.
+Until it is merged, use that branch for checkout and Codespaces. Verify the branch before teaching.
+Do not publish your administrator account, tenant, subscription, parameters, state or saved plans.
+
+Follow the [module 00 PowerShell steps](../modules/00-prerequisites/README.md#steps):
+check tools, prepare private parameters with a presenter label, select your approved test context,
+then run the foundation validator. Choose a realistic expiry; the tag does not delete resources.
+
+## 2. Create only the shared portal's resource group
+
+From the repository root, in the same signed-in PowerShell terminal:
+
+```powershell
+terraform '-chdir=infra\workload' init -lockfile=readonly
+if ($LASTEXITCODE -ne 0) { throw 'Terraform init failed.' }
+terraform '-chdir=infra\workload' plan '-var-file=..\..\.workshop\participant.tfvars.json' '-out=..\..\.workshop\presenter-foundation.tfplan'
+if ($LASTEXITCODE -ne 0) { throw 'Foundation plan failed.' }
+terraform '-chdir=infra\workload' show '..\..\.workshop\presenter-foundation.tfplan'
+if ($LASTEXITCODE -ne 0) { throw 'Plan review failed.' }
+```
+
+**STOP: approve this exact target and saved plan.** Expect one new group, no service.
+If using an existing administrator-provided group, Terraform does not create or own it.
+Only after approval, run this separate command:
+
+```powershell
+terraform '-chdir=infra\workload' apply '..\..\.workshop\presenter-foundation.tfplan'
+if ($LASTEXITCODE -ne 0) { throw 'Foundation apply failed.' }
+```
+
+## 3. Plan and publish the portal
+
+Use the [App Service hosting procedure](HOSTING.md#optional-public-app-service-deployment).
+It covers persistent `-EnablePublicPortal` opt-in with the original parameters, building the public bundle,
+private quota/cost evidence, portal preflight, plan review and Entra-authenticated ZIP deployment.
+
+Expect **one Linux B1 plan and one web app** in the group. No managed identity, Entra application,
+Functions server or API Management is created by this portal deployment.
+Public reading is intentional; deployment uses Microsoft Entra, not publishing keys.
+B1 is billed while the plan exists, even when the website is stopped.
+Apply the portal plan only after separate cost/plan approval. Keep the ZIP upload confirmation enabled.
+
+## 4. Verify, then share
+
+After a successful deployment, read the actual HTTPS hostname from Terraform:
+
+```powershell
+$portal = terraform '-chdir=infra\workload' output -raw public_portal_url
+if ($LASTEXITCODE -ne 0 -or $portal -notmatch '^https://[a-z0-9.-]+\.azurewebsites\.net$') {
+    throw 'No valid deployed portal URL.'
+}
+$health = Invoke-WebRequest -Uri "$portal/health" -TimeoutSec 30
+if ($health.StatusCode -ne 200 -or $health.Content -cne '{"status":"ok"}') {
+    throw 'Portal health check failed.'
+}
+"Student link (English): $portal/?lang=en#/start"
+"Lien participant (francais) : $portal/?lang=fr#/start"
+```
+
+Open both links. Check language switching, module 00 and diagrams before sending them.
+Never send a guessed URL or one that has not passed these checks.
+
+Suggested student message:
+
+> Open the workshop link, choose your language and workspace, then follow module 00.
+> Use only your approved test tenant and subscription. You do not need to host the portal.
+> Do not send credentials or tokens. Later modules are planned, not runnable exercises yet.
+
+## 5. Close the session safely
+
+Students clean up only resources they own. The presenter owns the shared portal.
+Keep it until everyone has finished; then review and approve the
+[Terraform destroy plan](HOSTING.md#clean-up). Stopping the site does not stop plan billing.
+Keep private parameters and state until cleanup is confirmed.
+
+## Sources
+
+- [App Service deployment authentication](https://learn.microsoft.com/azure/app-service/deploy-authentication-types).
+- [App Service Linux pricing](https://azure.microsoft.com/pricing/details/app-service/linux/).
+- [Workshop hosting procedure](HOSTING.md).
+
+Last verified: 2026-10-14. A prepared plan is not proof of deployment.
+'@
+
 $files['docs/PROGRESS.md'] = @'
 # Build progress
 
@@ -7834,6 +8042,17 @@ A module is `validated` only when its validate script passes on a fresh subscrip
   group; accept an approved existing group without managing it. Shared quotas still require cohort capacity checks.
 
 ## Deviations from the build plan
+- Presenter preparation (2026-10-14): separate EN/FR presenter how-to and participant entry points.
+  Live local-terminal foundation preflight passed on an explicitly resolved private test target:
+  `PASS subscription region (expected HTTP 200; availability is not a capacity reservation)`;
+  `PASS required ARM permission grants (expected HTTP 200; deny assignments, policy and deployment approval remain separate)`;
+  `PASS resource group capacity (expected HTTP 200; below the documented 980-group limit)`;
+  `PASS module 00 foundation environment checks.`
+  Terraform 1.16.6/AzureRM 5.9.0 initialized, schema/format checks passed and a real foundation plan proposes
+  one new resource group. The plan has NOT been applied. Private target IDs, account, suffix and plan remain ignored.
+  Fixed unsupported CLI subscription argument during region discovery and Windows CMD parsing of quota queries;
+  synthetic tests now cover malformed region/group arrays. PowerShell Terraform examples quote file arguments.
+  This is not a fresh-subscription/container validation or a deployed portal; module 00 remains in-progress.
 - Agent 365 integration clarification (2026-10-14): README and EN/FR module 06 learning panels explicitly mark
   the integration and AI Gateway tier **Preview**. The board reads these panels directly.
   This remains a planned facilitator demo, not implemented infrastructure. Tenant-wide policy-write consent
@@ -8136,6 +8355,7 @@ references used to resolve design choices.
 
 | Module | Reference | Use and status |
 |---|---|---|
+| 00 | [Subscription locations API](https://learn.microsoft.com/rest/api/resources/subscriptions/list-locations?view=rest-resources-2022-12-01) | Explicit-subscription read-only region discovery. Avoid the unsupported `az account list-locations --subscription` option. Verified 2026-10-14. |
 | 00/02 | [Functions custom remote MCP quickstart](https://learn.microsoft.com/azure/azure-functions/scenario-custom-remote-mcp-server) | Local run/deploy outline; C# SDK prerequisites lag the pinned sample. |
 | 00/02 | [Functions MCP bindings](https://learn.microsoft.com/azure/azure-functions/functions-bindings-mcp) | Isolated worker, endpoint, system key and host.json configuration. |
 | 00/02 | [Flex Consumption hosting](https://learn.microsoft.com/azure/azure-functions/flex-consumption-plan) | Linux, scale-to-zero, instance sizing, cost drivers and networking. |
@@ -8426,7 +8646,7 @@ Only after context, plan and cost approval:
 ```powershell
 terraform -chdir=infra/workload init -lockfile=readonly
 if ($LASTEXITCODE -ne 0) { throw 'Terraform init failed.' }
-terraform -chdir=infra/workload plan -var-file=../../.workshop/participant.tfvars.json -out=../../.workshop/workload.tfplan
+terraform '-chdir=infra\workload' plan '-var-file=..\..\.workshop\participant.tfvars.json' '-out=..\..\.workshop\workload.tfplan'
 if ($LASTEXITCODE -ne 0) { throw 'Terraform plan failed.' }
 ```
 
@@ -8435,7 +8655,7 @@ Review the saved plan privately. Apply it only with separate explicit approval.
 When full teardown of this root is intended, prepare a destroy plan with the same var-file and state:
 
 ```powershell
-terraform -chdir=infra/workload plan -destroy -var-file=../../.workshop/participant.tfvars.json -out=../../.workshop/destroy.tfplan
+terraform '-chdir=infra\workload' plan -destroy '-var-file=..\..\.workshop\participant.tfvars.json' '-out=..\..\.workshop\destroy.tfplan'
 if ($LASTEXITCODE -ne 0) { throw 'Terraform destroy plan failed.' }
 ```
 
@@ -9169,6 +9389,17 @@ $files['README.md'] = @'
 
 Take one MCP server from **open** to **governed** on Azure, alone, in **your own non-production** subscription.
 🇫🇷 [Version française](docs/fr/GETTING-STARTED.md)
+
+## Choose your role
+
+| | Start here |
+|---|---|
+| Presenter | [Publish one shared portal](docs/PRESENTER.md) · [Guide présentateur](docs/fr/PRESENTER.md) |
+| Participant | [Follow the workshop](docs/GETTING-STARTED.md) · [Guide participant](docs/fr/GETTING-STARTED.md) |
+
+The presenter shares the deployed portal's `?lang=fr#/start` or `?lang=en#/start` link.
+Participants do not deploy another portal or use the presenter's administrator account.
+No live portal URL is available until deployment and HTTPS checks succeed.
 
 ![The workshop board: choose your workspace](assets/screenshots/start.en.png)
 
@@ -9996,8 +10227,12 @@ try {
         if ($groupInfo.id -ne $groupScope) { throw 'Resource group lookup does not match the explicit target.' }
         $permissionScope = $groupScope
     } else { $permissionScope = $scope }
-    $locations = Invoke-WorkshopAzureJson -Arguments @('account', 'list-locations', '--subscription', $subscription)
-    if (-not (@($locations) | Where-Object { $_.name -eq $parameters.location })) {
+    $locations = Invoke-WorkshopAzureJson -Arguments @('rest', '--method', 'get', '--url',
+        "https://management.azure.com$scope/locations?api-version=2022-12-01")
+    if (-not $locations.Contains('value') -or $locations.value -isnot [System.Collections.IList]) {
+        throw 'The subscription locations response is missing its documented array.'
+    }
+    if (-not (@($locations.value) | Where-Object { $_.name -eq $parameters.location })) {
         throw 'FAIL region (expected HTTP 200 and the selected region in the subscription location list).'
     }
     Write-Output 'PASS subscription region (expected HTTP 200; availability is not a capacity reservation)'
@@ -10074,8 +10309,9 @@ try {
     Write-Output 'PASS required ARM permission grants (expected HTTP 200; deny assignments, policy and deployment approval remain separate)'
 
     if ($Stage -eq 'foundation' -and -not $parameters.existing_resource_group_name) {
-        $count = Invoke-WorkshopAzureJson -Arguments @('group', 'list', '--subscription', $subscription, '--query', 'length(@)')
-        if ($count -isnot [long] -and $count -isnot [int]) { throw 'Resource group count is not an integer.' }
+        $groups = Invoke-WorkshopAzureJson -Arguments @('group', 'list', '--subscription', $subscription)
+        if ($groups -isnot [System.Collections.IList]) { throw 'The resource groups response is missing its documented array.' }
+        $count = $groups.Count
         if ($count -ge 980 -or $count -lt 0) { throw 'FAIL resource group capacity (expected HTTP 200 and fewer than 980 groups).' }
         Write-Output 'PASS resource group capacity (expected HTTP 200; below the documented 980-group limit)'
     } elseif ($Stage -eq 'foundation') {
@@ -10171,9 +10407,12 @@ function global:az {
         'cloud show' { @{ name='AzureCloud' }; break }
         'account show' { @{ id=$(if ($global:scenario -eq 'wrong-context') { [guid]::NewGuid().ToString() } else { $global:subscription.ToString() });
             tenantId=$global:tenant.ToString(); state='Enabled'; environmentName='AzureCloud'; userType='user' }; break }
-        'account list-locations' { @(@{name='westeurope'}); break }
         'group show' { @{id="/subscriptions/$global:subscription/resourceGroups/rg-synthetic-admin"}; break }
-        'group list' { if ($global:scenario -eq 'group-quota') { 980 } else { 3 }; break }
+        'group list' {
+            if ($global:scenario -eq 'invalid-groups') { @{count=3} }
+            else { @(1..$(if ($global:scenario -eq 'group-quota') { 980 } else { 3 }) | ForEach-Object { @{name="synthetic-$_"} }) }
+            break
+        }
         'provider list' { @('Microsoft.Resources','Microsoft.Web','Microsoft.App','Microsoft.Storage','Microsoft.ManagedIdentity',
             'Microsoft.Network','Microsoft.Insights','Microsoft.OperationalInsights','Microsoft.ApiManagement','Microsoft.ApiCenter') |
             ForEach-Object { @{ namespace=$_; registrationState=$(if ($global:scenario -eq 'missing-provider' -and $_ -eq 'Microsoft.Web') { 'NotRegistered' } else { 'Registered' }) } }; break }
@@ -10182,6 +10421,11 @@ function global:az {
         'functionapp list-flexconsumption-runtimes' { @(@{name='dotnet-isolated';version=$(if ($global:scenario -eq 'wrong-runtime') { '8.0' } else { '10.0' })}); break }
         'rest --method' {
             if ($args[2] -ne 'get') { throw 'Write attempt refused by synthetic CLI.' }
+            if ($args[4] -eq "https://management.azure.com/subscriptions/$global:subscription/locations?api-version=2022-12-01") {
+                if ($global:scenario -eq 'invalid-locations') { @{value='not-an-array'} }
+                else { @{value=@(@{name='westeurope'})} }
+                break
+            }
             $global:pageCount++
             $permission = @{actions=@('*');notActions=@()}
             if ($global:scenario -eq 'permission-denied') { $permission.notActions=@('Microsoft.Resources/subscriptions/resourceGroups/write') }
@@ -10205,7 +10449,7 @@ $path = Join-Path $directory 'parameters.json'
 $reviewPath = Join-Path $directory 'capacity.json'
 foreach ($global:scenario in @('valid', 'pagination', 'wrong-context', 'override', 'permission-denied', 'group-quota',
     'missing-provider', 'cli-error', 'invalid-json', 'unsafe-pagination', 'portal-valid', 'mcp-valid', 'wrong-runtime',
-    'wrong-region', 'missing-review', 'stale-review', 'future-review', 'wrong-review-target', 'insufficient-review', 'unsafe-parameters')) {
+    'wrong-region', 'missing-review', 'stale-review', 'future-review', 'wrong-review-target', 'insufficient-review', 'unsafe-parameters', 'invalid-locations', 'invalid-groups')) {
     $global:pageCount=0
     $global:calls.Clear()
     $stage = if ($global:scenario -in @('portal-valid','missing-provider','missing-review','stale-review','future-review','wrong-review-target','insufficient-review')) { 'portal' }
@@ -10241,7 +10485,7 @@ foreach ($global:scenario in @('valid', 'pagination', 'wrong-context', 'override
 }
 `], { encoding: "utf8", timeout: 60000 });
     assert.equal(result.status, 0, result.stderr + result.stdout);
-    assert.equal((result.stdout.match(/PASS synthetic /g) ?? []).length, 20);
+    assert.equal((result.stdout.match(/PASS synthetic /g) ?? []).length, 22);
 });
 '@
 
@@ -10932,6 +11176,10 @@ test("public site exports only the allowlist, with no capability, root URLs, pri
     assert.equal(journey.revision, undefined);
     for (const language of [journey, journey.translations.fr]) {
         assert.equal(language.modules.length, 9);
+        assert.match(language.documents.presenter.sourcePath, /PRESENTER\.md$/);
+        assert.match(language.documents.presenter.content, /\?lang=fr#\/start/);
+        assert.match(language.documents.presenter.content, /\?lang=en#\/start/);
+        assert.match(language.documents.gettingStarted.content, /PRESENTER\.md/);
         for (const module of language.modules) {
             assert.match(module.diagramSource.content, /^flowchart LR\n/);
             assert.ok(language.documents.architecture.content.replaceAll("\r\n", "\n").includes(module.diagramSource.content));
