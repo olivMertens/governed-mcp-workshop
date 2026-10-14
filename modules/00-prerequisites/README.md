@@ -52,7 +52,7 @@ Run from the repository root. Use the route you will actually use for the worksh
 $ErrorActionPreference = 'Stop'
 & .\scripts\check-tools.ps1
 $expiry = [datetime]::UtcNow.AddDays(1).ToString('yyyy-MM-dd')
-& .\scripts\prepare-workshop.ps1 -ParticipantPrefix p01 -Location westeurope -Owner alice -Expiry $expiry
+& .\scripts\prepare-workshop.ps1 -ParticipantPrefix p01 -Location swedencentral -Owner alice -Expiry $expiry
 & .\scripts\select-azure-context.ps1
 & .\modules\00-prerequisites\validate.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID
 ```
@@ -78,7 +78,7 @@ PowerShell is also installed inside the dev container. The wrappers run the same
 ```bash
 bash ./scripts/check-tools.sh
 read -r -p 'Approved cleanup date (yyyy-MM-dd): ' expiry
-bash ./scripts/prepare-workshop.sh -ParticipantPrefix p01 -Location westeurope -Owner alice -Expiry "$expiry"
+bash ./scripts/prepare-workshop.sh -ParticipantPrefix p01 -Location swedencentral -Owner alice -Expiry "$expiry"
 source ./scripts/select-azure-context.sh
 bash ./modules/00-prerequisites/validate.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId "$ARM_SUBSCRIPTION_ID"
 terraform -chdir=infra/workload init -backend=false -lockfile=readonly &&

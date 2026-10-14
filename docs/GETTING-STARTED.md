@@ -157,12 +157,12 @@ The next example uses synthetic labels, not a prescribed region or account.
 
 ```powershell
 $expiry = [datetime]::UtcNow.AddDays(1).ToString('yyyy-MM-dd')
-& .\scripts\prepare-workshop.ps1 -ParticipantPrefix p01 -Location westeurope -Owner alice -Expiry $expiry
+& .\scripts\prepare-workshop.ps1 -ParticipantPrefix p01 -Location swedencentral -Owner alice -Expiry $expiry
 ```
 
 ```bash
 read -r -p 'Approved cleanup date (yyyy-MM-dd): ' expiry
-bash ./scripts/prepare-workshop.sh -ParticipantPrefix p01 -Location westeurope -Owner alice -Expiry "$expiry"
+bash ./scripts/prepare-workshop.sh -ParticipantPrefix p01 -Location swedencentral -Owner alice -Expiry "$expiry"
 ```
 
 The script creates `.workshop/participant.tfvars.json`, ignored by Git, with a cryptographically random

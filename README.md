@@ -49,7 +49,7 @@ $ErrorActionPreference = 'Stop'
 
 ```powershell
 $expiry = [datetime]::UtcNow.AddDays(1).ToString('yyyy-MM-dd')
-& .\scripts\prepare-workshop.ps1 -ParticipantPrefix p01 -Location westeurope -Owner alice -Expiry $expiry
+& .\scripts\prepare-workshop.ps1 -ParticipantPrefix p01 -Location swedencentral -Owner alice -Expiry $expiry
 ```
 
 Expected: `PASS private participant parameters created with a stable random suffix.`
