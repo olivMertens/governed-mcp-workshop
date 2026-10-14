@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Adapted from Azure-Samples/remote-mcp-functions-dotnet at commit
+    468c518c884ec318e3001b9573254c9e775409c9 (src/FunctionsMcpTool/FunctionsMcpTool.csproj), MIT License,
+    Copyright (c) Microsoft Corporation. See THIRD-PARTY-NOTICES.md.
+    Workshop changes: exact pins, package lock, no preview MCP SDK, no Graph/QR/Apps/Blob/OpenTelemetry packages,
+    Storage Queue client with managed identity for the synthetic ticket side effect.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AzureFunctionsVersion>v4</AzureFunctionsVersion>
+    <OutputType>Exe</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <RootNamespace>Workshop.FunctionsMcp</RootNamespace>
+    <AssemblyName>Workshop.FunctionsMcp</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Azure.Functions.Worker" Version="[2.52.0]" />
+    <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="[2.0.7]" />
+    <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Mcp" Version="[1.5.0]" />
+    <PackageReference Include="Azure.Identity" Version="[1.21.0]" />
+    <PackageReference Include="Azure.Storage.Queues" Version="[12.24.0]" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="host.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="FunctionsMcpServer.Tests" />
+  </ItemGroup>
+</Project>

@@ -1,7 +1,8 @@
 # Sources and reuse decisions
 
 Last verified: 2026-10-14. This is a design assessment, not evidence of a successful deployment.
-Links were read from public upstream sources. No upstream application code has been vendored in this preparation.
+Links were read from public upstream sources. Module 02 adapts the pinned Functions sample (see its section below
+and THIRD-PARTY-NOTICES.md); it is authored and checked offline only, not deployed.
 Module 01 now adapts the SDK bootstrap pattern; its provenance and complete upstream license are retained separately.
 Versions below are reproducible reference selections or compatibility-test candidates, not a promise that every
 combination has been tested together.
@@ -102,6 +103,30 @@ These are local process tests, not future Functions/APIM compatibility or manual
 - [VS Code approvals](https://code.visualstudio.com/docs/agents/run/approvals): Manual permissions, individual pre-approval
   and per-tool false eligibility; client settings can change the actual prompt. No global auto-approval.
 - [MCP Inspector](https://modelcontextprotocol.io/docs/tools/inspector): CLI discovery and explicit call, memory-only settings.
+
+### Module 02 authored implementation (not deployed)
+
+Last verified: 2026-10-14. [EN/FR guide](../modules/02-open-server/README.md),
+[license notices](../THIRD-PARTY-NOTICES.md). Adapted from the pinned Functions sample
+`468c518c884ec318e3001b9573254c9e775409c9` (MIT): `src/FunctionsMcpTool/FunctionsMcpTool.csproj`, `Program.cs`,
+`host.json`, the `HelloTool.cs` trigger pattern, and `infra/main.bicep`, `infra/app/api.bicep`, `infra/app/rbac.bicep`
+translated to Terraform. Only offline checks ran; no Azure or Entra change.
+
+| Pin or source | Value and decision |
+|---|---|
+| NuGet `Microsoft.Azure.Functions.Worker` | `2.52.0` (exact, upstream value) |
+| NuGet `Microsoft.Azure.Functions.Worker.Sdk` | `2.0.7` (exact, upstream value). Generates the WebJobs extension project at build time: `Microsoft.Azure.Functions.Extensions.Mcp` `1.5.0`, outside the lock file. |
+| NuGet `Microsoft.Azure.Functions.Worker.Extensions.Mcp` | `1.5.0` (exact). `ConfigureMcpTool(...).WithInputSchema` used for explicit schemas; `ToolInvocationContext.Arguments` read and validated by the server. |
+| NuGet `Azure.Identity` / `Azure.Storage.Queues` | `1.21.0` (upstream value) / `12.24.0` (workshop addition for the managed-identity ticket queue) |
+| Test packages | `Microsoft.NET.Test.Sdk` `18.0.1`, `xunit` `2.9.3`, `xunit.runner.visualstudio` `3.1.5`; both projects have `packages.lock.json` |
+| Not imported | `Microsoft.Azure.Functions.Worker.Extensions.Mcp.Sdk` `1.0.0-preview.4` (**Preview**), Graph, QRCoder, Blob extension, OpenTelemetry exporter, Apps/prompts/resources samples |
+| [Functions MCP bindings](https://learn.microsoft.com/azure/azure-functions/functions-bindings-mcp) | `webhookAuthorizationLevel` defaults to `System`; `mcp_extension` system key in `x-functions-key`; HTTP 401 without it; Streamable HTTP at `/runtime/webhooks/mcp`. Queue roles are documented for the SSE transport only, so none are granted to the host. |
+| [MCP tool trigger](https://learn.microsoft.com/azure/azure-functions/functions-bindings-mcp-tool-trigger) | `McpToolTrigger` + `ToolInvocationContext`; properties optional unless marked required. |
+| [Identity-based connections](https://learn.microsoft.com/azure/azure-functions/functions-identity-based-connections-tutorial) | Storage Blob Data Owner is the minimum host role for identity-based `AzureWebJobsStorage`. |
+| [Flex Consumption](https://learn.microsoft.com/azure/azure-functions/flex-consumption-plan) and [deployment how-to](https://learn.microsoft.com/azure/azure-functions/flex-consumption-how-to) | Lowest maximum scale is 1; 2048 MB instances; `az functionapp deployment source config-zip` deploys a package. |
+| [AzureRM 5.9.0 Flex resource source](https://github.com/hashicorp/terraform-provider-azurerm/blob/v5.9.0/internal/services/appservice/function_app_flex_consumption_resource.go) | Writes `AzureWebJobsStorage` with an empty account key even for identity storage; user `app_settings` take precedence, so the workshop sets it to an empty value and expects an in-place diff. |
+| [Azure CLI `functionapp keys`](https://learn.microsoft.com/cli/azure/functionapp/keys) | `--key-type systemKeys` to read or rotate `mcp_extension`; output suppressed with `--output none`. |
+| [Terraform test mocks](https://developer.hashicorp.com/terraform/language/tests/mocking) | `override_during = plan` on the mock provider makes synthetic IDs and endpoints known in plan-only runs. |
 
 ### Selected upstreams
 

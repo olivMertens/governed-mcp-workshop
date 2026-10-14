@@ -37,6 +37,7 @@ L'observation de l'approbation dans VS Code reste manuelle. Aucun portail prése
 **Objectif :** comprendre qu'une clé partagée protège l'accès sans identifier chaque utilisateur.
 **À vérifier :** HTTP 401 sans clé ; HTTP 200 et réussite de l'outil avec la bonne clé.
 Cette étape payante reste courte et ne représente pas la protection finale.
+Le [guide du module 02](../../modules/02-open-server/README.fr.md) est rédigé et vérifié hors ligne ; rien n'est encore déployé.
 
 <details>
 <summary>Pour aller plus loin : services et protection de la clé</summary>

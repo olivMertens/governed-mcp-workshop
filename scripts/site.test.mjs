@@ -40,7 +40,14 @@ test("public site exports only the allowlist, with no capability, root URLs, pri
         assert.match(local.guide, /isError: false/);
         assert.equal(local.validation.powershell, "modules/01-discover-mcp/validate.ps1");
         assert.equal(local.validation.bash, "modules/01-discover-mcp/validate.sh");
-        assert.equal(language.modules.find((module) => module.module === "02").guide, null);
+        const open = language.modules.find((module) => module.module === "02");
+        assert.equal(open.status, "in-progress");
+        assert.match(open.guide, /webhookAuthorizationLevel/);
+        assert.match(open.guide, /create_ticket/);
+        assert.match(open.guide, /HTTP 401/);
+        assert.equal(open.validation.powershell, "modules/02-open-server/validate.ps1");
+        assert.equal(open.validation.bash, "modules/02-open-server/validate.sh");
+        assert.equal(language.modules.find((module) => module.module === "03").guide, null);
         for (const module of language.modules) {
             assert.match(module.diagramSource.content, /^flowchart LR\n/);
             assert.ok(language.documents.architecture.content.replaceAll("\r\n", "\n").includes(module.diagramSource.content));
