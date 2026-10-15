@@ -1,0 +1,35 @@
+<!--
+  Module 04 - Protected Resource Metadata (RFC 9728) for the MCP server, served by the gateway itself.
+  Rendered by infra/workload/gateway.tf with Terraform templatefile() (non-secret values only).
+  Anonymous by design: clients read it before they have a token, to learn where to sign in and which scope to request.
+  Adapted from Azure-Samples/AI-Gateway, lab mcp-prm-oauth (src/bicep/apim-mcp/mcp-prm.policy.xml) at commit
+  1679e3137d2fe7592d2a668d77ff71550d35b69e, MIT License, Copyright (c) Microsoft Corporation. See THIRD-PARTY-NOTICES.md.
+  Workshop changes: static JSON (no policy expression), the module 03 delegated scope api://<client-id>/user_impersonation
+  instead of a gateway-URL scope, a per-IP rate limit, and the gateway URL as the resource. The private Function host
+  never appears here.
+-->
+<policies>
+  <inbound>
+    <base />
+    <rate-limit-by-key calls="60" renewal-period="60" counter-key="@("workshop-prm-" + context.Request.IpAddress)" />
+    <return-response>
+      <set-status code="200" reason="OK" />
+      <set-header name="Content-Type" exists-action="override">
+        <value>application/json</value>
+      </set-header>
+      <set-header name="Cache-Control" exists-action="override">
+        <value>public, max-age=3600</value>
+      </set-header>
+      <set-body>{"resource":"${resource}","authorization_servers":["${issuer}"],"scopes_supported":["${scope}"],"bearer_methods_supported":["header"]}</set-body>
+    </return-response>
+  </inbound>
+  <backend>
+    <base />
+  </backend>
+  <outbound>
+    <base />
+  </outbound>
+  <on-error>
+    <base />
+  </on-error>
+</policies>

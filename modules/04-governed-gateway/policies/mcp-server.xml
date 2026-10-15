@@ -1,0 +1,183 @@
+<!--
+  Module 04 - MCP server policy at API scope on the governed gateway (Azure API Management Standard v2).
+  Rendered by infra/workload/gateway.tf with Terraform templatefile(): the placeholders and the IP filter loop are
+  filled at plan time with non-secret values only (tenant ID, MCP API audience, allowed client IDs, limits, URLs).
+
+  Adapted from Azure-Samples/AI-Gateway, lab mcp-prm-oauth (src/bicep/apim-mcp/mcp-api.policy.xml: validate-azure-ad-token
+  and a 401 challenge with resource_metadata) at commit 1679e3137d2fe7592d2a668d77ff71550d35b69e,
+  MIT License, Copyright (c) Microsoft Corporation. See THIRD-PARTY-NOTICES.md.
+  Workshop changes: one audience only (the module 03 MCP API, never the gateway URL), allowed client applications,
+  required user_impersonation scope, per-tool app-role check from the JSON-RPC body (preserveContent), rate limit per
+  caller object ID, optional IP filter, payload-free trace, caller identity headers removed, and the backend 401
+  challenge rewritten so the private Function host name never reaches a client.
+
+  Rules kept from Microsoft Learn:
+  - never read the response body in an MCP server policy: it buffers the stream (expose-existing-mcp-server);
+  - policies at API scope apply to every tool of the MCP server (mcp-server-overview).
+-->
+<policies>
+  <inbound>
+    <base />
+%{ if length(ip_ranges) > 0 ~}
+    <!-- Optional network filter. Non-matching sources get HTTP 403 before any token work. -->
+    <ip-filter action="allow">
+%{ for range in ip_ranges ~}
+      <address-range from="${range.from}" to="${range.to}" />
+%{ endfor ~}
+    </ip-filter>
+%{ endif ~}
+    <!-- Platform token validation (invariant 3): issuer/tenant, signature, expiry, audience = the MCP API only,
+         an allowed client application, and the delegated scope. No hand-written JWT parsing. -->
+    <validate-azure-ad-token tenant-id="${tenant_id}" header-name="Authorization" failed-validation-httpcode="401" failed-validation-error-message="Unauthorized. A Microsoft Entra access token for the MCP API is required." output-token-variable-name="mcp-jwt">
+      <client-application-ids>
+%{ for client_id in client_ids ~}
+        <application-id>${client_id}</application-id>
+%{ endfor ~}
+      </client-application-ids>
+      <audiences>
+%{ for audience in audiences ~}
+        <audience>${audience}</audience>
+%{ endfor ~}
+      </audiences>
+      <required-claims>
+        <claim name="scp" match="any" separator=" ">
+          <value>user_impersonation</value>
+        </claim>
+      </required-claims>
+    </validate-azure-ad-token>
+    <!-- Caller identity comes only from the validated token, never from a header the caller can set. -->
+    <set-variable name="mcp-caller-oid" value="@{
+        var claims = ((Jwt)context.Variables["mcp-jwt"]).Claims;
+        return claims.ContainsKey("oid") ? claims["oid"][0] : string.Empty;
+    }" />
+    <choose>
+      <when condition="@(string.IsNullOrEmpty((string)context.Variables["mcp-caller-oid"]))">
+        <return-response>
+          <set-status code="403" reason="Forbidden" />
+          <set-header name="Content-Type" exists-action="override">
+            <value>application/json</value>
+          </set-header>
+          <set-body>{"error":"forbidden","error_description":"A user token with an object ID is required."}</set-body>
+        </return-response>
+      </when>
+    </choose>
+    <!-- One counter per caller object ID: a burst from one user returns HTTP 429 without affecting others. -->
+    <rate-limit-by-key calls="${rate_limit_calls}" renewal-period="${rate_limit_period}" counter-key="@("workshop-mcp-oid-" + (string)context.Variables["mcp-caller-oid"])" />
+    <!-- Per-tool authorization from the JSON-RPC body. preserveContent keeps the body for the backend.
+         Result: "<required app role>|<fixed label>" or "deny:<status>|<fixed label>".
+         Unknown or malformed shapes are denied, never guessed; the label never echoes caller input. -->
+    <set-variable name="mcp-decision" value="@{
+        string httpMethod = context.Request.Method;
+        if (httpMethod == "GET" || httpMethod == "DELETE") { return "Tools.Read|session"; }
+        if (httpMethod != "POST") { return "deny:405|unsupported-http-method"; }
+        JObject rpc = null;
+        try { rpc = context.Request.Body.As<JObject>(preserveContent: true); } catch { return "deny:400|malformed"; }
+        if (rpc == null) { return "deny:400|malformed"; }
+        JToken methodToken = rpc["method"];
+        if (methodToken == null || methodToken.Type != JTokenType.String) { return "deny:400|malformed"; }
+        string rpcMethod = (string)methodToken;
+        if (rpcMethod == "tools/call") {
+            JObject callParameters = rpc["params"] as JObject;
+            JToken nameToken = callParameters == null ? null : callParameters["name"];
+            if (nameToken == null || nameToken.Type != JTokenType.String) { return "deny:400|malformed"; }
+            string tool = (string)nameToken;
+            if (tool == "create_ticket") { return "Tools.Write|create_ticket"; }
+            if (tool == "get_service_health" || tool == "whoami" || tool == "read_report_as_user" || tool == "read_report_as_app") { return "Tools.Read|" + tool; }
+            return "deny:403|unknown-tool";
+        }
+        if (rpcMethod == "initialize" || rpcMethod == "ping" || rpcMethod == "tools/list") { return "Tools.Read|" + rpcMethod; }
+        if (rpcMethod.StartsWith("notifications/")) { return "Tools.Read|notification"; }
+        return "deny:403|unsupported-method";
+    }" />
+    <!-- Payload-free trace (invariant 7): fixed tool label and caller object ID only. Status, latency and the
+         correlation ID come from the request telemetry. Never arguments, results, prompts or tokens. -->
+    <trace source="workshop-mcp-gateway" severity="information">
+      <message>mcp-request</message>
+      <metadata name="mcp-tool" value="@(((string)context.Variables["mcp-decision"]).Split('|')[1])" />
+      <metadata name="caller-oid" value="@((string)context.Variables["mcp-caller-oid"])" />
+    </trace>
+    <choose>
+      <when condition="@(((string)context.Variables["mcp-decision"]).StartsWith("deny:400"))">
+        <return-response>
+          <set-status code="400" reason="Bad Request" />
+          <set-header name="Content-Type" exists-action="override">
+            <value>application/json</value>
+          </set-header>
+          <set-body>{"error":"invalid_request","error_description":"Send one JSON-RPC request object with a method."}</set-body>
+        </return-response>
+      </when>
+      <when condition="@(((string)context.Variables["mcp-decision"]).StartsWith("deny:405"))">
+        <return-response>
+          <set-status code="405" reason="Method Not Allowed" />
+        </return-response>
+      </when>
+      <when condition="@(((string)context.Variables["mcp-decision"]).StartsWith("deny:403"))">
+        <return-response>
+          <set-status code="403" reason="Forbidden" />
+          <set-header name="Content-Type" exists-action="override">
+            <value>application/json</value>
+          </set-header>
+          <set-body>{"error":"forbidden","error_description":"This MCP method or tool is not exposed by the governed gateway."}</set-body>
+        </return-response>
+      </when>
+      <!-- App roles say what this user may do (invariant 4). create_ticket needs Tools.Write; the rest Tools.Read. -->
+      <when condition="@{
+          var claims = ((Jwt)context.Variables["mcp-jwt"]).Claims;
+          string required = ((string)context.Variables["mcp-decision"]).Split('|')[0];
+          string[] roles = claims.ContainsKey("roles") ? claims["roles"] : new string[0];
+          return Array.IndexOf(roles, required) == -1;
+      }">
+        <return-response>
+          <set-status code="403" reason="Forbidden" />
+          <set-header name="Content-Type" exists-action="override">
+            <value>application/json</value>
+          </set-header>
+          <set-body>@("{\"error\":\"forbidden\",\"error_description\":\"This tool requires the app role " + ((string)context.Variables["mcp-decision"]).Split('|')[0] + ".\"}")</set-body>
+        </return-response>
+      </when>
+    </choose>
+    <!-- Never trust caller-supplied identity headers; Function built-in authentication sets its own after validation. -->
+    <set-header name="X-MS-CLIENT-PRINCIPAL" exists-action="delete" />
+    <set-header name="X-MS-CLIENT-PRINCIPAL-ID" exists-action="delete" />
+    <set-header name="X-MS-CLIENT-PRINCIPAL-NAME" exists-action="delete" />
+    <set-header name="X-MS-CLIENT-PRINCIPAL-IDP" exists-action="delete" />
+    <set-header name="x-functions-key" exists-action="delete" />
+    <!-- Token boundary: the gateway and the Function protect ONE logical MCP resource with ONE audience.
+         The same MCP-audience token is validated again by the Function's built-in authentication.
+         It is never sent to Microsoft Graph, Storage or any other downstream API (invariant 2). -->
+    <set-header name="Authorization" exists-action="override">
+      <value>@(context.Request.Headers.GetValueOrDefault("Authorization", string.Empty))</value>
+    </set-header>
+  </inbound>
+  <backend>
+    <base />
+  </backend>
+  <outbound>
+    <base />
+    <!-- If the Function refuses the token, answer with the gateway challenge, never the private Function host. -->
+    <choose>
+      <when condition="@(context.Response.StatusCode == 401)">
+        <set-header name="WWW-Authenticate" exists-action="override">
+          <value>Bearer resource_metadata="${resource_metadata_url}"</value>
+        </set-header>
+      </when>
+    </choose>
+  </outbound>
+  <on-error>
+    <base />
+    <choose>
+      <when condition="@(context.LastError != null ? context.LastError.Source == "validate-azure-ad-token" : false)">
+        <return-response>
+          <set-status code="401" reason="Unauthorized" />
+          <set-header name="WWW-Authenticate" exists-action="override">
+            <value>Bearer resource_metadata="${resource_metadata_url}"</value>
+          </set-header>
+          <set-header name="Content-Type" exists-action="override">
+            <value>application/json</value>
+          </set-header>
+          <set-body>{"error":"invalid_token","error_description":"A Microsoft Entra access token for the MCP API is required."}</set-body>
+        </return-response>
+      </when>
+    </choose>
+  </on-error>
+</policies>

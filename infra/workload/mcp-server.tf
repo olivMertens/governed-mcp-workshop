@@ -132,7 +132,7 @@ resource "azurerm_function_app_flex_consumption" "mcp" {
   storage_authentication_type                    = "UserAssignedIdentity"
   storage_user_assigned_identity_id              = azurerm_user_assigned_identity.mcp[0].id
   https_only                                     = true
-  public_network_access_enabled                  = true
+  public_network_access_enabled                  = !local.gateway_function_locked # module 04 stage 2: private endpoint only
   webdeploy_publish_basic_authentication_enabled = false
   client_certificate_enabled                     = false
   tags                                           = local.tags
