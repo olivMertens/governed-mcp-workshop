@@ -2,7 +2,8 @@ import { createHash } from "node:crypto";
 import { lstatSync, readFileSync, openSync, writeSync, ftruncateSync, fsyncSync, closeSync } from "node:fs";
 import { join } from "node:path";
 
-export const statuses = ["todo", "in-progress", "validated", "blocked"];
+// "authored": built and offline checks pass; live validation runs in a participant's own subscription.
+export const statuses = ["todo", "in-progress", "authored", "validated", "blocked"];
 const moduleIds = ["00", "01", "02", "03", "04", "05", "06", "07", "99"];
 
 export class BoardError extends Error {
@@ -86,6 +87,9 @@ function validateUpdate(input) {
     }
     if (input.status === "validated" && (!input.evidence.trim() || !input.validatedOn)) {
         throw new BoardError("missing_evidence", "Validated requires actual module validation evidence and validatedOn.");
+    }
+    if (input.status === "authored" && !input.evidence.trim()) {
+        throw new BoardError("missing_evidence", "Authored requires offline check evidence.");
     }
     if (input.status !== "validated" && input.validatedOn !== undefined) {
         throw new BoardError("invalid_input", "Only a validated module can have a validation date.");

@@ -30,6 +30,7 @@
     .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--line); flex-shrink: 0; }
     .dot.validated { background: var(--success); }
     .dot.in-progress { background: var(--blue); }
+    .dot.authored { background: var(--blue); outline: 1px solid var(--success); }
     .dot.blocked { background: var(--error); }
     .rail-footer { border-top: 1px solid var(--line); padding-top: 20px; margin-top: 26px; font-size: 12px; color: var(--muted); }
     .stage { min-width: 0; }
@@ -167,11 +168,13 @@
     const staticSite = "__STATIC_SITE__" === "true";
     let state;
     let rawState;
+    let participant = null;
+    let participantChecked = false;
     let language = new URL(location.href).searchParams.get("lang") === "fr" ? "fr" : "en";
     let loading = false;
     const content = document.getElementById("content");
     const message = document.getElementById("message");
-    const labels = { todo: "Not built", "in-progress": "Being built", validated: "Validated", blocked: "Build blocked" };
+    const labels = { todo: "Not built", "in-progress": "Being built", authored: "Authored, offline checks pass", validated: "Validated", blocked: "Build blocked" };
     function t(text) { return language === "fr" && Object.hasOwn(french, text) ? french[text] : text; }
     function element(tag, text, className) {
       const node = document.createElement(tag);
@@ -608,6 +611,16 @@
       connection.append(label, input, feedback, commands,
         notice("Sign-in still needs the right client.",
           "Follow your module's sign-in instructions. An address alone does not grant access. Never enter a client secret here or turn off client approval."));
+      if (participant) {
+        input.value = participant.mcpEndpoint;
+        input.dispatchEvent(new Event("input"));
+        connection.insertBefore(element("p", "Prefilled from your own portal deployment. Check that it is your endpoint before connecting.", "field-message"), label);
+        if (typeof participant.mcpScope === "string") {
+          const scope = element("p", "Delegated scope to request at sign-in: ", "field-message");
+          scope.append(element("code", participant.mcpScope));
+          connection.insertBefore(scope, commands);
+        }
+      }
       if (language === "fr") connection.append(element("p",
         "Dans VS Code, lancez MCP: Add Server, choisissez HTTP et saisissez l'adresse du serveur. Utilisez une configuration utilisateur privée. Pour Inspector, vérifiez d'abord les prérequis ci-dessous."));
       else connection.append(element("p",
@@ -826,6 +839,17 @@
         if (!response.ok) throw new Error(result.error || `Content request failed (${response.status}).`);
         if (!result.translations?.fr) throw new Error("French workshop content is unavailable.");
         rawState = result;
+        if (staticSite && !participantChecked) {
+          participantChecked = true;
+          // Only a participant-owned portal serves this file; GitHub Pages returns 404 and the page stays manual.
+          try {
+            const hints = await fetch("participant.json", { cache: "no-store" });
+            if (hints.ok && hints.headers.get("content-type")?.startsWith("application/json")) {
+              const value = await hints.json();
+              if (typeof value?.mcpEndpoint === "string") participant = value;
+            }
+          } catch { participant = null; }
+        }
         activateLanguage();
         render();
         message.textContent = "";

@@ -236,6 +236,30 @@ terraform -chdir=infra/workload show ../../.workshop/destroy.tfplan
 An existing administrator group is a data source, never a destroy target. Nonempty dedicated groups remain protected.
 Preserve private state/parameters until deletion is verified; do not delete a whole group to hide untracked resources.
 
+## Optional participant portal linked to your deployment
+
+The presenter cannot deploy into participants' tenants. A participant who wants a portal that already knows
+**their own** endpoint deploys the same App Service portal in **their own** subscription, with the same state
+and parameters as their MCP workload, by following the procedure above.
+
+When the portal and the MCP server share that Terraform state, the plan adds non-secret app settings to the portal:
+
+| App setting | Source | When |
+|---|---|---|
+| `WORKSHOP_MCP_ENDPOINT` | `mcp_endpoint` (Function App HTTPS URL) | `enable_mcp_server = true` (module 02) |
+| `WORKSHOP_MCP_SCOPE` | `mcp_auth_scope` (`api://…/user_impersonation`) | `enable_entra_auth = true` (module 03) |
+
+The portal server checks both values again and serves only them at `/participant.json`.
+The **Try your MCP** page prefills the endpoint and shows the delegated scope. Nothing is prefilled on GitHub Pages:
+participants type their endpoint, which stays in browser memory.
+
+- Never added: the module 02 system key, tokens, tenant or subscription IDs, connection strings or client secrets.
+- The portal is public, so it reveals the endpoint hostname and scope. They are not secrets:
+  the endpoint stays protected by the system key (level 0) or Microsoft Entra (level 1). Do not share the link
+  outside your test group, and destroy the portal with the workload.
+- Re-run the plan and the portal deployment after enabling a new module so the prefilled values follow it.
+- Cost: one B1 plan per participant who opts in. This is optional; the shared GitHub Pages guides are enough.
+
 ## Deploy the participant workload
 
 Start with [workspace choice](GETTING-STARTED.md) and [Azure context](DEPLOYMENT.md).
