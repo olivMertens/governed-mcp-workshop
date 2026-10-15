@@ -1,8 +1,8 @@
 # 🔐 Governed MCP on Azure — hands-on workshop
 
 > ⚠️ **Work in progress.** Module 00 preparation and module 01's local MCP exercise are implemented.
-> Modules 02 (open server) and 03 (Microsoft Entra identity) are authored with offline checks only; they are not deployed or validated.
-> Modules 04–07 and 99 remain planned. Module 01's client-approval observation is still manual.
+> Modules 02 (open server), 03 (Microsoft Entra identity) and 04 (governed API Management gateway) are authored with offline checks only; they are not deployed or validated.
+> Modules 05–07 and 99 remain planned. Module 01's client-approval observation is still manual.
 > Nothing has been validated on a real Azure subscription yet. Details: [what is available](docs/IMPLEMENTATION-STATUS.md).
 
 Take one MCP server from **open** to **governed** on Azure, alone, in **your own non-production** subscription.
@@ -109,13 +109,13 @@ Module 02 deploys real Azure resources: start it only after module 00 validation
 | 01 | 🔍 Discover MCP (no Azure) | ✅ Required | 🟡 Local SDK + Inspector checks pass; manual approval pending | [Open](modules/01-discover-mcp/README.md) · [FR](modules/01-discover-mcp/README.fr.md) |
 | 02 | 🔑 Server protected by a key (level 0) | ✅ Required | 🟡 Authored; offline checks pass, not deployed | [Open](modules/02-open-server/README.md) · [FR](modules/02-open-server/README.fr.md) |
 | 03 | 🪪 Microsoft Entra identity (level 1) | ✅ Required | 🟡 Authored; offline checks pass, not deployed | [Open](modules/03-entra-authentication/README.md) · [FR](modules/03-entra-authentication/README.fr.md) |
-| 04 | 🚪 API Management as the only entry (level 2) | ✅ Required | ⚪ Planned | [Plan](docs/BUILD-PLAN.md#04--api-management-as-the-only-entry-point-level-2) |
+| 04 | 🚪 API Management as the only entry (level 2) | ✅ Required | 🟡 Authored; offline checks pass, not deployed | [Open](modules/04-governed-gateway/README.md) · [FR](modules/04-governed-gateway/README.fr.md) |
 | 05 | 👤 On-Behalf-Of vs app-only (level 3) | ✅ Required | ⚪ Planned | [Plan](docs/BUILD-PLAN.md#05--who-carries-the-rights-on-behalf-of-vs-app-only-level-3) |
 | 06 | 📊 Observe and inventory (level 4) | ✅ Required | ⚪ Planned | [Plan](docs/BUILD-PLAN.md#06--observe-and-inventory-level-4) |
 | 07 | 🤖 Other clients (Foundry, Copilot Studio) | ➕ Optional | ⚪ Planned | [Plan](docs/BUILD-PLAN.md#07--optional-other-clients) |
 | 99 | 🧹 Clean up | ♻️ As soon as you create resources | ⚪ Planned | [Plan](docs/BUILD-PLAN.md#99--clean-up) |
 
-> 💡 **00 to 03 have guides.** The other rows link to their implementation plan.
+> 💡 **00 to 04 have guides.** The other rows link to their implementation plan.
 > A published guide or local `PASS` is not proof of a completed Azure workshop.
 
 ## 🧭 Open the board
