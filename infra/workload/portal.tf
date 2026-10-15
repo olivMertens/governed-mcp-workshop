@@ -1,6 +1,13 @@
 locals {
   workload_group    = var.existing_resource_group_name == null ? azurerm_resource_group.workshop[0].name : data.azurerm_resource_group.existing[0].name
   workload_location = var.existing_resource_group_name == null ? azurerm_resource_group.workshop[0].location : var.location
+
+  # Non-secret values that let the participant's own portal prefill its connection page.
+  # Allowlisted again by scripts/portal-server.mjs. Never keys, tokens, tenant IDs or connection strings.
+  portal_participant_settings = merge(
+    local.mcp_enabled ? { WORKSHOP_MCP_ENDPOINT = "https://${azurerm_function_app_flex_consumption.mcp[0].default_hostname}/runtime/webhooks/mcp" } : {},
+    local.mcp_auth_enabled ? { WORKSHOP_MCP_SCOPE = local.mcp_auth_scope } : {},
+  )
 }
 
 resource "azurerm_service_plan" "portal" {
@@ -40,10 +47,10 @@ resource "azurerm_linux_web_app" "portal" {
     }
   }
 
-  app_settings = {
+  app_settings = merge({
     SCM_DO_BUILD_DURING_DEPLOYMENT = "false"
     WEBSITE_RUN_FROM_PACKAGE       = "1"
-  }
+  }, local.portal_participant_settings)
 }
 
 output "public_portal_url" {

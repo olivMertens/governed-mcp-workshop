@@ -192,6 +192,7 @@ test("rejects malformed values, table injection, unknown properties and false va
         { status: "validated", evidence: "Synthetic PASS", validatedOn: "2026-02-30" },
         { status: "validated", evidence: "Synthetic PASS", validatedOn: "2026-13-01" },
         { status: "todo", validatedOn: "2026-10-14" },
+        { status: "authored" }, { status: "authored", evidence: "Offline PASS", validatedOn: "2026-10-14" },
     ]) assert.throws(() => store.update({ ...input, ...change }));
     assert.equal(readFileSync(path, "utf8"), fixture);
 });
@@ -203,6 +204,14 @@ test("validation needs evidence and date, and downgrading clears the date", (t) 
     assert.equal(state.modules[0].validatedOn, "2026-10-14");
     state = store.update({ module: "00", status: "todo", evidence: "", revision: state.revision });
     assert.equal(state.modules[0].validatedOn, "");
+});
+
+test("authored records offline evidence without a live validation date", (t) => {
+    const { store } = setup(t);
+    const state = store.update({ module: "02", status: "authored", evidence: "Synthetic offline PASS",
+        revision: store.read().revision });
+    assert.equal(state.modules[2].status, "authored");
+    assert.equal(state.modules[2].validatedOn, "");
 });
 
 test("rejects duplicate modules and missing decisions rather than returning defaults", () => {

@@ -58,8 +58,10 @@ Build order, sources and expected results are in docs/BUILD-PLAN.md. Read it bef
 README sections in this order: Goal · Why it matters · What you deploy · Prerequisites and required roles ·
 Steps (PowerShell, then bash) · What you should see · Validate · Troubleshooting · Clean up · Go further · Sources.
 Files: infra/ (if any), validate.ps1 and validate.sh (one PASS/FAIL line per check with the expected HTTP status),
-cleanup script. A module is done only when its validate script passes on a fresh subscription
-right after the previous modules.
+cleanup script. A module is `authored` when its code, docs and offline checks (unit tests, mocked Terraform tests,
+offline validator) pass. It is `validated` when its validate script passes live on a fresh subscription right after
+the previous modules. The presenter cannot deploy into participants' tenants, so live validation runs in each
+participant's own subscription, or in an approved author-owned tenant. `authored` is enough to ship a pull request.
 
 ## When helping a participant
 Explain simply and point to the module's sources. Never suggest disabling a control, widening a role,

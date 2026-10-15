@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { once } from "node:events";
 import { buildPortal } from "./build-site.mjs";
-import { startPortal, verifyPortal, publicPaths } from "./portal-server.mjs";
+import { startPortal, verifyPortal, publicPaths, participantConfig } from "./portal-server.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 function bundle(t) {
@@ -31,7 +31,7 @@ test("public hosting verifies exact assets and refuses tampering, private extras
 });
 test("public server serves bilingual assets and health, but never exposes code, files or canvas writes", async (t) => {
     const directory = bundle(t);
-    const server = startPortal({ root: directory, port: 0 });
+    const server = startPortal({ root: directory, port: 0, env: {} });
     await once(server, "listening");
     t.after(() => new Promise((resolve) => { server.closeAllConnections(); server.close(resolve); }));
     const base = `http://127.0.0.1:${server.address().port}`;
@@ -44,7 +44,7 @@ test("public server serves bilingual assets and health, but never exposes code, 
         else await response.arrayBuffer();
     }
     for (const path of ["/server.mjs", "/site-manifest.json", "/.git/config", "/.workshop/participant.tfvars.json",
-        "/api/progress", "/assets/architecture/", "/.nojekyll"]) {
+        "/api/progress", "/assets/architecture/", "/.nojekyll", "/participant.json"]) {
         assert.equal((await fetch(`${base}${path}`)).status, 404, path);
     }
     assert.equal((await fetch(`${base}/?token=synthetic`)).status, 400);
@@ -53,6 +53,30 @@ test("public server serves bilingual assets and health, but never exposes code, 
     assert.equal(head.status, 200);
     assert.equal(await head.text(), "");
     assert.equal((await fetch(`${base}/health`)).headers.get("cache-control"), "no-store");
+});
+test("participant portal serves only allowlisted, non-secret connection hints", async (t) => {
+    assert.equal(participantConfig({}), null);
+    assert.equal(participantConfig({ ARM_CLIENT_SECRET: "synthetic", WORKSHOP_MCP_KEY: "synthetic" }), null);
+    for (const endpoint of ["http://func.example.com/runtime/webhooks/mcp", "https://func.example.com/runtime/webhooks/mcp?code=synthetic",
+        "https://user:pass@func.example.com/mcp", "https://func.example.com/admin", "not a url"]) {
+        assert.throws(() => participantConfig({ WORKSHOP_MCP_ENDPOINT: endpoint }), /HTTPS MCP endpoint/, endpoint);
+    }
+    assert.throws(() => participantConfig({ WORKSHOP_MCP_SCOPE: "https://graph.microsoft.com/.default" }), /user_impersonation/);
+    const directory = bundle(t);
+    const server = startPortal({ root: directory, port: 0, env: {
+        WORKSHOP_MCP_ENDPOINT: "https://func-mcp-p01-0123456789.azurewebsites.net/runtime/webhooks/mcp",
+        WORKSHOP_MCP_SCOPE: "api://44444444-4444-4444-8444-444444444444/user_impersonation",
+        APPLICATIONINSIGHTS_CONNECTION_STRING: "InstrumentationKey=synthetic",
+    } });
+    await once(server, "listening");
+    t.after(() => new Promise((resolve) => { server.closeAllConnections(); server.close(resolve); }));
+    const response = await fetch(`http://127.0.0.1:${server.address().port}/participant.json`);
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("cache-control"), "no-store");
+    assert.deepEqual(await response.json(), {
+        mcpEndpoint: "https://func-mcp-p01-0123456789.azurewebsites.net/runtime/webhooks/mcp",
+        mcpScope: "api://44444444-4444-4444-8444-444444444444/user_impersonation",
+    });
 });
 test("public manifest rejects duplicate and path traversal entries before starting HTTP", (t) => {
     const directory = bundle(t);

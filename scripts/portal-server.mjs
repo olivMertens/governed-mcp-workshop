@@ -64,9 +64,33 @@ export function verifyPortal(root) {
     return assets;
 }
 
-export function startPortal({ root = dirname(entry), port = Number(process.env.PORT ?? 8080), host = "127.0.0.1" } = {}) {
+// Only non-secret, allowlisted connection hints from this participant's own deployment (Terraform app settings).
+export function participantConfig(env = process.env) {
+    const config = {};
+    const endpoint = env.WORKSHOP_MCP_ENDPOINT;
+    if (endpoint) {
+        let url;
+        try { url = new URL(endpoint); } catch { url = null; }
+        if (!url || url.protocol !== "https:" || url.username || url.password || url.search || url.hash ||
+            !url.pathname.endsWith("/mcp") || endpoint.length > 300) {
+            throw new Error("WORKSHOP_MCP_ENDPOINT must be an HTTPS MCP endpoint without credentials or query.");
+        }
+        config.mcpEndpoint = url.href;
+    }
+    const scope = env.WORKSHOP_MCP_SCOPE;
+    if (scope) {
+        if (!/^api:\/\/[A-Za-z0-9][A-Za-z0-9._/-]{0,199}\/user_impersonation$/.test(scope)) {
+            throw new Error("WORKSHOP_MCP_SCOPE must be an api:// user_impersonation scope.");
+        }
+        config.mcpScope = scope;
+    }
+    return Object.keys(config).length ? JSON.stringify(config) : null;
+}
+
+export function startPortal({ root = dirname(entry), port = Number(process.env.PORT ?? 8080), host = "127.0.0.1", env = process.env } = {}) {
     if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error("PORT must be a valid integer TCP port.");
     const assets = verifyPortal(resolve(root));
+    const participant = participantConfig(env);
     const server = createServer((request, response) => {
         const send = (status, type, content) => {
             response.writeHead(status, { ...headers, "Content-Type": type, "Content-Length": Buffer.byteLength(content),
@@ -84,6 +108,9 @@ export function startPortal({ root = dirname(entry), port = Number(process.env.P
             return send(400, "text/plain", "Only the public language selector is supported.");
         }
         if (url.pathname === "/health") return send(200, "application/json", '{"status":"ok"}');
+        if (url.pathname === "/participant.json") {
+            return participant ? send(200, "application/json; charset=utf-8", participant) : send(404, "text/plain", "Not found.");
+        }
         const asset = assets.get(url.pathname === "/" ? "/index.html" : url.pathname);
         if (!asset || url.pathname === "/.nojekyll") return send(404, "text/plain", "Not found.");
         send(200, asset.type, asset.content);
