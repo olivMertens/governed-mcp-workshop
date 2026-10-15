@@ -54,7 +54,15 @@ test("public site exports only the allowlist, with no capability, root URLs, pri
         assert.match(entra.guide, /HTTP 401/);
         assert.equal(entra.validation.powershell, "modules/03-entra-authentication/validate.ps1");
         assert.equal(entra.validation.bash, "modules/03-entra-authentication/validate.sh");
-        assert.equal(language.modules.find((module) => module.module === "04").guide, null);
+        const gateway = language.modules.find((module) => module.module === "04");
+        assert.equal(gateway.status, "authored");
+        assert.match(gateway.guide, /validate-azure-ad-token/);
+        assert.match(gateway.guide, /Tools\.Write/);
+        assert.match(gateway.guide, /HTTP 429/);
+        assert.match(gateway.guide, /Preview/);
+        assert.equal(gateway.validation.powershell, "modules/04-governed-gateway/validate.ps1");
+        assert.equal(gateway.validation.bash, "modules/04-governed-gateway/validate.sh");
+        assert.equal(language.modules.find((module) => module.module === "05").guide, null);
         for (const module of language.modules) {
             assert.match(module.diagramSource.content, /^flowchart LR\n/);
             assert.ok(language.documents.architecture.content.replaceAll("\r\n", "\n").includes(module.diagramSource.content));

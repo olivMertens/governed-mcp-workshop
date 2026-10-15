@@ -13,15 +13,16 @@ or in an approved author-owned non-production tenant.
 | 01 | Discover MCP (no Azure) | authored | | Real local SDK validator and Inspector 2.9.0 tools/list + tools/call pass; protocol 2026-07-28 with SDK client. | EN/FR guide, locked .NET 10 stdio server and client config implemented. Manual VS Code approval observation remains pending; no Azure needed here. |
 | 02 | An "open" MCP server (level 0) | authored | | Offline validator: host.json System, no anonymous level, no secret pattern, identity-only Terraform, 24/24 unit tests, Terraform fmt/validate and 18/18 mock runs PASS. | Authored, offline checks pass, not deployed/validated. User approved author-only scope: no plan/apply, no Azure or Entra change. Live HTTP 401/200 checks pending an approved deployment. |
 | 03 | Identity with Microsoft Entra (level 1) | authored | | Offline validator: System host.json kept, key gate tied to enforced auth + Return401, Entra root single tenant/scope/3 roles/assignment required/no secret or user, no token pattern, synthetic claims, Terraform fmt/validate + 8/8 Entra and 26/26 workload mock runs PASS. | Authored, offline checks pass, not deployed. User approved author-only scope: no plan/apply, no Azure or Entra change. Live 401/PRM/Graph-401/Alice-Bob-200/Eve-refused checks pending an approved deployment. |
-| 04 | API Management as the only entry point (level 2) | todo | | | |
+| 04 | API Management as the only entry point (level 2) | authored | | Offline validator: gateway policy (MCP audience only, create_ticket → Tools.Write, safe denials, per-oid rate limit, optional ip-filter, gateway PRM challenge), gateway PRM, Standard v2 + private endpoint + staged lock + no subscription key, 0 body bytes at both scopes, no secret pattern, Terraform fmt/validate + 8/8 Entra and 39/39 workload mock runs PASS; node 5/5 (13 synthetic validator and 5 clean-up scenarios). | Authored, offline checks pass, not deployed. User approved author-only scope: no plan/apply, no Azure or Entra change. Live 401/PRM/direct-403/Bob-403/Alice-200/429/telemetry checks pending an approved deployment and Standard v2 cost approval. MCP server API is **Preview**. |
 | 05 | On-Behalf-Of vs app-only (level 3) | todo | | | |
 | 06 | Observe and inventory (level 4) | todo | | | |
 | 07 | Optional: other clients | todo | | | Facilitator demo only |
 | 99 | Clean up | todo | | | |
 
 ## Open decisions
-- Network (module 04): recommend Standard v2 outbound virtual network integration, Function private endpoint,
-  private DNS and public Function access disabled. Confirm deployment connectivity before applying.
+- Network (module 04): implemented as recommended (Standard v2 outbound virtual network integration, Function private
+  endpoint, private DNS, public Function access disabled in a separate stage 2 apply). Open: how participants republish
+  code after stage 2 (deployment endpoints become private); the guide says publish before stage 2.
 - Identity ownership: confirm who runs infra/entra and grants delegated consent; accept existing object IDs
   without changing or deleting those objects when identity creation is skipped. (Module 03 implements both paths;
   module 03 itself needs no consent. Test accounts are created outside Terraform.)
@@ -40,6 +41,47 @@ or in an approved author-owned non-production tenant.
   group; accept an approved existing group without managing it. Shared quotas still require cohort capacity checks.
 
 ## Deviations from the build plan
+- Module 04 author-only implementation (2026-10-15), explicitly scoped by the user: workload opt-in (`network.tf`,
+  `gateway.tf`, `diagnostics.tf`, AzAPI 2.13.0 locked), policies, EN/FR guide, validator and clean-up; local/offline checks
+  only. No `terraform plan` against Azure, no apply, no Azure or Microsoft Entra object created or changed. Module 03 is
+  `authored` (not deployed), which is enough to continue under the `authored` rule.
+  Offline evidence (`validate.ps1 -Offline`, Windows, Terraform 1.16.6, AzureRM 5.9.0, AzAPI 2.13.0 and AzureAD 3.10.0 mocks):
+  `PASS gateway policy: Entra token for the MCP audience only, create_ticket requires Tools.Write, other tools Tools.Read, malformed or unknown calls denied, per-oid rate limit, optional ip-filter, gateway PRM challenge (expected HTTP 401/403/429).`
+  `PASS Protected Resource Metadata is answered by the gateway itself and never names the private Function host (expected HTTP 200).`
+  `PASS Terraform: Standard v2 public gateway, outbound integration, Function private endpoint and private DNS, public access disabled only in stage 2, MCP API Preview with no subscription key (expected HTTP 403 on the direct host).`
+  `PASS diagnostics: 0 body bytes for frontend/backend requests/responses at both scopes, no header logged (no Authorization), no client IP (expected HTTP N/A).`
+  `PASS no access token, subscription key, function key, SAS or client secret in module 04 or workload files (expected HTTP N/A).`
+  `PASS Terraform format, schema and mock-only plans for infra/entra and infra/workload (expected HTTP N/A; no live plan/apply).`
+  `PASS offline checks only. Module 04 is NOT deployed or validated by this result.`
+  Synthetic node tests cover the live validator (gateway 401 with the gateway PRM challenge, PRM 200, Graph token 401, direct
+  Function 403, ARM public access Disabled and 0-byte diagnostics, Alice create_ticket 200, Bob create_ticket 403 and
+  get_service_health 200, unknown tool 403, missing method 400, burst 429, payload-free telemetry, Eve AADSTS50105; fail-closed
+  when the gateway is open, Bob can write, the Function answers publicly, only stage 1 is applied, body bytes are logged,
+  telemetry holds a payload, no 429 or the PRM leaks the private host; tokens never printed) and the clean-up guard (reopen
+  the Function first, then delete only gateway resources, refuse foreign changes or a server delete, idempotent).
+  Deviations and decisions: (1) Two applies: stage 1 builds the gateway and private path while the Function stays public but
+  Entra-protected; stage 2 (`gateway_lock_function`) disables public access, so no step leaves the server unreachable or
+  anonymous. (2) The gateway forwards the same MCP-audience token to the Function (one logical resource, defence in depth);
+  no audience is broadened, unlike the AI-Gateway PRM lab, which also accepts a gateway-URL audience. (3) PRM is served by the
+  gateway as static JSON with the module 03 scope `api://<client-id>/user_impersonation` (lab: gateway-URL scope). (4) The
+  policy requires the `user_impersonation` scope, so app-only tokens are refused at the gateway in this module. (5) No
+  subscription key, product or named value: Entra tokens and app roles are the only access mechanism; non-secret values are
+  rendered by Terraform `templatefile()` so mock tests assert the exact policy. (6) Diagnostics log 0 body bytes and no header at
+  both the all-APIs and MCP API scopes (Learn requires only frontend response 0 at global scope). (7) The APIM logger uses the
+  connection string plus the gateway user-assigned identity (Monitoring Metrics Publisher on the one component), because
+  Application Insights local authentication is disabled since module 02. (8) Gateway URL is derived from the deterministic name
+  (`https://apim-<stem>.azure-api.net`), so outputs and policies are known at plan time. (9) Portal prefill advertises the
+  gateway URL once module 04 is enabled. (10) The architecture diagram already depicted this design; unchanged
+  (`render-architecture.py --check` PASS). (11) Terraform 1.16.6 was found under a different session folder than the path
+  given in the request; same version.
+  Source gaps: Learn's REST/Terraform examples use `mcpProperties.endpoints` as an array of `{name, uriTemplate}`, the
+  AI-Gateway PRM lab uses an object map, and the client-authorization lab omits endpoints; the workshop follows Learn.
+  `secure-mcp-servers` says request headers are forwarded automatically, then shows setting `Authorization` in the outbound
+  section; the workshop sets it explicitly in inbound. Overview says tools only; the existing-server article says tools and
+  resources. Learn still suggests MCP Inspector 0.9.0 for APIM tests.
+  Open: correctness of the per-tool role check and JSON-RPC parsing on a live gateway (policy expressions are not executed
+  offline), streaming behaviour through the gateway, App Insights `AppRoleName` match in the telemetry query, Standard v2
+  availability and cost approval in the chosen region, code republishing after stage 2, first deployment and live validation.
 - Module 03 author-only implementation (2026-10-14), explicitly scoped by the user: `infra/entra` root, workload
   opt-in, guides, validators and clean-up; local/offline checks only. No `terraform plan` against Azure or Entra, no apply,
   no Azure or Microsoft Entra object created or changed. Module 02 is still `in-progress` (not deployed), so this is an
