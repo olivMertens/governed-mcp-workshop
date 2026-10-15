@@ -1,0 +1,15 @@
+// Module 06 - MCP traffic in Application Insights (synthetic, metadata only).
+// Reads only request metadata. Never select request or response bodies,
+// tool arguments, tool results, tokens or prompts.
+requests
+| where timestamp > ago(24h)
+| extend apiType = tostring(customDimensions["api.type"])
+| where apiType == "Mcp"
+| extend
+    operation = tostring(customDimensions["gen_ai.operation.name"]),
+    toolName  = tostring(customDimensions["gen_ai.tool.name"]),
+    errorType = tostring(customDimensions["error.type"]),
+    clientApp = tostring(customDimensions["user_agent.name"])
+| project timestamp, operation, toolName, resultCode, success, duration, errorType, clientApp
+| order by timestamp desc
+| take 200
