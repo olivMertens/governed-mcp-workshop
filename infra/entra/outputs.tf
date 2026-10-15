@@ -70,12 +70,12 @@ output "persona_object_ids" {
 }
 
 output "module05_federated_credential" {
-  description = "Reserved for module 05 (not created here): the managed identity federated credential trust for On-Behalf-Of."
+  description = "Module 05 managed identity federated credential trust for On-Behalf-Of (created in delegation.tf when obo_identity_principal_id is set)."
   value = {
     parent_application_object_id = local.application_object_id
     issuer                       = local.federated_issuer
     audience                     = local.federated_token_audience
-    subject                      = "<module 05: principal ID of the workload user-assigned managed identity>"
+    subject                      = coalesce(var.obo_identity_principal_id, "<module 05: principal ID of the workload OBO assertion managed identity>")
   }
 }
 

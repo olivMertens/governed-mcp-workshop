@@ -207,6 +207,39 @@ Only offline checks ran: no plan against Azure, no apply, no resource created.
 - The per-tool role check, the JSON-RPC parsing and streaming through the gateway are policy expressions that cannot run
   offline; they are proven only by the live persona checks.
 
+### Module 05 authored implementation (not deployed)
+
+Last verified: 2026-10-15. [EN/FR guide](../modules/05-delegated-and-app-only/README.md), `src/FunctionsMcpServer`
+(`Identity/DownstreamCredentials.cs`, `Logic/CallerContext.cs`, `Logic/DelegatedTools.cs`, `Logic/DownstreamClients.cs`),
+`infra/entra/delegation.tf`, `infra/workload/delegated-access.tf`. Patterns adapted from the pinned sample's
+`HelloToolWithAuth.cs` and `infra/app/entra.bicep` / `api.bicep` (MIT, see THIRD-PARTY-NOTICES.md).
+Only offline checks ran: no plan against Azure or Entra, no apply, no object created.
+
+| Pin or source | Value and decision |
+|---|---|
+| [On-Behalf-Of flow](https://learn.microsoft.com/entra/identity-platform/v2-oauth2-on-behalf-of-flow) | The assertion must carry the middle tier's own audience; never send middle-tier tokens anywhere else; OBO works for **user principals only** (app-only callers use client credentials); only delegated scopes flow, roles stay with the user; admin consent for the middle tier avoids per-user consent; `.default` must not be combined with other delegated scopes. **Decision:** separate OBO requests for `https://graph.microsoft.com/User.Read` and `https://storage.azure.com/user_impersonation`; app-only callers refused. |
+| [App trusts a managed identity](https://learn.microsoft.com/entra/workload-id/workload-identity-federation-config-app-trust-managed-identity) | Issuer `https://login.microsoftonline.com/{tenant}/v2.0`, subject = the user-assigned identity's **principal (object) ID**, case-sensitive, audience `api://AzureADTokenExchange` (global cloud), app and identity in the same tenant, max 20 credentials, wrong values fail only at exchange, Application Administrator / Cloud Application Administrator / Application Developer or owner. .NET example: `ManagedIdentityCredential` token for `api://AzureADTokenExchange/.default` as `ClientAssertionCredential` callback. |
+| [Certificateless Microsoft.Identity.Web](https://learn.microsoft.com/entra/msidweb/authentication/certificateless) | `SignedAssertionFromManagedIdentity` source type for ASP.NET Core APIs that validate tokens themselves. **Not used:** built-in authentication validates the token; Azure.Identity `OnBehalfOfCredential` with an assertion callback, as in the sample. |
+| [Pinned sample `HelloToolWithAuth.cs`](https://github.com/Azure-Samples/remote-mcp-functions-dotnet/blob/468c518c884ec318e3001b9573254c9e775409c9/src/FunctionsMcpTool/HelloToolWithAuth.cs) | Reads the user token from `X-MS-TOKEN-AAD-ACCESS-TOKEN` or `Authorization`, the tenant from `X-MS-CLIENT-PRINCIPAL`, builds `OnBehalfOfCredential(tenant, WEBSITE_AUTH_CLIENT_ID, MI assertion callback, userToken)`, falls back to a developer `ChainedTokenCredential` in Development, returns display name and mail. **Changes:** no developer fallback, token store off (Authorization only), tenant/oid/scp from the platform principal with a tenant match, app-only refusal, Graph `$select=id` and persona label only, explicit settings. |
+| [Pinned sample `infra/app/entra.bicep`](https://github.com/Azure-Samples/remote-mcp-functions-dotnet/blob/468c518c884ec318e3001b9573254c9e775409c9/infra/app/entra.bicep) | `requiredResourceAccess` Graph `User.Read` (`e1fe6dd8-ba31-4d61-89e7-88639da4683d`), federated credential with issuer `{loginEndpoint}{tenant}/v2.0`, subject = managed identity principal ID, audience `api://AzureADTokenExchange`. `api.bicep` reuses one identity for host storage and the assertion and sets `OVERRIDE_USE_MI_FIC_ASSERTION_CLIENTID`. **Changes:** Storage `user_impersonation` added, scope IDs read from the tenant, consent opt-in, two new identities. |
+| [Grant tenant-wide admin consent](https://learn.microsoft.com/entra/identity/enterprise-apps/grant-admin-consent) | Cloud Application Administrator / Application Administrator can grant delegated permissions for any API; Privileged Role Administrator only for Graph app roles. Grants are not reviewed once made programmatically: kept as an explicit administrator opt-in. |
+| Azure Storage delegated permission | Resource app ID `e406a681-f3d4-42a8-90b6-c2b029497af1`, delegated `user_impersonation`, token scope `https://storage.azure.com/user_impersonation` (Learn: Fabric data-plane and Entra app tutorials, [Authorize with Microsoft Entra ID](https://learn.microsoft.com/rest/api/storageservices/authorize-with-azure-active-directory)). Scope ID read from the tenant's service principal. |
+| [Assign a role for blob data access](https://learn.microsoft.com/azure/storage/blobs/assign-azure-role-data-access) | Storage Blob Data Reader can be scoped to one container; data roles apply to OBO user tokens and managed identities alike. |
+| [App Service user identities](https://learn.microsoft.com/azure/app-service/configure-authentication-user-identities) | `X-MS-CLIENT-PRINCIPAL` / `-ID` are injected by the platform and cannot be set by external requests; decoded as Base64 JSON claims (no JWT parsing). |
+| [Functions MCP extension `worker-1.5.0`](https://github.com/Azure/azure-functions-mcp-extension/tree/worker-1.5.0) | `ToolInvocationContext.Transport` → `HttpTransport.Headers` (case-insensitive); the host listener rethrows worker failures. [MCP C# SDK](https://github.com/modelcontextprotocol/csharp-sdk) `McpServerImpl.CreateToolCallErrorResult`: non-MCP exceptions become `isError: true` with a generic message. Learn does not document this; verified in source only. |
+| Azure.Identity 1.21.0, Azure.Storage.Blobs 12.26.0 | Exact pins with package locks. Blobs 12.26.0 shares Azure.Storage.Common 12.25.0 with Queues 12.24.0. No Microsoft.Graph SDK (one HTTPS call). |
+| [AzureAD 3.10.0](https://registry.terraform.io/providers/hashicorp/azuread/3.10.0/docs) | `azuread_application_api_access` (with `ignore_changes = [required_resource_access]` on the application), `azuread_application_federated_identity_credential`, `azuread_service_principal_delegated_permission_grant`, data `azuread_service_principal.oauth2_permission_scope_ids`; attributes checked in the local provider schema. |
+
+**Gaps between the sources and the build plan, and decisions:**
+
+- The OBO article describes the confidential client's `client_assertion` as a certificate-signed JWT; the federation article and
+  the sample use the managed identity token as the assertion. The workshop follows the federation article (no certificate).
+- The build plan names `Identity/DownstreamCredentials.cs`; the downstream clients and caller parsing are separate files for tests.
+- One storage account: the report container is in the module 02 account because the deterministic name has no room for a second
+  account; every module 05 role is container-scoped.
+- Report publication uses `az storage blob upload --auth-mode login` instead of a Terraform blob (AzureRM data-plane access would
+  require changing provider settings for the existing shared-key-disabled account).
+
 ### Selected upstreams
 
 | Upstream | Selected snapshot | What was inspected | License and reuse boundary |

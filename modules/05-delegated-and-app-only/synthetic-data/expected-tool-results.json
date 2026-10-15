@@ -1,0 +1,40 @@
+{
+  "description": "Synthetic MCP results for module 05. Same question, two personas, two downstream identities. No real user, token or ID. Outer HTTP status first, then the MCP tool result.",
+  "results": [
+    {
+      "persona": "alice",
+      "tool": "read_report_as_user",
+      "httpStatus": 200,
+      "result": { "isError": false, "content": [{ "type": "text", "text": "{\"report\":\"monthly-usage\",\"mode\":\"as-user\",\"persona\":\"alice\",\"source\":\"synthetic\",\"rows\":[{\"service\":\"workshop-api\",\"requests\":1200,\"errors\":3},{\"service\":\"ticket-queue\",\"requests\":340,\"errors\":12}]}" }] },
+      "why": "On-Behalf-Of gives a Storage token for Alice. Alice holds Storage Blob Data Reader on the reports container."
+    },
+    {
+      "persona": "bob",
+      "tool": "read_report_as_user",
+      "httpStatus": 200,
+      "result": { "isError": true, "content": [{ "type": "text", "text": "An error occurred invoking 'read_report_as_user'." }] },
+      "why": "On-Behalf-Of gives a Storage token for Bob. Bob has no Storage role, so Storage answers HTTP 403. The MCP call itself succeeded (HTTP 200); the tool result carries the error."
+    },
+    {
+      "persona": "alice",
+      "tool": "read_report_as_app",
+      "httpStatus": 200,
+      "result": { "isError": false, "content": [{ "type": "text", "text": "{\"report\":\"monthly-usage\",\"mode\":\"as-app\",\"persona\":null,\"source\":\"synthetic\",\"rows\":[{\"service\":\"workshop-api\",\"requests\":1200,\"errors\":3},{\"service\":\"ticket-queue\",\"requests\":340,\"errors\":12}]}" }] },
+      "why": "The app-only managed identity reads the container. The caller's own Storage rights do not matter."
+    },
+    {
+      "persona": "bob",
+      "tool": "read_report_as_app",
+      "httpStatus": 200,
+      "result": { "isError": false, "content": [{ "type": "text", "text": "{\"report\":\"monthly-usage\",\"mode\":\"as-app\",\"persona\":null,\"source\":\"synthetic\",\"rows\":[{\"service\":\"workshop-api\",\"requests\":1200,\"errors\":3},{\"service\":\"ticket-queue\",\"requests\":340,\"errors\":12}]}" }] },
+      "why": "Same identity, same rights, same result as Alice."
+    },
+    {
+      "persona": "alice",
+      "tool": "whoami",
+      "httpStatus": 200,
+      "result": { "isError": false, "content": [{ "type": "text", "text": "{\"persona\":\"alice\",\"identity\":\"signed-in user (On-Behalf-Of)\",\"graphMatchesCaller\":true}" }] },
+      "why": "On-Behalf-Of gives a Microsoft Graph token (User.Read). Only the object ID is requested and mapped to a synthetic label."
+    }
+  ]
+}

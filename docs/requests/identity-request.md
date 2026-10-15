@@ -15,7 +15,7 @@ with its own private var file (`.workshop/entra.tfvars.json`) and state. Use tim
 do not make participants tenant administrators.
 
 **Roles needed:** Cloud Application Administrator (or Application Administrator) for the objects and assignments below.
-User Administrator only if you create the test accounts. No Global Administrator and no admin consent for module 03.
+User Administrator only if you create the test accounts. No Global Administrator and no admin consent for module 03. Module 05 consent is reviewed separately below.
 
 ## Module 03: what `infra/entra` creates
 
@@ -67,15 +67,37 @@ and `<client-id>` only, allowed client applications = the pre-authorized clients
 The MCP service accepts only its own audience; Microsoft Graph and Storage receive separate downstream tokens, never a
 forwarded MCP client token.
 
-## Later: module 05 downstream consent and secretless credential
+## Module 05: downstream delegation and secretless credential (`infra/entra/delegation.tf`)
 
-Module 05 will request, in a separate review: delegated Microsoft Graph `User.Read` and Azure Storage `user_impersonation`
-on this registration (consent according to tenant policy), and one federated identity credential that trusts the workload's
-user-assigned managed identity (issuer `https://login.microsoftonline.com/<tenant-id>/v2.0`, audience
-`api://AzureADTokenExchange`, subject = the managed identity's principal ID). The `module05_federated_credential` output
-already shows the parent application and these values; nothing is created in module 03. No client secret, copied
-certificate, publish profile or shared deployment key is ever requested. No Graph application permission is requested.
+Reviewed separately, after module 03 and **after** the participant's workload created the On-Behalf-Of (OBO) assertion identity
+(`terraform output -json entra_module05_tfvars` in `infra/workload` returns its principal ID). Three opt-in variables, all default
+off; created application only:
 
+| Variable | Object | Exact settings |
+|---|---|---|
+| `enable_delegated_access = true` | Requested API permissions (`azuread_application_api_access`) | **Delegated** Microsoft Graph `User.Read` (client `00000003-0000-0000-c000-000000000000`) and Azure Storage `user_impersonation` (client `e406a681-f3d4-42a8-90b6-c2b029497af1`). Scope IDs are read from your tenant's service principals. **No application permission.** |
+| `obo_identity_principal_id = <principal-id>` | Federated identity credential on the MCP API registration | Name `workshop-obo-<prefix>`, issuer `https://login.microsoftonline.com/<tenant-id>/v2.0`, subject = the workload's `id-mcp-<prefix>-<suffix>-obo` **principal (object) ID** (case-sensitive), audience `api://AzureADTokenExchange`. It replaces any client secret: only that managed identity can prove the API's identity. |
+| `grant_downstream_admin_consent = true` | Two tenant-wide delegated permission grants (`AllPrincipals`) | Exactly `User.Read` on Microsoft Graph and `user_impersonation` on Azure Storage, for the workshop enterprise application. Your decision: leave it false to grant consent through your own process. |
+
+**Roles needed:** Cloud Application Administrator or Application Administrator (or application owner) for the requested
+permissions and the federated credential. Per Microsoft Learn, Cloud Application Administrator or Application Administrator can
+grant tenant-wide consent for **delegated** permissions; Privileged Role Administrator is only needed for Microsoft Graph
+application permissions, which this workshop never requests.
+
+**What consent allows.** With these grants, the MCP server can exchange a signed-in user's MCP token for a Graph token that reads
+only that user's own profile object ID (`/me?$select=id`), and a Storage token that has exactly the user's own Azure RBAC rights.
+It can never read anything the user cannot read. App-only access to the report uses a different managed identity and Azure RBAC
+on one container; it needs no Entra permission.
+
+**Existing application instead** (`create_application = false`): Terraform changes nothing. Apply the same three settings by
+hand on your application, with the same values, and record them privately.
+
+**Hand-off:** return `terraform output -json workload_module05_tfvars` (Alice's and Bob's object IDs only) through the private
+channel, for the participant's `.workshop/module05.tfvars.json`. The participant's workload then grants Alice, and only Alice,
+Storage Blob Data Reader on the report container.
+
+**Clean-up:** `modules/05-delegated-and-app-only/cleanup.ps1 -TenantId <tenant-id> -Scope Entra` removes only the federated
+credential, the two requested permissions and the two grants. Run it before the module 03 Entra clean-up.
 ## Review and return
 
 Confirm which operations are approved, who executes them, which existing objects must be preserved, the Preview acceptance
@@ -97,7 +119,8 @@ test accounts separately if they were created only for the workshop. Deleted reg
 - [Functions MCP tutorial: built-in authentication and VS Code client ID](https://learn.microsoft.com/azure/azure-functions/functions-mcp-tutorial).
 - [On-Behalf-Of](https://learn.microsoft.com/entra/identity-platform/v2-oauth2-on-behalf-of-flow).
 - [Managed-identity federation](https://learn.microsoft.com/entra/workload-id/workload-identity-federation-config-app-trust-managed-identity).
+- [Grant tenant-wide admin consent](https://learn.microsoft.com/entra/identity/enterprise-apps/grant-admin-consent).
 - [Azure role assignment scope](https://learn.microsoft.com/azure/role-based-access-control/scope-overview).
 - [Pinned sample and source register](../sources.md).
 
-Last verified: 2026-10-14. Matches `infra/entra` as authored for module 03; not evidence of identity deployment or consent.
+Last verified: 2026-10-15. Matches `infra/entra` as authored for modules 03 and 05; not evidence of identity deployment or consent.

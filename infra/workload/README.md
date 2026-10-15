@@ -15,6 +15,12 @@ Standard v2 as the only MCP entry point (`gateway.tf`, `network.tf`, `diagnostic
 a Function private endpoint with `privatelink.azurewebsites.net`, the MCP server API through AzAPI `2025-09-01-preview` (**Preview**),
 policies from `modules/04-governed-gateway/policies` and zero-body-byte diagnostics. A second apply with `gateway_lock_function = true`
 disables public access on the Function; see [module 04](../../modules/04-governed-gateway/README.md).
+An explicit module 05 opt-in (`enable_delegated_access = true`, default false, requires module 03) adds two new user-assigned
+identities (`id-<stem>-obo` trusted by the MCP API's federated credential for On-Behalf-Of, with no Azure role; `id-<stem>-report`
+for app-only reads), a private `reports` container, Storage Blob Data Reader for the app-only identity and for Alice on that one
+container (Bob gets none), Storage Blob Data Contributor on it for the person who publishes the synthetic report, and the
+`WORKSHOP_*` settings that switch `whoami` and `read_report_*` to real calls (`delegated-access.tf`). No secret or key.
+See [module 05](../../modules/05-delegated-and-app-only/README.md).
 Terraform requires 1.16.6+ below 2; AzureRM is locked to 5.9.0 and AzAPI to 2.13.0 (module 04 only).
 
 Start with [workspace preparation](../../docs/GETTING-STARTED.md), or [the French guide](../../docs/fr/GETTING-STARTED.md).

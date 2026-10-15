@@ -62,7 +62,14 @@ test("public site exports only the allowlist, with no capability, root URLs, pri
         assert.match(gateway.guide, /Preview/);
         assert.equal(gateway.validation.powershell, "modules/04-governed-gateway/validate.ps1");
         assert.equal(gateway.validation.bash, "modules/04-governed-gateway/validate.sh");
-        assert.equal(language.modules.find((module) => module.module === "05").guide, null);
+        const delegated = language.modules.find((module) => module.module === "05");
+        assert.equal(delegated.status, "authored");
+        assert.match(delegated.guide, /On-Behalf-Of/);
+        assert.match(delegated.guide, /isError/);
+        assert.match(delegated.guide, /api:\/\/AzureADTokenExchange/);
+        assert.equal(delegated.validation.powershell, "modules/05-delegated-and-app-only/validate.ps1");
+        assert.equal(delegated.validation.bash, "modules/05-delegated-and-app-only/validate.sh");
+        assert.equal(language.modules.find((module) => module.module === "06").guide, null);
         for (const module of language.modules) {
             assert.match(module.diagramSource.content, /^flowchart LR\n/);
             assert.ok(language.documents.architecture.content.replaceAll("\r\n", "\n").includes(module.diagramSource.content));

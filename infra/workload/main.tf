@@ -41,6 +41,8 @@ locals {
     portal_app           = "web-${local.stem}-portal"
     function_plan        = "plan-${local.stem}-func"
     function_identity    = "id-${local.stem}-func"
+    obo_identity         = "id-${local.stem}-obo"
+    report_identity      = "id-${local.stem}-report"
     log_analytics        = "log-${local.stem}"
     application_insights = "appi-${local.stem}"
   }

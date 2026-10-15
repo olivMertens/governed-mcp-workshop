@@ -127,6 +127,22 @@ Personas:
 - **Show:** same question, Alice vs Bob: as_user → 200 for Alice, 403 for Bob; as_app → same result for both.
 - **Validate:** the four results; no client secret anywhere. Record both outer HTTP status and the MCP tool result:
   a downstream HTTP 403 can be returned as a tool error inside an HTTP 200 response.
+- **Authored, not deployed (2026-10-15):** [EN/FR guide](../modules/05-delegated-and-app-only/README.md), real tool behaviour behind
+  `WORKSHOP_DELEGATED_ACCESS` (disabled keeps the module 02 demonstrations): `whoami` (On-Behalf-Of to Graph `/me?$select=id`,
+  allowlisted persona label only), `read_report_as_user` (On-Behalf-Of to Storage `user_impersonation`), `read_report_as_app`
+  (app-only managed identity); app-only callers refused, no developer-credential fallback, no token parsing. Default-off
+  `infra/workload/delegated-access.tf` (two new identities: `-obo` with no Azure role, `-report` with Storage Blob Data Reader on the
+  `reports` container; Alice reader on that container, Bob none; publisher contributor) and `infra/entra/delegation.tf` (delegated
+  Graph `User.Read` and Storage `user_impersonation`, managed-identity federated credential, opt-in admin consent; existing-application
+  path untouched). Validator, publish step and two-scope clean-up. Only offline checks ran; see [progress](PROGRESS.md).
+- **Authored, not deployed (2026-10-15):** [EN/FR guide](../modules/05-delegated-and-app-only/README.md), real tool behaviour behind
+  `WORKSHOP_DELEGATED_ACCESS` (disabled keeps the module 02 demonstrations): `whoami` (On-Behalf-Of to Graph `/me?$select=id`,
+  allowlisted persona label only), `read_report_as_user` (On-Behalf-Of to Storage `user_impersonation`), `read_report_as_app`
+  (app-only managed identity); app-only callers refused, no developer-credential fallback, no token parsing. Default-off
+  `infra/workload/delegated-access.tf` (two new identities: `-obo` with no Azure role, `-report` with Storage Blob Data Reader on the
+  `reports` container; Alice reader on that container, Bob none; publisher contributor) and `infra/entra/delegation.tf` (delegated
+  Graph `User.Read` and Storage `user_impersonation`, managed-identity federated credential, opt-in admin consent; existing-application
+  path untouched). Validator, publish step and two-scope clean-up. Only offline checks ran; see [progress](PROGRESS.md).
 
 ## 06 — Observe and inventory (level 4)
 - **Take:** APIM Application Insights integration and KQL; Azure API Center MCP inventory:

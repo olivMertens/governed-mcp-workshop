@@ -17,11 +17,11 @@ public static class ToolCatalog
     public const string CreateTicketDescription =
         "WRITE: queue one synthetic ticket in the workshop Storage queue. Synthetic text only. Level 0 checks no identity or role.";
     public const string WhoAmIDescription =
-        "Synthetic demonstration: explains that a function key identifies no user. No Microsoft Graph call at level 0.";
+        "Who am I? Levels 0-2: synthetic explanation, no downstream call. Level 3 (module 05): On-Behalf-Of to Microsoft Graph /me; returns only an allowlisted synthetic persona label, never a name or email.";
     public const string ReadReportAsUserDescription =
-        "Synthetic demonstration of a user-context report read. No downstream call at level 0.";
+        "Read the synthetic report as the signed-in user. Levels 0-2: labeled demonstration. Level 3 (module 05): On-Behalf-Of to Azure Storage, so the caller's own Storage role applies.";
     public const string ReadReportAsAppDescription =
-        "Synthetic demonstration of an app-only report read. No downstream call at level 0.";
+        "Read the synthetic report as the application. Levels 0-2: labeled demonstration. Level 3 (module 05): the app-only managed identity reads Azure Storage, same result for every caller.";
 
     public static IReadOnlyList<string> All { get; } =
         [GetServiceHealth, CreateTicket, WhoAmI, ReadReportAsUser, ReadReportAsApp];

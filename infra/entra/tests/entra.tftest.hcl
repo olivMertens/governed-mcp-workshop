@@ -253,3 +253,185 @@ run "rejects_malformed_or_excessive_pre_authorized_clients" {
   }
   expect_failures = [var.pre_authorized_client_ids]
 }
+
+# ---------------------------------------------------------------- module 05: On-Behalf-Of delegation (opt-in)
+
+run "module05_default_off_changes_nothing" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      length(azuread_application_api_access.downstream) == 0,
+      length(azuread_application_federated_identity_credential.obo) == 0,
+      length(azuread_service_principal_delegated_permission_grant.downstream) == 0,
+      !output.module05_delegation.enabled,
+      length(output.module05_delegation.requested_scopes) == 0,
+    ])
+    error_message = "Without enable_delegated_access, module 03 stays exactly as it was: no permission, credential or consent."
+  }
+}
+
+run "module05_requests_graph_and_storage_trusts_one_identity_and_grants_consent_on_opt_in" {
+  command = plan
+  variables {
+    enable_delegated_access        = true
+    obo_identity_principal_id      = "0b0a5500-0000-4000-8000-000000000005"
+    grant_downstream_admin_consent = true
+    test_user_object_ids = {
+      alice = "a11ce000-0000-4000-8000-000000000001"
+      bob   = "b0b00000-0000-4000-8000-000000000002"
+      eve   = "e0e00000-0000-4000-8000-000000000003"
+    }
+  }
+  override_data {
+    target = data.azuread_service_principal.downstream["graph"]
+    values = {
+      object_id                   = "9a000000-0000-4000-8000-00000000009a"
+      oauth2_permission_scope_ids = { "User.Read" = "e1fe6dd8-ba31-4d61-89e7-88639da4683d", "Mail.Read" = "f1000000-0000-4000-8000-0000000000f1" }
+    }
+  }
+  override_data {
+    target = data.azuread_service_principal.downstream["storage"]
+    values = {
+      object_id                   = "5a000000-0000-4000-8000-00000000005a"
+      oauth2_permission_scope_ids = { user_impersonation = "e2000000-0000-4000-8000-0000000000e2" }
+    }
+  }
+
+  assert {
+    condition = alltrue([
+      azuread_application_api_access.downstream["graph"].api_client_id == "00000003-0000-0000-c000-000000000000",
+      azuread_application_api_access.downstream["graph"].scope_ids == toset(["e1fe6dd8-ba31-4d61-89e7-88639da4683d"]),
+      azuread_application_api_access.downstream["storage"].api_client_id == "e406a681-f3d4-42a8-90b6-c2b029497af1",
+      azuread_application_api_access.downstream["storage"].scope_ids == toset(["e2000000-0000-4000-8000-0000000000e2"]),
+      alltrue([for access in values(azuread_application_api_access.downstream) : access.role_ids == null || length(coalesce(access.role_ids, [])) == 0]),
+    ])
+    error_message = "The MCP API requests exactly two delegated scopes (Graph User.Read, Storage user_impersonation) and no application permission."
+  }
+
+  assert {
+    condition = alltrue([
+      azuread_application_federated_identity_credential.obo[0].issuer == "https://login.microsoftonline.com/00000000-0000-4000-8000-000000000000/v2.0",
+      azuread_application_federated_identity_credential.obo[0].subject == "0b0a5500-0000-4000-8000-000000000005",
+      one(azuread_application_federated_identity_credential.obo[0].audiences) == "api://AzureADTokenExchange",
+      output.module05_federated_credential.subject == "0b0a5500-0000-4000-8000-000000000005",
+    ])
+    error_message = "The federated credential must trust exactly the OBO assertion identity: tenant v2.0 issuer, principal ID subject, api://AzureADTokenExchange audience."
+  }
+
+  assert {
+    condition = alltrue([
+      length(azuread_service_principal_delegated_permission_grant.downstream) == 2,
+      azuread_service_principal_delegated_permission_grant.downstream["graph"].claim_values == toset(["User.Read"]),
+      azuread_service_principal_delegated_permission_grant.downstream["graph"].resource_service_principal_object_id == "9a000000-0000-4000-8000-00000000009a",
+      azuread_service_principal_delegated_permission_grant.downstream["storage"].claim_values == toset(["user_impersonation"]),
+      alltrue([for grant in values(azuread_service_principal_delegated_permission_grant.downstream) :
+        grant.service_principal_object_id == "55555555-5555-4555-8555-555555555555" && grant.user_object_id == null
+      ]),
+      output.module05_delegation.admin_consent_requested,
+    ])
+    error_message = "Admin consent covers only User.Read and user_impersonation, for the workshop enterprise application, tenant-wide (no user object ID)."
+  }
+
+  assert {
+    condition = (
+      output.workload_module05_tfvars.enable_delegated_access &&
+      output.workload_module05_tfvars.delegated_persona_object_ids.alice == "a11ce000-0000-4000-8000-000000000001" &&
+      output.workload_module05_tfvars.delegated_persona_object_ids.bob == "b0b00000-0000-4000-8000-000000000002" &&
+      !contains(keys(output.workload_module05_tfvars.delegated_persona_object_ids), "eve")
+    )
+    error_message = "The workload hand-off carries only Alice's and Bob's object IDs."
+  }
+}
+
+run "module05_without_principal_or_consent_creates_neither" {
+  command = plan
+  variables {
+    enable_delegated_access = true
+  }
+  override_data {
+    target = data.azuread_service_principal.downstream["graph"]
+    values = { oauth2_permission_scope_ids = { "User.Read" = "e1000000-0000-4000-8000-0000000000e1" } }
+  }
+  override_data {
+    target = data.azuread_service_principal.downstream["storage"]
+    values = { oauth2_permission_scope_ids = { user_impersonation = "e2000000-0000-4000-8000-0000000000e2" } }
+  }
+  assert {
+    condition = alltrue([
+      length(azuread_application_api_access.downstream) == 2,
+      length(azuread_application_federated_identity_credential.obo) == 0,
+      length(azuread_service_principal_delegated_permission_grant.downstream) == 0,
+      !output.module05_delegation.federated_credential,
+      !output.module05_delegation.admin_consent_requested,
+    ])
+    error_message = "The federated credential waits for the workload identity, and consent stays a separate explicit decision."
+  }
+}
+
+run "module05_never_changes_an_existing_application" {
+  command = plan
+  variables {
+    create_application             = false
+    existing_application_client_id = "66666666-6666-4666-8666-666666666666"
+    enable_delegated_access        = true
+    obo_identity_principal_id      = "0b0a5500-0000-4000-8000-000000000005"
+    grant_downstream_admin_consent = true
+  }
+  override_data {
+    target = data.azuread_application.existing[0]
+    values = {
+      identifier_uris             = ["api://66666666-6666-4666-8666-666666666666"]
+      app_role_ids                = { "Tools.Read" = "10000000-0000-4000-8000-000000000001", "Tools.Write" = "10000000-0000-4000-8000-000000000002", "Tools.Execute.All" = "10000000-0000-4000-8000-000000000003" }
+      oauth2_permission_scope_ids = { user_impersonation = "20000000-0000-4000-8000-000000000001" }
+    }
+  }
+  override_data {
+    target = data.azuread_service_principal.existing[0]
+    values = { app_role_assignment_required = true }
+  }
+
+  assert {
+    condition = alltrue([
+      length(azuread_application_api_access.downstream) == 0,
+      length(azuread_application_federated_identity_credential.obo) == 0,
+      length(azuread_service_principal_delegated_permission_grant.downstream) == 0,
+      output.module05_delegation.enabled,
+      !output.module05_delegation.managed,
+    ])
+    error_message = "An administrator-provided application is read only: the administrator applies module 05 settings by hand."
+  }
+}
+
+run "module05_rejects_a_principal_without_opt_in" {
+  command = plan
+  variables {
+    obo_identity_principal_id = "0b0a5500-0000-4000-8000-000000000005"
+  }
+  expect_failures = [var.obo_identity_principal_id]
+}
+
+run "module05_rejects_consent_without_opt_in" {
+  command = plan
+  variables {
+    grant_downstream_admin_consent = true
+  }
+  expect_failures = [var.grant_downstream_admin_consent]
+}
+
+run "module05_rejects_a_non_canonical_subject" {
+  command = plan
+  variables {
+    enable_delegated_access   = true
+    obo_identity_principal_id = "0B0A5500-0000-4000-8000-000000000005"
+  }
+  override_data {
+    target = data.azuread_service_principal.downstream["graph"]
+    values = { oauth2_permission_scope_ids = { "User.Read" = "e1000000-0000-4000-8000-0000000000e1" } }
+  }
+  override_data {
+    target = data.azuread_service_principal.downstream["storage"]
+    values = { oauth2_permission_scope_ids = { user_impersonation = "e2000000-0000-4000-8000-0000000000e2" } }
+  }
+  expect_failures = [var.obo_identity_principal_id]
+}

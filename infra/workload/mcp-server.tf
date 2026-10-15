@@ -138,8 +138,9 @@ resource "azurerm_function_app_flex_consumption" "mcp" {
   tags                                           = local.tags
 
   identity {
-    type         = "UserAssigned"
-    identity_ids = [azurerm_user_assigned_identity.mcp[0].id]
+    type = "UserAssigned"
+    # Module 05 adds its two separate identities (OBO assertion and app-only reader); none when disabled.
+    identity_ids = concat([azurerm_user_assigned_identity.mcp[0].id], local.delegated_identity_ids)
   }
 
   site_config {
@@ -173,7 +174,7 @@ resource "azurerm_function_app_flex_consumption" "mcp" {
     TICKET_QUEUE_SERVICE_URI                  = azurerm_storage_account.mcp[0].primary_queue_endpoint
     TICKET_QUEUE_NAME                         = azurerm_storage_queue.tickets[0].name
     WORKSHOP_IDENTITY_CLIENT_ID               = azurerm_user_assigned_identity.mcp[0].client_id
-  }, local.mcp_auth_app_settings) # module 03 settings, empty unless enable_entra_auth = true (see entra-auth.tf)
+  }, local.mcp_auth_app_settings, local.delegated_app_settings) # module 03 (entra-auth.tf) and module 05 (delegated-access.tf) settings, empty unless enabled
 
   # Module 03: Microsoft Entra built-in authentication (App Service Authentication v2). Absent at level 0.
   dynamic "auth_settings_v2" {
@@ -213,6 +214,7 @@ resource "azurerm_function_app_flex_consumption" "mcp" {
     azurerm_role_assignment.mcp_host_storage,
     azurerm_role_assignment.mcp_ticket_sender,
     azurerm_role_assignment.mcp_telemetry,
+    azurerm_role_assignment.report_app_reader,
   ]
 }
 

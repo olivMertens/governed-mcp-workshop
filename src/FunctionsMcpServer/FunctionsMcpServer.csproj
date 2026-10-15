@@ -4,7 +4,8 @@
     468c518c884ec318e3001b9573254c9e775409c9 (src/FunctionsMcpTool/FunctionsMcpTool.csproj), MIT License,
     Copyright (c) Microsoft Corporation. See THIRD-PARTY-NOTICES.md.
     Workshop changes: exact pins, package lock, no preview MCP SDK, no Graph/QR/Apps/Blob/OpenTelemetry packages,
-    Storage Queue client with managed identity for the synthetic ticket side effect.
+    Storage Queue client with managed identity for the synthetic ticket side effect; module 05 adds the Storage Blob client
+    (same Azure.Storage.Common as Queues) and calls Microsoft Graph /me over HTTPS instead of the Microsoft.Graph SDK.
   -->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -22,6 +23,7 @@
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="[2.0.7]" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Mcp" Version="[1.5.0]" />
     <PackageReference Include="Azure.Identity" Version="[1.21.0]" />
+    <PackageReference Include="Azure.Storage.Blobs" Version="[12.26.0]" />
     <PackageReference Include="Azure.Storage.Queues" Version="[12.24.0]" />
   </ItemGroup>
   <ItemGroup>
