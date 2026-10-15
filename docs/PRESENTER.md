@@ -4,8 +4,26 @@
 
 **You host the public guides. Participants run their own exercises.**
 Publishing the portal does not deploy the Model Context Protocol (MCP) server.
-Module 00 preparation and module 01's local exercise are implemented; modules 02 onward remain planned.
+Module 00 is validated, modules 01 to 03 are authored (offline checks pass), modules 04 onward remain planned.
 Students can run [module 01](../modules/01-discover-mcp/README.md) without waiting for your portal or Azure deployment.
+
+## Who deploys what
+
+You cannot deploy into participants' tenants, and you must not try: no shared credential, no deployment key,
+no guest account in their tenant. Each participant deploys in their own approved non-production subscription.
+
+| Item | Who | Where |
+|---|---|---|
+| Shared guides (default) | Presenter | GitHub Pages, from this repository. No Azure, no tenant access. See [HOSTING.md](HOSTING.md#publish-with-github-pages). |
+| Shared guides on App Service (optional) | Presenter | Only in a subscription the presenter owns (sections 1 to 4 below). Never in a participant tenant. |
+| MCP workload, modules 02 onward | Each participant | Their own subscription and Microsoft Entra tenant, from their own terminal. |
+| Personal portal prefilled with their endpoint (optional) | Each participant | Their own subscription. See [participant portal](HOSTING.md#optional-participant-portal-linked-to-your-deployment). |
+
+Live validation of modules 02 onward happens in participants' subscriptions. A participant's PASS lines are
+evidence for that participant only; do not ask them to send outputs that contain tenant or subscription IDs.
+
+If you share the GitHub Pages link, skip to section 4's student message and section 5.
+Sections 1 to 4 apply only if you host the shared copy in your own subscription.
 
 ## 1. Prepare your presenter workspace
 
@@ -75,8 +93,9 @@ Never send a guessed URL or one that has not passed these checks.
 Suggested student message:
 
 > Open the workshop link, choose your language and workspace, then follow module 00.
-> Use only your approved test tenant and subscription. You do not need to host the portal.
-> Module 01 runs locally without Azure. Modules 02 onward are planned, not runnable exercises yet.
+> Use only your approved test tenant and subscription. You do not need to host the shared guides.
+> You deploy the MCP server yourself; optionally, you can deploy your own portal prefilled with your endpoint.
+> Module 01 runs locally without Azure. Modules 02 and 03 are ready to run in your subscription; 04 onward are planned.
 > Do not send credentials or tokens.
 
 ## 5. Close the session safely

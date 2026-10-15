@@ -200,7 +200,11 @@ You build this repository's workshop, one module per session, with the workshop-
 - Follow `docs/BUILD-PLAN.md` for what to take, build and show. Keep `docs/PROGRESS.md` up to date.
 - Read the official sources of a module before writing its code.
 - Show the Terraform plan and the Microsoft Entra changes, and wait for approval, before changing anything in Azure or Entra.
-- A module is done only when its `validate.ps1` passes. Report the PASS lines as evidence.
+- The presenter cannot deploy into participants' tenants. Never target a participant tenant or subscription.
+  Deploy only to an approved non-production tenant the author owns, if one is available in the session.
+- A module is `authored` when its code, docs and offline checks pass; that is enough to open the pull request and
+  start the next module. It is `validated` only when `validate.ps1` passes live. Report the PASS lines as evidence,
+  labelled offline or live.
 - Keep the content generic, in English, with synthetic data and no secrets.
 '@
 
@@ -265,8 +269,10 @@ Build order, sources and expected results are in docs/BUILD-PLAN.md. Read it bef
 README sections in this order: Goal · Why it matters · What you deploy · Prerequisites and required roles ·
 Steps (PowerShell, then bash) · What you should see · Validate · Troubleshooting · Clean up · Go further · Sources.
 Files: infra/ (if any), validate.ps1 and validate.sh (one PASS/FAIL line per check with the expected HTTP status),
-cleanup script. A module is done only when its validate script passes on a fresh subscription
-right after the previous modules.
+cleanup script. A module is `authored` when its code, docs and offline checks (unit tests, mocked Terraform tests,
+offline validator) pass. It is `validated` when its validate script passes live on a fresh subscription right after
+the previous modules. The presenter cannot deploy into participants' tenants, so live validation runs in each
+participant's own subscription, or in an approved author-owned tenant. `authored` is enough to ship a pull request.
 
 ## When helping a participant
 Explain simply and point to the module's sources. Never suggest disabling a control, widening a role,
@@ -2309,23 +2315,29 @@ Always follow these steps, in this order.
 
 1. **Load the context.** Read `.github/copilot-instructions.md`, `docs/BUILD-PLAN.md` and `docs/PROGRESS.md`.
 2. **Pick the module.** Use the module named in the request. Otherwise take the first module in `docs/PROGRESS.md`
-   whose status is not `validated` (module 07 is optional). If the previous module in the build order is not
-   `validated`, stop and say so.
+   whose status is not `authored` or `validated` (module 07 is optional). If the previous module in the build order is
+   still `todo`, `in-progress` or `blocked`, stop and say so. `authored` is enough to continue: the presenter usually
+   cannot deploy, so live validation happens later in each participant's own subscription.
 3. **Read the sources first.** Open every official page listed under "Take" for the module (use the Microsoft Learn
    MCP server when it is available). Note any difference between the documentation and the build plan.
 4. **Plan and ask.** Present a short plan: files to create or change, Azure and Microsoft Entra changes, roles required,
-   Preview features used, cost impact, clean-up. Wait for explicit approval before creating or changing any Azure or
-   Microsoft Entra resource.
+   Preview features used, cost impact, clean-up. Ask whether this session has an approved non-production tenant
+   the author owns. Never target a participant's tenant or subscription. Wait for explicit approval before creating
+   or changing any Azure or Microsoft Entra resource.
 5. **Build** `modules/NN-name/` following the module contract: README sections in order, `infra/` if needed,
    `validate.ps1`, `validate.sh` and a clean-up script. Pin upstream versions or commit SHAs and keep license notices.
-6. **Infrastructure.** Run `terraform fmt -recursive`, `terraform validate` and `terraform plan`. Summarize the plan
-   and apply only after approval.
-7. **Validate.** Run `validate.ps1` and fix until every check prints PASS. Never weaken a security invariant, widen a role
-   or add a secret to get a PASS: stop and ask instead.
-8. **Record.** Update `docs/PROGRESS.md` (status, date, PASS lines as evidence, notes, deviations, open decisions) and
-   `docs/sources.md` (create it if missing) with every link used and its last verified date.
-9. **Ship.** Commit as `module NN: <summary>` and open a pull request that lists what was built, the validation output,
-   deviations from the plan, Preview features used and the clean-up command.
+6. **Infrastructure.** Run `terraform fmt -recursive`, `terraform validate` and the mocked `terraform test`.
+   Run `terraform plan` and apply only if step 4 confirmed an approved author-owned tenant, and only after approval.
+7. **Validate.** Always run the offline checks (unit tests, Terraform tests, the offline mode of the validator).
+   If deployed, run `validate.ps1` live and fix until every check prints PASS. Never weaken a security invariant,
+   widen a role or add a secret to get a PASS: stop and ask instead.
+8. **Record.** Update `docs/PROGRESS.md`: `authored` with offline PASS lines when nothing was deployed, or `validated`
+   with the date and live PASS lines. Add notes, deviations and open decisions. Update `docs/sources.md`
+   (create it if missing) with every link used and its last verified date.
+9. **Ship.** Commit as `module NN: <summary>` and open a pull request. An `authored` module is shippable: do not refuse
+   to open the pull request because live validation is pending. The pull request lists what was built, the validation
+   output (offline or live, labelled), what participants still validate live, deviations from the plan,
+   Preview features used and the clean-up command.
 '@
 
 $files['.github/workflows/workshop-pages.yml'] = @'

@@ -263,6 +263,30 @@ Ne supprimez pas un groupe entier pour masquer des ressources non suivies.
 
 </details>
 
+## Portail participant facultatif lié à votre déploiement
+
+Le présentateur ne peut pas déployer dans le tenant des participants. Un participant qui veut un portail connaissant
+déjà **son** point de terminaison déploie le même portail App Service dans **son** abonnement, avec le même état
+et les mêmes paramètres que son workload MCP, en suivant la procédure ci-dessus.
+
+Quand le portail et le serveur MCP partagent cet état Terraform, le plan ajoute au portail des paramètres non secrets :
+
+| Paramètre d'application | Origine | Quand |
+|---|---|---|
+| `WORKSHOP_MCP_ENDPOINT` | `mcp_endpoint` (URL HTTPS de la Function App) | `enable_mcp_server = true` (module 02) |
+| `WORKSHOP_MCP_SCOPE` | `mcp_auth_scope` (`api://…/user_impersonation`) | `enable_entra_auth = true` (module 03) |
+
+Le serveur du portail revérifie ces deux valeurs et ne sert qu'elles, sur `/participant.json`.
+La page **Essayer votre MCP** préremplit le point de terminaison et affiche l'étendue déléguée. Rien n'est prérempli
+sur GitHub Pages : le participant saisit son adresse, qui reste dans la mémoire du navigateur.
+
+- Jamais ajoutés : la clé système du module 02, les jetons, les ID de tenant ou d'abonnement, les chaînes de connexion, les secrets client.
+- Le portail est public : il révèle le nom d'hôte et l'étendue, qui ne sont pas des secrets. Le point de terminaison reste
+  protégé par la clé système (niveau 0) ou Microsoft Entra (niveau 1). Ne diffusez pas le lien hors de votre groupe de test,
+  et supprimez le portail avec le workload.
+- Relancez le plan et le déploiement du portail après chaque nouveau module pour mettre à jour les valeurs préremplies.
+- Coût : un plan B1 par participant qui l'active. C'est facultatif ; les guides partagés sur GitHub Pages suffisent.
+
 ## Ressources du participant
 
 Suivez [le choix d'environnement](GETTING-STARTED.md) puis [le contexte Azure](DEPLOYMENT.md).
