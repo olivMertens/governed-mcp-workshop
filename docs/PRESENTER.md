@@ -4,7 +4,7 @@
 
 **You host the public guides. Participants run their own exercises.**
 Publishing the portal does not deploy the Model Context Protocol (MCP) server.
-Module 00 is validated, modules 01 to 03 are authored (offline checks pass), modules 04 onward remain planned.
+Module 00 is validated live. Modules 01 to 07 and 99 are authored (offline checks pass) and still need a live run in a test subscription.
 Students can run [module 01](../modules/01-discover-mcp/README.md) without waiting for your portal or Azure deployment.
 
 ## Who deploys what
@@ -95,7 +95,7 @@ Suggested student message:
 > Open the workshop link, choose your language and workspace, then follow module 00.
 > Use only your approved test tenant and subscription. You do not need to host the shared guides.
 > You deploy the MCP server yourself; optionally, you can deploy your own portal prefilled with your endpoint.
-> Module 01 runs locally without Azure. Modules 02 and 03 are ready to run in your subscription; 04 onward are planned.
+> Module 01 runs locally without Azure. Modules 02 to 07 are authored and ready to run in your subscription after a live check. Follow the run order in the root README.
 > Do not send credentials or tokens.
 
 ## 5. Close the session safely

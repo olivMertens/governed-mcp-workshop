@@ -1,9 +1,8 @@
 # 🔐 Governed MCP on Azure — hands-on workshop
 
-> ⚠️ **Work in progress.** Module 00 preparation and module 01's local MCP exercise are implemented.
-> Modules 02 (open server), 03 (Microsoft Entra identity) and 04 (governed API Management gateway) are authored with offline checks only; they are not deployed or validated.
-> Modules 05–07 and 99 remain planned. Module 01's client-approval observation is still manual.
-> Nothing has been validated on a real Azure subscription yet. Details: [what is available](docs/IMPLEMENTATION-STATUS.md).
+> ⚠️ **Work in progress.** Module 00 is validated. Modules 01 to 07 and 99 are authored, and their offline checks pass.
+> Only module 00 is validated on a live subscription. Modules 02 to 07 and 99 are not yet deployed or validated in Azure. Module 01's client-approval observation is still manual.
+> Details: [what is available](docs/IMPLEMENTATION-STATUS.md).
 
 Take one MCP server from **open** to **governed** on Azure, alone, in **your own non-production** subscription.
 🇫🇷 [Version française](docs/fr/GETTING-STARTED.md)
@@ -105,18 +104,35 @@ Module 02 deploys real Azure resources: start it only after module 00 validation
 
 | # | Module | Need it? | Status | Guide |
 |---|---|---|---|---|
-| 00 | 🧰 Prerequisites and environment | ✅ Required | 🟡 Built, offline checks only | [Open](modules/00-prerequisites/README.md) |
+| 00 | 🧰 Prerequisites and environment | ✅ Required | 🟢 Validated (live, 2026-10-14) | [Open](modules/00-prerequisites/README.md) |
 | 01 | 🔍 Discover MCP (no Azure) | ✅ Required | 🟡 Local SDK + Inspector checks pass; manual approval pending | [Open](modules/01-discover-mcp/README.md) · [FR](modules/01-discover-mcp/README.fr.md) |
 | 02 | 🔑 Server protected by a key (level 0) | ✅ Required | 🟡 Authored; offline checks pass, not deployed | [Open](modules/02-open-server/README.md) · [FR](modules/02-open-server/README.fr.md) |
 | 03 | 🪪 Microsoft Entra identity (level 1) | ✅ Required | 🟡 Authored; offline checks pass, not deployed | [Open](modules/03-entra-authentication/README.md) · [FR](modules/03-entra-authentication/README.fr.md) |
 | 04 | 🚪 API Management as the only entry (level 2) | ✅ Required | 🟡 Authored; offline checks pass, not deployed | [Open](modules/04-governed-gateway/README.md) · [FR](modules/04-governed-gateway/README.fr.md) |
 | 05 | 👤 On-Behalf-Of vs app-only (level 3) | ✅ Required | 🟡 Authored; offline checks pass, not deployed | [Open](modules/05-delegated-and-app-only/README.md) · [FR](modules/05-delegated-and-app-only/README.fr.md) |
-| 06 | 📊 Observe and inventory (level 4) | ✅ Required | ⚪ Planned | [Plan](docs/BUILD-PLAN.md#06--observe-and-inventory-level-4) |
-| 07 | 🤖 Other clients (Foundry, Copilot Studio) | ➕ Optional | ⚪ Planned | [Plan](docs/BUILD-PLAN.md#07--optional-other-clients) |
-| 99 | 🧹 Clean up | ♻️ As soon as you create resources | ⚪ Planned | [Plan](docs/BUILD-PLAN.md#99--clean-up) |
+| 06 | 📊 Observe and inventory (level 4) | ✅ Required | 🟡 Authored; offline checks pass, not deployed | [Open](modules/06-observe-inventory/README.md) · [FR](modules/06-observe-inventory/README.fr.md) |
+| 07 | 🤖 Other clients (Foundry, Copilot Studio) | ➕ Optional | 🟡 Authored; offline checks pass, not deployed | [Open](modules/07-clients/README.md) · [FR](modules/07-clients/README.fr.md) |
+| 99 | 🧹 Clean up | ♻️ As soon as you create resources | 🟡 Authored; offline checks pass, not run live | [Open](modules/99-cleanup/README.md) · [FR](modules/99-cleanup/README.fr.md) |
 
-> 💡 **00 to 04 have guides.** The other rows link to their implementation plan.
-> A published guide or local `PASS` is not proof of a completed Azure workshop.
+> 💡 **Authored** means the guide and offline checks exist. It is not proof of a completed Azure deployment.
+
+## 🧭 Run order (presenter and attendees)
+
+Run the modules in this order. Each row ends with a checkpoint you can show the room before moving on.
+
+| Step | Module | Azure needed? | Who | Checkpoint before the next step |
+|---|---|---|---|---|
+| 1 | 00 Prerequisites | Test subscription only (no paid resources) | Attendee | Tools and sign-in confirmed |
+| 2 | 01 Discover MCP | No | Attendee | Local MCP server lists its tools in the Inspector |
+| 3 | 02 Open server (level 0) | Yes (paid stage, function key only) | Attendee | Anonymous call is refused (401); keyed call works, which shows the risk |
+| 4 | 03 Entra identity (level 1) | Yes, and identity administrator approval | Identity admin, then attendee | Alice and Bob get HTTP 200; a token for another audience is refused |
+| 5 | 04 Governed gateway (level 2) | Yes (paid stage) | Attendee | Bob's `create_ticket` returns HTTP 403; Alice's returns HTTP 200 |
+| 6 | 05 On-Behalf-Of vs app-only (level 3) | Yes, and identity administrator consent | Identity admin, then attendee | Bob's user-context report read returns `isError: true`; Alice's app-only read succeeds |
+| 7 | 06 Observe and inventory (level 4) | Yes | Attendee | Logs show tool, caller, status and latency (no bodies) |
+| 8 | 07 Other clients (optional) | Optional | Attendee | Foundry or Copilot Studio calls the governed endpoint |
+| 9 | 99 Clean up | Runs against your state | Attendee | Report shows only workshop-owned resources; apply after review |
+
+**Presenter flow:** publish the shared guides once (see [PRESENTER](docs/PRESENTER.md)), then walk steps 1 to 2 live, then let each attendee run steps 3 to 9 in their own subscription. Run step 9 after every paid stage, not only at the end.
 
 ## 🧭 Open the board
 
