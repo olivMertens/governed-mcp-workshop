@@ -120,7 +120,7 @@ translated to Terraform. Only offline checks ran; no Azure or Entra change.
 | NuGet `Azure.Identity` / `Azure.Storage.Queues` | `1.21.0` (upstream value) / `12.24.0` (workshop addition for the managed-identity ticket queue) |
 | Test packages | `Microsoft.NET.Test.Sdk` `18.0.1`, `xunit` `2.9.3`, `xunit.runner.visualstudio` `3.1.5`; both projects have `packages.lock.json` |
 | Not imported | `Microsoft.Azure.Functions.Worker.Extensions.Mcp.Sdk` `1.0.0-preview.4` (**Preview**), Graph, QRCoder, Blob extension, OpenTelemetry exporter, Apps/prompts/resources samples |
-| [Functions MCP bindings](https://learn.microsoft.com/azure/azure-functions/functions-bindings-mcp) | `webhookAuthorizationLevel` defaults to `System`; `mcp_extension` system key in `x-functions-key`; HTTP 401 without it; Streamable HTTP at `/runtime/webhooks/mcp`. Queue roles are documented for the SSE transport only, so none are granted to the host. |
+| [Functions MCP bindings](https://learn.microsoft.com/azure/azure-functions/functions-bindings-mcp) | `webhookAuthorizationLevel` defaults to `System`; `mcp_extension` system key in `x-functions-key`; HTTP 401 without it; Streamable HTTP at `/runtime/webhooks/mcp`. No queue roles are granted to the host (the SSE-only queue-role scope is not re-verified this session). |
 | [MCP tool trigger](https://learn.microsoft.com/azure/azure-functions/functions-bindings-mcp-tool-trigger) | `McpToolTrigger` + `ToolInvocationContext`; properties optional unless marked required. |
 | [Identity-based connections](https://learn.microsoft.com/azure/azure-functions/functions-identity-based-connections-tutorial) | Storage Blob Data Owner is the minimum host role for identity-based `AzureWebJobsStorage`. |
 | [Flex Consumption](https://learn.microsoft.com/azure/azure-functions/flex-consumption-plan) and [deployment how-to](https://learn.microsoft.com/azure/azure-functions/flex-consumption-how-to) | Lowest maximum scale is 1; 2048 MB instances; `az functionapp deployment source config-zip` deploys a package. |
@@ -270,7 +270,7 @@ All rows were last verified on 2026-10-14. Paths are relative to the pinned repo
 | 05 | Functions `src/FunctionsMcpTool/HelloToolWithAuth.cs`, OBO docs and managed-identity federation docs | Reuse the supported `OnBehalfOfCredential` client-assertion callback concept; obtain distinct Graph and Storage tokens | Do not reuse local developer-identity fallback in deployed tests, log exception details that can leak data, or return real display names/emails. Use fixed tenant/audience configuration and sanitized persona output. App-only tool uses explicit managed identity, not OBO. |
 | 06 | APIM Application Insights docs; `labs/mcp-from-api/src/mcp-insights/workbook.json`; API Center registration docs and `labs/mcp-registry-apic` | Reuse correlation joins and a small request/denial view; register only the governed endpoint | Workbook `agent-id`/`user-id` header values are not authenticated identity proof. Emit validated caller metadata, zero body bytes, fixed tool name, status and latency. Do not import the lab's third-party/SSE catalog JSON. Last verified 2026-10-15. |
 | 06b (optional) | Microsoft 365 BYO MCP inventory docs | Facilitator explanation of review, admin approval and inventory (**Preview**) | No tenant registration in the core path; recheck licensing and eligibility before a demo. Current docs list supported surfaces and exclude Foundry and declarative agents from this preview. Last verified 2026-10-15. |
-| 07 (optional) | Foundry MCP authentication and Copilot Studio onboarding docs | Contrast shared project/agent identity with individual OAuth user context on the same governed server | Only a supported secretless flow may be demonstrated. Copilot Studio supports Streamable HTTP, not deprecated SSE. Its documented manual OAuth asks for a secret: defer rather than weaken the rules. Foundry client identity preservation does not permit forwarding the MCP token to Graph/Storage. |
+| 07 (optional) | Foundry MCP authentication and Copilot Studio onboarding docs | Contrast shared project/agent identity with individual OAuth user context on the same governed server | Only a supported secretless flow may be demonstrated. Copilot Studio transport (Streamable HTTP per the existing-server page; SSE wording not re-verified). Its documented manual OAuth asks for a secret: defer rather than weaken the rules. Foundry client identity preservation does not permit forwarding the MCP token to Graph/Storage. |
 | 99 | The selected labs' cleanup guidance plus the workshop's two Terraform roots | Teach deterministic teardown, ownership boundaries and a final empty-inventory check | Replace broad notebook/resource-group deletion with destruction of workshop-owned resources only. Do not remove passed-in identities, shared infrastructure, or unrelated accounts. |
 
 ## Verified updates and conflicts
@@ -440,6 +440,13 @@ changes a depicted architecture. The skill's Microsoft icon references point to
 [DamoBird365/microsoft-cloud-icons](https://github.com/DamoBird365/microsoft-cloud-icons/tree/master). Verify each asset's
 identity and terms as the skill requires before reuse; this repository's own diagrams keep the provenance in
 [the diagram provenance guide](../assets/architecture/README.md).
+
+## Module 07 and 99 sources
+
+Last verified: 2026-10-15. Module 07 is an optional facilitator demo with no Azure resources. Module 99 is the clean-up orchestrator. Both are checked offline only.
+
+- [Module 07 EN/FR guide](../modules/07-clients/README.md) and [Module 99 EN/FR guide](../modules/99-cleanup/README.md), with the source links in each README.
+- [Copilot Studio MCP support](https://learn.microsoft.com/microsoft-copilot-studio/agent-extend-action-mcp): fetched 2026-10-15. The page says Copilot Studio supports MCP tools and resources. It does not name a transport, so the Streamable HTTP and SSE wording in module 07 is not confirmed by this page and must be re-checked against [Copilot Studio existing MCP server](https://learn.microsoft.com/microsoft-copilot-studio/mcp-add-existing-server-to-agent) before module 07 is validated.
 
 ## Sources
 
