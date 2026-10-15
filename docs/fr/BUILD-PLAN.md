@@ -65,6 +65,9 @@ Les tests sans jeton ou avec une mauvaise audience doivent renvoyer HTTP 401.
 
 </details>
 
+Le [guide du module 03](../../modules/03-entra-authentication/README.fr.md) est rédigé et vérifié hors ligne ; rien n'est
+encore déployé dans Azure ni créé dans Microsoft Entra.
+
 ## 04 - API Management comme entrée unique, niveau 2
 
 **Objectif :** imposer le passage par la passerelle API Management.

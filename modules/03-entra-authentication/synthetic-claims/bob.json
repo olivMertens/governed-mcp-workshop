@@ -1,0 +1,26 @@
+{
+  "synthetic": true,
+  "note": "Decoded payload of a FICTIONAL access token. Not a real token: no header, no signature, synthetic IDs only.",
+  "persona": "Bob",
+  "client": "Azure CLI (pre-authorized)",
+  "decoded_payload": {
+    "aud": "44444444-4444-4444-8444-444444444444",
+    "iss": "https://login.microsoftonline.com/00000000-0000-4000-8000-000000000000/v2.0",
+    "tid": "00000000-0000-4000-8000-000000000000",
+    "oid": "b0b00000-0000-4000-8000-000000000002",
+    "azp": "04b07795-8ddb-461a-bbee-02f9e1bf7b46",
+    "scp": "user_impersonation",
+    "roles": ["Tools.Read"],
+    "preferred_username": "bob@contoso.example",
+    "ver": "2.0",
+    "iat": 1767225600,
+    "nbf": 1767225600,
+    "exp": 1767229200
+  },
+  "what_the_server_checks": {
+    "aud, iss, tid, azp, exp": "Same as Alice: Bob reaches the server.",
+    "scp": "Same delegated scope as Alice: scopes describe the client app, not the user.",
+    "roles": "Only Tools.Read. At level 1 the server checks access, not each tool: Bob could still call create_ticket. Module 04 refuses it with HTTP 403."
+  },
+  "expected_http": 200
+}
