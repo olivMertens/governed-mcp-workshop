@@ -166,3 +166,94 @@ variable "entra_auth_replace_key_gate" {
     error_message = "entra_auth_replace_key_gate requires enable_entra_auth = true: the key gate is only replaced by enforced Entra authentication."
   }
 }
+
+variable "enable_governed_gateway" {
+  type        = bool
+  default     = false
+  nullable    = false
+  description = "Module 04 stage 1 opt-in: API Management Standard v2 (provisioned capacity, cost approval required) as the governed MCP entry point, outbound virtual network integration, Function private endpoint and private DNS, payload-free Application Insights logging. Requires modules 02 and 03 (both stages). Default off keeps modules 00-03 unchanged."
+  validation {
+    condition     = !var.enable_governed_gateway || (var.enable_mcp_server && var.enable_entra_auth && var.entra_auth_replace_key_gate)
+    error_message = "enable_governed_gateway needs enable_mcp_server, enable_entra_auth and entra_auth_replace_key_gate = true: the gateway forwards the MCP-audience token that the Function validates itself (one logical resource)."
+  }
+}
+
+variable "gateway_lock_function" {
+  type        = bool
+  default     = false
+  nullable    = false
+  description = "Module 04 stage 2: disable public network access on the Function App so only the gateway (through the private endpoint) reaches it. Apply only after stage 1 is deployed and the gateway path works."
+  validation {
+    condition     = !var.gateway_lock_function || var.enable_governed_gateway
+    error_message = "gateway_lock_function requires enable_governed_gateway = true: never lock the Function before the private path through the gateway exists."
+  }
+}
+
+variable "gateway_publisher_email" {
+  type        = string
+  default     = "mcp-workshop@example.com"
+  nullable    = false
+  description = "API Management publisher email (required by the service; receives service notifications). Use a team or reserved example address, never a personal address in a committed file."
+  validation {
+    condition     = can(regex("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$", var.gateway_publisher_email))
+    error_message = "Use a valid email address."
+  }
+}
+
+variable "gateway_mcp_path" {
+  type        = string
+  default     = "workshop-mcp"
+  nullable    = false
+  description = "Gateway base path of the MCP server. Clients call https://<gateway>/<path>/mcp."
+  validation {
+    condition     = can(regex("^[a-z][a-z0-9-]{2,39}$", var.gateway_mcp_path))
+    error_message = "Use 3-40 lowercase letters, digits or hyphens, starting with a letter."
+  }
+}
+
+variable "gateway_vnet_address_space" {
+  type        = string
+  default     = "10.42.0.0/23"
+  nullable    = false
+  description = "Address space of the module 04 virtual network. The first /24 is the delegated API Management subnet, the next /27 the private endpoint subnet."
+  validation {
+    condition     = can(cidrhost(var.gateway_vnet_address_space, 0)) && can(regex("^\\d{1,3}(\\.\\d{1,3}){3}/(1[6-9]|2[0-3])$", var.gateway_vnet_address_space))
+    error_message = "Use an IPv4 CIDR from /16 to /23 so a /24 API Management subnet and a /27 private endpoint subnet fit."
+  }
+}
+
+variable "gateway_rate_limit_calls" {
+  type        = number
+  default     = 30
+  nullable    = false
+  description = "Calls allowed per caller object ID (oid) in each renewal period before the gateway returns HTTP 429."
+  validation {
+    condition     = var.gateway_rate_limit_calls >= 5 && var.gateway_rate_limit_calls <= 1000 && floor(var.gateway_rate_limit_calls) == var.gateway_rate_limit_calls
+    error_message = "Use a whole number from 5 to 1000."
+  }
+}
+
+variable "gateway_rate_limit_period" {
+  type        = number
+  default     = 60
+  nullable    = false
+  description = "Rate-limit renewal period in seconds (API Management maximum 300)."
+  validation {
+    condition     = var.gateway_rate_limit_period >= 10 && var.gateway_rate_limit_period <= 300 && floor(var.gateway_rate_limit_period) == var.gateway_rate_limit_period
+    error_message = "Use a whole number of seconds from 10 to 300."
+  }
+}
+
+variable "gateway_allowed_ip_ranges" {
+  type        = list(string)
+  default     = []
+  nullable    = false
+  description = "Optional gateway ip-filter allow-list (IPv4 CIDR). Empty: no IP filter, the token and role checks still apply. Any entry: other sources get HTTP 403."
+  validation {
+    condition = length(var.gateway_allowed_ip_ranges) <= 10 && alltrue([
+      for range in var.gateway_allowed_ip_ranges :
+      can(cidrhost(range, 0)) && can(regex("^\\d{1,3}(\\.\\d{1,3}){3}/(8|9|[12]\\d|3[0-2])$", range))
+    ])
+    error_message = "Use at most 10 IPv4 CIDR ranges with a prefix of /8 to /32. Never allow 0.0.0.0/0."
+  }
+}

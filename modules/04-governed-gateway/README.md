@@ -1,0 +1,314 @@
+# 04 - API Management as the only entry point (level 2)
+
+[Français](README.fr.md)
+
+## Goal
+
+Put **Azure API Management** (APIM) in front of the MCP server and make it the **only** way in. At the end:
+
+- a request without a token gets **HTTP 401** from the gateway, with a challenge that points to the gateway's own
+  Protected Resource Metadata (PRM);
+- **Bob** (`Tools.Read`) calls `create_ticket` → **HTTP 403**; **Alice** (`Tools.Read` + `Tools.Write`) → **HTTP 200**;
+- Bob calls `get_service_health` → **HTTP 200**;
+- a burst of calls from one user → **HTTP 429**;
+- a direct call to the Function host from the internet → **HTTP 403** (public access disabled);
+- Application Insights shows who called which tool, with **no payload** and no token.
+
+> [!WARNING]
+> Never paste a live token into a website, a chat, a file, a screenshot or a log. The validator keeps tokens in memory only.
+
+## Why it matters
+
+Level 1 (module 03) checks **who** calls the server, not **what** they may do: Bob can still create tickets, nobody limits
+call rates, and the Function is reachable from anywhere on the internet. A gateway adds the controls a server should not
+re-implement:
+
+| Control | Where | Why |
+|---|---|---|
+| `validate-azure-ad-token` | Gateway inbound | Platform validation of issuer, tenant, expiry, **audience = the MCP API only**, allowed client and the `user_impersonation` scope. No hand-written JWT code. |
+| Per-tool role check | Gateway inbound, from the JSON-RPC body | `tools/call` with `create_ticket` requires the app role `Tools.Write`; every other tool and MCP method requires `Tools.Read`. Malformed bodies, batches, unknown tools and unsupported methods are denied. |
+| `rate-limit-by-key` | Gateway inbound, key = caller object ID (`oid`) from the validated token | One noisy user gets HTTP 429 without affecting others. |
+| `ip-filter` | Gateway inbound, optional | Restrict sources when your organisation needs it (empty by default). |
+| Private path | Network | The Function has **public network access disabled** and a **private endpoint**; only the gateway reaches it through Standard v2 outbound virtual network integration. |
+| Payload-free logs | Application Insights | **0 body bytes** for frontend/backend requests and responses, no header logged, and a trace with the tool label and the caller `oid` only. |
+
+**Scopes vs app roles.** The `scp` claim (`user_impersonation`) says what the *client app* may do for the user. The `roles`
+claim (`Tools.Read`, `Tools.Write`) says what *this user* may do. Per-tool authorization uses **app roles**
+([concept](../../docs/concepts/scopes-and-app-roles.md)).
+
+**Token boundary.** The gateway and the Function protect **one logical MCP resource** with **one audience**
+(`api://<client-id>`, from module 03). The gateway validates the token, then forwards the **same** request to the Function,
+whose built-in authentication validates it again (defence in depth). This is not token passthrough to a downstream API:
+the token is never sent to Microsoft Graph, Storage or anything else, and no audience is added or broadened. Module 05 gets
+separate downstream tokens through On-Behalf-Of or a managed identity ([token chain](../../docs/concepts/token-chain.md)).
+
+**Network choice.** Standard v2 keeps a **public gateway** for clients and uses **outbound virtual network integration** to
+call a **Function private endpoint** resolved by the private DNS zone `privatelink.azurewebsites.net`. Public access on the
+Function is then disabled. Basic v2 has no outbound integration, and full virtual network injection (Premium v2) is more
+than this workshop needs. Inbound NSG rules do not apply to outbound integration; the gateway policies are the inbound control.
+
+## What you deploy
+
+All in your workshop resource group, with the deterministic names from your private parameters. Opt-in variables, default off:
+modules 00 to 03 are unchanged when `enable_governed_gateway` is false.
+
+| Resource | Settings |
+|---|---|
+| Virtual network `vnet-mcp-<prefix>-<suffix>` | `10.42.0.0/23` by default (`gateway_vnet_address_space`) |
+| Subnet `snet-apim` + NSG | `/24`, **delegated to `Microsoft.Web/serverFarms`**, only for API Management; NSG with the documented outbound Key Vault rule |
+| Subnet `snet-private-endpoints` | `/27`, for the Function private endpoint |
+| Private DNS zone `privatelink.azurewebsites.net` + link | Resolves the Function host to its private IP inside the virtual network |
+| Private endpoint `pe-mcp-<prefix>-<suffix>-func` | Sub-resource `sites`; the zone group writes the app and `scm` records |
+| API Management `apim-mcp-<prefix>-<suffix>` | **Standard v2** (`StandardV2_1`), public gateway, outbound integration, user-assigned managed identity |
+| MCP server API `workshop-mcp` | **Preview** (`Microsoft.ApiManagement/service/apis@2025-09-01-preview`, `type: mcp`, `transportType: streamable`), backend `https://<function-host>/runtime/webhooks` + `/mcp`, **no subscription key** |
+| MCP server policy | [policies/mcp-server.xml](policies/mcp-server.xml) |
+| Metadata API `.well-known/oauth-protected-resource` | Anonymous [RFC 9728 metadata](policies/protected-resource-metadata.xml): gateway resource, your tenant, scope `api://<client-id>/user_impersonation` |
+| Logger + diagnostics | Application Insights (module 02) through a connection string **and the gateway managed identity** (Monitoring Metrics Publisher on that one component), 0 body bytes at the all-APIs and MCP API scopes |
+| Function App (module 02) | Stage 2 only: `public_network_access_enabled = false` |
+
+![Level 2 architecture](../../assets/architecture/04.en.svg)
+
+The client URL becomes `https://apim-mcp-<prefix>-<suffix>.azure-api.net/workshop-mcp/mcp`. The private Function URL is
+never given to clients (the optional portal also prefills the gateway URL only).
+
+**Preview:** the API Management MCP server resource type and API version `2025-09-01-preview` are **Preview**, as is Protected
+Resource Metadata on the Function (module 03). MCP server support is documented for Standard v2; the AI Gateway tier (Preview)
+is not used.
+
+**Cost:** API Management **Standard v2 is provisioned capacity billed per hour** while it exists, whether you call it or not.
+The private endpoint, the private DNS zone and telemetry ingestion are also billed. **Get cost approval before stage 1** and
+clean up the same day. No price is assumed here: check the Azure pricing calculator for your region.
+
+## Prerequisites and required roles
+
+- Modules 02 and 03 **both stages** deployed with the same private files and Terraform state: `participant.tfvars.json`,
+  `module02.tfvars.json`, `module03.tfvars.json` (with `entra_auth_replace_key_gate = true`).
+- Test accounts Alice, Bob and Eve with their module 03 app role assignments; `.workshop/module03-personas.json` (optional cross-check).
+- Terraform 1.16.6+, Azure CLI, PowerShell 7.4+. The `Microsoft.ApiManagement`, `Microsoft.Network` and `Microsoft.Web` resource
+  providers registered (module 00 preflight checks registration).
+- The region must offer Standard v2 (example: `swedencentral`); check availability and quota before you start.
+
+**Participant:** Contributor on the workshop resource group, plus permission to create one role assignment scoped to the
+Application Insights component (for example Role Based Access Control Administrator, constrained to Monitoring Metrics
+Publisher, time-bound). The subnet join permission (`Microsoft.Network/virtualNetworks/subnets/join/action`) is included in
+Contributor on the group. **No Microsoft Entra change** in this module.
+
+## Steps
+
+### PowerShell
+
+Run from the repository root. Steps 2 to 4 change Azure: do them only after approval of the plan **and of the cost**.
+
+**1. Offline checks (no Azure).**
+
+```powershell
+& .\modules\04-governed-gateway\validate.ps1 -Offline
+```
+
+**2. Private opt-in file (ignored by Git).** Optional: add `gateway_allowed_ip_ranges` (CIDR list) or change
+`gateway_rate_limit_calls` / `gateway_rate_limit_period`. Keep `gateway_publisher_email` a team or example address.
+
+```powershell
+@{ enable_governed_gateway = $true; gateway_lock_function = $false } | ConvertTo-Json | Set-Content -LiteralPath .\.workshop\module04.tfvars.json
+```
+
+**3. Stage 1: gateway, private endpoint and private DNS.** Select your approved context first
+(`& .\scripts\select-azure-context.ps1`). From now on, always pass the four var files.
+
+```powershell
+$vars = '-var-file=..\..\.workshop\participant.tfvars.json', '-var-file=..\..\.workshop\module02.tfvars.json',
+        '-var-file=..\..\.workshop\module03.tfvars.json', '-var-file=..\..\.workshop\module04.tfvars.json'
+terraform '-chdir=infra\workload' init -lockfile=readonly
+terraform '-chdir=infra\workload' plan @vars '-out=..\..\.workshop\module04.tfplan'
+if ($LASTEXITCODE -ne 0) { throw 'Terraform plan failed.' }
+# Review: about 19 additions (network, DNS, private endpoint, API Management, APIs, policies, logger, diagnostics,
+# identity and one role assignment) and the known in-place Function App app_settings update. Then, after approval:
+terraform '-chdir=infra\workload' apply '..\..\.workshop\module04.tfplan'
+```
+
+Creating a Standard v2 instance takes several minutes. The Function is still public but still requires an Entra token
+(module 03), so nothing is anonymous during stage 1. Try the gateway URL (`terraform -chdir=infra/workload output gateway_mcp_endpoint`)
+in VS Code before stage 2.
+
+**4. Stage 2: lock the Function.** Only the private endpoint remains.
+
+```powershell
+$v = Get-Content -LiteralPath .\.workshop\module04.tfvars.json -Raw | ConvertFrom-Json
+$v.gateway_lock_function = $true
+$v | ConvertTo-Json | Set-Content -LiteralPath .\.workshop\module04.tfvars.json
+terraform '-chdir=infra\workload' plan @vars '-out=..\..\.workshop\module04.tfplan'
+# Review: one in-place update of the Function App (public_network_access_enabled = false). After approval:
+terraform '-chdir=infra\workload' apply '..\..\.workshop\module04.tfplan'
+```
+
+Publish code changes **before** stage 2: once public access is disabled, deployment endpoints are private too.
+
+**5. Connect VS Code to the gateway.** In your **user** MCP configuration, replace the `workshop-entra` server with the
+gateway URL. No header, no key: VS Code reads the gateway PRM and signs you in.
+
+```json
+{
+  "servers": {
+    "workshop-governed": { "type": "http", "url": "https://apim-mcp-<prefix>-<suffix>.azure-api.net/workshop-mcp/mcp" }
+  }
+}
+```
+
+As Alice, ask Copilot to create a synthetic ticket: VS Code asks for **approval** before the write tool runs, then it works.
+As Bob (another VS Code profile), the same request fails with HTTP 403.
+
+**6. Operator checks, then persona checks.**
+
+```powershell
+& .\modules\04-governed-gateway\validate.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID
+foreach ($persona in 'Alice', 'Bob', 'Eve') {
+    $env:AZURE_CONFIG_DIR = Join-Path $PWD ".workshop\az-$($persona.ToLower())"
+    az login --tenant $env:ARM_TENANT_ID --allow-no-subscriptions   # sign in as $persona in the browser
+    & .\modules\04-governed-gateway\validate.ps1 -TenantId $env:ARM_TENANT_ID -Persona $persona -Burst:($persona -eq 'Bob')
+    az logout
+}
+Remove-Item Env:\AZURE_CONFIG_DIR
+Start-Sleep -Seconds 300   # telemetry ingestion delay
+& .\modules\04-governed-gateway\validate.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID -CheckTelemetry
+```
+
+### Bash
+
+```bash
+bash ./modules/04-governed-gateway/validate.sh -Offline
+printf '%s\n' '{"enable_governed_gateway": true, "gateway_lock_function": false}' > .workshop/module04.tfvars.json
+source ./scripts/select-azure-context.sh
+vars="-var-file=../../.workshop/participant.tfvars.json -var-file=../../.workshop/module02.tfvars.json -var-file=../../.workshop/module03.tfvars.json -var-file=../../.workshop/module04.tfvars.json"
+terraform -chdir=infra/workload init -lockfile=readonly
+terraform -chdir=infra/workload plan $vars -out=../../.workshop/module04.tfplan     # review, approve cost
+terraform -chdir=infra/workload apply ../../.workshop/module04.tfplan
+jq '.gateway_lock_function = true' .workshop/module04.tfvars.json > .workshop/m04.tmp && mv .workshop/m04.tmp .workshop/module04.tfvars.json
+terraform -chdir=infra/workload plan $vars -out=../../.workshop/module04.tfplan     # review: one in-place update
+terraform -chdir=infra/workload apply ../../.workshop/module04.tfplan
+bash ./modules/04-governed-gateway/validate.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId "$ARM_SUBSCRIPTION_ID"
+for persona in Alice Bob Eve; do
+  export AZURE_CONFIG_DIR="$PWD/.workshop/az-${persona,,}"
+  az login --tenant "$ARM_TENANT_ID" --allow-no-subscriptions
+  extra=""; [ "$persona" = "Bob" ] && extra="-Burst"
+  bash ./modules/04-governed-gateway/validate.sh -TenantId "$ARM_TENANT_ID" -Persona "$persona" $extra
+  az logout
+done
+unset AZURE_CONFIG_DIR
+sleep 300
+bash ./modules/04-governed-gateway/validate.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId "$ARM_SUBSCRIPTION_ID" -CheckTelemetry
+```
+
+## What you should see
+
+| Action (through the gateway unless stated) | Expected result | Meaning |
+|---|---|---|
+| MCP request without a token | HTTP 401, `WWW-Authenticate: Bearer resource_metadata="https://apim-…/.well-known/oauth-protected-resource/workshop-mcp/mcp"` | The gateway refuses first and points to its own metadata. |
+| `GET` that metadata URL | HTTP 200: `resource` = gateway URL, your tenant, `api://…/user_impersonation` | The private Function host never appears. |
+| Alice's Microsoft Graph token | HTTP 401 | Wrong audience. |
+| Bob: `tools/list`, `get_service_health` | HTTP 200 | `Tools.Read` is enough. |
+| Bob: `create_ticket` | **HTTP 403** | `Tools.Write` is missing. The Function never sees the call. |
+| Alice: `create_ticket` | **HTTP 200**, one synthetic ticket | `Tools.Write` present; VS Code still asks you to approve the write. |
+| Unknown tool / message without `method` | HTTP 403 / HTTP 400 | Unsupported shapes are denied, never guessed. |
+| More calls than the limit from one user | **HTTP 429** with `Retry-After` | Rate limit per caller `oid`. Rate limits are approximate. |
+| Direct call to `https://func-…azurewebsites.net/runtime/webhooks/mcp` | **HTTP 403** (or no connection) | Public network access disabled. |
+| Application Insights | Requests with status and duration, traces `mcp-request` with `mcp-tool` and `caller-oid` | No body, argument, result or token. |
+
+## Validate
+
+`validate.ps1` (or `validate.sh`) always runs the offline checks first: the policy validates the Entra token for the MCP
+audience only (no gateway-URL audience), requires `user_impersonation`, maps `create_ticket` to `Tools.Write` and other tools
+to `Tools.Read` from the body read with `preserveContent: true`, denies malformed or unknown calls, rate-limits by `oid`,
+renders the IP filter only when configured, challenges with the gateway PRM and never reads the response body; Terraform keeps
+Standard v2, outbound integration, the private endpoint, the stage 2 lock and no subscription key; diagnostics keep 0 body
+bytes and no header at both scopes; no secret pattern; Terraform format, schema and mock tests for both roots.
+
+Offline output (this result is **not** deployment evidence):
+
+```text
+PASS gateway policy: Entra token for the MCP audience only, create_ticket requires Tools.Write, other tools Tools.Read, malformed or unknown calls denied, per-oid rate limit, optional ip-filter, gateway PRM challenge (expected HTTP 401/403/429).
+PASS Protected Resource Metadata is answered by the gateway itself and never names the private Function host (expected HTTP 200).
+PASS Terraform: Standard v2 public gateway, outbound integration, Function private endpoint and private DNS, public access disabled only in stage 2, MCP API Preview with no subscription key (expected HTTP 403 on the direct host).
+PASS diagnostics: 0 body bytes for frontend/backend requests/responses at both scopes, no header logged (no Authorization), no client IP (expected HTTP N/A).
+PASS no access token, subscription key, function key, SAS or client secret in module 04 or workload files (expected HTTP N/A).
+PASS Terraform format, schema and mock-only plans for infra/entra and infra/workload (expected HTTP N/A; no live plan/apply).
+PASS offline checks only. Module 04 is NOT deployed or validated by this result.
+```
+
+Live modes, after an approved deployment of both stages:
+
+- **Operator** (`-TenantId -SubscriptionId`): gateway HTTP 401 with the gateway challenge, gateway PRM HTTP 200, HTTP 401 for a
+  Graph token, direct Function host HTTP 403, `publicNetworkAccess = Disabled` and 0-byte diagnostics read from Azure Resource
+  Manager. `-CheckTelemetry` then queries Log Analytics: gateway requests and `mcp-request` traces exist, with no body,
+  argument or Authorization value.
+- **Persona** (`-TenantId -Persona Alice|Bob|Eve`): initialize and `tools/list` HTTP 200; `get_service_health` HTTP 200;
+  `create_ticket` HTTP 403 for Bob and HTTP 200 for Alice; unknown tool HTTP 403 and missing method HTTP 400; Eve gets no token
+  (`AADSTS50105`). `-Burst` sends the limit plus 10 calls and expects HTTP 429.
+
+The module is `validated` only when all of these pass on a fresh subscription right after modules 00 to 03.
+
+## Troubleshooting
+
+| Symptom | Check |
+|---|---|
+| `enable_governed_gateway needs ... entra_auth_replace_key_gate` | Finish both stages of module 03 first and pass `module03.tfvars.json`. |
+| Plan wants to destroy the gateway or authentication | A var file is missing. Always pass the four files. |
+| HTTP 500/502 from the gateway after stage 2 | DNS: the private DNS zone link and the private endpoint zone group must exist; wait a few minutes for propagation. |
+| HTTP 401 for Alice through the gateway, but PRM works | The token was requested for another resource. Use the `mcp_auth_audience` output; the gateway accepts only the MCP API audience. |
+| HTTP 403 for Alice on every call | Her client app is not allowed (`mcp_allowed_client_ids`), or the token has no `user_impersonation` scope. |
+| Streaming stops or tools hang | Someone enabled body logging or a policy reads the response body. Keep 0 bytes at every scope. |
+| No HTTP 429 in the burst | Rate limits are approximate in distributed gateways; rerun `-Burst`, or lower `gateway_rate_limit_calls` for the exercise. |
+| Code publish fails after stage 2 | Expected: deployment endpoints are private now. Publish before stage 2, or from inside the virtual network. |
+| Name already in use after a clean-up | API Management soft-delete: purge it (see Clean up). |
+
+## Clean up
+
+Clean up in reverse order. The script plans first and refuses any change outside module 04; run once to review, then with
+`-Apply`. It is idempotent. Not run by the author: no deployment exists.
+
+```powershell
+& .\modules\04-governed-gateway\cleanup.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID
+& .\modules\04-governed-gateway\cleanup.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID -Apply
+Remove-Item -LiteralPath .\.workshop\module04.tfvars.json -ErrorAction SilentlyContinue
+# Optional, to reuse the name within 48 hours (API Management soft-delete):
+az apim deletedservice purge --service-name apim-mcp-<prefix>-<suffix> --location <region>
+```
+
+```bash
+bash ./modules/04-governed-gateway/cleanup.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId "$ARM_SUBSCRIPTION_ID" -Apply
+rm -f .workshop/module04.tfvars.json
+```
+
+Phase 1 reopens the Function to its module 03 state (still Entra-protected, never anonymous). Phase 2 deletes the gateway,
+APIs, policies, diagnostics, logger, gateway identity and role, private endpoint, private DNS, subnets, NSG and virtual network.
+Then continue with module 03's and module 02's clean-up if you are done. Replace `workshop-governed` in VS Code. If you continue
+to module 05 now, keep everything.
+
+## Go further
+
+- Read [policies/mcp-server.xml](policies/mcp-server.xml): which line turns Bob's `create_ticket` into HTTP 403, and why must
+  the body be read with `preserveContent: true`?
+- Why does the gateway forward the same token to the Function, and why is that not "token passthrough"? Compare with module 05.
+- Set `gateway_allowed_ip_ranges` to your egress range and observe HTTP 403 from another network.
+- **Optional 04b (documentation only):** API Management can also expose a managed **REST API as an MCP server**, where each
+  operation becomes a tool ([Expose a REST API as an MCP server](https://learn.microsoft.com/azure/api-management/export-rest-mcp-server),
+  AI-Gateway lab `mcp-from-api`). The same `validate-azure-ad-token`, role and rate-limit policies apply. Not part of the core path
+  and not deployed by this repository.
+
+## Sources
+
+- [Expose and govern an existing MCP server](https://learn.microsoft.com/azure/api-management/expose-existing-mcp-server)
+- [Secure access to MCP servers in API Management](https://learn.microsoft.com/azure/api-management/secure-mcp-servers)
+- [About MCP servers in Azure API Management](https://learn.microsoft.com/azure/api-management/mcp-server-overview)
+- [Manage MCP servers programmatically (REST, Bicep, Azure CLI, Terraform; 2025-09-01-preview)](https://learn.microsoft.com/azure/api-management/manage-mcp-servers-rest-api)
+- [validate-azure-ad-token policy](https://learn.microsoft.com/azure/api-management/validate-azure-ad-token-policy),
+  [rate-limit-by-key policy](https://learn.microsoft.com/azure/api-management/rate-limit-by-key-policy),
+  [ip-filter policy](https://learn.microsoft.com/azure/api-management/ip-filter-policy)
+- [Integrate API Management with Application Insights (connection string + managed identity, payload bytes)](https://learn.microsoft.com/azure/api-management/api-management-howto-app-insights)
+- [Standard v2 outbound virtual network integration](https://learn.microsoft.com/azure/api-management/integrate-vnet-outbound)
+- [Use private endpoints for App Service and Functions apps](https://learn.microsoft.com/azure/app-service/overview-private-endpoint)
+- [Azure Functions networking options](https://learn.microsoft.com/azure/azure-functions/functions-networking-options)
+- [Azure-Samples/AI-Gateway labs mcp-prm-oauth and mcp-client-authorization at 1679e31](https://github.com/Azure-Samples/AI-Gateway/tree/1679e3137d2fe7592d2a668d77ff71550d35b69e/labs)
+- [RFC 9728 OAuth 2.0 Protected Resource Metadata](https://www.rfc-editor.org/rfc/rfc9728)
+- [AzAPI provider 2.13.0](https://registry.terraform.io/providers/Azure/azapi/2.13.0/docs) and [AzureRM 5.9.0 API Management](https://github.com/hashicorp/terraform-provider-azurerm/blob/v5.9.0/website/docs/r/api_management.html.markdown)
+
+Last verified: 2026-10-15. Authored and checked offline only; not yet deployed or validated in Azure.

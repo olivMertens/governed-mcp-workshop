@@ -4,8 +4,9 @@ locals {
 
   # Non-secret values that let the participant's own portal prefill its connection page.
   # Allowlisted again by scripts/portal-server.mjs. Never keys, tokens, tenant IDs or connection strings.
+  # Level 2 (module 04): advertise only the gateway endpoint, never the private Function host.
   portal_participant_settings = merge(
-    local.mcp_enabled ? { WORKSHOP_MCP_ENDPOINT = "https://${azurerm_function_app_flex_consumption.mcp[0].default_hostname}/runtime/webhooks/mcp" } : {},
+    local.mcp_enabled ? { WORKSHOP_MCP_ENDPOINT = local.gateway_enabled ? local.gateway_mcp_url : "https://${azurerm_function_app_flex_consumption.mcp[0].default_hostname}/runtime/webhooks/mcp" } : {},
     local.mcp_auth_enabled ? { WORKSHOP_MCP_SCOPE = local.mcp_auth_scope } : {},
   )
 }

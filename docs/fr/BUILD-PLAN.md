@@ -87,6 +87,10 @@ L'option 04b REST vers MCP ne remplace pas le serveur principal.
 
 </details>
 
+Le [guide du module 04](../../modules/04-governed-gateway/README.fr.md) est rédigé et vérifié hors ligne : passerelle Standard v2,
+API de serveur MCP (**Preview**), stratégies, réseau privé et verrouillage de la Function en deuxième étape.
+Rien n'est encore déployé dans Azure.
+
 ## 05 - On-Behalf-Of et accès applicatif, niveau 3
 
 **Objectif :** comparer les droits de l'utilisateur et ceux de l'application.
