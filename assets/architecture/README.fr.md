@@ -13,6 +13,9 @@ Les lignes numérotées sont des vues liées de la même étape, pas des ressour
 Requêtes, identité, observation et administration sont séparées. Le module 05 représente Storage ;
 Graph exige un autre jeton pour sa propre audience.
 
+Les mainteneurs suivent [la compétence de schémas d'architecture](../../.github/skills/architecture-diagram-author/SKILL.md)
+(en anglais), que le constructeur de modules charge lorsqu'un module modifie une architecture représentée.
+
 ## Reproduire les exports
 
 <details>

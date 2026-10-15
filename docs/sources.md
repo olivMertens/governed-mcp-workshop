@@ -352,6 +352,18 @@ and deploy-pages v4 to their verified release commits. No publication or Azure h
 - Before adapting source, add its full applicable license/notice and origin to THIRD-PARTY-NOTICES.md.
   Preserve copyright headers and mark changes where the upstream license requires it.
 
+## Architecture diagram authoring skill
+
+Retrieved 2026-10-15 from [olivMertens/copilot-skills, architecture-diagram-author](https://github.com/olivMertens/copilot-skills/tree/main/skills/architecture-diagram-author).
+Copied verbatim to `.github/skills/architecture-diagram-author/SKILL.md` and loaded by the module builder when a module
+changes a depicted architecture. The skill's Microsoft icon references point to
+[az-icons.com](https://az-icons.com/), [MsiconsCollections](https://aka.ms/MsiconsCollections),
+[Azure Architecture Center icons](https://learn.microsoft.com/en-us/azure/architecture/icons/),
+[Power Platform icons](https://learn.microsoft.com/en-us/power-platform/guidance/icons) and
+[DamoBird365/microsoft-cloud-icons](https://github.com/DamoBird365/microsoft-cloud-icons/tree/master). Verify each asset's
+identity and terms as the skill requires before reuse; this repository's own diagrams keep the provenance in
+[the diagram provenance guide](../assets/architecture/README.md).
+
 ## Sources
 
 The pinned upstream snapshots and official register above are the sources for this assessment.
