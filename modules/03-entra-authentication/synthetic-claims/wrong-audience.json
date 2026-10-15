@@ -1,0 +1,17 @@
+{
+  "synthetic": true,
+  "note": "Decoded payload of a FICTIONAL Microsoft Graph token held by Alice. Valid for Graph, wrong for the MCP server.",
+  "persona": "Alice",
+  "client": "Azure CLI",
+  "rejected_payload": {
+    "aud": "https://graph.microsoft.com",
+    "iss": "https://sts.windows.net/00000000-0000-4000-8000-000000000000/",
+    "tid": "00000000-0000-4000-8000-000000000000",
+    "oid": "a11ce000-0000-4000-8000-000000000001",
+    "appid": "04b07795-8ddb-461a-bbee-02f9e1bf7b46",
+    "scp": "User.Read",
+    "ver": "1.0"
+  },
+  "why": "One token per hop, one audience per token: aud is Microsoft Graph, not the MCP API. Built-in authentication refuses it.",
+  "expected_http": 401
+}

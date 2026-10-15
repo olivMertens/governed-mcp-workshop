@@ -79,7 +79,7 @@ if (-not $SkipBuild) {
     Pass 'Terraform format, schema and mock-only plans, including module 02 opt-in (expected HTTP N/A; no live plan/apply).'
 }
 
-if ($Offline -or $TenantId -eq [guid]::Empty -or $SubscriptionId -eq [guid]::Empty) {
+if ($Offline -or -not $TenantId -or -not $SubscriptionId -or $TenantId -eq [guid]::Empty -or $SubscriptionId -eq [guid]::Empty) {
     Write-Output 'NOT DEPLOYED CHECKS SKIPPED: supply -TenantId and -SubscriptionId after an approved deployment for HTTP checks.'
     Write-Output 'PASS offline checks only. Module 02 is NOT deployed or Azure-validated by this result.'
     return

@@ -9,9 +9,10 @@ Le [suivi de construction](../PROGRESS.md) indique les contrôles réalisés. **
 | Portail documentaire public | Application bilingue, Terraform App Service et script de déploiement avec contrôles | Examiner un plan réel, approuver les frais, déployer et vérifier le site |
 | Découverte MCP locale, module 01 | Serveur stdio .NET 10, contrôles SDK et Inspector, guide EN/FR et configuration VS Code | Observer l'approbation par appel ; le jalon d'environnement précédent reste ouvert |
 | Serveur MCP ouvert, module 02 | Serveur MCP Functions .NET 10 avec cinq outils synthétiques, tests unitaires, Terraform Flex/Storage/télémétrie/identité désactivé par défaut avec tests simulés, guide EN/FR, validateur et nettoyage ciblé | Plan approuvé, déploiement et validation HTTP 401/200 en ligne ; rien n'est déployé |
-| Serveur MCP Azure, à partir du 03 | Objectifs et schémas du parcours | Construire l'identité, la passerelle et les accès en aval à partir du module 03 |
+| Identité Entra, module 03 | Racine `infra/entra` (inscription, étendue, trois rôles d'application, attribution obligatoire, VS Code et Azure CLI pré-autorisés, attributions pour des comptes existants) et option d'authentification intégrée désactivée par défaut, avec métadonnées de ressource protégée (**Preview**), tests simulés, guide EN/FR, validateur et nettoyage ciblé | Approbation et application par un administrateur des identités, application en deux étapes côté charge de travail, contrôles 401/200 et Eve en ligne ; rien n'est déployé ni créé |
+| Serveur MCP Azure, à partir du 04 | Objectifs et schémas du parcours | Construire la passerelle et les accès en aval à partir du module 04 |
 | Identités managées | Modèle de droits et demande à l'administrateur | Créer les identités, les attributions ciblées et la fédération approuvée dans les modules concernés |
-| Microsoft Entra | Audience, autorisations, rôles et profils de test définis | Construire le code d'identité, puis vérifier les consentements et les accès |
+| Microsoft Entra | Racine d'identité rédigée au module 03 (sans utilisateurs, secrets ni permissions d'API) | La faire appliquer par un administrateur des identités, puis vérifier les accès ; le module 05 ajoute le consentement On-Behalf-Of et la fédération |
 | Passerelle API Management | Architecture Standard v2 et contrôles attendus | Construire la passerelle, le réseau privé et les règles d'autorisation |
 | Microsoft Foundry | Scénario de client facultatif uniquement | Examiner séparément le projet, le modèle, l'agent et la connexion sans secret si cette option est retenue |
 | Observabilité et inventaire | Règles de journalisation sans contenu des échanges | Construire et vérifier la télémétrie et l'inscription dans API Center |
@@ -27,7 +28,8 @@ Commencez par le [guide du module 00](../../modules/00-prerequisites/README.fr.m
 Le [module 01](../../modules/01-discover-mcp/README.fr.md) fonctionne sans Azure ni portail présentateur.
 Sa construction locale a été explicitement approuvée pendant l'attente des contrôles Azure/conteneur du 00.
 Le [guide du module 02](../../modules/02-open-server/README.fr.md) est rédigé et ne passe que les vérifications hors ligne ; il n'est pas déployé.
-Les modules 03 et suivants restent des plans. Les validations cloud et approbations de déploiement ne sont pas levées.
+Le [guide du module 03](../../modules/03-entra-authentication/README.fr.md) est rédigé et ne passe que les vérifications hors ligne ; aucun objet Entra n'est créé.
+Les modules 04 et suivants restent des plans. Les validations cloud et approbations de déploiement ne sont pas levées.
 
 <details>
 <summary>Pour aller plus loin : identités, Foundry et passerelle IA</summary>

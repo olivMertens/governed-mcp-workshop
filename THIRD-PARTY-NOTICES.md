@@ -15,6 +15,13 @@ The notices below apply to those adapted portions. They are not replaced by this
   - `src/FunctionsMcpServer/Tools/*.cs` from the trigger pattern in `src/FunctionsMcpTool/HelloTool.cs`
   - `infra/workload/mcp-server.tf`, translated to Terraform from `infra/main.bicep`, `infra/app/api.bicep`
     and `infra/app/rbac.bicep`
+- Adapted files (module 03):
+  - `infra/entra/main.tf`, translated to Terraform from `infra/app/entra.bicep`
+    (changed: app roles and assignment required, Application ID URI `api://<client-id>`, no redirect URI,
+    no Microsoft Graph permission and no federated identity credential yet)
+  - `infra/workload/entra-auth.tf` and the `auth_settings_v2` block in `infra/workload/mcp-server.tf`, translated from the
+    `authsettingsV2` configuration in `infra/app/api.bicep` (changed: no secret setting, token store off,
+    allowed audiences limited to the MCP API, two-stage replacement of the key gate)
 - Changes: synthetic workshop tools, strict input validation, payload-free audit logs, exact package pins with a
   lock file, no preview MCP SDK, Graph, QR, Apps or snippet code, queue-scoped least-privilege roles.
 

@@ -47,7 +47,14 @@ test("public site exports only the allowlist, with no capability, root URLs, pri
         assert.match(open.guide, /HTTP 401/);
         assert.equal(open.validation.powershell, "modules/02-open-server/validate.ps1");
         assert.equal(open.validation.bash, "modules/02-open-server/validate.sh");
-        assert.equal(language.modules.find((module) => module.module === "03").guide, null);
+        const entra = language.modules.find((module) => module.module === "03");
+        assert.equal(entra.status, "in-progress");
+        assert.match(entra.guide, /user_impersonation/);
+        assert.match(entra.guide, /AADSTS50105/);
+        assert.match(entra.guide, /HTTP 401/);
+        assert.equal(entra.validation.powershell, "modules/03-entra-authentication/validate.ps1");
+        assert.equal(entra.validation.bash, "modules/03-entra-authentication/validate.sh");
+        assert.equal(language.modules.find((module) => module.module === "04").guide, null);
         for (const module of language.modules) {
             assert.match(module.diagramSource.content, /^flowchart LR\n/);
             assert.ok(language.documents.architecture.content.replaceAll("\r\n", "\n").includes(module.diagramSource.content));

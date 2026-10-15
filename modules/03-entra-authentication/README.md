@@ -1,0 +1,347 @@
+# 03 - Identity with Microsoft Entra (level 1)
+
+[Français](README.fr.md)
+
+## Goal
+
+Replace the shared key of module 02 with **Microsoft Entra ID** sign-in. The Function App's built-in authentication
+checks every request before the MCP server sees it. At the end:
+
+- a request without a token gets **HTTP 401**;
+- a valid token for **another audience** (Microsoft Graph) gets **HTTP 401**;
+- **Alice** and **Bob** (assigned) get **HTTP 200**;
+- **Eve** (not assigned) **cannot even get a token**.
+
+> [!WARNING]
+> Never paste a live token into a website, a chat, a file, a screenshot or a log. Use the
+> [synthetic claim examples](synthetic-claims/) to learn what a token contains.
+
+## Why it matters
+
+A key identifies nobody. A Microsoft Entra access token says **who** calls (`oid`), **from which tenant** (`tid`, `iss`),
+**with which app** (`azp`), **for which API** (`aud`), **what the app may do for the user** (`scp`) and
+**what the user may do** (`roles`). The platform validates all of it; the server code never parses a token.
+
+| Claim | Meaning | Synthetic value (Alice, see [alice.json](synthetic-claims/alice.json)) | Who checks it at level 1 |
+|---|---|---|---|
+| `aud` | Audience: the API this token is for. One token per hop, one audience per token. | `44444444-…` (the MCP API client ID) | Built-in authentication: only the MCP API |
+| `iss`, `tid` | Issuer and tenant | `https://login.microsoftonline.com/00000000-…/v2.0` | Built-in authentication: only the workshop tenant |
+| `azp` | Calling client application | `aebc6443-…` (Visual Studio Code) | Built-in authorization policy: only allowed clients |
+| `scp` | **Scope** (delegated permission): what the *client app* may do *for the user* | `user_impersonation` | Pre-authorization of the client in Entra |
+| `roles` | **App roles**: what *this user* may do | `Tools.Read`, `Tools.Write` | Entra issues roles only to assigned users; per-tool checks arrive in module 04 |
+| `exp`, `nbf` | Validity window | synthetic timestamps | Built-in authentication |
+
+Bob has the same `aud` and `scp` but only `Tools.Read` ([bob.json](synthetic-claims/bob.json)).
+Eve never gets a token: Entra refuses with `AADSTS50105` because **assignment is required** and she has no role
+([eve.json](synthetic-claims/eve.json)). A Graph token held by Alice is valid, but for another audience, so the
+MCP server refuses it ([wrong-audience.json](synthetic-claims/wrong-audience.json)).
+
+> [!IMPORTANT]
+> Built-in authentication controls access **to the server**, not to individual tools. At level 1, Bob can still call
+> `create_ticket`. Module 04 adds the per-tool role check (`create_ticket` requires `Tools.Write`).
+
+**Why the function key is no longer the gate.** Built-in authentication runs in front of the Functions host and returns
+HTTP 401 before any MCP code runs. The documented setting
+`AzureFunctionsJobHost__extensions__mcp__system__webhookAuthorizationLevel = Anonymous` then tells the MCP extension to stop
+asking for the system key: a key is a shared secret that clients would otherwise also have to hold, and it adds no identity.
+The webhook is anonymous *to the host only*; nothing anonymous reaches it from the internet. `host.json` keeps `System`, so a
+package deployed without built-in authentication is still key-protected. Terraform sets the override only when built-in
+authentication is enforced, and in a **second apply** (two stages): Azure writes app settings and authentication settings in
+separate calls, so doing both at once could open the webhook for a moment.
+
+## What you deploy
+
+**Microsoft Entra (`infra/entra`, run once by an identity administrator):**
+
+| Object | Settings |
+|---|---|
+| App registration "Workshop MCP API (mcp-&lt;prefix&gt;-&lt;suffix&gt;)" | Single tenant, v2 access tokens, Application ID URI `api://<client-id>`, no redirect URI, **no secret, certificate or password** |
+| Delegated scope | `user_impersonation` |
+| App roles | `Tools.Read`, `Tools.Write` (members: users); `Tools.Execute.All` (members: applications, not assigned here) |
+| Enterprise application (service principal) | **Assignment required** = yes |
+| Pre-authorized clients for `user_impersonation` | Visual Studio Code `aebc6443-996d-45c2-90f0-388ff96faa56`, Azure CLI `04b07795-8ddb-461a-bbee-02f9e1bf7b46` |
+| App role assignments (existing test accounts only) | Alice → `Tools.Read` + `Tools.Write`; Bob → `Tools.Read`; Eve → none |
+
+No Microsoft Graph or Storage permission is requested yet, so **no admin consent** is needed: pre-authorized clients get
+`user_impersonation` without a consent prompt. Module 05 adds the On-Behalf-Of permissions and the managed identity
+federated credential (the `module05_federated_credential` output reserves its values).
+
+**Workload (`infra/workload`, participant):** one in-place update of the module 02 Function App:
+
+| Setting | Value |
+|---|---|
+| Built-in authentication (authsettingsV2) | Enabled, **require authentication**, unauthenticated → **HTTP 401**, HTTPS only, token store off |
+| Microsoft provider | Client ID of the MCP API, issuer `https://login.microsoftonline.com/<tenant>/v2.0`, no secret setting |
+| Allowed audiences | `api://<client-id>` and `<client-id>` only (the same API, v1 and v2 token formats) |
+| Allowed client applications | VS Code and Azure CLI |
+| `WEBSITE_AUTH_PRM_DEFAULT_WITH_SCOPES` | `api://<client-id>/user_impersonation` (**Preview**: Protected Resource Metadata) |
+| `WEBSITE_AUTH_AAD_ALLOWED_TENANTS` | Your tenant ID |
+| `AzureFunctionsJobHost__extensions__mcp__system__webhookAuthorizationLevel` | `Anonymous`, **stage 2 only**, after built-in authentication is enforced |
+
+![Level 1 architecture](../../assets/architecture/03.en.svg)
+
+**Preview:** Protected Resource Metadata (PRM, RFC 9728) in App Service authentication is **Preview**; its configuration may
+change. The portal's one-click "MCP authentication" (**Preview**) is not used: it creates a client secret.
+
+**Cost:** no new Azure resource. Built-in authentication and the Entra objects have no extra charge. Changing app settings
+restarts the app.
+
+## Prerequisites and required roles
+
+- Module 02 deployed with the same private parameters and Terraform state (`participant.tfvars.json`, `module02.tfvars.json`).
+- Terraform 1.16.6+, Azure CLI, PowerShell 7.4+. VS Code with GitHub Copilot for the sign-in demonstration.
+- Three **existing, dedicated, non-production** test accounts in the tenant: Alice, Bob and Eve. The identity administrator
+  creates them out of band (for example with a Temporary Access Pass) and shares only their object IDs privately.
+  Terraform never creates users: the AzureAD provider would store their initial password in state.
+
+**Identity administrator** (separate person or session, time-bound role through Privileged Identity Management where available):
+
+- **Cloud Application Administrator** (or Application Administrator) to create the app registration, enterprise application,
+  pre-authorizations and app role assignments. No Global Administrator, no admin consent for this module.
+- **User Administrator** only to create the test accounts, outside Terraform.
+
+**Participant:** the module 02 roles on the workshop resource group (Contributor). No new role assignment.
+
+The full request to send to the identity administrator is in [identity-request.md](../../docs/requests/identity-request.md).
+
+## Steps
+
+### PowerShell
+
+Run from the repository root. Steps 2 to 7 change Microsoft Entra or Azure: do them only after approval.
+
+**1. Offline checks (no Azure, no Entra).**
+
+```powershell
+& .\modules\03-entra-authentication\validate.ps1 -Offline
+```
+
+**2. Identity administrator: sign in to the tenant only.** Use a separate terminal. `--allow-no-subscriptions` is enough.
+
+```powershell
+az login --tenant <tenant-id> --allow-no-subscriptions
+```
+
+**3. Identity administrator: private parameters.** Use the participant's prefix, suffix, owner and expiry (received
+privately) and the three test account object IDs. The file is ignored by Git.
+
+```powershell
+$p = Get-Content -LiteralPath .\.workshop\participant.tfvars.json -Raw | ConvertFrom-Json
+@{
+    tenant_id = '<tenant-id>'; participant_prefix = $p.participant_prefix; resource_suffix = $p.resource_suffix
+    owner = $p.owner; expiry = $p.expiry
+    test_user_object_ids = @{ alice = '<alice-object-id>'; bob = '<bob-object-id>'; eve = '<eve-object-id>' }
+} | ConvertTo-Json | Set-Content -LiteralPath .\.workshop\entra.tfvars.json
+```
+
+To reuse an application that an administrator already created, add `"create_application": false` and
+`"existing_application_client_id": "<client-id>"`. Terraform then only reads it (and checks its scope, roles and
+assignment required) and never changes or deletes it.
+
+**4. Identity administrator: plan, review, apply.**
+
+```powershell
+terraform -chdir=infra/entra init -lockfile=readonly
+if ($LASTEXITCODE -ne 0) { throw 'Terraform init failed.' }
+terraform '-chdir=infra\entra' plan '-var-file=..\..\.workshop\entra.tfvars.json' '-out=..\..\.workshop\entra.tfplan'
+if ($LASTEXITCODE -ne 0) { throw 'Terraform plan failed.' }
+# Review: 8 additions (application, identifier URI, enterprise application, 2 pre-authorizations, 3 assignments). Then, after approval:
+terraform '-chdir=infra\entra' apply '..\..\.workshop\entra.tfplan'
+```
+
+**5. Hand-off to the participant (non-secret IDs only).**
+
+```powershell
+terraform -chdir=infra/entra output -json workload_module03_tfvars | Set-Content -LiteralPath .\.workshop\module03.tfvars.json
+terraform -chdir=infra/entra output -json persona_object_ids | Set-Content -LiteralPath .\.workshop\module03-personas.json
+```
+
+**6. Participant, stage 1: enforce Entra in front of the key.** Select your approved context first
+(`& .\scripts\select-azure-context.ps1`). Always pass the three var files from now on.
+
+```powershell
+terraform '-chdir=infra\workload' plan '-var-file=..\..\.workshop\participant.tfvars.json' '-var-file=..\..\.workshop\module02.tfvars.json' '-var-file=..\..\.workshop\module03.tfvars.json' '-out=..\..\.workshop\module03.tfplan'
+if ($LASTEXITCODE -ne 0) { throw 'Terraform plan failed.' }
+# Review: one in-place update of the Function App (auth_settings_v2 and two WEBSITE_AUTH_* settings). After approval:
+terraform '-chdir=infra\workload' apply '..\..\.workshop\module03.tfplan'
+```
+
+Now a caller needs a token **and** the key: nothing is anonymous.
+
+**7. Participant, stage 2: Entra replaces the key.**
+
+```powershell
+$v = Get-Content -LiteralPath .\.workshop\module03.tfvars.json -Raw | ConvertFrom-Json
+$v.entra_auth_replace_key_gate = $true
+$v | ConvertTo-Json | Set-Content -LiteralPath .\.workshop\module03.tfvars.json
+terraform '-chdir=infra\workload' plan '-var-file=..\..\.workshop\participant.tfvars.json' '-var-file=..\..\.workshop\module02.tfvars.json' '-var-file=..\..\.workshop\module03.tfvars.json' '-out=..\..\.workshop\module03.tfplan'
+# Review: one in-place update adding the webhook setting. After approval:
+terraform '-chdir=infra\workload' apply '..\..\.workshop\module03.tfplan'
+```
+
+No code is republished: `host.json` is unchanged.
+
+**8. Operator checks (no test account needed).**
+
+```powershell
+& .\modules\03-entra-authentication\validate.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID
+```
+
+**9. Connect VS Code with sign-in.** In your **user** MCP configuration, replace the `workshop-open` server (and its key
+input) with a URL only. There is no header and nothing secret.
+
+```json
+{
+  "servers": {
+    "workshop-entra": { "type": "http", "url": "https://<function-app-host>/runtime/webhooks/mcp" }
+  }
+}
+```
+
+Start the server. VS Code reads the Protected Resource Metadata and asks you to **authenticate with Microsoft**.
+Sign in as Alice: the five tools appear. Sign in as Eve (another VS Code profile): Entra shows `AADSTS50105`.
+
+**10. Persona checks.** Use one separate Azure CLI profile per test account so your own session is not replaced.
+
+```powershell
+foreach ($persona in 'Alice', 'Bob', 'Eve') {
+    $env:AZURE_CONFIG_DIR = Join-Path $PWD ".workshop\az-$($persona.ToLower())"
+    az login --tenant $env:ARM_TENANT_ID --allow-no-subscriptions   # sign in as $persona in the browser
+    & .\modules\03-entra-authentication\validate.ps1 -TenantId $env:ARM_TENANT_ID -Persona $persona
+    az logout
+}
+Remove-Item Env:\AZURE_CONFIG_DIR
+```
+
+### Bash
+
+```bash
+bash ./modules/03-entra-authentication/validate.sh -Offline
+# Identity administrator, separate terminal:
+az login --tenant "<tenant-id>" --allow-no-subscriptions
+jq -n --slurpfile p .workshop/participant.tfvars.json --arg t "<tenant-id>" \
+  '{tenant_id:$t, participant_prefix:$p[0].participant_prefix, resource_suffix:$p[0].resource_suffix, owner:$p[0].owner, expiry:$p[0].expiry,
+    test_user_object_ids:{alice:"<alice-object-id>", bob:"<bob-object-id>", eve:"<eve-object-id>"}}' > .workshop/entra.tfvars.json
+terraform -chdir=infra/entra init -lockfile=readonly &&
+terraform -chdir=infra/entra plan -var-file=../../.workshop/entra.tfvars.json -out=../../.workshop/entra.tfplan
+terraform -chdir=infra/entra apply ../../.workshop/entra.tfplan    # after review and approval
+terraform -chdir=infra/entra output -json workload_module03_tfvars > .workshop/module03.tfvars.json
+terraform -chdir=infra/entra output -json persona_object_ids > .workshop/module03-personas.json
+# Participant, stage 1 then stage 2 (review each plan, apply after approval):
+source ./scripts/select-azure-context.sh
+vars="-var-file=../../.workshop/participant.tfvars.json -var-file=../../.workshop/module02.tfvars.json -var-file=../../.workshop/module03.tfvars.json"
+terraform -chdir=infra/workload plan $vars -out=../../.workshop/module03.tfplan && terraform -chdir=infra/workload apply ../../.workshop/module03.tfplan
+jq '.entra_auth_replace_key_gate = true' .workshop/module03.tfvars.json > .workshop/m03.tmp && mv .workshop/m03.tmp .workshop/module03.tfvars.json
+terraform -chdir=infra/workload plan $vars -out=../../.workshop/module03.tfplan && terraform -chdir=infra/workload apply ../../.workshop/module03.tfplan
+bash ./modules/03-entra-authentication/validate.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId "$ARM_SUBSCRIPTION_ID"
+for persona in Alice Bob Eve; do
+  export AZURE_CONFIG_DIR="$PWD/.workshop/az-${persona,,}"
+  az login --tenant "$ARM_TENANT_ID" --allow-no-subscriptions
+  bash ./modules/03-entra-authentication/validate.sh -TenantId "$ARM_TENANT_ID" -Persona "$persona"
+  az logout
+done
+unset AZURE_CONFIG_DIR
+```
+
+## What you should see
+
+| Action | Expected result | Meaning |
+|---|---|---|
+| MCP request without a token | HTTP 401 with `WWW-Authenticate: Bearer … resource_metadata="…"` | Built-in authentication refuses before the MCP code runs. |
+| `GET` the `resource_metadata` URL | HTTP 200, `authorization_servers` = your tenant, `scopes_supported` = `api://…/user_impersonation` | PRM (**Preview**) tells clients where to sign in. |
+| Request with only the level 0 key | HTTP 401 | The key is no longer the gate. |
+| Alice's Microsoft Graph token | HTTP 401 | Wrong audience: one audience per token. |
+| Alice, then Bob, with a token for `api://<client-id>` | HTTP 200, five tools | Assigned users reach the server. |
+| Eve asks for a token | `AADSTS50105`, no token | Assignment required: Eve never reaches the server. |
+| Bob calls `create_ticket` in VS Code | Still works at level 1 | Server-level access only; module 04 adds per-tool roles. |
+
+## Validate
+
+`validate.ps1` (or `validate.sh`) always runs the offline checks first: `host.json` keeps `System`; the anonymous webhook
+override exists only together with enforced built-in authentication and HTTP 401; `infra/entra` keeps single tenant,
+`user_impersonation`, the three app roles and assignment required, with no secret, password, certificate or user; no token or
+key pattern in module files; synthetic claims use synthetic IDs only; Terraform format, schema and mock tests for both roots.
+
+Offline output (this result is **not** deployment evidence):
+
+```text
+PASS host.json keeps the level 0 System webhook level; the published package is never anonymous on its own (expected HTTP N/A).
+PASS the key gate is removed only together with enforced built-in authentication and Return401 (expected HTTP 401 without a token).
+PASS infra/entra: single tenant, user_impersonation, Tools.Read/Tools.Write/Tools.Execute.All, assignment required, no secret or user (expected HTTP N/A).
+PASS no access token, key, SAS or client secret in module 03, infra/entra or workload files (expected HTTP N/A).
+PASS synthetic claim examples use synthetic IDs only and contain no token (4 files, expected HTTP N/A).
+PASS Terraform format, schema and mock-only plans for infra/entra and infra/workload (expected HTTP N/A; no live plan/apply).
+PASS offline checks only. Module 03 is NOT deployed or Entra-validated by this result.
+```
+
+Live modes, after an approved deployment:
+
+- **Operator** (`-TenantId -SubscriptionId`): HTTP 401 without a token, PRM metadata, HTTP 401 for a Graph token,
+  the deployed authsettingsV2 and app settings read from Azure Resource Manager, HTTP 401 with the key alone.
+- **Persona** (`-TenantId -Persona Alice|Bob|Eve`, signed in as that account): Alice and Bob get HTTP 200 for `initialize` and
+  `tools/list`; Eve must fail to get a token with `AADSTS50105`. If `.workshop/module03-personas.json` exists, the signed-in
+  object ID is cross-checked.
+
+Tokens and keys stay in memory and are never printed. The module is done only when the operator check and the three persona
+checks pass on a fresh subscription right after modules 00 to 02.
+
+## Troubleshooting
+
+| Symptom | Check |
+|---|---|
+| VS Code opens `https://<app>/authorize` instead of Microsoft sign-in | PRM is missing: check `WEBSITE_AUTH_PRM_DEFAULT_WITH_SCOPES` and wait for the restart. |
+| HTTP 401 for Alice after stage 1 | Expected: stage 1 still needs the key. Apply stage 2. |
+| HTTP 403 with a valid token | The client app is not in the allowed client applications. Use VS Code or Azure CLI. |
+| `AADSTS65001` (consent required) | The client is not pre-authorized for `user_impersonation`. Check the two pre-authorizations. |
+| `AADSTS50105` for Alice or Bob | The app role assignment is missing or not yet propagated. Wait a few minutes, sign in again. |
+| `AADSTS500011` (resource not found) | Wrong Application ID URI or tenant. Use the `mcp_auth_audience` output. |
+| Plan proposes to remove authentication | You forgot `-var-file=..\..\.workshop\module03.tfvars.json`. |
+| `entra_auth_replace_key_gate requires enable_entra_auth` | Never set stage 2 without stage 1. |
+
+## Clean up
+
+Clean up in reverse order. Each script plans first and refuses any change outside module 03; run once to review, then with
+`-Apply`. Both are idempotent.
+
+```powershell
+# Participant: restore the key behind Entra (phase 1), then remove built-in authentication (phase 2).
+& .\modules\03-entra-authentication\cleanup.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID
+& .\modules\03-entra-authentication\cleanup.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID -Apply
+Remove-Item -LiteralPath .\.workshop\module03.tfvars.json, .\.workshop\module03-personas.json -ErrorAction SilentlyContinue
+Remove-Item -LiteralPath .\.workshop\az-alice, .\.workshop\az-bob, .\.workshop\az-eve -Recurse -ErrorAction SilentlyContinue
+# Identity administrator: delete only workshop-created Entra objects (never provided apps or users).
+& .\modules\03-entra-authentication\cleanup.ps1 -TenantId <tenant-id> -Scope Entra
+& .\modules\03-entra-authentication\cleanup.ps1 -TenantId <tenant-id> -Scope Entra -Apply
+```
+
+```bash
+bash ./modules/03-entra-authentication/cleanup.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId "$ARM_SUBSCRIPTION_ID" -Apply
+bash ./modules/03-entra-authentication/cleanup.sh -TenantId "<tenant-id>" -Scope Entra -Apply
+```
+
+Then delete the server with module 02's clean-up, remove the `workshop-entra` server from VS Code and ask the identity
+administrator to remove the test accounts if they were created only for this workshop. If you continue to module 04 now,
+keep everything.
+
+## Go further
+
+- Open [alice.json](synthetic-claims/alice.json) and [bob.json](synthetic-claims/bob.json): which claim differs, and which
+  layer uses it?
+- As Bob, call `create_ticket` in VS Code. It works: why is that a problem, and which module fixes it?
+- Read the [scopes and app roles](../../docs/concepts/scopes-and-app-roles.md) and [token chain](../../docs/concepts/token-chain.md) concepts.
+- Next: [module 04 plan](../../docs/BUILD-PLAN.md#04--api-management-as-the-only-entry-point-level-2).
+
+## Sources
+
+- [Configure MCP server authorization (App Service and Functions)](https://learn.microsoft.com/azure/app-service/configure-authentication-mcp)
+- [Secure MCP servers with Microsoft Entra and VS Code](https://learn.microsoft.com/azure/app-service/configure-authentication-mcp-server-vscode)
+- [Tutorial: host an MCP server on Azure Functions (built-in authentication, webhook setting, VS Code client ID)](https://learn.microsoft.com/azure/azure-functions/functions-mcp-tutorial)
+- [Protected resource metadata (Preview) in App Service authentication](https://learn.microsoft.com/azure/app-service/overview-authentication-authorization#protected-resource-metadata-preview)
+- [Add app roles and get them from a token](https://learn.microsoft.com/entra/identity-platform/howto-add-app-roles-in-apps)
+- [Require user assignment for an enterprise application](https://learn.microsoft.com/entra/identity/enterprise-apps/assign-user-or-group-access-portal)
+- [Access token claims reference](https://learn.microsoft.com/entra/identity-platform/access-token-claims-reference)
+- [Azure-Samples/remote-mcp-functions-dotnet at 468c518 (infra/app/entra.bicep, infra/app/api.bicep)](https://github.com/Azure-Samples/remote-mcp-functions-dotnet/tree/468c518c884ec318e3001b9573254c9e775409c9)
+- [AzureAD provider 3.10.0](https://registry.terraform.io/providers/hashicorp/azuread/3.10.0/docs) and [AzureRM 5.9.0 Flex Consumption `auth_settings_v2`](https://github.com/hashicorp/terraform-provider-azurerm/blob/v5.9.0/website/docs/r/function_app_flex_consumption.html.markdown)
+- [RFC 9728 OAuth 2.0 Protected Resource Metadata](https://www.rfc-editor.org/rfc/rfc9728)
+
+Last verified: 2026-10-14. Authored and checked offline only; not yet deployed or validated in Azure or Microsoft Entra.

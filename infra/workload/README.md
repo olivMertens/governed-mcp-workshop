@@ -6,6 +6,10 @@ An explicit module 02 opt-in (`enable_mcp_server = true`, default false) adds th
 Flex Consumption Function App, Storage with shared keys disabled, a `tickets` queue, Log Analytics,
 Application Insights and one user-assigned managed identity with three resource-scoped role assignments
 (see [module 02](../../modules/02-open-server/README.md) and `mcp-server.tf`). Without the opt-in, nothing changes.
+An explicit module 03 opt-in (`enable_entra_auth = true` plus the IDs from `infra/entra`, default false) adds Microsoft Entra
+built-in authentication to that Function App (`entra-auth.tf`): require authentication, HTTP 401, tenant issuer, MCP audience
+only, allowed clients and Protected Resource Metadata (**Preview**). A second apply with `entra_auth_replace_key_gate = true`
+then drops the system key; see [module 03](../../modules/03-entra-authentication/README.md).
 Later service names (API Management) remain planned outputs, not created resources.
 Terraform requires 1.16.6+ below 2; AzureRM is locked to 5.9.0.
 
@@ -59,6 +63,9 @@ Eleven foundation runs cover new/existing groups, legacy compatibility, 64-bit n
 shared-group isolation, invalid names, default-off hosting and the opt-in TLS/runtime settings.
 Seven module 02 runs (`tests/mcp_server.tftest.hcl`) cover default-off, identity-only storage, no key or SAS in app settings,
 exact role scopes, the optional IPv4 allow-list, existing groups and rejected open/malformed ranges or unbounded scale.
+Eight module 03 runs (`tests/entra_auth.tftest.hcl`) cover default-off (module 02 unchanged), enforced authentication with
+one audience and allowed clients, no secret setting or token store, the two-stage key gate, and rejected incomplete or
+unsafe inputs.
 Module 00's [offline validator](../../modules/00-prerequisites/README.md#validate) also covers local HTTP,
 bundle integrity, private-file exclusion, and synthetic preflight/deployment failures.
 
@@ -71,5 +78,6 @@ bundle integrity, private-file exclusion, and synthetic preflight/deployment fai
 - [Terraform mocks](https://developer.hashicorp.com/terraform/language/tests/mocking).
 - [AzureRM 5.9.0 Flex Consumption](https://github.com/hashicorp/terraform-provider-azurerm/blob/v5.9.0/website/docs/r/function_app_flex_consumption.html.markdown).
 - [Flex Consumption plan](https://learn.microsoft.com/azure/azure-functions/flex-consumption-plan).
+- [MCP server authorization with built-in authentication](https://learn.microsoft.com/azure/app-service/configure-authentication-mcp).
 
 Last verified: 2026-10-14. Mock tests do not establish Azure deployment compatibility.
