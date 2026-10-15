@@ -1,0 +1,29 @@
+{
+  "synthetic": true,
+  "note": "Decoded payload of a FICTIONAL access token. Not a real token: no header, no signature, synthetic IDs only. Never paste a live token into a website, chat, file or log.",
+  "persona": "Alice",
+  "client": "Visual Studio Code (pre-authorized)",
+  "decoded_payload": {
+    "aud": "44444444-4444-4444-8444-444444444444",
+    "iss": "https://login.microsoftonline.com/00000000-0000-4000-8000-000000000000/v2.0",
+    "tid": "00000000-0000-4000-8000-000000000000",
+    "oid": "a11ce000-0000-4000-8000-000000000001",
+    "azp": "aebc6443-996d-45c2-90f0-388ff96faa56",
+    "scp": "user_impersonation",
+    "roles": ["Tools.Read", "Tools.Write"],
+    "preferred_username": "alice@contoso.example",
+    "ver": "2.0",
+    "iat": 1767225600,
+    "nbf": 1767225600,
+    "exp": 1767229200
+  },
+  "what_the_server_checks": {
+    "iss and tid": "Built-in authentication: the token comes from the workshop tenant.",
+    "aud": "Built-in authentication: the token was issued for THIS MCP API (client ID or api:// URI), not for Microsoft Graph.",
+    "azp": "Built-in authorization policy: the calling app is an allowed client (VS Code or Azure CLI).",
+    "exp and nbf": "Built-in authentication: the token is valid now.",
+    "scp": "The client app may act for Alice on this API (delegated). It says nothing about what Alice may do.",
+    "roles": "What Alice may do: read and write tools. Enforced per tool from module 04 onward."
+  },
+  "expected_http": 200
+}

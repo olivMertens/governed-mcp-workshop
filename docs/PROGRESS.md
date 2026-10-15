@@ -9,7 +9,7 @@ A module is `validated` only when its validate script passes on a fresh subscrip
 | 00 | Prerequisites and environment | validated | 2026-10-14 | Live local-terminal validator: explicit context, region, Microsoft.Resources registration, required ARM grants and group capacity PASS; isolated offline suite 14/14 and Terraform tests 11/11 PASS. | Validated on the selected non-production local-terminal route without creating resources. The optional dev-container/Codespaces route remains unverified and is not implied by this result. |
 | 01 | Discover MCP (no Azure) | in-progress | | Real local SDK validator and Inspector 2.9.0 tools/list + tools/call pass; protocol 2026-07-28 with SDK client. | EN/FR guide, locked .NET 10 stdio server and client config implemented. Manual VS Code approval observation remains pending; no Azure needed here. |
 | 02 | An "open" MCP server (level 0) | in-progress | | Offline validator: host.json System, no anonymous level, no secret pattern, identity-only Terraform, 24/24 unit tests, Terraform fmt/validate and 18/18 mock runs PASS. | Authored, offline checks pass, not deployed/validated. User approved author-only scope: no plan/apply, no Azure or Entra change. Live HTTP 401/200 checks pending an approved deployment. |
-| 03 | Identity with Microsoft Entra (level 1) | todo | | | |
+| 03 | Identity with Microsoft Entra (level 1) | in-progress | | Offline validator: System host.json kept, key gate tied to enforced auth + Return401, Entra root single tenant/scope/3 roles/assignment required/no secret or user, no token pattern, synthetic claims, Terraform fmt/validate + 8/8 Entra and 26/26 workload mock runs PASS. | Authored, offline checks pass, not deployed. User approved author-only scope: no plan/apply, no Azure or Entra change. Live 401/PRM/Graph-401/Alice-Bob-200/Eve-refused checks pending an approved deployment. |
 | 04 | API Management as the only entry point (level 2) | todo | | | |
 | 05 | On-Behalf-Of vs app-only (level 3) | todo | | | |
 | 06 | Observe and inventory (level 4) | todo | | | |
@@ -20,7 +20,8 @@ A module is `validated` only when its validate script passes on a fresh subscrip
 - Network (module 04): recommend Standard v2 outbound virtual network integration, Function private endpoint,
   private DNS and public Function access disabled. Confirm deployment connectivity before applying.
 - Identity ownership: confirm who runs infra/entra and grants delegated consent; accept existing object IDs
-  without changing or deleting those objects when identity creation is skipped.
+  without changing or deleting those objects when identity creation is skipped. (Module 03 implements both paths;
+  module 03 itself needs no consent. Test accounts are created outside Terraform.)
 - Region: Sweden Central (`swedencentral`) is the default example (decided 2026-10-14). Confirm current Flex runtime support, Standard v2 availability, quota,
   subscription policies and costs before selecting it.
 - Test identities: decide between a dedicated non-production tenant and dedicated Alice, Bob and Eve test
@@ -36,6 +37,35 @@ A module is `validated` only when its validate script passes on a fresh subscrip
   group; accept an approved existing group without managing it. Shared quotas still require cohort capacity checks.
 
 ## Deviations from the build plan
+- Module 03 author-only implementation (2026-10-14), explicitly scoped by the user: `infra/entra` root, workload
+  opt-in, guides, validators and clean-up; local/offline checks only. No `terraform plan` against Azure or Entra, no apply,
+  no Azure or Microsoft Entra object created or changed. Module 02 is still `in-progress` (not deployed), so this is an
+  authoring exception to "previous module validated first", not deployment authorization.
+  Offline evidence (`validate.ps1 -Offline`, Windows, Terraform 1.16.6, AzureAD 3.10.0 and AzureRM 5.9.0 mocks):
+  `PASS host.json keeps the level 0 System webhook level; the published package is never anonymous on its own (expected HTTP N/A).`
+  `PASS the key gate is removed only together with enforced built-in authentication and Return401 (expected HTTP 401 without a token).`
+  `PASS infra/entra: single tenant, user_impersonation, Tools.Read/Tools.Write/Tools.Execute.All, assignment required, no secret or user (expected HTTP N/A).`
+  `PASS no access token, key, SAS or client secret in module 03, infra/entra or workload files (expected HTTP N/A).`
+  `PASS synthetic claim examples use synthetic IDs only and contain no token (4 files, expected HTTP N/A).`
+  `PASS Terraform format, schema and mock-only plans for infra/entra and infra/workload (expected HTTP N/A; no live plan/apply).`
+  `PASS offline checks only. Module 03 is NOT deployed or Entra-validated by this result.`
+  Synthetic node tests cover the live validator (401 without token, PRM metadata, 401 for a Graph token, ARM auth settings,
+  401 with the key alone, 200 for Alice and Bob, Eve refused with AADSTS50105; fail-closed when the endpoint is open, a Graph
+  token is accepted, Eve gets a token or only stage 1 is applied; tokens and keys never printed) and the clean-up guard
+  (key gate restored before auth is removed, Entra destroy limited to workshop objects, foreign changes refused, idempotent).
+  Deviations: (1) Terraform never creates test users: AzureAD 3.10.0 requires a password at user creation and stores it in
+  state, which conflicts with "no secrets in files"; the administrator provides existing accounts (object IDs only).
+  (2) Two-stage key-gate replacement (`entra_auth_replace_key_gate`) instead of Learn's single step, because AzureRM writes
+  app settings and auth settings separately; this avoids any moment with an anonymous webhook. (3) Application ID URI is
+  `api://<client-id>` (sample uses a custom string). (4) No secret setting, federated credential, token store, redirect URI
+  or Graph permission in module 03 (sample has them for browser login/OBO); module 05 adds the federated credential.
+  (5) Allowed audiences are the API's URI and client ID (same API, v1/v2 formats); allowed clients exclude the API itself.
+  (6) Built-in authorization is server-level: Bob can still call `create_ticket` until module 04 adds per-tool roles.
+  (7) Fixed a latent module 02 validator bug: an unbound `[guid]` parameter is `$null`, not `Empty`, so running it without
+  tenant/subscription now stays offline as its README states. No module 02 behavior or resource changed otherwise.
+  Open: identity administrator review and approval of `infra/entra`, test accounts, Preview acceptance for PRM, first
+  deployment (both stages), live operator and persona checks, VS Code sign-in observation, AzureRM handling of
+  `WEBSITE_AUTH_*` app settings alongside `auth_settings_v2` on Flex.
 - Module 02 author-only implementation (2026-10-14), explicitly scoped by the user: build code, Terraform,
   guides and validators; run only local/offline checks. No `terraform plan` against Azure, no apply, no Azure or
   Microsoft Entra change. Module 01 is still `in-progress` (manual approval observation), so this is an authoring

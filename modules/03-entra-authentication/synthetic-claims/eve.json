@@ -1,0 +1,13 @@
+{
+  "synthetic": true,
+  "note": "Eve gets NO token. This is a shortened, synthetic token endpoint error.",
+  "persona": "Eve",
+  "client": "Visual Studio Code or Azure CLI",
+  "token_endpoint_error": {
+    "error": "invalid_grant",
+    "error_codes": [50105],
+    "error_description": "AADSTS50105: The signed-in user is not assigned to a role for the application (synthetic, shortened)."
+  },
+  "why": "Assignment required is enabled on the enterprise application and Eve has no app role assignment. Microsoft Entra refuses before any token exists, so the MCP server never sees Eve.",
+  "expected_http": "400 from the token endpoint; the MCP server is never called"
+}

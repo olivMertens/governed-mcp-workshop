@@ -95,3 +95,74 @@ variable "mcp_maximum_instance_count" {
     error_message = "Use a whole number from 1 to 40 for the workshop."
   }
 }
+
+variable "enable_entra_auth" {
+  type        = bool
+  default     = false
+  nullable    = false
+  description = "Module 03 opt-in: Microsoft Entra built-in authentication on the MCP Function App. Requires enable_mcp_server and the IDs from infra/entra. Default off keeps module 02 unchanged."
+  validation {
+    condition = !var.enable_entra_auth || (
+      var.enable_mcp_server && var.entra_tenant_id != null && var.mcp_api_client_id != null &&
+      var.mcp_api_identifier_uri != null && length(var.mcp_allowed_client_ids) > 0
+    )
+    error_message = "enable_entra_auth needs enable_mcp_server = true, entra_tenant_id, mcp_api_client_id, mcp_api_identifier_uri and at least one allowed client. Use the workload_module03_tfvars output of infra/entra."
+  }
+}
+
+variable "entra_tenant_id" {
+  type        = string
+  default     = null
+  nullable    = true
+  description = "Tenant that issues MCP tokens (token issuer). Not secret; keep it in the private module 03 var file."
+  validation {
+    condition     = var.entra_tenant_id == null ? true : can(regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", var.entra_tenant_id))
+    error_message = "Use the tenant ID as a lowercase GUID."
+  }
+}
+
+variable "mcp_api_client_id" {
+  type        = string
+  default     = null
+  nullable    = true
+  description = "Client ID of the MCP API registration from infra/entra. Accepted as token audience (v2 tokens)."
+  validation {
+    condition     = var.mcp_api_client_id == null ? true : can(regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", var.mcp_api_client_id))
+    error_message = "Use the client ID as a lowercase GUID."
+  }
+}
+
+variable "mcp_api_identifier_uri" {
+  type        = string
+  default     = null
+  nullable    = true
+  description = "Application ID URI of the MCP API (api://...). The only other accepted audience."
+  validation {
+    condition     = var.mcp_api_identifier_uri == null ? true : can(regex("^api://[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$", var.mcp_api_identifier_uri)) && !endswith(var.mcp_api_identifier_uri, "/")
+    error_message = "Use an api:// Application ID URI without a trailing slash."
+  }
+}
+
+variable "mcp_allowed_client_ids" {
+  type        = list(string)
+  default     = []
+  nullable    = false
+  description = "Client applications allowed to call the MCP server (built-in authorization policy). Must match the pre-authorized clients in infra/entra."
+  validation {
+    condition = length(var.mcp_allowed_client_ids) <= 5 && length(distinct(var.mcp_allowed_client_ids)) == length(var.mcp_allowed_client_ids) && alltrue([
+      for id in var.mcp_allowed_client_ids : can(regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", id))
+    ])
+    error_message = "Use at most 5 distinct lowercase client ID GUIDs. Never allow every application."
+  }
+}
+
+variable "entra_auth_replace_key_gate" {
+  type        = bool
+  default     = false
+  nullable    = false
+  description = "Module 03 stage 2: drop the level 0 system key once built-in authentication is already enforced (applied in a previous run). Never set it in the same first apply as enable_entra_auth."
+  validation {
+    condition     = !var.entra_auth_replace_key_gate || var.enable_entra_auth
+    error_message = "entra_auth_replace_key_gate requires enable_entra_auth = true: the key gate is only replaced by enforced Entra authentication."
+  }
+}

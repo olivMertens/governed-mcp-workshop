@@ -37,7 +37,7 @@ Personas:
   identity request, pinned workstation configuration and private stable participant parameters.
   The shared root supports the group foundation and a default-off public B1 App Service.
   Offline schema/mock/script/server evidence is separate from container and fresh-subscription validation,
-  which remain pending. No MCP runtime or Entra root has been implemented.
+  which remain pending. (The MCP runtime and Entra root were later authored in modules 02 and 03.)
 
 ## 01 — Discover MCP (no Azure)
 - **Take:** MCP specification: https://modelcontextprotocol.io/specification (revision 2026-07-28 verified on 2026-10-14: architecture, tools, transports, authorization);
@@ -84,6 +84,14 @@ Personas:
   Eve is refused. Never paste a live token into a website, chat, committed file, or log.
 - **Validate:** 401 without token; 401 with a token for another audience; 200 for Alice and Bob;
   Eve cannot get a token (assignment required).
+- **Authored, not deployed (2026-10-14):** [EN/FR guide](../modules/03-entra-authentication/README.md),
+  `infra/entra` (AzureAD 3.10.0 locked; registration, `api://<client-id>`, scope, three app roles, assignment required,
+  VS Code and Azure CLI pre-authorized, persona assignments for existing accounts only, read-only existing-application path,
+  eight mock runs) and a default-off `enable_entra_auth` workload opt-in (`infra/workload/entra-auth.tf`, AzureRM
+  `auth_settings_v2`: Return401, tenant issuer, MCP audience only, allowed clients, PRM setting **Preview**, eight mock runs).
+  The key gate is replaced in a second apply (`entra_auth_replace_key_gate`) so the webhook is never anonymous without
+  enforced authentication. Terraform creates no users (AzureAD requires a password in state); the administrator provides
+  existing test accounts. Per-tool roles remain module 04. Only offline checks ran; see [progress](PROGRESS.md).
 
 ## 04 — API Management as the only entry point (level 2)
 - **Take:** https://learn.microsoft.com/azure/api-management/expose-existing-mcp-server;
