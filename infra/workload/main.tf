@@ -5,7 +5,17 @@ terraform {
       source  = "hashicorp/azurerm"
       version = "= 5.9.0"
     }
+    # Module 04 only: API Management MCP server APIs (api-version 2025-09-01-preview, Preview) have no AzureRM resource.
+    azapi = {
+      source  = "Azure/azapi"
+      version = "= 2.13.0"
+    }
   }
+}
+
+provider "azapi" {
+  use_cli                    = true
+  skip_provider_registration = true
 }
 
 provider "azurerm" {
