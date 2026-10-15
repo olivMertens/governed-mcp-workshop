@@ -4,7 +4,7 @@
 
 **Vous hébergez les guides. Les participants réalisent leurs propres exercices.**
 Publier le portail ne déploie pas le serveur Model Context Protocol (MCP).
-Le module 00 est validé, les modules 01 à 03 sont rédigés (contrôles hors ligne réussis), les modules 04 et suivants restent prévus.
+Le module 00 est validé ; les modules 01 à 07 et 99 sont rédigés (contrôles hors ligne réussis). Suivez l'ordre d'exécution du [README racine](../../README.md).
 Les participants peuvent faire le [module 01](../../modules/01-discover-mcp/README.fr.md) sans attendre votre portail ou un déploiement Azure.
 
 ## Qui déploie quoi
@@ -96,7 +96,7 @@ Message prêt à transmettre :
 > Ouvrez le lien de l'atelier, choisissez votre langue et votre environnement, puis suivez le module 00.
 > Utilisez uniquement votre tenant et votre abonnement de test approuvés. Vous n'avez pas à héberger les guides partagés.
 > Vous déployez vous-même le serveur MCP ; si vous le souhaitez, vous pouvez déployer votre propre portail prérempli avec votre point de terminaison.
-> Le module 01 fonctionne en local sans Azure. Les modules 02 et 03 se déroulent dans votre abonnement ; les suivants sont prévus.
+> Le module 01 fonctionne en local sans Azure. Les modules 02 à 07 se déroulent dans votre abonnement, dans l'ordre du README racine ; le module 99 nettoie après chaque étape payante.
 > Ne transmettez aucun identifiant de connexion ni jeton.
 
 ## 5. Terminer sans laisser de frais inutiles
