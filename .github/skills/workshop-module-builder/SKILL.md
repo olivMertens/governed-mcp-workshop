@@ -20,13 +20,18 @@ Always follow these steps, in this order.
    or changing any Azure or Microsoft Entra resource.
 5. **Build** `modules/NN-name/` following the module contract: README sections in order, `infra/` if needed,
    `validate.ps1`, `validate.sh` and a clean-up script. Pin upstream versions or commit SHAs and keep license notices.
+   When the module adds or changes a depicted architecture (a component, dependency, identity, network or ingress
+   boundary), also load `.github/skills/architecture-diagram-author/SKILL.md` and update the matching diagram in
+   `assets/architecture/` (drawio source first, then SVG and PNG exports via `scripts/render-architecture.py`).
+   Skip this for modules that do not change the depicted architecture.
 6. **Infrastructure.** Run `terraform fmt -recursive`, `terraform validate` and the mocked `terraform test`.
    Run `terraform plan` and apply only if step 4 confirmed an approved author-owned tenant, and only after approval.
 7. **Validate.** Always run the offline checks (unit tests, Terraform tests, the offline mode of the validator).
    If deployed, run `validate.ps1` live and fix until every check prints PASS. Never weaken a security invariant,
    widen a role or add a secret to get a PASS: stop and ask instead.
 8. **Record.** Update `docs/PROGRESS.md`: `authored` with offline PASS lines when nothing was deployed, or `validated`
-   with the date and live PASS lines. Add notes, deviations and open decisions. Update `docs/sources.md`
+   with the date and live PASS lines. Add notes, deviations and open decisions. If a diagram changed, run
+   `python .\scripts\render-architecture.py --check` and record the result. Update `docs/sources.md`
    (create it if missing) with every link used and its last verified date.
 9. **Ship.** Commit as `module NN: <summary>` and open a pull request. An `authored` module is shippable: do not refuse
    to open the pull request because live validation is pending. The pull request lists what was built, the validation

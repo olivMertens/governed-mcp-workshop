@@ -9,6 +9,9 @@ Dashed frames identify the labeled local, identity or Azure workload boundary. N
 of the same stage, not additional copies of a deployed resource. Request, identity, observation and administration
 are distinct flows. Module 05 shows Storage; Graph requires a separate token for its own audience.
 
+Maintainers editing these diagrams follow [the architecture diagram skill](../../.github/skills/architecture-diagram-author/SKILL.md),
+which the module builder loads when a module changes a depicted architecture.
+
 ## Reproduce the exports
 
 Python 3, the Python `playwright` package and an existing Chromium or Edge installation are required for PNGs.
