@@ -128,6 +128,43 @@ translated to Terraform. Only offline checks ran; no Azure or Entra change.
 | [Azure CLI `functionapp keys`](https://learn.microsoft.com/cli/azure/functionapp/keys) | `--key-type systemKeys` to read or rotate `mcp_extension`; output suppressed with `--output none`. |
 | [Terraform test mocks](https://developer.hashicorp.com/terraform/language/tests/mocking) | `override_during = plan` on the mock provider makes synthetic IDs and endpoints known in plan-only runs. |
 
+### Module 03 authored implementation (not deployed)
+
+Last verified: 2026-10-14. [EN/FR guide](../modules/03-entra-authentication/README.md), [infra/entra](../infra/entra/README.md),
+[identity request](requests/identity-request.md). Adapted from the pinned sample's `infra/app/entra.bicep` and the
+`authsettingsV2` block of `infra/app/api.bicep` (MIT, see THIRD-PARTY-NOTICES.md). Only offline checks ran: no plan against
+Azure or Entra, no apply, no object created.
+
+| Pin or source | Value and decision |
+|---|---|
+| [AzureAD 3.10.0](https://registry.terraform.io/providers/hashicorp/azuread/3.10.0/docs) | Exact pin, lock file committed (`infra/entra/.terraform.lock.hcl`). `azuread_application_identifier_uri` requires `ignore_changes = [identifier_uris]` on the application; `azuread_application_pre_authorized` is a separate resource. |
+| [AzureAD 3.10.0 `azuread_user` source](https://github.com/hashicorp/terraform-provider-azuread/blob/v3.10.0/internal/services/users/user_resource.go) | `password` is required at creation and stored in state (no write-only attribute). **Decision:** never create users in Terraform; accept existing object IDs. |
+| [AzureRM 5.9.0 Flex `auth_settings_v2`](https://github.com/hashicorp/terraform-provider-azurerm/blob/v5.9.0/website/docs/r/function_app_flex_consumption.html.markdown) | Schema inspected locally: `active_directory_v2` with `client_id`, `tenant_auth_endpoint`, `allowed_audiences`, `allowed_applications`; `login` block required. **AzAPI is not needed.** |
+| [App Service MCP authorization](https://learn.microsoft.com/azure/app-service/configure-authentication-mcp) | Server-level access only, not per tool. PRM via `WEBSITE_AUTH_PRM_DEFAULT_WITH_SCOPES` is **Preview**. Pre-authorize clients because VS Code shows no consent prompt. No token passthrough. |
+| [App Service MCP and VS Code](https://learn.microsoft.com/azure/app-service/configure-authentication-mcp-server-vscode) | VS Code client ID `aebc6443-996d-45c2-90f0-388ff96faa56` in **both** allowed client applications and pre-authorized applications. Portal path creates a client secret: not followed. |
+| [Functions MCP tutorial](https://learn.microsoft.com/azure/azure-functions/functions-mcp-tutorial) | Disable the key gate with app setting `AzureFunctionsJobHost__extensions__mcp__system__webhookAuthorizationLevel=Anonymous` (equivalent to host.json, no republish). Require authentication, HTTP 401. One-click portal MCP auth is **Preview** and creates registrations and a secret: not used. Self-hosted MCP (**Preview**) not used. |
+| [PRM in App Service authentication](https://learn.microsoft.com/azure/app-service/overview-authentication-authorization#protected-resource-metadata-preview) | PRM `resource`, `authorization_servers`, `scopes_supported`; the 401 challenge carries the metadata URL, so the validator follows `resource_metadata` rather than hard-coding a path. |
+| [App roles](https://learn.microsoft.com/entra/identity-platform/howto-add-app-roles-in-apps) | Allowed member types User vs Application; `roles` claim only for assigned principals. |
+| Azure CLI client ID `04b07795-8ddb-461a-bbee-02f9e1bf7b46` | Well-known first-party public client; pre-authorized so `az account get-access-token --resource api://<client-id>` works without consent for the validator. |
+
+**Gaps between the sources and the build plan, and decisions:**
+
+- The plan says "VS Code client ID from the sample". At the pinned commit the sample does not hard-code it: its README sets
+  `PRE_AUTHORIZED_CLIENT_IDS=aebc6443-…`; Microsoft Learn documents the same ID. Used as default.
+- The sample's Application ID URI is `api://<name>-<uniqueString>`; the workshop uses `api://<client-id>`, the form shown by
+  Learn and accepted by tenants that restrict custom identifier URIs.
+- The sample sets `clientSecretSettingName` to a managed-identity federated credential override and enables the token store
+  for browser sign-in and On-Behalf-Of. Module 03 only validates bearer tokens: no secret setting, no federated credential,
+  token store off. Module 05 adds the federated credential.
+- The sample's allowed applications include the API's own client ID (for its browser login); the workshop allows only the
+  pre-authorized clients.
+- The sample requests Graph `User.Read` on the API registration; module 03 requests no API permission (no consent needed).
+- Learn disables the key gate in the same step as enabling authentication. AzureRM writes app settings and auth settings in
+  separate calls, so the workshop uses two applies (`entra_auth_replace_key_gate`) and reverses them in clean-up.
+- Test users: the plan suggests creating Alice/Bob/Eve; the AzureAD provider would put their password in state, so the
+  workshop accepts existing accounts only (deviation, see progress).
+- Per-tool authorization: Learn states built-in authorization is server-level; Bob can still call `create_ticket` until module 04.
+
 ### Selected upstreams
 
 | Upstream | Selected snapshot | What was inspected | License and reuse boundary |

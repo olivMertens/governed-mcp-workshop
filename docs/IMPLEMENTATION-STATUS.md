@@ -9,9 +9,10 @@ Read [build progress](PROGRESS.md) for evidence. **No module is Azure-validated 
 | Public documentation portal | Bilingual single-page application, App Service Terraform and guarded deployment script | Review a real plan, approve costs, deploy and verify the site |
 | Local MCP discovery (01) | .NET 10 stdio server, SDK validator, Inspector CLI checks, EN/FR guide and VS Code configuration | Observe the manual per-call client approval; preceding environment gate remains open |
 | Open MCP server (02) | .NET 10 Functions MCP server with five synthetic tools, unit tests, default-off Flex/Storage/telemetry/identity Terraform with mock tests, EN/FR guide, validator and scoped clean-up | Approved plan, deployment and live HTTP 401/200 validation; nothing is deployed |
-| Azure MCP server (03 onward) | Learning targets and diagrams | Identity, gateway and downstream implementation from module 03 |
+| Entra identity (03) | `infra/entra` root (registration, scope, three app roles, assignment required, pre-authorized VS Code and Azure CLI, persona assignments for existing accounts) and default-off built-in authentication opt-in with Protected Resource Metadata (**Preview**), mock tests, EN/FR guide, validator and scoped clean-up | Identity administrator approval and apply, workload apply in two stages, live 401/200 and Eve checks; nothing is deployed or created |
+| Azure MCP server (04 onward) | Learning targets and diagrams | Gateway and downstream implementation from module 04 |
 | Managed identities | Permission model and administrator request | Create identities, scoped role assignments and approved federation in their modules |
-| Microsoft Entra | Audience, scope, role and test-persona requirements | Implement the identity root, then validate consent and authorization |
+| Microsoft Entra | Identity root authored in module 03 (no users, secrets or API permissions) | Apply it with an identity administrator, then validate authorization; module 05 adds On-Behalf-Of consent and federation |
 | API Management gateway | Standard v2 design and planned checks | Implement the gateway, private network and authorization policies |
 | Microsoft Foundry | Optional client scenario only | A separately reviewed project, model, agent and secretless connection if this option is selected |
 | Observability and inventory | Payload-free logging requirements | Implement and validate telemetry and API Center registration |
@@ -27,7 +28,8 @@ Module 01's [local exercise](../modules/01-discover-mcp/README.md) runs without 
 Its local authoring was explicitly approved before module 00 validated on the local-terminal route.
 The optional container/Codespaces route remains unverified.
 Module 02's [guide](../modules/02-open-server/README.md) is authored and passes offline checks only; it is not deployed.
-Modules 03 onward remain outlines. Cloud validation and exact deployment approvals are not waived.
+Module 03's [guide](../modules/03-entra-authentication/README.md) is authored and passes offline checks only; no Entra object is created.
+Modules 04 onward remain outlines. Cloud validation and exact deployment approvals are not waived.
 
 ## Identity and gateway boundaries
 

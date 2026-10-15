@@ -2,7 +2,7 @@
 # Pattern adapted from Azure-Samples/remote-mcp-functions-dotnet at commit
 # 468c518c884ec318e3001b9573254c9e775409c9 (infra/main.bicep, infra/app/api.bicep, infra/app/rbac.bicep),
 # MIT License, Copyright (c) Microsoft Corporation. See THIRD-PARTY-NOTICES.md.
-# Workshop changes: Terraform instead of Bicep, no Entra configuration (module 03), no account-wide queue role
+# Workshop changes: Terraform instead of Bicep, Entra authentication only via the module 03 opt-in (entra-auth.tf), no account-wide queue role
 # (Streamable HTTP only), a queue-scoped sender role for synthetic tickets and an optional IPv4 allow-list.
 
 locals {
@@ -160,7 +160,7 @@ resource "azurerm_function_app_flex_consumption" "mcp" {
     }
   }
 
-  app_settings = {
+  app_settings = merge({
     # AzureRM 5.9.0 otherwise writes a key-less AzureWebJobsStorage connection string for identity storage.
     # An empty value lets the host use the identity-based AzureWebJobsStorage__* settings below.
     # The provider does not read this key back, so later plans show an in-place app_settings update; expected.
@@ -173,6 +173,40 @@ resource "azurerm_function_app_flex_consumption" "mcp" {
     TICKET_QUEUE_SERVICE_URI                  = azurerm_storage_account.mcp[0].primary_queue_endpoint
     TICKET_QUEUE_NAME                         = azurerm_storage_queue.tickets[0].name
     WORKSHOP_IDENTITY_CLIENT_ID               = azurerm_user_assigned_identity.mcp[0].client_id
+  }, local.mcp_auth_app_settings) # module 03 settings, empty unless enable_entra_auth = true (see entra-auth.tf)
+
+  # Module 03: Microsoft Entra built-in authentication (App Service Authentication v2). Absent at level 0.
+  dynamic "auth_settings_v2" {
+    for_each = local.mcp_auth_enabled ? [1] : []
+    content {
+      auth_enabled             = true
+      require_authentication   = true
+      unauthenticated_action   = "Return401"
+      default_provider         = "azureactivedirectory"
+      require_https            = true
+      runtime_version          = "~1"
+      http_route_api_prefix    = "/.auth"
+      forward_proxy_convention = "NoProxy"
+
+      active_directory_v2 {
+        client_id                   = var.mcp_api_client_id
+        tenant_auth_endpoint        = local.mcp_auth_issuer
+        allowed_audiences           = local.mcp_auth_audiences
+        allowed_applications        = var.mcp_allowed_client_ids
+        www_authentication_disabled = false
+      }
+
+      login {
+        token_store_enabled = false
+      }
+    }
+  }
+
+  lifecycle {
+    precondition {
+      condition     = !contains(keys(local.mcp_auth_app_settings), local.mcp_webhook_level_setting) || local.mcp_auth_enabled
+      error_message = "Security invariant 9: the MCP webhook may drop the system key only when built-in authentication is enforced."
+    }
   }
 
   depends_on = [
@@ -188,7 +222,7 @@ output "mcp_function_app_name" {
 }
 
 output "mcp_endpoint" {
-  description = "Module 02 Streamable HTTP endpoint. Requires the mcp_extension system key, read at runtime only."
+  description = "Streamable HTTP endpoint. Level 0: requires the mcp_extension system key, read at runtime only. Level 1 (module 03): requires a Microsoft Entra token for the MCP API audience instead."
   value       = local.mcp_enabled ? "https://${azurerm_function_app_flex_consumption.mcp[0].default_hostname}/runtime/webhooks/mcp" : null
 }
 
