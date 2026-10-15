@@ -10,8 +10,12 @@ An explicit module 03 opt-in (`enable_entra_auth = true` plus the IDs from `infr
 built-in authentication to that Function App (`entra-auth.tf`): require authentication, HTTP 401, tenant issuer, MCP audience
 only, allowed clients and Protected Resource Metadata (**Preview**). A second apply with `entra_auth_replace_key_gate = true`
 then drops the system key; see [module 03](../../modules/03-entra-authentication/README.md).
-Later service names (API Management) remain planned outputs, not created resources.
-Terraform requires 1.16.6+ below 2; AzureRM is locked to 5.9.0.
+An explicit module 04 opt-in (`enable_governed_gateway = true`, default false, requires both module 03 stages) adds API Management
+Standard v2 as the only MCP entry point (`gateway.tf`, `network.tf`, `diagnostics.tf`): outbound virtual network integration,
+a Function private endpoint with `privatelink.azurewebsites.net`, the MCP server API through AzAPI `2025-09-01-preview` (**Preview**),
+policies from `modules/04-governed-gateway/policies` and zero-body-byte diagnostics. A second apply with `gateway_lock_function = true`
+disables public access on the Function; see [module 04](../../modules/04-governed-gateway/README.md).
+Terraform requires 1.16.6+ below 2; AzureRM is locked to 5.9.0 and AzAPI to 2.13.0 (module 04 only).
 
 Start with [workspace preparation](../../docs/GETTING-STARTED.md), or [the French guide](../../docs/fr/GETTING-STARTED.md).
 Both workstation routes use this root and the same private `.workshop/participant.tfvars.json`.
@@ -66,6 +70,10 @@ exact role scopes, the optional IPv4 allow-list, existing groups and rejected op
 Eight module 03 runs (`tests/entra_auth.tftest.hcl`) cover default-off (module 02 unchanged), enforced authentication with
 one audience and allowed clients, no secret setting or token store, the two-stage key gate, and rejected incomplete or
 unsafe inputs.
+Ten module 04 runs (`tests/governed_gateway.tftest.hcl`, AzureRM and AzAPI mocks) cover default-off (module 03 unchanged), the
+Standard v2 private path, the exact rendered policies (one audience, per-tool roles, per-oid rate limit, gateway PRM, no
+subscription key), zero body bytes at both diagnostic scopes, the stage 2 Function lock, the optional IP filter, the portal
+advertising only the gateway, and rejected unsafe inputs.
 Module 00's [offline validator](../../modules/00-prerequisites/README.md#validate) also covers local HTTP,
 bundle integrity, private-file exclusion, and synthetic preflight/deployment failures.
 
@@ -79,5 +87,7 @@ bundle integrity, private-file exclusion, and synthetic preflight/deployment fai
 - [AzureRM 5.9.0 Flex Consumption](https://github.com/hashicorp/terraform-provider-azurerm/blob/v5.9.0/website/docs/r/function_app_flex_consumption.html.markdown).
 - [Flex Consumption plan](https://learn.microsoft.com/azure/azure-functions/flex-consumption-plan).
 - [MCP server authorization with built-in authentication](https://learn.microsoft.com/azure/app-service/configure-authentication-mcp).
+- [Manage API Management MCP servers with Terraform (Preview API)](https://learn.microsoft.com/azure/api-management/manage-mcp-servers-rest-api).
+- [Standard v2 outbound virtual network integration](https://learn.microsoft.com/azure/api-management/integrate-vnet-outbound).
 
-Last verified: 2026-10-14. Mock tests do not establish Azure deployment compatibility.
+Last verified: 2026-10-15. Mock tests do not establish Azure deployment compatibility.

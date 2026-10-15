@@ -165,6 +165,48 @@ Azure or Entra, no apply, no object created.
   workshop accepts existing accounts only (deviation, see progress).
 - Per-tool authorization: Learn states built-in authorization is server-level; Bob can still call `create_ticket` until module 04.
 
+### Module 04 authored implementation (not deployed)
+
+Last verified: 2026-10-15. [EN/FR guide](../modules/04-governed-gateway/README.md),
+[policies](../modules/04-governed-gateway/policies/), `infra/workload/network.tf`, `gateway.tf`, `diagnostics.tf`.
+Policies adapted from the AI-Gateway lab `mcp-prm-oauth` at the pinned commit below (MIT, see THIRD-PARTY-NOTICES.md).
+Only offline checks ran: no plan against Azure, no apply, no resource created.
+
+| Pin or source | Value and decision |
+|---|---|
+| [AzAPI 2.13.0](https://registry.terraform.io/providers/Azure/azapi/2.13.0/docs) | Exact pin, added to `infra/workload/.terraform.lock.hcl` (five platforms). Used only for the MCP server API, its policy and diagnostic, and the metadata API/operation/policy at `2025-09-01-preview` (**Preview**). `skip_provider_registration = true`, CLI credentials, like AzureRM. |
+| [AzureRM 5.9.0 API Management](https://github.com/hashicorp/terraform-provider-azurerm/blob/v5.9.0/website/docs/r/api_management.html.markdown) | `sku_name = "StandardV2_1"`, `virtual_network_type = "External"` + `virtual_network_configuration` for v2 outbound integration (no provider block on V2, verified in the v5.9.0 resource source). Logger `application_insights.identity_client_id` and diagnostic `body_bytes`/`headers_to_log` inspected in the local provider schema. |
+| [Manage MCP servers programmatically](https://learn.microsoft.com/azure/api-management/manage-mcp-servers-rest-api) | Passthrough server: `type: mcp`, `mcpProperties.transportType: streamable`, one endpoint `{name, uriTemplate: "/mcp"}`, `serviceUrl` = backend base. **Decision:** `serviceUrl = https://<function-host>/runtime/webhooks`, `subscriptionRequired = false` (Learn's Terraform example uses `true` with a product; the workshop uses Entra tokens only). |
+| [Expose an existing MCP server](https://learn.microsoft.com/azure/api-management/expose-existing-mcp-server) | Global-scope frontend response payload bytes must be 0; never access the response body in MCP policies (buffers the stream). Client URL `https://<apim>.azure-api.net/<path>/mcp`. |
+| [Secure MCP servers](https://learn.microsoft.com/azure/api-management/secure-mcp-servers) | Inbound `validate-azure-ad-token`; subscription-key option not used. Authorization header forwarding to the backend is explicit in the inbound section. |
+| [validate-azure-ad-token](https://learn.microsoft.com/azure/api-management/validate-azure-ad-token-policy) | `tenant-id`, `client-application-ids`, `audiences`, `required-claims` (`scp` with separator), `output-token-variable-name` (Jwt object for `oid` and `roles`). Validation failures go to `on-error` (`context.LastError.Source`). |
+| [rate-limit-by-key](https://learn.microsoft.com/azure/api-management/rate-limit-by-key-policy) | Maximum renewal period 300 s; v2 uses a token bucket; limits are approximate, so the validator sends the limit plus 10 calls. |
+| [ip-filter](https://learn.microsoft.com/azure/api-management/ip-filter-policy) | Single addresses or `from`/`to` ranges only (no CIDR): Terraform converts CIDR to ranges; at least one element required, so the policy is rendered only when ranges exist. |
+| [Application Insights integration](https://learn.microsoft.com/azure/api-management/api-management-howto-app-insights) | Connection string with managed identity (recommended, REST/IaC only; portal uses instrumentation keys). Identity needs Monitoring Metrics Publisher on the component. A more specific (API) logger setting overrides all-APIs. |
+| [Standard v2 outbound integration](https://learn.microsoft.com/azure/api-management/integrate-vnet-outbound) | Same region and subscription; dedicated subnet delegated to `Microsoft.Web/serverFarms`, minimum /27 (recommended /24), NSG required with outbound Key Vault 443; inbound NSG rules do not apply; gateway stays public. |
+| [App Service private endpoints](https://learn.microsoft.com/azure/app-service/overview-private-endpoint) | Sub-resource `sites`, zone `privatelink.azurewebsites.net` (zone group adds app and `scm` records), disable public access for isolation, public callers get HTTP 403, access restrictions are not evaluated for private endpoint traffic. |
+| [Functions networking options](https://learn.microsoft.com/azure/azure-functions/functions-networking-options) | Flex Consumption supports inbound private endpoints; deployment through restricted networks needs a separate path (open item). |
+| [AI-Gateway `mcp-prm-oauth` lab](https://github.com/Azure-Samples/AI-Gateway/tree/1679e3137d2fe7592d2a668d77ff71550d35b69e/labs/mcp-prm-oauth) | `mcp-api.policy.xml` (token validation, 401 challenge in `on-error`) and `mcp-prm.policy.xml` (RFC 9728 JSON on a `.well-known/oauth-protected-resource` API). Adapted, see decisions below. |
+| [AI-Gateway `mcp-client-authorization` lab](https://github.com/Azure-Samples/AI-Gateway/tree/1679e3137d2fe7592d2a668d77ff71550d35b69e/labs/mcp-client-authorization) | Inspected only. It emulates an OAuth server in API Management with encryption keys in named values and a session check: **not used** (secret material, not Entra validation). Its MCP API diagnostic uses verbose logging without body-byte limits: not copied. |
+
+**Gaps between the sources and the build plan, and decisions:**
+
+- Endpoint shape: Learn uses `mcpProperties.endpoints` as an array of `{name, uriTemplate}`; the PRM lab uses an object map
+  (`endpoints: { mcp: { uriTemplate } }`); the client-authorization lab sets only `transportType`. The workshop follows Learn.
+- Audience: the PRM lab also accepts `{{APIMGatewayURL}}/{{McpApiPath}}` as an audience and advertises a gateway-URL scope.
+  The workshop accepts only the module 03 MCP API (`api://<client-id>` and its client ID) and advertises
+  `api://<client-id>/user_impersonation`: one logical resource, no broadened audience (BUILD-PLAN token boundary).
+- Forwarding: `secure-mcp-servers` says headers are forwarded automatically, then shows `set-header Authorization` "in the
+  outbound policy". The workshop sets it in the inbound section, after validation, and documents that the token goes only to
+  the same logical resource (the Function), never downstream.
+- Resources: the existing-server article says tools and resources are supported; the overview says tools only. The workshop
+  exposes tools only.
+- Diagnostics: Learn requires frontend response bytes 0 at global scope; the workshop sets 0 for all four directions at both
+  scopes and logs no header.
+- Inspector: Learn still suggests 0.9.0 for APIM tests; the workshop keeps 2.9.0 (module 01) and validates with HTTP scripts.
+- The per-tool role check, the JSON-RPC parsing and streaming through the gateway are policy expressions that cannot run
+  offline; they are proven only by the live persona checks.
+
 ### Selected upstreams
 
 | Upstream | Selected snapshot | What was inspected | License and reuse boundary |
@@ -258,6 +300,8 @@ references used to resolve design choices.
 | 04 | [MCP overview](https://learn.microsoft.com/azure/api-management/mcp-server-overview) | Tier availability, governance, inventory and documented limitations. |
 | 04 | [Programmatic MCP management](https://learn.microsoft.com/azure/api-management/manage-mcp-servers-rest-api) | API, policy and optional REST tool resource types; `2025-09-01-preview` (**Preview**). |
 | 04 | [Validate Entra tokens](https://learn.microsoft.com/azure/api-management/validate-azure-ad-token-policy) | Exact tenant/audience and scope/role claim checks via platform policy. |
+| 04 | [rate-limit-by-key](https://learn.microsoft.com/azure/api-management/rate-limit-by-key-policy), [ip-filter](https://learn.microsoft.com/azure/api-management/ip-filter-policy), [Application Insights integration](https://learn.microsoft.com/azure/api-management/api-management-howto-app-insights) | Per-oid throttling, optional range filter, managed-identity logger and zero payload bytes. Verified 2026-10-15. |
+| 04 | [Standard v2 outbound integration](https://learn.microsoft.com/azure/api-management/integrate-vnet-outbound), [App Service private endpoints](https://learn.microsoft.com/azure/app-service/overview-private-endpoint) | Delegated subnet + NSG, private endpoint, private DNS, public access disabled (HTTP 403). Verified 2026-10-15. |
 | 04 | [Outbound virtual network integration](https://learn.microsoft.com/azure/api-management/integrate-vnet-outbound) | Standard v2/Premium v2; dedicated subnet, delegation, network security group and permissions. |
 | 04 | [Functions networking](https://learn.microsoft.com/azure/azure-functions/functions-networking-options) | Flex inbound private endpoints versus outbound integration; direct-access protection. |
 | 04b | [Export REST to MCP](https://learn.microsoft.com/azure/api-management/export-rest-mcp-server) | Optional operation-to-tool exercise; no prompts/resources; no response-body inspection. |

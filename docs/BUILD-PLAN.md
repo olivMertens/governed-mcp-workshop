@@ -110,6 +110,13 @@ Personas:
 - **Show:** Bob calls create_ticket → 403, Alice → 200; burst → 429; direct call to the Function refused; logs without payload.
 - **Validate:** all of the above as PASS/FAIL lines.
 - **Optional 04b:** expose a synthetic REST API as an MCP server (https://learn.microsoft.com/azure/api-management/export-rest-mcp-server; AI-Gateway lab mcp-from-api).
+- **Authored, not deployed (2026-10-15):** [EN/FR guide](../modules/04-governed-gateway/README.md), default-off workload opt-in
+  (`network.tf`, `gateway.tf`, `diagnostics.tf`; AzAPI 2.13.0 locked): Standard v2 with outbound integration, Function private
+  endpoint and `privatelink.azurewebsites.net`, MCP server API `2025-09-01-preview` (**Preview**, no subscription key),
+  [policies](../modules/04-governed-gateway/policies/) (one audience, `user_impersonation`, per-tool roles from the preserved
+  JSON-RPC body, per-oid rate limit, optional ip-filter, gateway PRM and 401 challenge), 0 body bytes at both diagnostic scopes,
+  ten mock runs. Two applies: `enable_governed_gateway`, then `gateway_lock_function` disables public Function access. 04b is
+  documentation only. Only offline checks ran; see [progress](PROGRESS.md).
 
 ## 05 — Who carries the rights? On-Behalf-Of vs app-only (level 3)
 - **Take:** https://learn.microsoft.com/entra/identity-platform/v2-oauth2-on-behalf-of-flow;

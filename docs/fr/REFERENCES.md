@@ -78,6 +78,7 @@ Dernière vérification : 2026-10-14. Aucun moteur accessible pour valider l'ex�
 - [Gestion programmatique](https://learn.microsoft.com/azure/api-management/manage-mcp-servers-rest-api) : API `2025-09-01-preview`, **Preview**.
 - [Politique de validation Entra](https://learn.microsoft.com/azure/api-management/validate-azure-ad-token-policy) : audience et tenant exacts.
 - [Intégration réseau sortante](https://learn.microsoft.com/azure/api-management/integrate-vnet-outbound), [réseau Functions](https://learn.microsoft.com/azure/azure-functions/functions-networking-options) : rendre le backend privé ; l'intégration sortante seule ne bloque pas son accès public.
+- [Limite par clé](https://learn.microsoft.com/azure/api-management/rate-limit-by-key-policy), [filtre IP](https://learn.microsoft.com/azure/api-management/ip-filter-policy), [Application Insights](https://learn.microsoft.com/azure/api-management/api-management-howto-app-insights), [points de terminaison privés App Service](https://learn.microsoft.com/azure/app-service/overview-private-endpoint) : utilisés par le [guide du module 04](../../modules/04-governed-gateway/README.fr.md), vérifiés le 2026-10-15.
 - [REST vers MCP, option 04b](https://learn.microsoft.com/azure/api-management/export-rest-mcp-server).
 
 ## 05 - Délégation et identité managée
