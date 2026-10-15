@@ -4,7 +4,7 @@
 # Shape adapted from Azure-Samples/remote-mcp-functions-dotnet at commit 468c518c884ec318e3001b9573254c9e775409c9
 # (infra/app/entra.bicep), MIT License, Copyright (c) Microsoft Corporation. See THIRD-PARTY-NOTICES.md.
 # Workshop changes: Terraform instead of Bicep, app roles and assignment required, Application ID URI api://<client-id>,
-# no redirect URI, no Microsoft Graph permission (module 05), no federated credential yet (module 05).
+# no redirect URI. Module 05 adds downstream delegated permissions and the federated credential in delegation.tf (opt-in).
 
 data "azuread_client_config" "current" {}
 
@@ -103,8 +103,9 @@ resource "azuread_application" "mcp" {
   }
 
   # The Application ID URI is managed by azuread_application_identifier_uri below (api://<client-id>).
+  # Module 05 downstream delegated permissions are managed by azuread_application_api_access (delegation.tf).
   lifecycle {
-    ignore_changes = [identifier_uris]
+    ignore_changes = [identifier_uris, required_resource_access]
   }
 }
 

@@ -51,6 +51,15 @@
           "Azure.Core": "1.53.0"
         }
       },
+      "Azure.Storage.Blobs": {
+        "type": "Transitive",
+        "resolved": "12.26.0",
+        "contentHash": "EBRSHmI0eNzdufcIS1Rf7Ez9M8V1Jl7pMV4UWDERDMCv513KtAVsgz2ez2FQP9Qnwg7uEQrP+Uc7vBtumlr7sQ==",
+        "dependencies": {
+          "Azure.Core": "1.47.3",
+          "Azure.Storage.Common": "12.25.0"
+        }
+      },
       "Azure.Storage.Common": {
         "type": "Transitive",
         "resolved": "12.25.0",
@@ -583,6 +592,7 @@
         "type": "Project",
         "dependencies": {
           "Azure.Identity": "[1.21.0, 1.21.0]",
+          "Azure.Storage.Blobs": "[12.26.0, 12.26.0]",
           "Azure.Storage.Queues": "[12.24.0, 12.24.0]",
           "Microsoft.Azure.Functions.Worker": "[2.52.0, 2.52.0]",
           "Microsoft.Azure.Functions.Worker.Extensions.Mcp": "[1.5.0, 1.5.0]",

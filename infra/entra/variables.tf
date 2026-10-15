@@ -111,3 +111,36 @@ variable "service_management_reference" {
   nullable    = true
   description = "Optional service tree or asset reference, if your tenant's application policy requires one. Non-sensitive."
 }
+
+variable "enable_delegated_access" {
+  type        = bool
+  default     = false
+  nullable    = false
+  description = "Module 05 opt-in: request delegated Microsoft Graph User.Read and Azure Storage user_impersonation for the MCP API (On-Behalf-Of). Created path only; an existing application is never changed. Default off keeps module 03 unchanged."
+}
+
+variable "obo_identity_principal_id" {
+  type        = string
+  default     = null
+  nullable    = true
+  description = "Module 05: principal (object) ID of the workload's OBO assertion user-assigned managed identity (infra/workload output delegated_obo_identity_principal_id). Becomes the federated identity credential subject. Not secret."
+  validation {
+    condition     = var.obo_identity_principal_id == null ? true : can(regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", var.obo_identity_principal_id))
+    error_message = "Use the managed identity principal ID as a lowercase GUID (case-sensitive subject)."
+  }
+  validation {
+    condition     = var.obo_identity_principal_id == null || var.enable_delegated_access
+    error_message = "obo_identity_principal_id requires enable_delegated_access = true."
+  }
+}
+
+variable "grant_downstream_admin_consent" {
+  type        = bool
+  default     = false
+  nullable    = false
+  description = "Module 05 opt-in, identity administrator decision: grant tenant-wide admin consent for exactly Graph User.Read and Storage user_impersonation to the workshop MCP API. Requires Cloud Application Administrator or Application Administrator."
+  validation {
+    condition     = !var.grant_downstream_admin_consent || var.enable_delegated_access
+    error_message = "grant_downstream_admin_consent requires enable_delegated_access = true."
+  }
+}

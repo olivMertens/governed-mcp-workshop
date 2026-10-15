@@ -11,9 +11,10 @@ Read [build progress](PROGRESS.md) for evidence. **No module is Azure-validated 
 | Open MCP server (02) | .NET 10 Functions MCP server with five synthetic tools, unit tests, default-off Flex/Storage/telemetry/identity Terraform with mock tests, EN/FR guide, validator and scoped clean-up | Approved plan, deployment and live HTTP 401/200 validation; nothing is deployed |
 | Entra identity (03) | `infra/entra` root (registration, scope, three app roles, assignment required, pre-authorized VS Code and Azure CLI, persona assignments for existing accounts) and default-off built-in authentication opt-in with Protected Resource Metadata (**Preview**), mock tests, EN/FR guide, validator and scoped clean-up | Identity administrator approval and apply, workload apply in two stages, live 401/200 and Eve checks; nothing is deployed or created |
 | Governed gateway (04) | Default-off API Management Standard v2 opt-in: MCP server API (**Preview**), Entra token + per-tool role policy, per-oid rate limit, optional IP filter, gateway Protected Resource Metadata, outbound virtual network integration, Function private endpoint and private DNS, staged public-access lock, zero-body-byte diagnostics; mock tests, EN/FR guide, validator and scoped clean-up | Cost approval, two-stage apply, live 401/403/200/429/direct-403/telemetry checks; nothing is deployed |
-| Azure MCP server (05 onward) | Learning targets and diagrams | Downstream On-Behalf-Of and app-only implementation from module 05 |
-| Managed identities | Permission model and administrator request | Create identities, scoped role assignments and approved federation in their modules |
-| Microsoft Entra | Identity root authored in module 03 (no users, secrets or API permissions) | Apply it with an identity administrator, then validate authorization; module 05 adds On-Behalf-Of consent and federation |
+| Delegated and app-only access (05) | Default-off opt-in: `whoami` (On-Behalf-Of to Graph, persona label only), `read_report_as_user` (On-Behalf-Of to Storage, caller's RBAC) and `read_report_as_app` (app-only managed identity); two separate identities, container-scoped roles, Entra federated credential with opt-in consent and no secret; unit and mock tests, EN/FR guide, validator, publish step and scoped clean-up | Identity administrator consent and federation, workload apply, report publication, live Alice/Bob checks; nothing is deployed |
+| Observe and inventory (06 onward) | Learning targets and diagrams | Telemetry queries and API Center registration from module 06 |
+| Managed identities | Module 02 host identity and module 05 OBO-assertion and app-only identities authored (not deployed) | Create them with scoped role assignments and approved federation |
+| Microsoft Entra | Identity root authored in module 03 (no users or secrets) and module 05 delegation opt-in (delegated Graph `User.Read` and Storage `user_impersonation`, managed-identity federated credential, opt-in admin consent) | Apply it with an identity administrator, then validate authorization |
 | API Management gateway | Standard v2 gateway, private network and authorization policies authored in module 04 (not deployed) | Deploy after cost approval and validate live; module 06 adds queries and inventory |
 | Microsoft Foundry | Optional client scenario only | A separately reviewed project, model, agent and secretless connection if this option is selected |
 | Observability and inventory | Payload-free logging requirements | Implement and validate telemetry and API Center registration |
@@ -31,7 +32,8 @@ The optional container/Codespaces route remains unverified.
 Module 02's [guide](../modules/02-open-server/README.md) is authored and passes offline checks only; it is not deployed.
 Module 03's [guide](../modules/03-entra-authentication/README.md) is authored and passes offline checks only; no Entra object is created.
 Module 04's [guide](../modules/04-governed-gateway/README.md) is authored and passes offline checks only; no gateway is deployed.
-Modules 05 onward remain outlines. Cloud validation and exact deployment approvals are not waived.
+Module 05's [guide](../modules/05-delegated-and-app-only/README.md) is authored and passes offline checks only; no identity, consent or container exists.
+Modules 06 onward remain outlines. Cloud validation and exact deployment approvals are not waived.
 
 ## Identity and gateway boundaries
 
@@ -39,7 +41,7 @@ The documentation portal serves public files. It does not call Azure or need a m
 It must not collect participant credentials. Azure deployment uses the approved operator's interactive sign-in,
 not a publishing key.
 
-The future MCP workload needs its own identities and least-privilege assignments.
+The MCP workload has its own identities and least-privilege assignments (authored, not deployed).
 Delegated downstream calls use On-Behalf-Of; application calls use a managed identity.
 Never forward the MCP client token to Storage or Microsoft Graph.
 

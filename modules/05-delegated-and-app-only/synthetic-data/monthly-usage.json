@@ -1,0 +1,8 @@
+{
+  "report": "monthly-usage",
+  "source": "synthetic",
+  "rows": [
+    { "service": "workshop-api", "requests": 1200, "errors": 3 },
+    { "service": "ticket-queue", "requests": 340, "errors": 12 }
+  ]
+}

@@ -110,7 +110,7 @@ Module 02 deploys real Azure resources: start it only after module 00 validation
 | 02 | 🔑 Server protected by a key (level 0) | ✅ Required | 🟡 Authored; offline checks pass, not deployed | [Open](modules/02-open-server/README.md) · [FR](modules/02-open-server/README.fr.md) |
 | 03 | 🪪 Microsoft Entra identity (level 1) | ✅ Required | 🟡 Authored; offline checks pass, not deployed | [Open](modules/03-entra-authentication/README.md) · [FR](modules/03-entra-authentication/README.fr.md) |
 | 04 | 🚪 API Management as the only entry (level 2) | ✅ Required | 🟡 Authored; offline checks pass, not deployed | [Open](modules/04-governed-gateway/README.md) · [FR](modules/04-governed-gateway/README.fr.md) |
-| 05 | 👤 On-Behalf-Of vs app-only (level 3) | ✅ Required | ⚪ Planned | [Plan](docs/BUILD-PLAN.md#05--who-carries-the-rights-on-behalf-of-vs-app-only-level-3) |
+| 05 | 👤 On-Behalf-Of vs app-only (level 3) | ✅ Required | 🟡 Authored; offline checks pass, not deployed | [Open](modules/05-delegated-and-app-only/README.md) · [FR](modules/05-delegated-and-app-only/README.fr.md) |
 | 06 | 📊 Observe and inventory (level 4) | ✅ Required | ⚪ Planned | [Plan](docs/BUILD-PLAN.md#06--observe-and-inventory-level-4) |
 | 07 | 🤖 Other clients (Foundry, Copilot Studio) | ➕ Optional | ⚪ Planned | [Plan](docs/BUILD-PLAN.md#07--optional-other-clients) |
 | 99 | 🧹 Clean up | ♻️ As soon as you create resources | ⚪ Planned | [Plan](docs/BUILD-PLAN.md#99--clean-up) |

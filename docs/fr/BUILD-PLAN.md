@@ -107,6 +107,10 @@ Examinez le code HTTP et l'erreur MCP : un refus du stockage peut être contenu 
 
 </details>
 
+Le [guide du module 05](../../modules/05-delegated-and-app-only/README.fr.md) est rédigé et vérifié hors ligne : On-Behalf-Of avec une
+assertion d'identité managée (sans secret), deux identités distinctes, rôles limités au conteneur du rapport, Bob reçoit HTTP 200
+avec `isError: true`. Rien n'est encore déployé dans Azure ni créé dans Microsoft Entra.
+
 ## 06 - Observation et inventaire, niveau 4
 
 **Objectif :** savoir qui a utilisé quel outil et avec quel résultat, sans enregistrer les données échangées.

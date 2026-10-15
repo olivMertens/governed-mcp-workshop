@@ -22,6 +22,15 @@ The notices below apply to those adapted portions. They are not replaced by this
   - `infra/workload/entra-auth.tf` and the `auth_settings_v2` block in `infra/workload/mcp-server.tf`, translated from the
     `authsettingsV2` configuration in `infra/app/api.bicep` (changed: no secret setting, token store off,
     allowed audiences limited to the MCP API, two-stage replacement of the key gate)
+- Adapted files (module 05):
+  - `src/FunctionsMcpServer/Identity/DownstreamCredentials.cs`, `src/FunctionsMcpServer/Logic/CallerContext.cs` and the
+    `whoami` / `read_report_*` triggers, from `src/FunctionsMcpTool/HelloToolWithAuth.cs` (changed: no developer-credential
+    fallback, Authorization header only, platform principal with tenant match and app-only refusal, Graph object ID only,
+    persona label instead of display name and mail, separate app-only managed identity)
+  - `infra/entra/delegation.tf`, translated from `requiredResourceAccess` and `federatedIdentityCredentials` in
+    `infra/app/entra.bicep` (changed: Azure Storage `user_impersonation` added, scope IDs read from the tenant, opt-in consent)
+  - `infra/workload/delegated-access.tf`, from the identity and `OVERRIDE_USE_MI_FIC_ASSERTION_CLIENTID` pattern in
+    `infra/app/api.bicep` (changed: two new identities, container-scoped roles, explicit `WORKSHOP_*` settings)
 - Changes: synthetic workshop tools, strict input validation, payload-free audit logs, exact package pins with a
   lock file, no preview MCP SDK, Graph, QR, Apps or snippet code, queue-scoped least-privilege roles.
 

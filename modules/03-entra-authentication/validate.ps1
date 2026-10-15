@@ -60,7 +60,7 @@ if ($overrideFiles.Count -ne 1 -or $overrideFiles[0].Name -ne 'entra-auth.tf' -o
     $authText -notmatch 'local\.mcp_key_gate_replaced\s*\?\s*\{\s*\(local\.mcp_webhook_level_setting\)\s*=\s*"Anonymous"' -or
     $serverText -notmatch 'for_each\s*=\s*local\.mcp_auth_enabled\s*\?\s*\[1\]\s*:\s*\[\]' -or
     $serverText -notmatch 'require_authentication\s*=\s*true' -or $serverText -notmatch 'unauthenticated_action\s*=\s*"Return401"' -or
-    $serverText -notmatch '\},\s*local\.mcp_auth_app_settings\)') {
+    $serverText -notmatch '\},\s*local\.mcp_auth_app_settings(,\s*local\.delegated_app_settings)?\)') {
     Fail 'the anonymous webhook override must be tied to enforced built-in authentication with HTTP 401 (expected HTTP 401 without a token).'
 }
 Pass 'the key gate is removed only together with enforced built-in authentication and Return401 (expected HTTP 401 without a token).'

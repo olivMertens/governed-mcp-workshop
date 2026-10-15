@@ -14,7 +14,7 @@ or in an approved author-owned non-production tenant.
 | 02 | An "open" MCP server (level 0) | authored | | Offline validator: host.json System, no anonymous level, no secret pattern, identity-only Terraform, 24/24 unit tests, Terraform fmt/validate and 18/18 mock runs PASS. | Authored, offline checks pass, not deployed/validated. User approved author-only scope: no plan/apply, no Azure or Entra change. Live HTTP 401/200 checks pending an approved deployment. |
 | 03 | Identity with Microsoft Entra (level 1) | authored | | Offline validator: System host.json kept, key gate tied to enforced auth + Return401, Entra root single tenant/scope/3 roles/assignment required/no secret or user, no token pattern, synthetic claims, Terraform fmt/validate + 8/8 Entra and 26/26 workload mock runs PASS. | Authored, offline checks pass, not deployed. User approved author-only scope: no plan/apply, no Azure or Entra change. Live 401/PRM/Graph-401/Alice-Bob-200/Eve-refused checks pending an approved deployment. |
 | 04 | API Management as the only entry point (level 2) | authored | | Offline validator: gateway policy (MCP audience only, create_ticket → Tools.Write, safe denials, per-oid rate limit, optional ip-filter, gateway PRM challenge), gateway PRM, Standard v2 + private endpoint + staged lock + no subscription key, 0 body bytes at both scopes, no secret pattern, Terraform fmt/validate + 8/8 Entra and 39/39 workload mock runs PASS; node 5/5 (13 synthetic validator and 5 clean-up scenarios). | Authored, offline checks pass, not deployed. User approved author-only scope: no plan/apply, no Azure or Entra change. Live 401/PRM/direct-403/Bob-403/Alice-200/429/telemetry checks pending an approved deployment and Standard v2 cost approval. MCP server API is **Preview**. |
-| 05 | On-Behalf-Of vs app-only (level 3) | todo | | | |
+| 05 | On-Behalf-Of vs app-only (level 3) | authored | | Offline validator: server OBO with managed-identity assertion, one token per downstream, app-only callers refused, no developer fallback or token parsing; Entra FIC + delegated Graph User.Read/Storage user_impersonation only, opt-in consent, no password; workload two separate identities and container-scoped roles; synthetic data; no secret pattern; 39/39 unit tests; Terraform fmt/validate + 15/15 Entra and 46/46 workload mock runs PASS; node 6/6 (16 synthetic validator, 7 clean-up, 2 publish scenarios). | Authored, offline checks pass, not deployed. User approved author-only scope: no plan/apply, no Azure or Entra change. Live Alice 200 / Bob 200+isError / as_app identical / whoami persona / no-secret checks pending an approved deployment and identity-administrator consent. |
 | 06 | Observe and inventory (level 4) | todo | | | |
 | 07 | Optional: other clients | todo | | | Facilitator demo only |
 | 99 | Clean up | todo | | | |
@@ -33,7 +33,10 @@ or in an approved author-owned non-production tenant.
 - Versions: source assessment pins upstream examples and records published provider/Inspector versions.
   Validate package/provider combinations and negotiated MCP protocol in module 00/01 before declaring compatibility.
 - Gateway authorization: verify per-tool request inspection preserves JSON-RPC and streaming; distinguish gateway
-  HTTP status from downstream status returned inside an MCP tool error.
+  HTTP status from downstream status returned inside an MCP tool error (module 05 implements the downstream half).
+- Module 05 consent: tenant-wide admin consent for delegated Graph `User.Read` and Storage `user_impersonation` is an
+  explicit identity-administrator opt-in (`grant_downstream_admin_consent`); decide per tenant whether Terraform or the
+  administrator's own process grants it. Existing applications are configured by hand.
 - Optional clients: Copilot Studio's documented manual Entra OAuth path requests a client secret. Defer that
   connection unless an officially supported secretless flow is proven; never relax the workshop rules.
 - Cost approval: estimate Standard v2 capacity, private endpoints, telemetry, storage and API Center before deployment.
@@ -41,6 +44,60 @@ or in an approved author-owned non-production tenant.
   group; accept an approved existing group without managing it. Shared quotas still require cohort capacity checks.
 
 ## Deviations from the build plan
+- Module 05 author-only implementation (2026-10-15), explicitly scoped by the user: server code, `infra/entra/delegation.tf`,
+  `infra/workload/delegated-access.tf`, EN/FR guide, validator, clean-up and publish step; local/offline checks only. No
+  `terraform plan` against Azure or Entra, no apply, no Azure or Microsoft Entra object created or changed. Module 04 is
+  `authored` (not deployed), which is enough to continue under the `authored` rule.
+  Offline evidence (`validate.ps1 -Offline`, Windows, Terraform 1.16.6, AzureRM 5.9.0, AzAPI 2.13.0 and AzureAD 3.10.0 mocks,
+  .NET SDK 10):
+  `PASS server: On-Behalf-Of with a managed-identity assertion, one token per downstream (Graph User.Read, Storage user_impersonation), app-only identity for read_report_as_app, app-only callers refused, no developer-credential fallback, no token parsing (expected HTTP N/A).`
+  `PASS infra/entra: federated credential (tenant v2.0 issuer, managed identity principal ID subject, api://AzureADTokenExchange), delegated Graph User.Read + Storage user_impersonation only, admin consent opt-in, no password or certificate (expected HTTP N/A).`
+  `PASS infra/workload: separate OBO assertion and app-only identities, every module 05 role on the one report container, no role for the OBO or host identity, Bob none, opt-in only (expected HTTP N/A).`
+  `PASS synthetic report and expected results are labelled synthetic and contain no address, ID or token (2 files, expected HTTP N/A).`
+  `PASS no client secret, key, SAS or token in module 05, server, infra/entra or infra/workload files (46 files, expected HTTP N/A).`
+  `PASS locked build and unit tests: Alice reads, Bob denied downstream, app-only identical for everyone, app-only callers refused, Graph gets only its own token (expected HTTP N/A).`
+  `PASS Terraform format, schema and mock-only plans for infra/entra and infra/workload (expected HTTP N/A; no live plan/apply).`
+  `PASS offline checks only. Module 05 is NOT deployed or validated by this result.`
+  Synthetic node tests cover the live validator (operator: no secret setting, no password credential, exactly one federated
+  credential for the OBO identity, container roles; personas: whoami label without name/email, Alice as_user 200, Bob as_user
+  HTTP 200 with `isError: true`, as_app identical across personas through a saved hash; fail-closed for the right reason when
+  module 05 is off, Bob can read, Bob gets an outer 403, Alice is denied, as_app differs, whoami leaks an address or the wrong
+  label, a client secret exists, the federated credential is missing or trusts another identity, a secret-like setting exists,
+  Bob or the OBO identity holds a container role; tokens never printed), the clean-up guard (workload and Entra phases, only
+  module 05 deletions, foreign changes refused, idempotent, temporary var file removed) and the publish step (Entra auth only,
+  retry during role propagation, refusal when not deployed).
+  Deviations and decisions: (1) Two **new** user-assigned identities: `-obo` (federated credential subject, no Azure role) and
+  `-report` (Storage Blob Data Reader on the `reports` container). The sample uses one identity for host storage and the
+  assertion; the module 02 host identity (account-wide Blob Data Owner) is never used by a tool. (2) The report container lives
+  in the module 02 storage account (name length leaves no room for a second deterministic account); roles are container-scoped,
+  and the host identity's account-wide role is documented. (3) No local developer-credential fallback (the sample uses a
+  `ChainedTokenCredential` in Development): disabled settings keep the module 02 demonstrations, enabled settings fail closed.
+  (4) The user assertion comes from the `Authorization` header forwarded by built-in authentication (token store off since
+  module 03); tenant, object ID and scopes come from the platform-injected `X-MS-CLIENT-PRINCIPAL`, never from parsing the JWT;
+  app-only callers (no `scp` or `idtyp=app`) are refused for user-context tools. (5) `whoami` calls Graph `/me?$select=id`
+  over HTTPS (no Microsoft.Graph SDK) and returns only an allowlisted persona label (sample returns display name and mail).
+  (6) Explicit `WORKSHOP_*` settings instead of `WEBSITE_AUTH_CLIENT_ID` / `OVERRIDE_USE_MI_FIC_ASSERTION_CLIENTID`, and no
+  client-secret setting name in built-in authentication (the sample points it at the identity for browser login, not needed
+  here). (7) Storage OBO token requested for `https://storage.azure.com/user_impersonation`, app-only for `.default`, enforced by
+  a scoped credential wrapper; Graph token for `User.Read`. (8) Entra permissions use `azuread_application_api_access` with
+  scope IDs read from the tenant's service principals; `azuread_application.mcp` now ignores `required_resource_access`
+  (no change to module 03 plans). (9) Admin consent is a separate opt-in (`grant_downstream_admin_consent`), Learn: Cloud
+  Application Administrator suffices for delegated permissions. (10) Synthetic report published by `publish-report.ps1` with
+  `az storage blob upload --auth-mode login` (shared keys stay disabled; no AzureRM data-plane provider change), using a
+  container-scoped Storage Blob Data Contributor role for the publisher, removed by clean-up. (11) Bob's denial is a tool
+  error: Functions MCP extension 1.5.0 rethrows worker failures and the MCP C# SDK maps non-MCP exceptions to `isError: true`
+  with a generic message (verified in source, not live). (12) The architecture diagram already depicted this design; unchanged
+  (`render-architecture.py --check` PASS). (13) The module 05 Entra clean-up must run before module 03's (whose allow-list
+  accepts only module 03 objects).
+  Source gaps: the OBO article describes a certificate-signed `client_assertion`; the managed-identity federation article
+  shows the managed identity token as the assertion with `ClientAssertionCredential` (Azure.Identity `OnBehalfOfCredential`
+  accepts the same callback, as in the sample). Microsoft.Identity.Web documents `SignedAssertionFromManagedIdentity` for
+  ASP.NET Core APIs that validate tokens themselves; not used because built-in authentication validates the token. Learn does
+  not document how the Functions MCP extension surfaces tool exceptions; behaviour taken from the extension and SDK source.
+  The sample's `GetTenantId` reads `X-MS-CLIENT-PRINCIPAL`; Learn documents that App Service clients cannot set that header.
+  Open: first deployment, identity-administrator review and consent, Storage service principal presence in the tenant,
+  role-propagation timing, live persona checks, whether the hosted MCP extension passes `Authorization` in transport headers
+  through the gateway (the sample relies on it), code republishing after module 04 stage 2.
 - Module 04 author-only implementation (2026-10-15), explicitly scoped by the user: workload opt-in (`network.tf`,
   `gateway.tf`, `diagnostics.tf`, AzAPI 2.13.0 locked), policies, EN/FR guide, validator and clean-up; local/offline checks
   only. No `terraform plan` against Azure, no apply, no Azure or Microsoft Entra object created or changed. Module 03 is

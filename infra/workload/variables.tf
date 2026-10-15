@@ -257,3 +257,47 @@ variable "gateway_allowed_ip_ranges" {
     error_message = "Use at most 10 IPv4 CIDR ranges with a prefix of /8 to /32. Never allow 0.0.0.0/0."
   }
 }
+
+variable "enable_delegated_access" {
+  type        = bool
+  default     = false
+  nullable    = false
+  description = "Module 05 opt-in: two new user-assigned identities (OBO assertion, app-only reader), a synthetic report container, container-scoped Storage Blob Data Reader roles and the WORKSHOP_* settings that switch whoami/read_report_* from demonstrations to real On-Behalf-Of and managed identity calls. Requires module 03 (enable_entra_auth). Default off keeps modules 00-04 unchanged."
+  validation {
+    condition     = !var.enable_delegated_access || (var.enable_mcp_server && var.enable_entra_auth)
+    error_message = "enable_delegated_access needs enable_mcp_server and enable_entra_auth = true: On-Behalf-Of needs a platform-validated user token for the MCP audience."
+  }
+}
+
+variable "delegated_persona_object_ids" {
+  type = object({
+    alice = optional(string)
+    bob   = optional(string)
+  })
+  default     = {}
+  nullable    = false
+  description = "Module 05: object IDs of the existing Alice and Bob test accounts (infra/entra output workload_module05_tfvars). Alice gets Storage Blob Data Reader on the report container; Bob gets no Storage role. Both map to synthetic persona labels for whoami. Keep them in the private var file."
+  validation {
+    condition = alltrue([
+      for id in [var.delegated_persona_object_ids.alice, var.delegated_persona_object_ids.bob] :
+      id == null ? true : can(regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", id))
+    ])
+    error_message = "Use lowercase object ID GUIDs."
+  }
+  validation {
+    condition = (var.delegated_persona_object_ids.alice == null || var.delegated_persona_object_ids.bob == null ||
+    var.delegated_persona_object_ids.alice != var.delegated_persona_object_ids.bob)
+    error_message = "Alice and Bob must be two different accounts: Bob must stay without a Storage role."
+  }
+}
+
+variable "delegated_report_publisher_object_id" {
+  type        = string
+  default     = null
+  nullable    = true
+  description = "Module 05: object ID that publishes the synthetic report blob (Storage Blob Data Contributor on the report container only). Null: the signed-in Terraform user."
+  validation {
+    condition     = var.delegated_report_publisher_object_id == null ? true : can(regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", var.delegated_report_publisher_object_id))
+    error_message = "Use a lowercase object ID GUID."
+  }
+}
