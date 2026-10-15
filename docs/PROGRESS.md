@@ -1,15 +1,18 @@
 # Build progress
 
 The agent updates this file at the end of every module session.
-Status values: `todo` · `in-progress` · `validated` · `blocked`.
-A module is `validated` only when its validate script passes on a fresh subscription right after the previous modules.
+Status values: `todo` · `in-progress` · `authored` · `validated` · `blocked`.
+A module is `authored` when its code, guide and offline checks pass; it can be shipped and the next module can start.
+A module is `validated` only when its validate script passes live on a fresh subscription right after the previous modules.
+The presenter cannot deploy into participants' tenants: live validation runs in each participant's own subscription,
+or in an approved author-owned non-production tenant.
 
 | Module | Title | Status | Validated on | Evidence (PASS lines or PR) | Notes |
 |---|---|---|---|---|---|
 | 00 | Prerequisites and environment | validated | 2026-10-14 | Live local-terminal validator: explicit context, region, Microsoft.Resources registration, required ARM grants and group capacity PASS; isolated offline suite 14/14 and Terraform tests 11/11 PASS. | Validated on the selected non-production local-terminal route without creating resources. The optional dev-container/Codespaces route remains unverified and is not implied by this result. |
-| 01 | Discover MCP (no Azure) | in-progress | | Real local SDK validator and Inspector 2.9.0 tools/list + tools/call pass; protocol 2026-07-28 with SDK client. | EN/FR guide, locked .NET 10 stdio server and client config implemented. Manual VS Code approval observation remains pending; no Azure needed here. |
-| 02 | An "open" MCP server (level 0) | in-progress | | Offline validator: host.json System, no anonymous level, no secret pattern, identity-only Terraform, 24/24 unit tests, Terraform fmt/validate and 18/18 mock runs PASS. | Authored, offline checks pass, not deployed/validated. User approved author-only scope: no plan/apply, no Azure or Entra change. Live HTTP 401/200 checks pending an approved deployment. |
-| 03 | Identity with Microsoft Entra (level 1) | in-progress | | Offline validator: System host.json kept, key gate tied to enforced auth + Return401, Entra root single tenant/scope/3 roles/assignment required/no secret or user, no token pattern, synthetic claims, Terraform fmt/validate + 8/8 Entra and 26/26 workload mock runs PASS. | Authored, offline checks pass, not deployed. User approved author-only scope: no plan/apply, no Azure or Entra change. Live 401/PRM/Graph-401/Alice-Bob-200/Eve-refused checks pending an approved deployment. |
+| 01 | Discover MCP (no Azure) | authored | | Real local SDK validator and Inspector 2.9.0 tools/list + tools/call pass; protocol 2026-07-28 with SDK client. | EN/FR guide, locked .NET 10 stdio server and client config implemented. Manual VS Code approval observation remains pending; no Azure needed here. |
+| 02 | An "open" MCP server (level 0) | authored | | Offline validator: host.json System, no anonymous level, no secret pattern, identity-only Terraform, 24/24 unit tests, Terraform fmt/validate and 18/18 mock runs PASS. | Authored, offline checks pass, not deployed/validated. User approved author-only scope: no plan/apply, no Azure or Entra change. Live HTTP 401/200 checks pending an approved deployment. |
+| 03 | Identity with Microsoft Entra (level 1) | authored | | Offline validator: System host.json kept, key gate tied to enforced auth + Return401, Entra root single tenant/scope/3 roles/assignment required/no secret or user, no token pattern, synthetic claims, Terraform fmt/validate + 8/8 Entra and 26/26 workload mock runs PASS. | Authored, offline checks pass, not deployed. User approved author-only scope: no plan/apply, no Azure or Entra change. Live 401/PRM/Graph-401/Alice-Bob-200/Eve-refused checks pending an approved deployment. |
 | 04 | API Management as the only entry point (level 2) | todo | | | |
 | 05 | On-Behalf-Of vs app-only (level 3) | todo | | | |
 | 06 | Observe and inventory (level 4) | todo | | | |

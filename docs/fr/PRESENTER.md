@@ -4,8 +4,27 @@
 
 **Vous hébergez les guides. Les participants réalisent leurs propres exercices.**
 Publier le portail ne déploie pas le serveur Model Context Protocol (MCP).
-La préparation du module 00 et l'exercice local du 01 sont implémentés ; les modules 02 et suivants restent prévus.
+Le module 00 est validé, les modules 01 à 03 sont rédigés (contrôles hors ligne réussis), les modules 04 et suivants restent prévus.
 Les participants peuvent faire le [module 01](../../modules/01-discover-mcp/README.fr.md) sans attendre votre portail ou un déploiement Azure.
+
+## Qui déploie quoi
+
+Vous ne pouvez pas déployer dans le tenant des participants, et vous ne devez pas essayer : pas d'identifiant partagé,
+pas de clé de déploiement, pas de compte invité dans leur tenant. Chaque participant déploie dans son propre
+abonnement de test approuvé.
+
+| Élément | Qui | Où |
+|---|---|---|
+| Guides partagés (par défaut) | Présentateur | GitHub Pages, depuis ce dépôt. Pas d'Azure, aucun accès à un tenant. Voir [HOSTING.md](HOSTING.md). |
+| Guides partagés sur App Service (facultatif) | Présentateur | Uniquement dans un abonnement qui appartient au présentateur (sections 1 à 4). Jamais dans le tenant d'un participant. |
+| Workload MCP, modules 02 et suivants | Chaque participant | Son propre abonnement et son tenant Microsoft Entra, depuis son propre terminal. |
+| Portail personnel prérempli avec son point de terminaison (facultatif) | Chaque participant | Son propre abonnement. Voir [portail participant](HOSTING.md#portail-participant-facultatif-lié-à-votre-déploiement). |
+
+La validation en conditions réelles des modules 02 et suivants se fait dans l'abonnement de chaque participant.
+Ses lignes PASS ne valent que pour lui ; ne lui demandez pas d'envoyer des sorties contenant des ID de tenant ou d'abonnement.
+
+Si vous partagez le lien GitHub Pages, passez directement au message de la section 4 et à la section 5.
+Les sections 1 à 4 ne concernent que l'hébergement de la copie partagée dans votre propre abonnement.
 
 ## 1. Préparer votre espace présentateur
 
@@ -75,8 +94,9 @@ Ne partagez pas une adresse calculée à l'avance ou un site non vérifié.
 Message prêt à transmettre :
 
 > Ouvrez le lien de l'atelier, choisissez votre langue et votre environnement, puis suivez le module 00.
-> Utilisez uniquement votre tenant et votre abonnement de test approuvés. Vous n'avez pas à héberger le portail.
-> Le module 01 fonctionne en local sans Azure. Les modules 02 et suivants ne sont pas encore exécutables.
+> Utilisez uniquement votre tenant et votre abonnement de test approuvés. Vous n'avez pas à héberger les guides partagés.
+> Vous déployez vous-même le serveur MCP ; si vous le souhaitez, vous pouvez déployer votre propre portail prérempli avec votre point de terminaison.
+> Le module 01 fonctionne en local sans Azure. Les modules 02 et 03 se déroulent dans votre abonnement ; les suivants sont prévus.
 > Ne transmettez aucun identifiant de connexion ni jeton.
 
 ## 5. Terminer sans laisser de frais inutiles
