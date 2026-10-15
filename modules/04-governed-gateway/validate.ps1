@@ -229,7 +229,7 @@ try {
         $service = $outputs.gateway_name?.value
         $api = $outputs.gateway_mcp_api_name?.value
         $site = Invoke-WorkshopAzureJson -Arguments @('rest', '--method', 'get', '--uri',
-            "/subscriptions/$SubscriptionId/resourceGroups/$group/providers/Microsoft.Web/sites/$app?api-version=2024-04-01")
+            "/subscriptions/$SubscriptionId/resourceGroups/$group/providers/Microsoft.Web/sites/$($app)?api-version=2024-04-01")
         if ((Get-Value $site 'properties.publicNetworkAccess') -ne 'Disabled') {
             Fail 'the Function App still allows public network access (expected HTTP 200 from Azure Resource Manager with publicNetworkAccess Disabled).'
         }
@@ -256,11 +256,11 @@ try {
             $query = "AppRequests | where TimeGenerated > ago(4h) | where Url has '/mcp' and AppRoleName has '$service' " +
                 "| extend p = tostring(Properties) | summarize total = count(), payload = countif(p has 'Request-Body' or p has 'Response-Body' or p has 'arguments'), " +
                 "credential = countif(p has_cs 'Authorization' or p has 'Bearer ')"
-            $requests = @(Invoke-WorkshopAzureJson -Arguments @('monitor', 'log-analytics', 'query', '--workspace', $workspace.customerId, '--analytics-query', $query))
+            $requests = (Invoke-WorkshopAzureJson -Arguments @('monitor', 'log-analytics', 'query', '--workspace', $workspace.customerId, '--analytics-query', $query))
             $traceQuery = "AppTraces | where TimeGenerated > ago(4h) and Message == 'mcp-request' | extend p = tostring(Properties) " +
                 "| summarize total = count(), labelled = countif(p has 'mcp-tool' and p has 'caller-oid'), payload = countif(p has 'arguments' or p has 'Bearer ')"
-            $traces = @(Invoke-WorkshopAzureJson -Arguments @('monitor', 'log-analytics', 'query', '--workspace', $workspace.customerId, '--analytics-query', $traceQuery))
-            $r = $requests[0]; $t = $traces[0]
+            $traces = (Invoke-WorkshopAzureJson -Arguments @('monitor', 'log-analytics', 'query', '--workspace', $workspace.customerId, '--analytics-query', $traceQuery))
+            $r = $requests | Select-Object -First 1; $t = $traces | Select-Object -First 1
             if ($null -eq $r -or [int]$r.total -eq 0 -or $null -eq $t -or [int]$t.total -eq 0) {
                 Fail 'no gateway records in Application Insights yet. Run the persona checks, wait about 5 minutes, then rerun with -CheckTelemetry (expected HTTP 200 from Log Analytics).'
             }
