@@ -244,7 +244,7 @@ modules/
   04-governed-gateway/          README, validation, cleanup, policies/
   05-delegated-and-app-only/    README, validation, cleanup, synthetic-data/
   06-observe-and-inventory/    README, validation, cleanup, queries/
-  07-other-clients/            README, validation, cleanup, demo-checklist.md
+  07-clients/                  README, validation, cleanup, demo-checklist.md
   99-cleanup/                  README, validation, cleanup
 THIRD-PARTY-NOTICES.md          Add when upstream code is first adapted
 README.md, LICENSE, AGENTS.md, setup-workshop-mcp.ps1
