@@ -85,6 +85,13 @@ variable "mcp_allowed_ip_ranges" {
   }
 }
 
+variable "mcp_private_storage" {
+  type        = bool
+  default     = false
+  nullable    = false
+  description = "Module 02 network opt-in for tenants whose Azure Policy disables public Storage network access. Adds the shared virtual network, a delegated Flex Consumption integration subnet, blob and queue private endpoints and their private DNS zones. Storage public network access is then disabled. The MCP endpoint itself stays public."
+}
+
 variable "mcp_maximum_instance_count" {
   type        = number
   default     = 10
@@ -215,10 +222,10 @@ variable "gateway_vnet_address_space" {
   type        = string
   default     = "10.42.0.0/23"
   nullable    = false
-  description = "Address space of the module 04 virtual network. The first /24 is the delegated API Management subnet, the next /27 the private endpoint subnet."
+  description = "Address space of the shared workshop virtual network (module 02 private storage and module 04). The first /24 is the delegated API Management subnet, the next /27 the private endpoint subnet, the following /27 the Flex Consumption integration subnet."
   validation {
     condition     = can(cidrhost(var.gateway_vnet_address_space, 0)) && can(regex("^\\d{1,3}(\\.\\d{1,3}){3}/(1[6-9]|2[0-3])$", var.gateway_vnet_address_space))
-    error_message = "Use an IPv4 CIDR from /16 to /23 so a /24 API Management subnet and a /27 private endpoint subnet fit."
+    error_message = "Use an IPv4 CIDR from /16 to /23 so a /24 API Management subnet and two /27 subnets fit."
   }
 }
 

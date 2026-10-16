@@ -187,3 +187,73 @@ run "mcp_server_rejects_unbounded_scale" {
   }
   expect_failures = [var.mcp_maximum_instance_count]
 }
+
+run "mcp_server_private_storage_default_off" {
+  command = plan
+  variables {
+    enable_mcp_server = true
+  }
+  assert {
+    condition = alltrue([
+      azurerm_storage_account.mcp[0].public_network_access == "Enabled",
+      azurerm_function_app_flex_consumption.mcp[0].virtual_network_subnet_id == null,
+      length(azurerm_virtual_network.gateway) == 0,
+      length(azurerm_subnet.mcp_integration) == 0,
+      length(azurerm_private_endpoint.storage) == 0,
+      length(azurerm_private_dns_zone.storage) == 0,
+    ])
+    error_message = "Without mcp_private_storage, module 02 adds no network resources and keeps Storage reachable by the Function App."
+  }
+}
+
+run "mcp_server_private_storage" {
+  command = plan
+  variables {
+    enable_mcp_server   = true
+    mcp_private_storage = true
+  }
+  assert {
+    condition = alltrue([
+      azurerm_storage_account.mcp[0].public_network_access == "Disabled",
+      !azurerm_storage_account.mcp[0].shared_access_key_enabled,
+      azurerm_function_app_flex_consumption.mcp[0].public_network_access_enabled,
+      length(azurerm_virtual_network.gateway) == 1,
+      azurerm_virtual_network.gateway[0].name == "vnet-mcp-p01-0123456789",
+      length(azurerm_subnet.gateway_private_endpoints) == 1,
+      length(azurerm_subnet.gateway_apim) == 0,
+      length(azurerm_private_endpoint.function) == 0,
+    ])
+    error_message = "Private storage disables Storage public access only; the MCP endpoint stays public and no gateway resource is added."
+  }
+  assert {
+    condition = alltrue([
+      azurerm_subnet.mcp_integration[0].address_prefixes[0] == "10.42.1.32/27",
+      azurerm_subnet.gateway_private_endpoints[0].address_prefixes[0] == "10.42.1.0/27",
+      azurerm_subnet.mcp_integration[0].delegation[0].service_delegation[0].name == "Microsoft.App/environments",
+      !strcontains(azurerm_subnet.mcp_integration[0].name, "_"),
+    ])
+    error_message = "Flex Consumption needs a dedicated /27 subnet delegated to Microsoft.App/environments, separate from the private endpoint subnet."
+  }
+  assert {
+    condition = alltrue([
+      toset(keys(azurerm_private_endpoint.storage)) == toset(["blob", "queue"]),
+      one(azurerm_private_endpoint.storage["blob"].private_service_connection[0].subresource_names) == "blob",
+      one(azurerm_private_endpoint.storage["queue"].private_service_connection[0].subresource_names) == "queue",
+      azurerm_private_dns_zone.storage["blob"].name == "privatelink.blob.core.windows.net",
+      azurerm_private_dns_zone.storage["queue"].name == "privatelink.queue.core.windows.net",
+      !azurerm_private_endpoint.storage["blob"].private_service_connection[0].is_manual_connection,
+    ])
+    error_message = "Exactly two Storage private endpoints (blob, queue) with their private DNS zones; no file or table endpoint."
+  }
+}
+
+run "mcp_private_storage_requires_server" {
+  command = plan
+  variables {
+    mcp_private_storage = true
+  }
+  assert {
+    condition     = length(azurerm_virtual_network.gateway) == 0 && length(azurerm_private_endpoint.storage) == 0
+    error_message = "The private storage opt-in does nothing without the module 02 server."
+  }
+}

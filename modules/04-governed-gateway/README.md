@@ -56,7 +56,7 @@ modules 00 to 03 are unchanged when `enable_governed_gateway` is false.
 
 | Resource | Settings |
 |---|---|
-| Virtual network `vnet-mcp-<prefix>-<suffix>` | `10.42.0.0/23` by default (`gateway_vnet_address_space`) |
+| Virtual network `vnet-mcp-<prefix>-<suffix>` | `10.42.0.0/23` by default (`gateway_vnet_address_space`). Already present, with its private endpoint subnet, if module 02 used `mcp_private_storage`; module 04 then adds only its own subnet and endpoint |
 | Subnet `snet-apim` + NSG | `/24`, **delegated to `Microsoft.Web/serverFarms`**, only for API Management; NSG with the documented outbound Key Vault rule |
 | Subnet `snet-private-endpoints` | `/27`, for the Function private endpoint |
 | Private DNS zone `privatelink.azurewebsites.net` + link | Resolves the Function host to its private IP inside the virtual network |

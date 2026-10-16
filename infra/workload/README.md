@@ -6,6 +6,9 @@ An explicit module 02 opt-in (`enable_mcp_server = true`, default false) adds th
 Flex Consumption Function App, Storage with shared keys disabled, a `tickets` queue, Log Analytics,
 Application Insights and one user-assigned managed identity with three resource-scoped role assignments
 (see [module 02](../../modules/02-open-server/README.md) and `mcp-server.tf`). Without the opt-in, nothing changes.
+Where an Azure Policy forces Storage public network access to `Disabled`, `mcp_private_storage = true` (`private-storage.tf`)
+adds a /27 Flex integration subnet delegated to `Microsoft.App/environments` and blob and queue private endpoints with
+private DNS, in the virtual network shared with module 04.
 An explicit module 03 opt-in (`enable_entra_auth = true` plus the IDs from `infra/entra`, default false) adds Microsoft Entra
 built-in authentication to that Function App (`entra-auth.tf`): require authentication, HTTP 401, tenant issuer, MCP audience
 only, allowed clients and Protected Resource Metadata (**Preview**). A second apply with `entra_auth_replace_key_gate = true`
