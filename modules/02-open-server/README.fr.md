@@ -14,15 +14,15 @@ Puis constater le risque : **toute personne qui détient la clé peut appeler l'
 
 ## Pourquoi cette étape compte
 
-Une clé est un secret partagé, pas une identité. Le serveur ne distingue pas Alice de Bob ni d'Eve.
+Une clé est un secret partagé, pas une identité. Le serveur ne fait pas la différence entre Alice, Bob et Eve.
 Il ne peut pas appliquer de rôle par utilisateur, ni appeler une API en aval « au nom de l'utilisateur », et les journaux
-ne peuvent pas dire qui a fait quoi. Une clé peut fuiter par une capture d'écran, une conversation, un fichier de
+ne peuvent pas dire qui a fait quoi. Une clé peut se retrouver exposée dans une capture d'écran, une conversation, un fichier de
 configuration enregistré ou un historique de navigateur.
 
 L'extension MCP d'Azure Functions protège `/runtime/webhooks/mcp` avec la **clé système** `mcp_extension`
 lorsque `host.json` fixe `webhookAuthorizationLevel` à `System` (valeur par défaut). L'exemple d'origine utilise
-`Anonymous` parce qu'il ajoute l'authentification Microsoft Entra devant. Ce module n'a pas encore de couche Entra :
-il garde `System`. Ne copiez jamais `Anonymous` dans un serveur protégé seulement par clé.
+`Anonymous` parce qu'il place l'authentification Microsoft Entra en amont. Ce module n'a pas encore de couche Entra :
+il conserve `System`. Ne copiez jamais `Anonymous` dans un serveur protégé seulement par clé.
 
 ## Ce que vous déployez
 
@@ -48,10 +48,10 @@ Les cinq outils (toutes les données sont synthétiques) :
 | Outil | Type | Comportement au niveau 0 |
 |---|---|---|
 | `get_service_health` | lecture | État fixe pour `workshop-api` ou `ticket-queue` |
-| `create_ticket` | **écriture** | Vérifie `service`, `severity` et un court `summary`, puis met un ticket synthétique en file |
+| `create_ticket` | **écriture** | Vérifie `service`, `severity` et un court `summary`, puis place un ticket synthétique dans la file |
 | `whoami` | démonstration | Indique que l'appelant est inconnu : une clé n'identifie personne |
-| `read_report_as_user` | démonstration | Rapport synthétique étiqueté ; l'appel On-Behalf-Of réel arrive au module 05 |
-| `read_report_as_app` | démonstration | Rapport synthétique étiqueté ; l'appel réel par identité managée arrive au module 05 |
+| `read_report_as_user` | démonstration | Rapport synthétique étiqueté ; l'appel On-Behalf-Of réel est ajouté au module 05 |
+| `read_report_as_app` | démonstration | Rapport synthétique étiqueté ; l'appel réel par identité managée est ajouté au module 05 |
 
 Chaque outil refuse les arguments inconnus. `create_ticket` n'écrit rien si la forme exacte des arguments n'est pas valide.
 Les journaux contiennent seulement le nom de l'outil, le résultat, la durée et l'identifiant d'invocation :
@@ -63,9 +63,9 @@ Aucune fonctionnalité en **Preview** n'est utilisée. Le code et l'infrastructu
 [Azure-Samples/remote-mcp-functions-dotnet](https://github.com/Azure-Samples/remote-mcp-functions-dotnet/tree/468c518c884ec318e3001b9573254c9e775409c9)
 (MIT) ; voir [THIRD-PARTY-NOTICES.md](../../THIRD-PARTY-NOTICES.md).
 
-**Coût :** Flex Consumption facture à l'exécution et au temps de mémoire, plus les transactions de stockage et
+**Coût :** Flex Consumption facture les exécutions et le temps de mémoire utilisé, plus les transactions de stockage et
 l'ingestion de télémétrie. Le plan descend à zéro instance et est limité à 10 instances, sans instance toujours prête.
-Vérifiez les prix actuels de votre région avant l'accord. Nettoyez le jour même.
+Vérifiez les prix actuels dans votre région avant de demander l'accord. Nettoyez le jour même.
 
 ## Prérequis et rôles nécessaires
 
@@ -86,7 +86,7 @@ Aucune modification Microsoft Entra n'est nécessaire dans ce module.
 
 ### PowerShell
 
-Exécutez depuis la racine du dépôt. Arrêtez-vous à la première commande en échec.
+Exécutez les commandes depuis la racine du dépôt. Arrêtez-vous à la première commande en échec.
 Les étapes 3 à 6 modifient Azure : faites-les uniquement après accord.
 
 **1. Vérifications hors ligne (sans Azure).**
@@ -94,6 +94,22 @@ Les étapes 3 à 6 modifient Azure : faites-les uniquement après accord.
 ```powershell
 & .\modules\02-open-server\validate.ps1 -Offline
 ```
+
+> **Résultat réel** — capture hors ligne sur le poste de l'auteur, 2026-10-16 (aucun appel Azure).
+>
+> ```text
+> PASS host.json MCP webhook authorization level is System (expected HTTP 401 without the mcp_extension key).
+> PASS no anonymous authorization level in server source (expected HTTP N/A).
+> PASS no key, SAS, connection-string or client-secret pattern in module 02 files (expected HTTP N/A).
+> PASS Terraform disables Storage shared keys, uses managed identity and outputs no key (expected HTTP N/A).
+> PASS locked build and tool unit tests: synthetic results, strict inputs, no write without the exact shape (expected HTTP N/A).
+> PASS Terraform format, schema and mock-only plans, including module 02 opt-in (expected HTTP N/A; no live plan/apply).
+> NOT DEPLOYED CHECKS SKIPPED: supply -TenantId and -SubscriptionId after an approved deployment for HTTP checks.
+> PASS offline checks only. Module 02 is NOT deployed or Azure-validated by this result.
+> ```
+>
+> **Ce que cela signifie pour vous :** le code que vous allez déployer n'est jamais anonyme et ne contient aucun secret.
+> La dernière ligne est volontaire : rien n'est encore prouvé dans Azure.
 
 **2. Sélectionnez votre contexte approuvé.**
 
@@ -113,8 +129,24 @@ terraform '-chdir=infra\workload' plan '-var-file=..\..\.workshop\participant.tf
 if ($LASTEXITCODE -ne 0) { throw 'Terraform plan failed.' }
 ```
 
-Relisez le plan : il doit seulement **ajouter** les onze ressources du module 02. Passez les deux fichiers de variables
-à chaque plan suivant, sinon Terraform propose de supprimer le serveur.
+Relisez le plan : attendez-vous à **onze nouvelles ressources du module 02**, sans remplacement ni suppression.
+Si le portail public optionnel existe déjà, prévoyez aussi une **mise à jour sur place de ses paramètres**
+pour ajouter `WORKSHOP_MCP_ENDPOINT`, son indication de connexion non secrète. Le portail peut redémarrer :
+approuvez séparément cette interruption. Cette mise à jour ne publie ni les nouveaux guides ni le code de la Function.
+Arrêtez-vous et examinez toute autre modification. Transmettez les deux fichiers de variables
+à chaque nouveau plan ; sinon, Terraform proposera de supprimer le serveur.
+
+> **Résultat réel** — résumé du plan sauvegardé dans l'abonnement de test de l'auteur, 2026-10-16. Noms et identifiants masqués.
+>
+> ```text
+> Plan: 11 to add, 1 to change, 0 to destroy.
+> ```
+>
+> La modification correspond au portail facultatif existant, qui reçoit `WORKSHOP_MCP_ENDPOINT`. Sans portail,
+> attendez-vous à `11 to add, 0 to change, 0 to destroy`.
+>
+> **Ce que cela signifie pour vous :** un plan est une promesse, pas une action. **Tout `to destroy` ici est un signal d'arrêt.**
+> Relisez les onze ajouts : trois attributions de rôle, chacune sur une ressource précise, et aucun secret client.
 
 **4. Appliquez le plan relu (après accord).**
 
@@ -154,7 +186,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Code deployment failed.' }
 ```
 
 Obtenez l'adresse avec `terraform -chdir=infra/workload output -raw mcp_endpoint`.
-Lisez la clé seulement quand VS Code la demande, puis videz le presse-papiers :
+Ne récupérez la clé que lorsque VS Code la demande, puis videz le presse-papiers :
 
 ```powershell
 az functionapp keys list --resource-group $group --name $app --query systemKeys.mcp_extension --output tsv | Set-Clipboard
@@ -172,7 +204,22 @@ Ne mettez jamais la clé dans une URL (`?code=`), un fichier, une conversation o
 Dans VS Code, demandez à l'agent d'appeler `create_ticket` avec des valeurs synthétiques.
 L'appel réussit pour quiconque détient la clé.
 
-**8. Renouvelez la clé après l'exercice.** Toutes les copies qui auraient fuité deviennent inutilisables.
+> **Résultat attendu** — messages du validateur ; pas encore une capture d'un serveur déployé. Votre version de protocole peut différer.
+>
+> ```text
+> PASS MCP request without the mcp_extension key is refused (expected HTTP 401).
+> PASS anonymous access disabled: a random wrong key is refused (expected HTTP 401).
+> PASS MCP initialize with the key succeeds; negotiated protocol <version> (expected HTTP 200).
+> PASS tools/list with the key returns exactly the five workshop tools (expected HTTP 200).
+> PASS RISK SHOWN: create_ticket succeeds with only the key; no user or role was checked (expected HTTP 200).
+> PASS module 02 live checks complete. Rotate or remove the key after the exercise (see README).
+> ```
+>
+> **Ce que cela signifie pour vous :** le serveur n'est pas anonyme (401 sans clé), **mais la clé est le seul contrôle**.
+> Quiconque la détient, collègue ou attaquant, peut écrire. `whoami` répond `caller: unknown` : les journaux ne
+> peuvent pas dire qui a agi. C'est le problème que résolvent les modules 03 à 05.
+
+**8. Renouvelez la clé après l'exercice.** Les éventuelles copies divulguées deviennent alors inutilisables.
 
 ```powershell
 az functionapp keys set --resource-group $group --name $app --key-type systemKeys --key-name mcp_extension --output none
@@ -209,7 +256,7 @@ Utilisez la même configuration VS Code qu'à l'étape 6.
 | `initialize`, puis `tools/list` avec la clé | HTTP 200, cinq outils | Le serveur fonctionne en Streamable HTTP. |
 | `create_ticket` avec la clé | HTTP 200, `status: queued`, un `warning` | **Le risque :** ni utilisateur, ni rôle, ni approbation côté serveur. |
 | `whoami` | `caller: unknown` | Une clé ne porte aucune identité. |
-| `read_report_as_*` | `source: synthetic-demonstration` | L'accès réel en aval arrive au module 05. |
+| `read_report_as_*` | `source: synthetic-demonstration` | L'accès réel en aval est ajouté au module 05. |
 
 Le validateur en ligne affiche notamment :
 
@@ -221,6 +268,20 @@ PASS tools/list with the key returns exactly the five workshop tools (expected H
 PASS RISK SHOWN: create_ticket succeeds with only the key; no user or role was checked (expected HTTP 200).
 ```
 
+### Lire la documentation au moment de la démonstration
+
+Ouvrez ces liens au moment du contrôle correspondant ci-dessus. Ils expliquent le mécanisme, pas un résultat observé dans votre abonnement.
+
+| Démonstration | Ce qu'il faut comprendre dans Microsoft Learn | Référence API ou SDK |
+|---|---|---|
+| Sans clé ou avec une mauvaise clé : HTTP 401 ; bonne clé `mcp_extension` : HTTP 200 | [Clés d'accès Functions](https://learn.microsoft.com/azure/azure-functions/function-keys-how-to) : une clé système est un identifiant partagé, pas une identité utilisateur. | [Configuration de l'extension MCP](https://learn.microsoft.com/azure/azure-functions/functions-bindings-mcp) : `webhookAuthorizationLevel` et point d'accès MCP. |
+| Découvrir les cinq outils, puis en appeler un | [Déclencheur d'outil MCP](https://learn.microsoft.com/azure/azure-functions/functions-bindings-mcp-tool-trigger) : comment une fonction devient un outil appelable. | La même référence décrit `McpToolTrigger` et `ToolInvocationContext`, utilisés par ce serveur. |
+| `create_ticket` renvoie `status: queued` | Le ticket est fictif, mais l'envoi du message est un effet réel après déploiement. [Autoriser Queue Storage avec Entra](https://learn.microsoft.com/azure/storage/queues/authorize-access-azure-active-directory) explique l'identité distincte utilisée en aval. | [QueueClient.SendMessageAsync](https://learn.microsoft.com/dotnet/api/azure.storage.queues.queueclient.sendmessageasync), appelé par l'adaptateur de file de tickets. |
+| `whoami` est inconnu ; `read_report_as_*` reste une démonstration | [Autorisation MCP dans App Service](https://learn.microsoft.com/azure/app-service/configure-authentication-mcp) explique la protection du serveur ajoutée au module 03. Les métadonnées de ressource protégée sont en **Preview**. | Aucun appel à Graph ni à l'API Blob du rapport à cette étape. Le module 05 ajoute ces appels réels ; une clé Functions ne prouve pas un accès utilisateur. |
+
+La lecture de ces références ne vaut pas approbation d'un déploiement, n'exige la divulgation d'aucune clé et n'active aucun accès anonyme.
+Liens documentaires vérifiés le 2026-10-16.
+
 ## Valider
 
 `validate.ps1` (ou `validate.sh`) lance toujours d'abord les vérifications hors ligne : niveau `System` dans
@@ -231,7 +292,7 @@ n'est **pas** déployé ni validé.
 
 Avec `-TenantId` et `-SubscriptionId`, il vérifie le contexte, lit l'adresse depuis votre état Terraform et la clé
 depuis Azure CLI **en mémoire seulement**, puis lance les vérifications HTTP ci-dessus. Chaque vérification affiche une
-ligne PASS ou FAIL. Le module n'est terminé que lorsque ces vérifications passent sur un abonnement neuf,
+ligne PASS ou FAIL. Le module n'est terminé que lorsque ces vérifications réussissent sur un abonnement neuf,
 juste après les modules 00 et 01.
 
 ## Dépannage
@@ -239,7 +300,7 @@ juste après les modules 00 et 01.
 | Symptôme | Vérification |
 |---|---|
 | HTTP 401 avec la clé | Utilisez la clé **système** `mcp_extension`, dans l'en-tête `x-functions-key`. Une clé de fonction ou d'hôte est différente. |
-| Clé vide | Le code n'est pas encore publié ou l'hôte n'a pas démarré. Publiez (étape 5), attendez une minute, réessayez. |
+| Clé vide | Le code n'est pas encore publié ou l'hôte n'a pas démarré. Publiez (étape 5), attendez une minute, puis réessayez. |
 | HTTP 403 | Votre adresse IP n'est pas dans `mcp_allowed_ip_ranges`. Modifiez le fichier privé et planifiez de nouveau. |
 | HTTP 404 sur `/runtime/webhooks/mcp` | La publication a échoué ou a utilisé le mauvais dossier. Vérifiez l'état du déploiement dans le portail. |
 | L'hôte ne démarre pas / erreurs de stockage | Les attributions de rôle peuvent prendre quelques minutes. Vérifiez les trois attributions ; n'activez jamais les clés partagées. |
@@ -248,8 +309,8 @@ juste après les modules 00 et 01.
 
 ## Nettoyer
 
-Lancez le nettoyage après l'exercice. Il planifie avec le module désactivé et refuse de continuer si une modification
-n'est pas la suppression d'une ressource du module 02. Lancez-le une fois pour relire, puis avec `-Apply`.
+Lancez le nettoyage après l'exercice. Il génère un plan avec le module désactivé et refuse de continuer si une modification
+n'est pas la suppression d'une ressource du module 02. Lancez-le une première fois pour relire le plan, puis relancez-le avec `-Apply`.
 Il est idempotent : s'il ne reste rien, il le dit et ne change rien.
 
 ```powershell
@@ -263,7 +324,7 @@ Remove-Item -LiteralPath .\.workshop\module02-publish -Recurse -ErrorAction Sile
 bash ./modules/02-open-server/cleanup.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId "$ARM_SUBSCRIPTION_ID" -Apply
 ```
 
-Le groupe de ressources, vos paramètres privés et votre état restent pour les modules suivants. Retirez le serveur
+Le groupe de ressources, vos paramètres privés et votre état sont conservés pour les modules suivants. Retirez le serveur
 `workshop-open` de votre configuration VS Code utilisateur. Si vous enchaînez directement avec le module 03,
 vous pouvez garder le serveur et sauter le nettoyage ; le module 03 remplace la clé par l'authentification Microsoft Entra.
 

@@ -32,6 +32,8 @@ re-implement:
 | Private path | Network | The Function has **public network access disabled** and a **private endpoint**; only the gateway reaches it through Standard v2 outbound virtual network integration. |
 | Payload-free logs | Application Insights | **0 body bytes** for frontend/backend requests and responses, no header logged, and a trace with the tool label and the caller `oid` only. |
 
+### Follow the token and the private network path
+
 **Scopes vs app roles.** The `scp` claim (`user_impersonation`) says what the *client app* may do for the user. The `roles`
 claim (`Tools.Read`, `Tools.Write`) says what *this user* may do. Per-tool authorization uses **app roles**
 ([concept](../../docs/concepts/scopes-and-app-roles.md)).
@@ -172,6 +174,23 @@ Start-Sleep -Seconds 300   # telemetry ingestion delay
 & .\modules\04-governed-gateway\validate.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID -CheckTelemetry
 ```
 
+> **Expected result** — validator messages; not yet a capture from your tenant (excerpt).
+>
+> ```text
+> PASS gateway request without a token is refused with a challenge naming the gateway metadata (expected HTTP 401).
+> PASS direct call to the Function host is refused from the internet: HTTP 403 (expected HTTP 403).
+> PASS Alice get_service_health is allowed with Tools.Read (expected HTTP 200).
+> PASS Bob create_ticket is denied by the gateway: Tools.Write is missing (expected HTTP 403).
+> PASS Alice create_ticket is allowed with Tools.Write and queues one synthetic ticket (expected HTTP 200).
+> PASS an unknown tool and a JSON-RPC message without a method are denied safely (expected HTTP 403 and HTTP 400).
+> PASS Bob burst of <count> calls is throttled per caller object ID (expected HTTP 429).
+> PASS Application Insights: <n> gateway requests and <n> tool traces with tool label and caller oid, no body, argument or token (expected HTTP 200 from Log Analytics).
+> ```
+>
+> **What it means for you:** there is now **one door**, and the Function behind it is unreachable from the internet.
+> Being signed in no longer means "can do everything": Bob reads, only Alice writes, and nobody can flood the server.
+> The logs say **who** called **which tool**, never what they sent.
+
 ### Bash
 
 ```bash
@@ -213,6 +232,22 @@ bash ./modules/04-governed-gateway/validate.sh -TenantId "$ARM_TENANT_ID" -Subsc
 | Direct call to `https://func-…azurewebsites.net/runtime/webhooks/mcp` | **HTTP 403** (or no connection) | Public network access disabled. |
 | Application Insights | Requests with status and duration, traces `mcp-request` with `mcp-tool` and `caller-oid` | No body, argument, result or token. |
 
+### Read alongside the demonstration
+
+Use these links for the matching gateway result above. API Management (APIM) enforces these controls; client sign-in alone does not.
+
+| Demonstration or choice | What to understand in Microsoft Learn | Policy or API reference |
+|---|---|---|
+| No token or wrong audience: HTTP 401 | [Secure MCP servers](https://learn.microsoft.com/azure/api-management/secure-mcp-servers): protect the governed entry point. | [validate-azure-ad-token](https://learn.microsoft.com/azure/api-management/validate-azure-ad-token-policy): tenant, audience, allowed client and required claims. |
+| Metadata points to the gateway, not the private Function | [App Service MCP authorization and Protected Resource Metadata (**Preview**)](https://learn.microsoft.com/azure/app-service/configure-authentication-mcp) explains resource discovery. | [Manage MCP servers programmatically (**Preview**)](https://learn.microsoft.com/azure/api-management/manage-mcp-servers-rest-api) describes the MCP management API used by Terraform. Metadata alone grants no access. |
+| Bob reads but gets HTTP 403 for `create_ticket`; Alice can write after client approval | [App roles](https://learn.microsoft.com/entra/identity-platform/howto-add-app-roles-in-apps) supply `Tools.Read` / `Tools.Write`. The workshop explicitly enforces them per tool. | [choose](https://learn.microsoft.com/azure/api-management/choose-policy) and [policy expressions](https://learn.microsoft.com/azure/api-management/api-management-policy-expressions) implement the decision in `policies/mcp-server.xml`. An unknown tool or malformed message is also refused. |
+| A burst from one caller gets HTTP 429 | [rate-limit-by-key](https://learn.microsoft.com/azure/api-management/rate-limit-by-key-policy): the key here is validated caller `oid`, not a subscription key. Distributed limits are approximate. | The same reference documents `calls`, `renewal-period` and `counter-key`. |
+| Direct Function access is blocked | [Functions networking options](https://learn.microsoft.com/azure/azure-functions/functions-networking-options) explains private endpoints and Flex Consumption support. | [Expose an existing MCP server](https://learn.microsoft.com/azure/api-management/expose-existing-mcp-server) describes the gateway proxy. Keep the Standard v2 network design in this guide. |
+| Telemetry shows status and latency, never payloads | [Default MCP telemetry](https://learn.microsoft.com/azure/api-management/monitor-mcp-servers): read the default telemetry and query sections. | [trace policy](https://learn.microsoft.com/azure/api-management/trace-policy) adds the fixed tool name and caller ID. Keep body logging at zero bytes; do not follow the linked page's optional payload-logging steps. |
+
+Client approval for a write is separate from the gateway's role check. Neither replaces the other.
+Documentation links last verified: 2026-10-16; expected results still require an approved live deployment.
+
 ## Validate
 
 `validate.ps1` (or `validate.sh`) always runs the offline checks first: the policy validates the Entra token for the MCP
@@ -233,6 +268,8 @@ PASS no access token, subscription key, function key, SAS or client secret in mo
 PASS Terraform format, schema and mock-only plans for infra/entra and infra/workload (expected HTTP N/A; no live plan/apply).
 PASS offline checks only. Module 04 is NOT deployed or validated by this result.
 ```
+
+### Verify the real gateway after deployment
 
 Live modes, after an approved deployment of both stages:
 

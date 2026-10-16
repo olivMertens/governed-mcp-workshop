@@ -1,7 +1,8 @@
 # Build plan — Governed MCP on Azure
 
 Build the modules in this order, one session and one branch per module.
-Do not start a module until the previous one validates.
+Do not start a module until the previous one validates. Each module lists what it **depends on**:
+later modules reuse the same private files, Terraform state and resources, so skipping ahead causes hard-to-diagnose failures.
 Scoped user-approved exception (2026-10-14): author and run the Azure-independent module 01 locally while
 module 00's environment validation was pending. Module 00 later validated on the approved local-terminal route;
 that result does not validate the optional container/Codespaces route or approve any resource creation.
@@ -28,6 +29,7 @@ Personas:
 - **Eve**: not assigned.
 
 ## 00 — Prerequisites and environment
+- **Depends on:** nothing. Start here.
 - **Take:** Azure CLI, Terraform, PowerShell 7, .NET 10 and Functions Core Tools >= 4.5.0 from the pinned sample;
   Node.js >= 22.19.0 for the selected MCP Inspector. See [source selections](sources.md) before pinning exact tool versions.
 - **Build:** .devcontainer; preflight.ps1 (tools, versions, `az login`, subscription, resource providers, role checks,
@@ -40,6 +42,7 @@ Personas:
   which remain pending. (The MCP runtime and Entra root were later authored in modules 02 and 03.)
 
 ## 01 — Discover MCP (no Azure)
+- **Depends on:** module 00 tools. Azure-independent: can run while module 00's Azure checks are pending.
 - **Take:** MCP specification: https://modelcontextprotocol.io/specification (revision 2026-07-28 verified on 2026-10-14: architecture, tools, transports, authorization);
   https://code.visualstudio.com/docs/agent-customization/mcp-servers; MCP Inspector (@modelcontextprotocol/inspector).
 - **Build:** a local MCP server from the official C# SDK quickstart (https://github.com/modelcontextprotocol/csharp-sdk);
@@ -53,6 +56,7 @@ Personas:
   no write tool is exposed before its role and approval controls exist. No Azure or Preview dependency.
 
 ## 02 — An "open" MCP server (level 0)
+- **Depends on:** module 00 validated for the subscription, module 01 completed.
 - **Take:** https://github.com/Azure-Samples/remote-mcp-functions-dotnet
   at `468c518c884ec318e3001b9573254c9e775409c9`;
   https://learn.microsoft.com/azure/azure-functions/scenario-custom-remote-mcp-server;
@@ -72,6 +76,7 @@ Personas:
   Only offline checks have run. No plan, apply, Azure or Entra change; see [progress](PROGRESS.md).
 
 ## 03 — Identity with Microsoft Entra (level 1)
+- **Depends on:** module 02 deployed (same private files and Terraform state); identity administrator request approved.
 - **Take:** https://learn.microsoft.com/azure/app-service/configure-authentication-mcp;
   https://learn.microsoft.com/azure/app-service/configure-authentication-mcp-server-vscode;
   https://learn.microsoft.com/azure/azure-functions/functions-mcp-tutorial;
@@ -94,6 +99,7 @@ Personas:
   existing test accounts. Per-tool roles remain module 04. Only offline checks ran; see [progress](PROGRESS.md).
 
 ## 04 — API Management as the only entry point (level 2)
+- **Depends on:** modules 02 and 03 (both stages) deployed with the same private files and Terraform state.
 - **Take:** https://learn.microsoft.com/azure/api-management/expose-existing-mcp-server;
   https://learn.microsoft.com/azure/api-management/secure-mcp-servers;
   https://learn.microsoft.com/azure/api-management/mcp-server-overview (governance, limitations);
@@ -119,6 +125,7 @@ Personas:
   documentation only. Only offline checks ran; see [progress](PROGRESS.md).
 
 ## 05 — Who carries the rights? On-Behalf-Of vs app-only (level 3)
+- **Depends on:** modules 02 and 03 deployed (04 recommended). Publish the server code **before** module 04 stage 2.
 - **Take:** https://learn.microsoft.com/entra/identity-platform/v2-oauth2-on-behalf-of-flow;
   src/FunctionsMcpTool/HelloToolWithAuth.cs in the sample; federated identity credential with a user-assigned managed identity
   (https://learn.microsoft.com/entra/workload-id/workload-identity-federation-config-app-trust-managed-identity).
@@ -145,6 +152,7 @@ Personas:
   path untouched). Validator, publish step and two-scope clean-up. Only offline checks ran; see [progress](PROGRESS.md).
 
 ## 06 — Observe and inventory (level 4)
+- **Depends on:** modules 00 to 05 completed, APIM MCP endpoint answering.
 - **Take:** APIM Application Insights integration and KQL; Azure API Center MCP inventory:
   https://learn.microsoft.com/azure/api-center/register-discover-mcp-server;
   AI-Gateway lab mcp-registry-apic;
@@ -167,12 +175,14 @@ Personas:
     the MCP server must stay blocked.
 
 ## 07 — Optional: other clients
+- **Depends on:** modules 03 to 06 validated (or a recording of them). Optional.
 - **Take:** https://learn.microsoft.com/azure/foundry/agents/how-to/mcp-authentication;
   https://learn.microsoft.com/microsoft-copilot-studio/mcp-add-existing-server-to-agent.
 - **Show:** the same governed server from a Foundry agent (project managed identity or OAuth identity passthrough, Preview)
   and from Copilot Studio. Facilitator demo only.
 
 ## 99 — Clean up
+- **Depends on:** run last, with the same private files and Terraform state as the deployed modules. Reverse order.
 - terraform destroy for workload and entra; delete role assignments and test users;
   check that nothing remains (`az resource list --tag workshop=...`).
 

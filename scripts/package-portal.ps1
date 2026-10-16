@@ -27,4 +27,4 @@ try {
         }
     } finally { $zip.Dispose() }
 } finally { $stream.Dispose() }
-Write-Output 'PASS ZIP contains only the 50 public assets, integrity manifest and reviewed server. No Azure command executed.'
+Write-Output "PASS ZIP contains exactly $($paths.Count) allowlisted files, including the integrity manifest and reviewed server. No Azure command executed."

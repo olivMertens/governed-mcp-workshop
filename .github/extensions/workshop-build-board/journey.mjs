@@ -5,8 +5,8 @@ import { BoardError } from "./progress.mjs";
 const folders = {
     "00": "00-prerequisites", "01": "01-discover-mcp", "02": "02-open-server",
     "03": "03-entra-authentication", "04": "04-governed-gateway",
-    "05": "05-delegated-and-app-only", "06": "06-observe-and-inventory",
-    "07": "07-other-clients", "99": "99-cleanup",
+    "05": "05-delegated-and-app-only", "06": "06-observe-inventory",
+    "07": "07-clients", "99": "99-cleanup",
 };
 
 function readDocument(root, parts, optional = false) {
@@ -98,6 +98,7 @@ export function readJourney(root, progress) {
                 };
             }),
             documents: {
+                concepts: document(french ? "Comprendre MCP et les agents" : "MCP and agent concepts", "MCP-CONCEPTS.md"),
                 gettingStarted: document(french ? "Choisir votre environnement" : "Choose your workspace", "GETTING-STARTED.md"),
                 practice: { title: french ? "Tester votre serveur MCP" : "Try your MCP", sourcePath: [...base, "PRACTICE.md"].join("/"), content: practice },
                 runbook: document(french ? "Construire avec Copilot" : "Build runbook", "COPILOT-RUNBOOK.md"),

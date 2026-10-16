@@ -50,20 +50,95 @@ Open PowerShell 7 in the repository root. Stop on any failed command.
 The validator restores locked packages, builds Release, starts its own server, calls it, then closes it.
 It does not install a background service or use your Azure session.
 
+> **Real result** — local capture on the authoring host, 2026-10-16. Synthetic data; your timings differ.
+>
+> ```text
+> PASS locked local server build (expected HTTP N/A).
+> PASS SDK protocol negotiation (expected HTTP N/A; stdio).
+> INFO negotiated MCP protocol: 2026-07-28
+> PASS tools/list exposes exactly one read tool (expected HTTP N/A; stdio).
+> PASS tools/call workshop-api succeeds (expected HTTP N/A; stdio).
+> PASS unknown service returns a tool error (expected HTTP N/A; stdio).
+> PASS write tool is not exposed (expected HTTP N/A; stdio).
+> PASS local MCP checks complete (expected HTTP N/A; stdio, no Azure).
+> MANUAL CHECK: client approval prompts are not tested by this validator.
+> ```
+>
+> **What it means for you:** your machine can build and run an MCP server, and a client can negotiate a protocol
+> version with it. `MANUAL CHECK` is honest: a script cannot prove that a human saw an approval dialog. Step 3 covers that.
+
 **2. Inspect it without an AI model (optional second client).**
+
+### Prepare Inspector in the same PowerShell terminal
+
+**Why:** the client needs the compiled server path; later commands reuse these variables.
+Review npm's package-install prompt. Keep Inspector credentials in memory only.
 
 ```powershell
 $server = (Resolve-Path .\modules\01-discover-mcp\server\bin\Release\net10.0\Workshop.LocalMcp.dll).Path
 $env:MCP_INSPECTOR_SECRET_STORE = 'memory'
 $env:MCP_INSPECTOR_PERSIST_TOKENS = 'none'
+```
+
+**Observe:** no server has started. A missing DLL means step 1 did not finish; stop.
+
+### Discover the contract without invoking a tool
+
+**Predict:** one tool, `get_service_health`, with a required `service` argument.
+
+```powershell
 npx @modelcontextprotocol/inspector@2.9.0 --cli dotnet $server --method tools/list
 if ($LASTEXITCODE -ne 0) { throw 'Inspector discovery failed.' }
+```
+
+**Observe:** the tool name and input schema, not a service-health result.
+
+> **Real result** — local capture, 2026-10-16 (excerpt of the Inspector output).
+>
+> ```text
+> "name": "get_service_health",
+> "description": "Read fixed synthetic health data. No Azure access, network calls or real monitoring.",
+> "inputSchema": { "type": "object", "properties": { "service": { "type": "string", ... } }, "required": ["service"] },
+> "annotations": { "readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false }
+> ```
+>
+> **What it means for you:** this is the **contract** an agent reads before choosing a tool. The model relies on the
+> `description` to decide, and on `inputSchema` to build arguments. The `annotations` are hints for the client, not
+> a security control: a server could lie. Nothing has run yet.
+
+**Before continuing:** explain the difference between listing a tool and calling it.
+
+### Make one explicit read-only call
+
+**Predict:** `workshop-api` returns `healthy` and `isError: false`, with synthetic data.
+
+```powershell
 npx @modelcontextprotocol/inspector@2.9.0 --cli dotnet $server --method tools/call --tool-name get_service_health --tool-arg service=workshop-api
 if ($LASTEXITCODE -ne 0) { throw 'Inspector tool call failed.' }
 ```
 
 Review npm's package-install prompt. Each command starts and closes its own server.
 These commands print synthetic results, not cloud credentials. Do not reuse transcript recording for later modules.
+
+**Observe:** a real local tool invocation, not a model's invented answer. No Azure service was contacted.
+
+> **Real result** — local capture, 2026-10-16.
+>
+> ```text
+> "structuredContent": { "service": "workshop-api", "status": "healthy", "source": "synthetic", "environment": "local-only" },
+> "isError": false
+> ```
+>
+> With an unsupported value (`service=billing`), the same command returns:
+>
+> ```text
+> "text": "An error occurred invoking 'get_service_health': Unknown synthetic service. Use workshop-api or ticket-queue."
+> "isError": true
+> ```
+>
+> **What it means for you:** a tool can fail **inside a successful MCP exchange**. Always read `isError`, not only
+> whether the command ran. The server rejects unknown input instead of guessing: that is the behavior you want
+> from every tool, especially before writes exist.
 
 **3. Connect VS Code and observe one approval.**
 

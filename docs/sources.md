@@ -9,6 +9,68 @@ combination has been tested together.
 
 ## Concept and facilitator guides
 
+Reader repair and module 06/07 clarification (last verified 2026-10-16):
+[API Management telemetry](https://learn.microsoft.com/azure/api-management/api-management-howto-app-insights)
+documents sampling and request correlation; the shipped request query does not join `caller-oid` policy traces.
+[MCP telemetry](https://learn.microsoft.com/azure/api-management/monitor-mcp-servers) documents default dimensions,
+tool-only fields and custom trace metadata; its optional payload capture is not adopted.
+[API Center registration](https://learn.microsoft.com/azure/api-center/register-discover-mcp-server)
+is inventory, not runtime authorization.
+[BYO registration](https://learn.microsoft.com/microsoft-365/admin/manage/manage-byo-mcp-server) remains **Preview**.
+[Foundry MCP authentication](https://learn.microsoft.com/azure/foundry/agents/how-to/mcp-authentication)
+distinguishes application and delegated user identities. The workshop's existing delegated-scope gateway
+does not accept the project-managed-identity flow merely because an app role is assigned.
+[Copilot Studio onboarding](https://learn.microsoft.com/microsoft-copilot-studio/mcp-add-existing-server-to-agent)
+documents a client secret in Manual OAuth setup. The workshop stops there rather than introducing a secret;
+discovery is not evidence of a supported secretless connection.
+These are documentation and local UI changes only. Existing Draw.io-derived 05/06/07 SVGs are reused unchanged.
+
+MCP fundamentals page (2026-10-16): [English](MCP-CONCEPTS.md) and [French](fr/MCP-CONCEPTS.md)
+provide original generic explanations of host/client/server, agent components, tools/resources/prompts,
+discovery versus execution, local/remote transports, API/connector/retrieval differences and the three controls.
+Only public references were used; private event planning and internal decks were excluded.
+The [2026-07-28 architecture](https://modelcontextprotocol.io/specification/2026-07-28/architecture),
+[tools](https://modelcontextprotocol.io/specification/2026-07-28/server/tools),
+[resources](https://modelcontextprotocol.io/specification/2026-07-28/server/resources) and
+[prompts](https://modelcontextprotocol.io/specification/2026-07-28/server/prompts) were read directly.
+[MCP for Beginners](https://github.com/microsoft/mcp-for-beginners) is linked for further study, without copied code.
+[Foundry tool guidance](https://learn.microsoft.com/azure/foundry/agents/concepts/tool-best-practice)
+does not override the workshop's zero-body logging rule.
+[Azure MCP Server](https://learn.microsoft.com/azure/developer/azure-mcp-server/overview)
+is distinguished from this workshop's server; no claim about current optional product support is inferred.
+Protocol examples remain conceptual: per-request metadata and older initialization must not be mixed.
+
+README presentation review (2026-10-16): [GitHub Mermaid diagrams](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/creating-diagrams)
+and [GitHub alerts](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#alerts).
+Module 99 reuses the existing Draw.io-derived Mermaid blocks and verified icon-rich SVGs.
+The shared renderer preserves alert paragraphs, lists, code and ordinary blockquotes without loading external libraries.
+This review covers formatting only, not Azure behavior or live clean-up.
+
+Copy controls and read-only resource inspection (2026-10-16):
+[Azure CLI resource listing](https://learn.microsoft.com/cli/azure/resource#az-resource-list) documents the
+resource-group, subscription and tag filters used by the bilingual context guide.
+The commands reuse the existing context guard and read only `resource_group_name` and `resource_tags`
+from the local Terraform outputs. Ten mocked PowerShell scenarios check safe success, empty results,
+missing context/state, mismatched tenant, invalid tags/JSON and CLI failures.
+The initial evidence was mocked only. On 2026-10-16, an approved read-only check of the original tagged group
+found that Azure CLI refuses `--tag` together with `--resource-group`. Both guides now keep exact group scoping
+and filter the validated workshop tag in JMESPath. The corrected live query and the seven site tests pass.
+The existing documentation portal returned HTTP 200 from `/health`; no MCP deployment or authentication success
+is implied.
+
+Module 02 preparation sources rechecked on 2026-10-16:
+[pinned sample](https://github.com/Azure-Samples/remote-mcp-functions-dotnet/tree/468c518c884ec318e3001b9573254c9e775409c9),
+[Functions quickstart](https://learn.microsoft.com/azure/azure-functions/scenario-custom-remote-mcp-server),
+[MCP bindings and System authorization](https://learn.microsoft.com/azure/azure-functions/functions-bindings-mcp),
+[Flex Consumption](https://learn.microsoft.com/azure/azure-functions/flex-consumption-plan) and
+[management guide](https://learn.microsoft.com/azure/azure-functions/flex-consumption-how-to).
+The workshop keeps pure Terraform rather than the quickstart's azd recipe and keeps System authorization
+rather than the Entra-protected upstream sample's Anonymous setting.
+[Official retail prices](https://prices.azure.com/api/retail/prices) were queried for West Europe in USD:
+Flex On Demand execution time, execution count, Hot LRS Blob, LRS queue and Analytics Logs ingestion.
+These are public unit prices, not an account quote or a spending cap. Free grants and negotiated discounts
+are not assumed.
+
 Last verified: 2026-10-14. The bilingual concept and facilitator guides summarize only public documentation and
 reuse the existing Draw.io-derived architecture assets. They do not add another architecture source.
 
@@ -24,6 +86,34 @@ reuse the existing Draw.io-derived architecture assets. They do not add another 
 | [Foundry MCP authentication](https://learn.microsoft.com/azure/foundry/agents/how-to/mcp-authentication) | Optional identity passthrough is marked **Preview** where documented and never permits downstream token passthrough. |
 
 ## Selection method
+
+### Progressive teaching interface
+
+Last verified: 2026-10-16. The shared reader uses the existing EN/FR module guides,
+[Azure context guide](DEPLOYMENT.md), [presenter guide](PRESENTER.md), [workspace guide](GETTING-STARTED.md)
+and [hosting guide](HOSTING.md). It follows authored headings and numbered actions, not inferred command boundaries.
+Complete fenced blocks and nested disclosures remain intact. Long blocks are closed references, not default bulk-copy exercises.
+The local MCP lesson, resource inspection and presenter commands now separate intention, prediction, action and observation.
+The delegation lesson separates planning, explicit approval, apply and the private administrator handoff.
+No new upstream code or package was introduced. Existing API/SDK links and Preview labels remain authoritative.
+
+### Contextual authentication references
+
+Links last verified: 2026-10-16. Modules 02 to 05 now place these references next to their expected demonstrations
+in both README languages. The application exports the same text; no independent source list or live result is invented.
+SDK reference pages can show newer packages than the workshop pins. Keep the checked-in package versions and lock files.
+
+| Module | Demonstrated mechanism and Microsoft Learn reference |
+|---|---|
+| 02 | [System keys](https://learn.microsoft.com/azure/azure-functions/function-keys-how-to), [MCP extension configuration](https://learn.microsoft.com/azure/azure-functions/functions-bindings-mcp), [tool trigger](https://learn.microsoft.com/azure/azure-functions/functions-bindings-mcp-tool-trigger), [Queue authorization](https://learn.microsoft.com/azure/storage/queues/authorize-access-azure-active-directory) and [QueueClient.SendMessageAsync](https://learn.microsoft.com/dotnet/api/azure.storage.queues.queueclient.sendmessageasync). |
+| 03 | [Built-in authentication](https://learn.microsoft.com/azure/app-service/overview-authentication-authorization), [authsettingsV2 properties](https://learn.microsoft.com/azure/templates/microsoft.web/sites/config-authsettingsv2), [MCP authorization and PRM (**Preview**)](https://learn.microsoft.com/azure/app-service/configure-authentication-mcp), [access tokens](https://learn.microsoft.com/entra/identity-platform/access-tokens), [assignment required](https://learn.microsoft.com/entra/identity-platform/howto-restrict-your-app-to-a-set-of-users), [scopes/consent](https://learn.microsoft.com/entra/identity-platform/scopes-oidc) and [app roles](https://learn.microsoft.com/entra/identity-platform/howto-add-app-roles-in-apps). |
+| 04 | [MCP security](https://learn.microsoft.com/azure/api-management/secure-mcp-servers), [validate-azure-ad-token](https://learn.microsoft.com/azure/api-management/validate-azure-ad-token-policy), [MCP management API (**Preview**)](https://learn.microsoft.com/azure/api-management/manage-mcp-servers-rest-api), [choose](https://learn.microsoft.com/azure/api-management/choose-policy), [policy expressions](https://learn.microsoft.com/azure/api-management/api-management-policy-expressions), [rate-limit-by-key](https://learn.microsoft.com/azure/api-management/rate-limit-by-key-policy), [Functions networking](https://learn.microsoft.com/azure/azure-functions/functions-networking-options), [MCP proxy](https://learn.microsoft.com/azure/api-management/expose-existing-mcp-server), [default MCP telemetry](https://learn.microsoft.com/azure/api-management/monitor-mcp-servers) and [trace](https://learn.microsoft.com/azure/api-management/trace-policy). |
+| 05 | [OBO flow](https://learn.microsoft.com/entra/identity-platform/v2-oauth2-on-behalf-of-flow), [OnBehalfOfCredential](https://learn.microsoft.com/dotnet/api/azure.identity.onbehalfofcredential), [Graph GET /me](https://learn.microsoft.com/graph/api/user-get?view=graph-rest-1.0), [Blob authorization](https://learn.microsoft.com/azure/storage/blobs/authorize-access-azure-active-directory), [Get Blob authorization](https://learn.microsoft.com/rest/api/storageservices/get-blob#authorization), [DownloadContentAsync](https://learn.microsoft.com/dotnet/api/azure.storage.blobs.specialized.blobbaseclient.downloadcontentasync), [managed identities](https://learn.microsoft.com/entra/identity/managed-identities-azure-resources/overview), [ManagedIdentityCredential](https://learn.microsoft.com/dotnet/api/azure.identity.managedidentitycredential) and [federated application trust](https://learn.microsoft.com/entra/workload-id/workload-identity-federation-config-app-trust-managed-identity). |
+
+Documentation gaps and guardrails: the general token page mentions online decoders; never submit workshop tokens.
+The general OBO article includes client-secret examples; use the managed-identity assertion path instead.
+The MCP monitoring article describes optional argument/result capture; the workshop keeps payload logging disabled.
+These links do not change controls, consent requirements, module statuses or deployment evidence.
 
 Choose the smallest example that teaches one workshop outcome and can be validated and cleaned up by a participant.
 Prefer official samples and standards. Check the actual files, not only marketing descriptions.

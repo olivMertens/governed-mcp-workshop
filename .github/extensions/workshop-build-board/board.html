@@ -6,7 +6,7 @@
   <meta name="color-scheme" content="light dark">
   <title>Workshop build board</title>
   <style>
-    :root { color-scheme: light; --paper: #f5f8fd; --surface: #fff; --ink: #172c48; --muted: #526783; --line: #d5dfed; --blue: #1659dc; --indigo: #383ba4; --wash: #eaf0ff; --gold: #ffe38c; --success: #14704b; --error: #b32336; font-family: "Segoe UI", "Helvetica Neue", sans-serif; }
+    :root { color-scheme: light; --paper: #f5f8fd; --surface: #fff; --ink: #172c48; --muted: #526783; --line: #d5dfed; --blue: #0067b8; --indigo: #383ba4; --wash: #edf6fc; --gold: #ffe38c; --success: #14704b; --error: #b32336; font-family: "Segoe UI", "Helvetica Neue", sans-serif; }
     * { box-sizing: border-box; }
     body { margin: 0; background: var(--paper); color: var(--ink); font-size: 15px; line-height: 1.65; }
     a { color: var(--blue); text-underline-offset: 3px; }
@@ -17,7 +17,10 @@
     .shell { display: grid; grid-template-columns: 255px minmax(0, 1fr); min-height: 100vh; }
     .rail { position: sticky; top: 0; height: 100vh; overflow-y: auto; padding: 30px 22px; background: var(--surface); border-right: 1px solid var(--line); }
     .brand { display: flex; gap: 12px; align-items: center; color: var(--ink); text-decoration: none; font-weight: 650; line-height: 1.3; }
-    .brand-mark { display: grid; place-items: center; width: 39px; height: 43px; background: var(--indigo); color: white; clip-path: polygon(0 0, 100% 0, 100% 72%, 50% 100%, 0 72%); flex-shrink: 0; font-size: 18px; padding-bottom: 6px; }
+    .brand-mark { display: grid; place-items: center; width: 40px; height: 44px; flex-shrink: 0; }
+    .brand-mark svg { width: 40px; height: 44px; display: block; }
+    .brand-text { display: block; }
+    .brand-text .brand-azure { color: var(--blue); }
     .brand small { display: block; font-size: 12px; font-weight: 400; margin-top: 5px; color: var(--muted); }
     .nav-label { color: var(--muted); font-size: 12px; margin: 30px 10px 12px; }
     nav a { display: flex; align-items: center; gap: 12px; color: var(--ink); text-decoration: none; padding: 10px; border-radius: 8px; line-height: 1.3; font-size: 13px; margin-bottom: 4px; }
@@ -60,7 +63,10 @@
     .boundary p { font-size: 12px; margin: 20px 0 0; color: #e4e5ff; }
     .primary { display: inline-flex; color: white; background: var(--blue); text-decoration: none; padding: 11px 18px; border-radius: 6px; font-weight: 600; }
     .notice { border-left: 3px solid var(--blue); background: var(--wash); padding: 16px 20px; margin: 24px 0; font-size: 14px; max-width: 760px; }
-    .notice strong { display: block; margin-bottom: 5px; }
+    .notice > strong { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+    .notice-body > :first-child { margin-top: 0; }
+    .notice-body > :last-child { margin-bottom: 0; }
+    .document blockquote { border-left: 3px solid var(--line); padding-left: 18px; margin: 20px 0; color: var(--muted); }
     .route-list { margin-top: 30px; border-top: 1px solid var(--line); }
     .route-item { display: grid; grid-template-columns: 42px 1fr auto; align-items: center; gap: 16px; padding: 18px 0; border-bottom: 1px solid var(--line); color: var(--ink); text-decoration: none; }
     .route-item:hover .route-title { color: var(--blue); }
@@ -98,15 +104,47 @@
     .exercise details { color: var(--ink); margin: 16px 0; }
     .exercise summary { font-weight: 600; font-size: 15px; }
     .exercise details .document { margin-top: 16px; }
+    .lesson { margin: 24px 0; min-width: 0; }
+    .lesson-head { display: flex; align-items: center; gap: 14px; margin-bottom: 6px; }
+    .lesson-position { color: var(--muted); font-size: 13px; margin: 0; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .lesson-meter { flex: 1; height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
+    .lesson-meter span { display: block; height: 100%; background: var(--blue); }
+    .lesson-page { margin-top: 18px; }
+    .lesson-page h2 { margin-top: 0; }
+    .lesson-page .command pre { max-height: 22rem; overflow-y: auto; }
+    .lesson-nav { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
+    .lesson-nav button { border: 0; font: inherit; max-width: 100%; text-align: left; }
+    .lesson-nav .secondary { border: 1px solid var(--line); }
+    .lesson-nav .primary { margin-left: auto; }
+    .lesson-nav button:disabled { opacity: .55; cursor: default; }
+    .lesson-outline { margin-top: 18px; font-size: 14px; }
+    .lesson-outline summary { font-size: 14px; }
+    .lesson-outline ol { margin: 8px 0 0; padding-left: 24px; }
+    .lesson-jump { padding: 4px 0; border: 0; background: none; color: var(--blue); text-align: left; font: inherit; text-decoration: underline; text-underline-offset: 3px; }
+    .lesson-jump[aria-current="step"] { color: var(--ink); font-weight: 650; text-decoration: none; }
+    .lesson-jump[aria-current="step"]::after { content: " \2190"; color: var(--blue); }
+    .services img, .services svg { flex-shrink: 0; }
     .toolbar-actions, .languages { display: flex; align-items: center; gap: 8px; }
     .languages button { padding: 5px 9px; border: 1px solid var(--line); border-radius: 5px; color: var(--ink); background: var(--surface); font-size: 12px; }
     .languages button[aria-pressed="true"] { background: var(--wash); color: var(--blue); border-color: var(--blue); font-weight: 650; }
     .symbol { width: 19px; height: 19px; flex-shrink: 0; vertical-align: middle; }
-    .notice strong { display: flex; align-items: center; gap: 10px; }
-    .notice.warning, .notice.caution { border-left-color: var(--error); }
-    .notice.warning strong, .notice.caution strong { color: var(--error); }
+    .notice.warning { border-left-color: #896300; }
+    .notice.warning > strong { color: #896300; }
+    .notice.caution { border-left-color: var(--error); }
+    .notice.caution > strong { color: var(--error); }
     .notice.tip { border-left-color: var(--success); }
-    .notice.tip strong { color: var(--success); }
+    .notice.tip > strong { color: var(--success); }
+    .notice.important { border-left-color: #7650b3; }
+    .notice.important > strong { color: #7650b3; }
+    .notice.note > strong { color: var(--blue); }
+    .result-box { margin: 14px 0 24px; padding: 14px 18px; border: 1px solid var(--line); border-left: 4px solid var(--success); border-radius: 0 8px 8px 0; background: var(--surface); font-size: 14px; max-width: 820px; }
+    .result-box.expected { border-left-color: var(--blue); }
+    .result-body > :first-child { margin-top: 0; }
+    .result-body > :last-child { margin-bottom: 0; }
+    .result-body > p:first-child strong:first-child { color: var(--success); }
+    .result-box.expected .result-body > p:first-child strong:first-child { color: var(--blue); }
+    .result-body pre { margin: 10px 0; }
+    .command.output .command-head { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
     .notice p { margin: 6px 0 0; }
     .architecture { margin: 28px 0; min-width: 0; }
     .architecture h2 { margin-bottom: 8px; }
@@ -128,9 +166,73 @@
     details .document, .document details { font-size: 15px; }
     details p { white-space: pre-wrap; overflow-wrap: anywhere; }
     @media (prefers-color-scheme: dark) {
-      :root { color-scheme: dark; --paper: #172339; --surface: #1e2d45; --ink: #eef3ff; --muted: #b1c1db; --line: #405474; --blue: #8fbaff; --wash: #273f64; --success: #7cddb0; --error: #ff9fa8; }
-      .primary { background: #245ed2; color: #fff; }
+      :root:not([data-theme="light"]) { color-scheme: dark; --paper: #172339; --surface: #1e2d45; --ink: #eef3ff; --muted: #b1c1db; --line: #405474; --blue: #8fbaff; --wash: #273f64; --success: #7cddb0; --error: #ff9fa8; }
+      :root:not([data-theme="light"]) .primary { background: #245ed2; color: #fff; }
+      :root:not([data-theme="light"]) .notice.warning { border-left-color: #f5cd68; }
+      :root:not([data-theme="light"]) .notice.warning > strong { color: #f5cd68; }
+      :root:not([data-theme="light"]) .notice.important { border-left-color: #c9a9ff; }
+      :root:not([data-theme="light"]) .notice.important > strong { color: #c9a9ff; }
     }
+    :root[data-theme="dark"] { color-scheme: dark; --paper: #172339; --surface: #1e2d45; --ink: #eef3ff; --muted: #b1c1db; --line: #405474; --blue: #8fbaff; --wash: #273f64; --success: #7cddb0; --error: #ff9fa8; }
+    :root[data-theme="dark"] .primary { background: #245ed2; color: #fff; }
+    :root[data-theme="dark"] .notice.warning { border-left-color: #f5cd68; }
+    :root[data-theme="dark"] .notice.warning > strong { color: #f5cd68; }
+    :root[data-theme="dark"] .notice.important { border-left-color: #c9a9ff; }
+    :root[data-theme="dark"] .notice.important > strong { color: #c9a9ff; }
+    :root[data-theme="light"] { --paper: #fafafa; --surface: #fff; --ink: #242424; --muted: #595959; --line: #dedede; --wash: #edf6fc; --indigo: #17476b; }
+    :root[data-theme="dark"] { --paper: #181818; --surface: #222; --ink: #f5f5f5; --muted: #bdbdbd; --line: #454545; --blue: #75c7ff; --wash: #183347; --indigo: #17476b; }
+    :root[data-theme="dark"] .primary { background: #0067b8; }
+    .appearance-dialog { width: min(560px, calc(100% - 32px)); max-height: calc(100dvh - 32px); padding: 24px; border: 1px solid var(--line); border-top: 3px solid var(--blue); border-radius: 12px; background: var(--surface); color: var(--ink); overflow-y: auto; }
+    .appearance-dialog::backdrop { background: #0008; }
+    .appearance-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .appearance-brands { display: flex; align-items: center; gap: 16px; font-size: 13px; }
+    .appearance-brands .product img { width: 24px; height: 24px; padding: 0; background: transparent; }
+    .appearance-dialog h2 { margin: 22px 0 8px; }
+    .appearance-dialog p { font-size: 13px; color: var(--muted); }
+    .theme-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 20px 0; }
+    .theme-option { min-width: 0; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); text-align: left; }
+    .theme-option[aria-pressed="true"] { outline: 2px solid var(--blue); outline-offset: 1px; }
+    .theme-option strong, .theme-option small { display: block; }
+    .theme-option strong { margin-top: 10px; font-size: 13px; }
+    .theme-option small { margin-top: 4px; color: var(--muted); font-size: 11px; line-height: 1.4; }
+    .theme-swatch { display: block; height: 60px; padding: 12px 10px 10px 28%; background: linear-gradient(90deg, #fff 22%, #f5f8fd 22%); border: 1px solid #d5dfed; border-radius: 4px; }
+    .theme-swatch::before, .theme-swatch::after { content: ""; display: block; height: 5px; border-radius: 2px; }
+    .theme-swatch::before { width: 45%; background: #0078d4; margin-bottom: 9px; }
+    .theme-swatch::after { width: 85%; background: #cbd5df; box-shadow: 0 10px #cbd5df; }
+    .theme-swatch.white { background: linear-gradient(90deg, #fff 22%, #fafafa 22%); border-color: #dedede; }
+    .theme-swatch.dark { background: linear-gradient(90deg, #222 22%, #181818 22%); border-color: #454545; }
+    .theme-swatch.dark::before { background: #75c7ff; }
+    .theme-swatch.dark::after { background: #555; box-shadow: 0 10px #555; }
+    .rail-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .icon-button { display: inline-grid; place-items: center; width: 34px; height: 34px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); flex-shrink: 0; }
+    .icon-button:hover { background: var(--wash); color: var(--blue); }
+    .nav-group { margin: 22px 0 0; color: var(--ink); font-size: 13px; }
+    .nav-group[open] > summary { margin-bottom: 6px; }
+    .nav-summary { display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: 8px; font-size: 12px; font-weight: 600; color: var(--muted); list-style: none; }
+    .nav-summary::-webkit-details-marker { display: none; }
+    .nav-summary::after { content: "+"; margin-left: auto; font-weight: 400; }
+    .nav-group[open] > .nav-summary::after { content: "−"; }
+    .nav-summary:hover { background: var(--paper); color: var(--ink); }
+    .nav-text { flex: 1; }
+    .services { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 24px; padding: 0; list-style: none; }
+    .services li { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); font-size: 13px; }
+    .services img { width: 24px; height: 24px; object-fit: contain; padding: 2px; background: white; border-radius: 4px; }
+    .services .tag { font-size: 11px; color: var(--muted); }
+    @media (min-width: 571px) {
+      .shell.collapsed { grid-template-columns: 72px minmax(0, 1fr); }
+      .collapsed .rail { padding: 20px 12px; overflow-x: hidden; }
+      .collapsed .rail-head { flex-direction: column; }
+      .collapsed .brand-text, .collapsed .nav-label, .collapsed .nav-title, .collapsed .nav-text, .collapsed .badge, .collapsed .rail-footer, .collapsed .nav-summary::after { display: none; }
+      .collapsed .nav-group nav { display: none; }
+      .collapsed .nav-group { margin-top: 8px; }
+      .collapsed nav a, .collapsed .nav-summary { justify-content: center; padding: 10px 0; gap: 0; position: relative; }
+      .collapsed #start-nav, .collapsed #module-nav { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line); }
+      .collapsed .module-id { width: auto; color: var(--ink); font-weight: 600; }
+      .collapsed .dot { position: absolute; top: 6px; right: 8px; }
+    }
+    @media (max-width: 570px) { #rail-toggle { display: none; } .nav-group nav { display: block; } }
+    .rail { overflow-x: hidden; }
+    @media (max-width: 850px) { .badge { display: none; } }
     @media (max-width: 850px) { .shell { grid-template-columns: 210px minmax(0, 1fr); } .rail { padding: 24px 12px; } main { padding: 32px 24px; } .toolbar { padding: 16px 24px; } #message { padding-left: 24px; padding-right: 24px; } .chain { grid-template-columns: 1fr; } .connector { width: 1px; height: 16px; margin-left: 20px; } .connector::after { right: -3px; top: 10px; transform: rotate(135deg); } .node { min-height: auto; } }
     @media (max-width: 570px) { .shell { display: block; } .rail { position: static; height: auto; padding: 20px; border-right: 0; border-bottom: 1px solid var(--line); } .brand small, .rail-footer, .nav-label { display: none; } #module-nav { display: flex; overflow-x: auto; margin: 16px -4px 0; padding: 4px; } #module-nav a { flex-shrink: 0; padding: 10px; margin: 0 4px 0 0; } #module-nav .nav-title { display: none; } #resource-nav { display: flex; flex-wrap: wrap; margin-top: 12px; } #resource-nav a { font-size: 12px; padding: 6px 10px; } main { padding: 28px 20px; } .toolbar { padding: 12px 20px; } .toolbar span { max-width: 200px; } .intro { gap: 16px; } .document { padding: 8px 18px 22px; } .route-item { grid-template-columns: 32px 1fr; gap: 12px; } .availability { grid-column: 2; } }
     @media (max-width: 570px) { .launch-panel { padding: 18px; } .command-head { flex-direction: column; align-items: flex-start; gap: 8px; } }
@@ -140,24 +242,27 @@
 <body>
   <a href="#content" class="skip">Skip to content</a>
   <div class="shell">
-    <aside class="rail">
-      <a class="brand" href="#/overview"><span class="brand-mark" aria-hidden="true">GM</span><span>Governed MCP<small>A hands-on Azure workshop</small></span></a>
+    <aside class="rail" id="rail">
+      <div class="rail-head">
+        <a class="brand" href="#/overview"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 40 44" focusable="false"><defs><linearGradient id="brand-shield" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#50e6ff"/><stop offset=".45" stop-color="#0078d4"/><stop offset="1" stop-color="#114a8b"/></linearGradient></defs><path d="M20 1.5 37 7.5v13.2c0 10.4-7.2 17.9-17 21.8C10.2 38.6 3 31.1 3 20.7V7.5z" fill="url(#brand-shield)"/><path d="M20 4.6 34 9.6v11c0 8.6-5.8 15-14 18.5" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="1"/><path d="M12.5 15.5v12M27.5 15.5v12M12.5 27.5 20 21.5l7.5 6M20 21.5v-7" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="20" cy="13.2" r="3.1" fill="#fff"/><circle cx="12.5" cy="15.5" r="2.4" fill="#fff"/><circle cx="27.5" cy="15.5" r="2.4" fill="#fff"/><circle cx="12.5" cy="28.5" r="2.4" fill="#fff"/><circle cx="27.5" cy="28.5" r="2.4" fill="#fff"/><circle cx="20" cy="21.5" r="2" fill="#ffb900"/></svg></span><span class="brand-text">Governed MCP<small>A hands-on <span class="brand-azure">Azure</span> workshop</small></span></a>
+        <button class="icon-button" id="rail-toggle" type="button" aria-controls="rail" aria-expanded="true"></button>
+      </div>
       <p class="nav-label">Start</p>
       <nav id="start-nav" aria-label="Start here"></nav>
       <p class="nav-label">Main route</p>
       <nav id="module-nav" aria-label="Workshop modules"></nav>
-      <p class="nav-label">References</p>
-      <nav id="resource-nav" aria-label="Workshop references">
-        <a href="#/overview">Workshop overview</a>
-        <a href="#/practice">Try your MCP</a>
-        <a href="#/runbook">Build runbook</a>
-        <a href="#/sources">Verified sources</a>
-        <a href="#/decisions">Build decisions</a>
-      </nav>
+      <details class="nav-group" id="resource-group">
+        <summary class="nav-summary"></summary>
+        <nav id="resource-nav" aria-label="Workshop references"></nav>
+      </details>
+      <details class="nav-group" id="author-group">
+        <summary class="nav-summary"></summary>
+        <nav id="author-nav" aria-label="Facilitators and authors"></nav>
+      </details>
       <p class="rail-footer">Copilot canvas SDK: Preview.<br>Read the steps. Run locally. Validate before continuing.</p>
     </aside>
     <div class="stage">
-      <header class="toolbar"><span>Workshop build board / self-paced guide</span><div class="toolbar-actions"><div class="languages" role="group" aria-label="Language / Langue"><button id="language-en" type="button" lang="en" aria-label="English">EN</button><button id="language-fr" type="button" lang="fr" aria-label="Français">FR</button></div><button class="refresh" id="refresh" type="button">Refresh content</button></div></header>
+      <header class="toolbar"><span>Workshop build board / self-paced guide</span><div class="toolbar-actions"><button class="icon-button" id="theme-toggle" type="button" aria-haspopup="dialog" aria-controls="appearance-dialog"></button><div class="languages" role="group" aria-label="Language / Langue"><button id="language-en" type="button" lang="en" aria-label="English">EN</button><button id="language-fr" type="button" lang="fr" aria-label="Français">FR</button></div><button class="refresh" id="refresh" type="button">Refresh content</button></div></header>
       <p id="message" role="status" aria-live="polite"></p>
       <main id="content" tabindex="-1" aria-label="Workshop content"><h1>Loading the workshop.</h1></main>
     </div>
@@ -175,6 +280,57 @@
     const content = document.getElementById("content");
     const message = document.getElementById("message");
     const labels = { todo: "Not built", "in-progress": "Being built", authored: "Authored, offline checks pass", validated: "Validated", blocked: "Build blocked" };
+    const dependencies = {
+      "00": { requires: [], text: "Start here. This module does not depend on any other module." },
+      "01": { requires: ["00"], text: "Needs the tools checked in module 00. No Azure resource: you can do it while module 00's Azure checks are still pending." },
+      "02": { requires: ["00", "01"], text: "Needs module 00 validated for your subscription (private parameters and Azure context) and module 01 completed." },
+      "03": { requires: ["02"], text: "Builds on your module 02 deployment: same private files and Terraform state. Your identity administrator must approve the Microsoft Entra request before you start." },
+      "04": { requires: ["02", "03"], text: "Needs both stages of module 03 deployed, with the same private files and Terraform state, and the Alice, Bob and Eve role assignments. If you plan module 05, publish its server code before stage 2: stage 2 makes the deployment endpoints private." },
+      "05": { requires: ["02", "03"], text: "Needs modules 02 and 03 deployed with the same private files and Terraform state; module 04 is recommended. Publish the server code before module 04 stage 2 makes the deployment endpoints private." },
+      "06": { requires: ["00", "01", "02", "03", "04", "05"], text: "Needs modules 00 to 05 completed, with the API Management MCP endpoint answering requests." },
+      "07": { requires: ["03", "04", "05", "06"], text: "Optional. Needs modules 03 to 06 validated, or a recording of them. Use the API Management address from module 04, never the Function address." },
+      "99": { requires: [], text: "Run it last, even if you stopped early. Use the same private files and Terraform state as the modules you deployed. Clean up in reverse order." },
+    };
+    const services = {
+      "00": [["subscription", "Azure subscription"], ["entra", "Microsoft Entra ID"]],
+      "01": [],
+      "02": [["functions", "Azure Functions"], ["storage", "Azure Storage"], ["insights", "Application Insights"]],
+      "03": [["entra", "Microsoft Entra ID"], ["functions", "Azure Functions"]],
+      "04": [["apim", "Azure API Management"], ["functions", "Azure Functions"], ["entra", "Microsoft Entra ID"], ["insights", "Application Insights"]],
+      "05": [["entra", "Microsoft Entra ID"], ["functions", "Azure Functions"], ["storage", "Azure Storage"]],
+      "06": [["insights", "Application Insights"], ["apim", "Azure API Management"], ["api-center", "Azure API Center"]],
+      "07": [["apim", "Azure API Management"], ["foundry-agent-service", "Foundry Agent Service"], ["copilot-studio", "Microsoft Copilot Studio"]],
+      "99": [["subscription", "Azure subscription"], ["entra", "Microsoft Entra ID"]],
+    };
+    function servicesList(module) {
+      const list = element("ul", undefined, "services");
+      list.setAttribute("aria-label", t("Services used in this module"));
+      const items = services[module.module] ?? [];
+      if (!items.length) {
+        list.append(element("li", "No Azure service: local only"));
+        return list;
+      }
+      for (const [icon, name] of items) {
+        const item = element("li");
+        if (icon) item.append(productIcon(icon));
+        item.append(document.createTextNode(t(name)));
+        list.append(item);
+      }
+      return list;
+    }
+    function productIcon(name) {
+      const image = element("img");
+      image.alt = "";
+      image.width = image.height = 24;
+      // A missing local asset (for example a stopped board server) must not show a broken-image glyph.
+      image.addEventListener("error", () => image.replaceWith(symbol("layers")), { once: true });
+      image.src = `assets/icons/${name}.svg`;
+      return image;
+    }
+    const preferences = {
+      get(name) { try { return localStorage.getItem(`workshop-${name}`); } catch { return null; } },
+      set(name, value) { try { localStorage.setItem(`workshop-${name}`, value); } catch { /* storage may be blocked */ } },
+    };
     function t(text) { return language === "fr" && Object.hasOwn(french, text) ? french[text] : text; }
     function element(tag, text, className) {
       const node = document.createElement(tag);
@@ -191,6 +347,19 @@
         tip: "M6 13c-5-5-2-11 4-11s9 6 4 11l-1 3H7zM7 19h6",
         warning: "M10 2 19 18H1zM10 7v5m0 3v1",
         important: "M10 2a8 8 0 1 0 0 16 8 8 0 1 0 0-16M10 6v5m0 3v1",
+        note: "M10 2a8 8 0 1 0 0 16 8 8 0 1 0 0-16M10 9v6m0-10v1",
+        caution: "M6 2h8l4 4v8l-4 4H6l-4-4V6zM10 6v5m0 3v1",
+        home: "M2 9 10 2l8 7M4 8v10h12V8M8 18v-5h4v5",
+        layers: "M10 2 18 6l-8 4-8-4zM2 10l8 4 8-4M2 14l8 4 8-4",
+        link: "M8 12l4-4M7 9 4 12a3 3 0 0 0 4 4l3-3M13 11l3-3a3 3 0 0 0-4-4L9 7",
+        people: "M7 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6M1 18c0-4 3-6 6-6s6 2 6 6M14 3a3 3 0 0 1 0 6M15 12c2 .5 4 2.5 4 6",
+        flag: "M4 19V2M4 3h11l-2 4 2 4H4",
+        globe: "M10 1a9 9 0 1 0 0 18 9 9 0 1 0 0-18M1 10h18M10 1c3 3 3 15 0 18M10 1c-3 3-3 15 0 18",
+        check: "M10 1a9 9 0 1 0 0 18 9 9 0 1 0 0-18M6 10l3 3 5-6",
+        sun: "M10 6a4 4 0 1 0 0 8 4 4 0 1 0 0-8M10 1v2m0 14v2M1 10h2m14 0h2M3.6 3.6 5 5m10 10 1.4 1.4M3.6 16.4 5 15M15 5l1.4-1.4",
+        moon: "M16 13A7 7 0 0 1 7 4a7 7 0 1 0 9 9",
+        collapse: "M2 3h16v14H2zM7 3v14M14 7l-3 3 3 3",
+        expand: "M2 3h16v14H2zM7 3v14M11 7l3 3-3 3",
       };
       const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
       svg.setAttribute("viewBox", "0 0 20 20");
@@ -233,7 +402,7 @@
             const asset = repositoryPath && (
               /^assets\/architecture\/(?:00|01|02|03|04|05|06|07|99)\.(?:en|fr)\.(?:svg|png)$/.test(repositoryPath) ||
               repositoryPath === "assets/architecture/workshop.drawio" ||
-              /^assets\/icons\/(?:azure|microsoft|entra|apim|functions|storage|insights|api-center|subscription)\.svg$/.test(repositoryPath));
+              /^assets\/icons\/(?:azure|microsoft|entra|apim|functions|storage|insights|api-center|subscription|foundry-agent-service|copilot-studio)\.svg$/.test(repositoryPath));
             const anchor = link(label, local ? `#/${local[0]}` : localModule ? `#/module/${localModule.module}` :
               asset ? `${staticSite ? "" : "/"}${repositoryPath}` : url.href);
             if (!local && !localModule) {
@@ -254,6 +423,18 @@
       for (let i = 0; i < lines.length;) {
         const line = lines[i];
         if (!line.trim()) { i++; continue; }
+        const diagramImage = /^!\[([^\]]+)\]\(([^)]+)\)$/.exec(line);
+        if (diagramImage) {
+          const asset = /^(?:\.\.\/)+assets\/architecture\/(\d{2})\.(en|fr)\.svg$/.exec(diagramImage[2]);
+          const module = asset && state.modules.find((item) => item.module === asset[1]);
+          if (!module || asset[2] !== language) throw new Error("Document images must use a published workshop diagram in the current language.");
+          const figure = architecture(module);
+          figure.classList.add("inline-architecture");
+          figure.querySelector("img").alt = diagramImage[1];
+          body.append(figure);
+          i++;
+          continue;
+        }
         if (line === "<details>") {
           const summary = /^<summary>([^<]+)<\/summary>$/.exec(lines[i + 1] || "");
           if (!summary) throw new Error("A document disclosure needs a plain-text summary.");
@@ -274,15 +455,27 @@
           continue;
         }
         const callout = /^> \[!(TIP|NOTE|IMPORTANT|WARNING|CAUTION)\]\s*$/.exec(line);
-        if (callout) {
+        if (line.startsWith(">")) {
           const text = [];
-          i++;
+          if (callout) i++;
           while (i < lines.length && /^>/.test(lines[i])) text.push(lines[i++].replace(/^> ?/, ""));
           const types = { TIP: "Tip", NOTE: "Note", IMPORTANT: "Important", WARNING: "Warning", CAUTION: "Danger" };
-          const box = notice(types[callout[1]], "", callout[1].toLowerCase());
-          const paragraph = element("p");
-          inline(paragraph, text.join(" "), path);
-          box.append(paragraph);
+          // A quote opening with a result label shows what a command returns and what it means for the attendee.
+          const result = !callout && /^\*\*(?:Real result|Expected result|Résultat réel|Résultat attendu)\b/.test(text[0] || "");
+          const box = callout ? notice(types[callout[1]], "", callout[1].toLowerCase()) :
+            result ? element("div", undefined, `result-box ${/^\*\*(?:Real result|Résultat réel)/.test(text[0]) ? "real" : "expected"}`) :
+              element("blockquote");
+          const contents = markdown(text.join("\n"), path);
+          contents.className = callout ? "notice-body" : result ? "result-body" : "";
+          if (result) {
+            // Output is evidence to read, not a command to copy and run.
+            for (const block of contents.querySelectorAll(".command")) {
+              block.classList.add("output");
+              block.querySelector(".command-head span").textContent = t("Output");
+              block.querySelector(".copy")?.remove();
+            }
+          }
+          box.append(contents);
           body.append(box);
           continue;
         }
@@ -297,9 +490,13 @@
             body.append(architecture(module));
             continue;
           }
-          const pre = element("pre");
-          pre.append(element("code", code.join("\n")));
-          body.append(pre);
+          const language = line.trim().slice(3).trim();
+          const titles = { powershell: "PowerShell", bash: "Bash", sh: "Shell", json: "JSON", text: "Text" };
+          const block = commandBlock(titles[language] || language || "Code", code.join("\n"), "Copy code", false);
+          if (["powershell", "bash", "sh"].includes(language)) {
+            block.append(element("p", "Copy, review, then run in your own terminal. Replace placeholders first. This page does not execute commands.", "field-message"));
+          }
+          body.append(block);
           continue;
         }
         if (line.startsWith("|") && /^\|[\s:|-]+\|$/.test(lines[i + 1] || "")) {
@@ -345,7 +542,7 @@
           }
         } else {
           let text = lines[i++].replace(/^> ?/, "");
-          while (i < lines.length && lines[i].trim() && !/^(#|```|\||- |\d+\. |<details>|<\/details>)/.test(lines[i])) text += " " + lines[i++].trim().replace(/^> ?/, "");
+          while (i < lines.length && lines[i].trim() && !/^(#|```|\||>|- |\d+\. |<details>|<\/details>)/.test(lines[i])) text += " " + lines[i++].trim();
           inline(node, text, path);
         }
         body.append(node);
@@ -357,10 +554,169 @@
       section.append(element("summary", title), ...children);
       return section;
     }
+    function lessonSteps(text) {
+      const steps = [];
+      let title = "Before you begin", lines = [], fenced = false, depth = 0;
+      function flush() {
+        const blocks = [];
+        let block = [], code = false, details = 0;
+        function finishBlock() {
+          if (block.some((line) => line.trim())) {
+            if (block.length > 2 && /^\|[\s:|-]+\|$/.test(block[1]) && block.every((line) => line.startsWith("|"))) {
+              const header = block.slice(0, 2);
+              let rows = [...header];
+              for (const row of block.slice(2)) {
+                if (rows.length > 2 && [...rows, row].join("\n").split(/\s+/).length > 180) {
+                  blocks.push(rows.join("\n"));
+                  rows = [...header];
+                }
+                rows.push(row);
+              }
+              blocks.push(rows.join("\n"));
+            } else blocks.push(block.join("\n").trim());
+          }
+          block = [];
+        }
+        for (const [index, line] of lines.entries()) {
+          if (!code && details === 0 && !line.trim()) {
+            const next = lines.slice(index + 1).find((item) => item.trim()) || "";
+            if (/^(?:[-*] |\d+[.)] )/.test(block[0] || "") && /^\s+\S/.test(next)) block.push(line);
+            else finishBlock();
+            continue;
+          }
+          // Keep nested lists with their parent, but allow long lists to advance item by item.
+          if (!code && details === 0 && /^(?:[-*] |\d+[.)] )/.test(line) &&
+              /^(?:[-*] |\d+[.)] )/.test(block[0] || "")) finishBlock();
+          block.push(line);
+          if (/^\s*```/.test(line)) code = !code;
+          if (!code && line === "<details>") details++;
+          if (!code && line === "</details>") details--;
+        }
+        finishBlock();
+        const pages = [];
+        let page = [], words = 0;
+        const kind = (block) => /^\d+[.)] /.test(block) ? "ol" : /^[-*] /.test(block) ? "ul" : null;
+        // Consecutive items of one list are rejoined so a page shows one list, not one list per item.
+        const join = (items) => items.reduce((text, block, at) =>
+          at === 0 ? block : text + (kind(block) && kind(block) === kind(items[at - 1]) ? "\n" : "\n\n") + block, "");
+        for (const block of blocks) {
+          // Long commands and disclosures are closed references, not visible reading load.
+          const visible = block.startsWith("<details>") ? "" :
+            block.replace(/```[^\n]*\n([\s\S]*?)\n```/g, (fence, code) =>
+              code.split("\n").length > 12 || code.length > 1200 ? "" : fence);
+          const count = visible.match(/\S+/g)?.length || 0;
+          // A result box explains the command just above it: never separate them across pages.
+          const isResult = /^> \*\*(?:Real result|Expected result|Résultat réel|Résultat attendu)\b/.test(block);
+          if (page.length && words + count > 180 && !isResult) {
+            pages.push(join(page));
+            page = []; words = 0;
+          }
+          page.push(block); words += count;
+        }
+        if (page.length) pages.push(join(page));
+        pages.forEach((content, index) => steps.push({
+          title, content, ...(pages.length > 1 ? { part: index + 1, parts: pages.length } : {}),
+        }));
+        lines = [];
+      }
+      for (const line of text.split(/\r?\n/)) {
+        if (/^\s*```/.test(line)) fenced = !fenced;
+        if (!fenced && depth === 0) {
+          if (/^# /.test(line) || /^\[(?:Français|English)\]\([^)]+\)$/.test(line)) continue;
+          const heading = /^#{2,4} (.+)$/.exec(line);
+          const action = /^\*\*(\d+[.)]\s+[^*]+)\*\*(.*)$/.exec(line);
+          if (heading || action) {
+            flush();
+            title = (heading ? heading[1] : action[1]).replace(/^\d+[.)]\s+/, "");
+            if (action?.[2].trim()) lines.push(action[2].trim());
+            continue;
+          }
+        }
+        lines.push(line);
+        if (!fenced && line === "<details>") depth++;
+        if (!fenced && line === "</details>") depth--;
+      }
+      flush();
+      if (!steps.length) throw new Error("A guided document needs at least one step.");
+      return steps;
+    }
+    function guidedDocument(text, path) {
+      const steps = lessonSteps(text);
+      const section = element("section", undefined, "lesson");
+      section.setAttribute("aria-label", t("One step at a time"));
+      // Reading order for beginners: where am I, the content, then what to do next.
+      const header = element("div", undefined, "lesson-head");
+      const position = element("p", undefined, "lesson-position");
+      position.setAttribute("aria-live", "polite");
+      const meter = element("div", undefined, "lesson-meter");
+      meter.setAttribute("aria-hidden", "true");
+      const fill = element("span");
+      meter.append(fill);
+      header.append(position, meter);
+      const stepTitle = (step) => `${t(step.title)}${step.part ? ` / ${t("Part")} ${step.part} / ${step.parts}` : ""}`;
+      const page = element("article", undefined, "lesson-page");
+      const navigation = element("nav", undefined, "lesson-nav");
+      navigation.setAttribute("aria-label", t("Reading steps"));
+      const previous = element("button", undefined, "secondary");
+      const next = element("button", undefined, "primary");
+      previous.type = next.type = "button";
+      const outline = element("details", undefined, "lesson-outline");
+      const summary = element("summary");
+      const list = element("ol");
+      outline.append(summary, list);
+      const jumps = steps.map((step, stepIndex) => {
+        const item = element("li");
+        const jump = element("button", stepTitle(step), "lesson-jump");
+        jump.type = "button";
+        jump.addEventListener("click", () => { index = stepIndex; outline.open = false; show(true); });
+        item.append(jump);
+        list.append(item);
+        return jump;
+      });
+      let index = 0;
+      function show(focus = false) {
+        const step = steps[index];
+        position.textContent = `${t("Step")} ${index + 1} / ${steps.length}`;
+        fill.style.width = `${Math.round(((index + 1) / steps.length) * 100)}%`;
+        summary.textContent = `${t("Outline: go to a step")} (${steps.length})`;
+        for (const [jumpIndex, jump] of jumps.entries()) {
+          if (jumpIndex === index) jump.setAttribute("aria-current", "step");
+          else jump.removeAttribute("aria-current");
+        }
+        previous.disabled = index === 0;
+        next.disabled = index === steps.length - 1;
+        previous.textContent = `\u2190 ${t("Previous step")}`;
+        next.textContent = index === steps.length - 1 ? t("End of this guide") :
+          `${t("Next:")} ${stepTitle(steps[index + 1])} \u2192`;
+        const heading = element("h2", stepTitle(step));
+        heading.tabIndex = -1;
+        const body = markdown(step.content, path);
+        for (const command of body.querySelectorAll(".command")) {
+          const code = command.querySelector("code").textContent;
+          if (code.split("\n").length > 12 || code.length > 1200) {
+            const full = disclosure("Full block: read before copying",
+              element("p", "This block stays together to preserve its checks. Read it before running; do not remove guards or approval steps.", "field-message"));
+            command.replaceWith(full);
+            full.append(command);
+          }
+        }
+        page.replaceChildren(heading, body);
+        if (focus) {
+          heading.focus({ preventScroll: true });
+          section.scrollIntoView({ block: "start" });
+        }
+      }
+      previous.addEventListener("click", () => { if (index > 0) { index--; show(true); } });
+      next.addEventListener("click", () => { if (index < steps.length - 1) { index++; show(true); } });
+      navigation.append(previous, next);
+      section.append(header, page, navigation, outline);
+      show();
+      return section;
+    }
     function notice(title, description, type = "important") {
       const node = element("div", undefined, `notice ${type}`);
       const heading = element("strong");
-      heading.append(symbol(type === "tip" ? "tip" : ["warning", "caution"].includes(type) ? "warning" : "important"),
+      heading.append(symbol(["tip", "note", "warning", "caution"].includes(type) ? type : "important"),
         document.createTextNode(t(title)));
       node.append(heading, document.createTextNode(t(description)));
       return node;
@@ -368,14 +724,31 @@
     function moduleLink(module, className) {
       return link(module.title, `#/module/${module.module}`, className);
     }
+    function dependencyNotice(module) {
+      const dependency = dependencies[module.module];
+      if (!dependency) return null;
+      const required = dependency.requires.map((code) => state.modules.find((item) => item.module === code)).filter(Boolean);
+      const title = required.length ? "Depends on earlier modules" : module.module === "99" ? "Run this module last" : "No dependency";
+      const node = notice(title, dependency.text, required.length ? "warning" : "note");
+      node.classList.add("dependency");
+      if (required.length) {
+        const list = element("p", "Validate these modules first, in order:");
+        required.forEach((item, position) => {
+          list.append(document.createTextNode(position ? ", " : " "));
+          list.append(link(`${item.module} / ${item.title}`, `#/module/${item.module}`));
+        });
+        node.append(list);
+      }
+      return node;
+    }
     function externalLink(text, href, className) {
       const anchor = link(text, href, className);
       anchor.target = "_blank";
       anchor.rel = "noopener noreferrer";
       return anchor;
     }
-    function commandBlock(title, text, copyLabel = "Copy command") {
-      text = t(text);
+    function commandBlock(title, text, copyLabel = "Copy command", translateText = true) {
+      if (translateText) text = t(text);
       const section = element("section", undefined, "command");
       const heading = element("div", undefined, "command-head");
       const copy = element("button", copyLabel, "copy");
@@ -486,9 +859,16 @@
           link("Read the context and permission guide", "#/deployment", "secondary"));
         if (state.environment.context.powershell) section.append(commandBlock("Select Azure context / PowerShell",
           `& .\\${state.environment.context.powershell.replaceAll("/", "\\")}${language === "fr" ? " -Language fr" : ""}`));
-        if (state.environment.context.bash) section.append(commandBlock("Select Azure context / bash",
-          `source ./${state.environment.context.bash} ${language}`));
+        if (state.environment.context.bash) section.append(disclosure("Using bash", commandBlock("Select Azure context / bash",
+          `source ./${state.environment.context.bash} ${language}`)));
         section.append(element("p", "Read the script first. Run it in the same terminal used for the real module. No credentials or IDs are collected here.", "field-message"));
+        const portals = element("div", undefined, "action-row");
+        portals.append(externalLink("Open Azure portal", "https://portal.azure.com/", "secondary"),
+          externalLink("Open Microsoft Entra admin center", "https://entra.microsoft.com/", "secondary"));
+        section.append(element("h2", "See your Azure results"),
+          element("p", "Run the read-only inspection commands below in the same PowerShell terminal. Results stay there. In the portals, select the same directory and subscription; no context is sent by this page."),
+          portals,
+          notice("Note", "Module 01 is local only. An empty resource list does not validate deployment or cleanup. Use the module validator to check behavior.", "note"));
         return section;
       }
       function architecture(module) {
@@ -648,10 +1028,7 @@
       brands.append(element("span", "Technologies covered"));
       for (const [name, asset] of [["Microsoft", "microsoft"], ["Azure", "azure"], ["Microsoft Entra ID", "entra"]]) {
         const product = element("span", undefined, "product");
-        const image = element("img");
-        image.src = `assets/icons/${asset}.svg`;
-        image.alt = "";
-        product.append(image, document.createTextNode(name));
+        product.append(productIcon(asset), document.createTextNode(name));
         brands.append(product);
       }
       content.append(brands, element("p", "Independent training. Product marks identify technologies, not endorsement.", "field-message"),
@@ -671,6 +1048,12 @@
         const row = link("", `#/module/${module.module}`, "route-item");
         const title = element("span", module.title, "route-title");
         title.append(element("span", module.module === "07" ? "Optional facilitator demo" : module.module === "99" ? "Remove workshop-owned resources" : labels[module.status], "route-meta"));
+        const requires = dependencies[module.module]?.requires ?? [];
+        if (requires.length) {
+          const meta = element("span", undefined, "route-meta");
+          meta.textContent = `${t("Requires modules:")} ${requires.join(", ")}`;
+          title.append(meta);
+        } else if (module.module === "99") title.append(element("span", "Run it last", "route-meta"));
         row.append(element("span", module.module, "route-number"), title,
           element("span", module.guide === null ? "Design outline" : "Participant guide", "availability"));
         route.append(row);
@@ -684,10 +1067,15 @@
         element("h1", module.title));
       intro.append(element("span", module.module, "chapter"), title);
       content.append(intro);
+      const dependency = dependencyNotice(module);
       if (module.guide === null) content.append(notice("Design outline - participant guide not published.",
         "These are the planned outcomes and requirements. Do not treat them as deployment instructions. The complete steps, commands, validation and cleanup will appear here when the module README is added."));
-      else content.append(element("p", "Follow the guide in order. Run its validation before continuing. Use only non-production resources.", "lead"));
-      content.append(architecture(module));
+      else {
+        if (["01", "05"].includes(module.module)) {
+          content.append(link(module.module === "05" ? "First read: On-Behalf-Of explained simply (concepts, sections 10 to 12)" :
+            "First read: MCP and agent concepts", "#/concepts", "secondary"));
+        }
+      }
       if (module.originalGuide) {
         content.append(notice("Important", "French participant guide not published. Read the original English guide before executing its commands."));
         const original = element("details");
@@ -701,16 +1089,27 @@
       exercise.append(element("h2", "Try this stage"));
       if (module.module === "00") exercise.append(link("Your Azure context", "#/deployment", "secondary"));
       else exercise.append(link("Open the call workspace", "#/practice", "secondary"), validationCommands(module));
+      if (!["00", "01"].includes(module.module)) {
+        exercise.append(link("See your Azure results", "#/deployment", "secondary"));
+      }
       const hints = element("details");
       hints.append(element("summary", "Need a hint? Understand what this stage proves."),
         markdown(module.hints, module.hintsSourcePath));
       exercise.append(hints);
-      content.append(markdown(module.guide ?? module.outline, module.sourcePath));
-      content.append(exercise);
+      if (module.guide !== null) content.append(guidedDocument(module.guide, module.sourcePath));
+      else content.append(guidedDocument(module.outline, module.sourcePath));
+      // Optional material comes after the lesson, so the main path reads strictly top to bottom.
+      content.append(element("h2", "Go further (optional)", "further-title"),
+        disclosure("Practice and validation", exercise),
+        disclosure("Architecture and security flow", architecture(module)));
+      const preparation = disclosure("Prerequisites and services", servicesList(module));
+      if (dependency) preparation.append(dependency);
+      content.append(preparation);
       const concepts = element("details");
       concepts.append(element("summary", "Why this boundary matters"), markdown(module.learning, module.learningSourcePath),
         link("Read the full governance guide", "#/governance", "secondary"));
       content.append(concepts);
+      if (module.guide !== null) content.append(disclosure("Full participant guide", markdown(module.guide, module.sourcePath)));
       const source = element("p", undefined, "source");
       source.append(document.createTextNode(language === "fr" ? "Fichier source : " : "Source: "), element("code", module.sourcePath));
       content.append(source);
@@ -747,10 +1146,11 @@
         if (language === "fr") content.prepend(notice("Note", "Original repository decisions and evidence remain in English."));
       } else if (Object.hasOwn(state.documents, route.slice(2))) {
         const doc = state.documents[route.slice(2)];
-        if (route === "#/deployment") content.append(deploymentContext());
-        const body = markdown(doc.content, doc.sourcePath);
+        const guided = ["#/deployment", "#/presenter", "#/hosting", "#/gettingStarted", "#/concepts", "#/governance"].includes(route);
+        const body = guided ? guidedDocument(doc.content, doc.sourcePath) : markdown(doc.content, doc.sourcePath);
         if (language === "fr" && route.startsWith("#/original")) body.lang = "en";
         content.append(element("h1", doc.title), body);
+        if (guided) content.append(disclosure("Full reference guide", markdown(doc.content, doc.sourcePath)));
       } else if (route === "#/overview" || route === "#content") overview();
       else {
         content.append(element("h1", "Page not found."),
@@ -758,8 +1158,11 @@
           link("Workshop overview", "#/overview", "primary"));
       }
       for (const anchor of document.querySelectorAll(".rail nav a")) {
-        if (anchor.getAttribute("href") === route) anchor.setAttribute("aria-current", "page");
-        else anchor.removeAttribute("aria-current");
+        if (anchor.getAttribute("href") === route) {
+          anchor.setAttribute("aria-current", "page");
+          const group = anchor.closest(".nav-group");
+          if (group) group.open = true;
+        } else anchor.removeAttribute("aria-current");
       }
       document.title = `${content.querySelector("h1").textContent} | ${staticSite ? "Governed MCP on Azure" : "Workshop build board"}`;
       if (focus) content.focus({ preventScroll: true });
@@ -769,52 +1172,58 @@
       document.documentElement.lang = language;
       if (rawState) state = language === "fr" ? { ...rawState, ...rawState.translations.fr } : rawState;
       for (const [selector, text] of [
-        [".skip", "Skip to content"], [".brand small", "A hands-on Azure workshop"],
+        [".skip", "Skip to content"],
         [".toolbar > span", staticSite ? "Governed MCP / self-paced workshop" : "Workshop build board / self-paced guide"], ["#refresh", "Refresh content"],
       ]) document.querySelector(selector).textContent = t(text);
+      const tagline = document.querySelector(".brand small");
+      const [before, after = ""] = t("A hands-on Azure workshop").split("Azure");
+      const azure = element("span", "Azure", "brand-azure");
+      tagline.replaceChildren(document.createTextNode(before), azure, document.createTextNode(after));
       const captions = document.querySelectorAll(".nav-label");
       captions[0].textContent = t("Start");
       captions[1].textContent = t("Main route");
-      captions[2].textContent = t("References");
       document.querySelector(".rail-footer").textContent = staticSite ?
         t("Read the steps. Run in your own environment. No credentials or deployment in this website.") :
         language === "fr" ? "Interface Copilot en Preview. Suivez les étapes et vérifiez chaque module avant de poursuivre." :
           "Copilot canvas SDK: Preview. Read the steps. Run locally. Validate before continuing.";
-      for (const [id, text] of [["start-nav", "Start here"], ["module-nav", "Workshop modules"], ["resource-nav", "Workshop references"], ["content", "Workshop content"]]) {
+      for (const [id, text] of [["start-nav", "Start here"], ["module-nav", "Workshop modules"], ["resource-nav", "Workshop references"], ["author-nav", "Facilitators and authors"], ["content", "Workshop content"]]) {
         document.getElementById(id).setAttribute("aria-label", t(text));
       }
+      function navLink(route, title, icon) {
+        const anchor = link("", `#/${route}`);
+        anchor.title = t(title);
+        anchor.append(symbol(icon), element("span", title, "nav-text"));
+        return anchor;
+      }
       const starts = document.getElementById("start-nav");
-      starts.replaceChildren();
-      for (const [route, title, icon] of [
-        ["start", "Choose your workspace", "terminal"],
-        ["overview", "Workshop overview", "route"],
-        ["implementation", "What is actually available?", "important"],
-      ]) {
-        const anchor = link("", `#/${route}`);
-        anchor.append(symbol(icon), element("span", title));
-        starts.append(anchor);
-      }
+      starts.replaceChildren(navLink("start", "Choose your workspace", "terminal"),
+        navLink("concepts", "MCP and agent concepts", "book"), navLink("overview", "Workshop overview", "home"));
       for (const code of ["en", "fr"]) document.getElementById(`language-${code}`).setAttribute("aria-pressed", String(language === code));
-      const resources = document.getElementById("resource-nav");
-      resources.replaceChildren();
-      for (const [route, title, icon] of [
-        ["practice", "Try your MCP", "terminal"],
-        ["deployment", "Your Azure context", "shield"], ["governance", "Understand governance", "shield"],
-        ["architecture", "Architecture, step by step", "route"],
-        ["sources", "Verified sources", "book"], ["runbook", "Build runbook", "book"],
-        ["decisions", "Build decisions", "important"],
-        ["hosting", "Publish or host the guides", "book"],
-        ...(state?.documents.presenter ? [["presenter", "Presenter guide", "book"]] : []),
+      for (const [group, nav, title, icon, entries] of [
+        ["resource-group", "resource-nav", "Resources", "book", [
+          ["practice", "Try your MCP", "terminal"], ["deployment", "Your Azure context", "shield"],
+          ["governance", "Understand governance", "important"], ["architecture", "Architecture, step by step", "layers"],
+          ["sources", "Verified sources", "link"],
+        ]],
+        ["author-group", "author-nav", "Facilitators and authors", "people", [
+          ["implementation", "What is actually available?", "check"],
+          ...(state?.documents.presenter ? [["presenter", "Presenter guide", "people"]] : []),
+          ["runbook", "Build runbook", "route"], ["decisions", "Build decisions", "flag"],
+          ["hosting", "Publish or host the guides", "globe"],
+        ]],
       ]) {
-        const anchor = link("", `#/${route}`);
-        anchor.append(symbol(icon), element("span", title));
-        resources.append(anchor);
+        const summary = document.querySelector(`#${group} > summary`);
+        summary.replaceChildren(symbol(icon), element("span", title, "nav-text"));
+        summary.title = t(title);
+        document.getElementById(nav).replaceChildren(...entries.map((entry) => navLink(...entry)));
       }
+      updateChrome();
       const nav = document.getElementById("module-nav");
       nav.replaceChildren();
       for (const module of state?.modules || []) {
         const anchor = link("", `#/module/${module.module}`);
         anchor.setAttribute("aria-label", `Module ${module.module}: ${module.title}`);
+        anchor.title = `${module.module} / ${module.title}`;
         anchor.append(element("span", module.module, "module-id"), element("span", module.title, "nav-title"));
         const note = module.module === "07" ? "Optional" : module.module === "99" ? "Always" : "";
         if (note) anchor.append(element("span", t(note), "badge"));
@@ -885,6 +1294,109 @@
       content.focus();
     });
     window.addEventListener("hashchange", () => render(true));
+    const shell = document.querySelector(".shell");
+    function systemDark() { return window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false; }
+    const themeChoices = [
+      ["template", "Template", "Original layout, system colors"],
+      ["light", "White", "White surfaces, Azure accents"],
+      ["dark", "Dark", "Dark surfaces, Azure accents"],
+    ];
+    function updateAppearance() {
+      const selected = document.documentElement.dataset.theme || "template";
+      for (const button of document.querySelectorAll("[data-theme-choice]")) {
+        button.setAttribute("aria-pressed", String(button.dataset.themeChoice === selected));
+      }
+      for (const node of document.querySelectorAll("[data-appearance-label]")) node.textContent = t(node.dataset.appearanceLabel);
+      document.getElementById("appearance-close").setAttribute("aria-label", t("Close appearance settings"));
+    }
+    function setTheme(value) {
+      if (!themeChoices.some(([key]) => key === value)) throw new Error("Unknown appearance template.");
+      if (value === "template") delete document.documentElement.dataset.theme;
+      else document.documentElement.dataset.theme = value;
+      preferences.set("theme", value);
+      updateChrome();
+    }
+    function createAppearanceDialog() {
+      const dialog = element("dialog", undefined, "appearance-dialog");
+      dialog.id = "appearance-dialog";
+      dialog.setAttribute("aria-labelledby", "appearance-title");
+      dialog.setAttribute("aria-describedby", "appearance-description");
+      const heading = element("div", undefined, "appearance-head");
+      const brands = element("div", undefined, "appearance-brands");
+      for (const [name, asset] of [["Microsoft", "microsoft"], ["Azure", "azure"]]) {
+        const product = element("span", undefined, "product");
+        product.append(productIcon(asset), document.createTextNode(name));
+        brands.append(product);
+      }
+      const close = element("button", undefined, "icon-button");
+      close.id = "appearance-close";
+      close.type = "button";
+      close.append(document.createTextNode("\u00d7"));
+      close.addEventListener("click", () => dialog.close());
+      heading.append(brands, close);
+      function label(tag, text, id) {
+        const node = element(tag);
+        node.dataset.appearanceLabel = text;
+        if (id) node.id = id;
+        return node;
+      }
+      const options = element("div", undefined, "theme-options");
+      options.setAttribute("role", "group");
+      options.setAttribute("aria-labelledby", "appearance-title");
+      for (const [key, title, description] of themeChoices) {
+        const button = element("button", undefined, "theme-option");
+        button.type = "button";
+        button.dataset.themeChoice = key;
+        const swatch = element("span", undefined, `theme-swatch ${key === "light" ? "white" : key}`);
+        swatch.setAttribute("aria-hidden", "true");
+        button.append(swatch, label("strong", title), label("small", description));
+        button.addEventListener("click", () => setTheme(key));
+        options.append(button);
+      }
+      dialog.append(heading, label("h2", "Appearance", "appearance-title"),
+        label("p", "Choose a template. Your preference stays in this browser.", "appearance-description"),
+        options, label("p", "Independent training. Product marks identify technologies, not endorsement."));
+      document.body.append(dialog);
+      return dialog;
+    }
+    const appearanceDialog = createAppearanceDialog();
+    function updateChrome() {
+      const dark = document.documentElement.dataset.theme ? document.documentElement.dataset.theme === "dark" : systemDark();
+      const theme = document.getElementById("theme-toggle");
+      const themeLabel = t("Choose appearance");
+      theme.replaceChildren(symbol(dark ? "sun" : "moon"));
+      theme.setAttribute("aria-label", themeLabel);
+      theme.title = themeLabel;
+      updateAppearance();
+      const collapsed = shell.classList.contains("collapsed");
+      const rail = document.getElementById("rail-toggle");
+      const railLabel = t(collapsed ? "Expand menu" : "Collapse menu");
+      rail.replaceChildren(symbol(collapsed ? "expand" : "collapse"));
+      rail.setAttribute("aria-label", railLabel);
+      rail.setAttribute("aria-expanded", String(!collapsed));
+      rail.title = railLabel;
+    }
+    function setCollapsed(collapsed) {
+      shell.classList.toggle("collapsed", collapsed);
+      preferences.set("rail", collapsed ? "collapsed" : "expanded");
+      updateChrome();
+    }
+    const savedTheme = preferences.get("theme");
+    if (savedTheme === "dark" || savedTheme === "light") document.documentElement.dataset.theme = savedTheme;
+    if (preferences.get("rail") === "collapsed") shell.classList.add("collapsed");
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+      appearanceDialog.showModal();
+    });
+    document.getElementById("rail-toggle").addEventListener("click", () => setCollapsed(!shell.classList.contains("collapsed")));
+    for (const group of document.querySelectorAll(".nav-group")) {
+      group.querySelector("summary").addEventListener("click", (event) => {
+        if (!shell.classList.contains("collapsed")) return;
+        // In icon-only mode, a group icon reopens the full menu with that group expanded.
+        event.preventDefault();
+        group.open = true;
+        setCollapsed(false);
+      });
+    }
     window.addEventListener("popstate", () => {
       language = new URL(location.href).searchParams.get("lang") === "fr" ? "fr" : "en";
       activateLanguage();

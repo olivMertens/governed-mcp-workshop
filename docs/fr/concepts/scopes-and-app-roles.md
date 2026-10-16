@@ -15,23 +15,23 @@ L'approbation humaine autorise un appel précis. Ces contrôles sont complément
 ## Alice, Bob et Eve
 
 - **Alice** reçoit `Tools.Read` et `Tools.Write`. Après son approbation, `create_ticket` peut s'exécuter.
-- **Bob** reçoit `Tools.Read`. Son scope valide ne donne pas `Tools.Write` ; APIM renvoie HTTP 403.
+- **Bob** reçoit `Tools.Read`. Son scope, pourtant valide, ne lui accorde pas `Tools.Write` ; APIM renvoie HTTP 403.
 - **Eve** n'est pas affectée. Si l'affectation est obligatoire, elle ne peut pas obtenir le jeton de l'atelier.
 
 L'API définit des rôles stables. Les administrateurs les affectent. La ressource vérifie les valeurs exactes.
-Le consentement à un scope n'est pas une affectation de rôle ; la préautorisation ne donne pas un rôle d'outil.
-Utilisez la validation de plateforme et les stratégies ou frameworks officiels, jamais un validateur JWT artisanal.
+Le consentement à un scope n'est pas une affectation de rôle ; la préautorisation n'accorde aucun rôle d'outil.
+Utilisez la validation intégrée à la plateforme et les stratégies ou frameworks officiels, jamais un validateur JWT fait maison.
 
 ## Résultat attendu
 
-À partir de revendications fictives, vous expliquez pourquoi Alice réussit, Bob est refusé pour une écriture et
-Eve ne peut pas entrer. Toute écriture exige un rôle explicite et l'approbation humaine. Les journaux conservent
-seulement l'identifiant objet, le nom fixe de l'outil, le statut, la durée et l'identifiant de corrélation.
+À partir de revendications fictives, vous savez expliquer pourquoi Alice réussit, pourquoi Bob est refusé pour une écriture
+et pourquoi Eve ne peut pas accéder. Toute écriture exige un rôle explicite et l'approbation humaine. Les journaux conservent
+seulement l'identifiant d'objet, le nom fixe de l'outil, le statut, la durée et l'identifiant de corrélation.
 
 ## Sources
 
 - [Scopes et autorisations](https://learn.microsoft.com/entra/identity-platform/scopes-oidc).
 - [Ajouter des rôles applicatifs](https://learn.microsoft.com/entra/identity-platform/howto-add-app-roles-in-apps).
-- [Vérifier scopes et rôles](https://learn.microsoft.com/entra/identity-platform/scenario-protected-web-api-verification-scope-app-roles).
+- [Vérifier les scopes et les rôles](https://learn.microsoft.com/entra/identity-platform/scenario-protected-web-api-verification-scope-app-roles).
 
 Dernière vérification : 2026-10-14.

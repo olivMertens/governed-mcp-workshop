@@ -6,7 +6,7 @@ import { parseProgress } from "../.github/extensions/workshop-build-board/progre
 import { readJourney } from "../.github/extensions/workshop-build-board/journey.mjs";
 
 const repository = fileURLToPath(new URL("../", import.meta.url));
-const icons = ["azure", "microsoft", "entra", "apim", "functions", "storage", "insights", "api-center", "subscription"];
+const icons = ["azure", "microsoft", "entra", "apim", "functions", "storage", "insights", "api-center", "subscription", "foundry-agent-service", "copilot-studio"];
 const modules = ["00", "01", "02", "03", "04", "05", "06", "07", "99"];
 
 function readSource(root, parts) {

@@ -5,7 +5,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const entry = fileURLToPath(import.meta.url);
-const icons = ["azure", "microsoft", "entra", "apim", "functions", "storage", "insights", "api-center", "subscription"];
+const icons = ["azure", "microsoft", "entra", "apim", "functions", "storage", "insights", "api-center", "subscription", "foundry-agent-service", "copilot-studio"];
 export const publicPaths = ["index.html", "locale-fr.js", "journey.json", ".nojekyll",
     ...icons.map((icon) => `assets/icons/${icon}.svg`), "assets/architecture/workshop.drawio"];
 for (const module of ["00", "01", "02", "03", "04", "05", "06", "07", "99"]) {
@@ -123,7 +123,7 @@ export function startPortal({ root = dirname(entry), port = Number(process.env.P
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
     if (process.argv[2] === "--verify" && process.argv.length <= 4) {
         verifyPortal(resolve(process.argv[3] ?? dirname(entry)));
-        console.log("PASS 50 public assets and the reviewed runtime; no private files or cloud access.");
+        console.log(`PASS ${publicPaths.length} public assets and the reviewed runtime; no private files or cloud access.`);
     } else if (process.argv.length === 2) {
         if (process.env.PORT && (!/^\d+$/.test(process.env.PORT) || Number(process.env.PORT) < 1)) {
             throw new Error("App Service PORT must be a positive integer.");
