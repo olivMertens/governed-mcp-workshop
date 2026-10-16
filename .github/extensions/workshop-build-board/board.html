@@ -136,6 +136,9 @@
     .notice.tip > strong { color: var(--success); }
     .notice.important { border-left-color: #7650b3; }
     .notice.important > strong { color: #7650b3; }
+    .notice.read-first > strong { color: var(--blue); }
+    .notice.read-first .secondary { margin-top: 12px; }
+    .exercise > h2 { display: flex; align-items: center; gap: 10px; }
     .notice.note > strong { color: var(--blue); }
     .result-box { margin: 14px 0 24px; padding: 14px 18px; border: 1px solid var(--line); border-left: 4px solid var(--success); border-radius: 0 8px 8px 0; background: var(--surface); font-size: 14px; max-width: 820px; }
     .result-box.expected { border-left-color: var(--blue); }
@@ -291,6 +294,22 @@
       "07": { requires: ["03", "04", "05", "06"], text: "Optional. Needs modules 03 to 06 validated, or a recording of them. Use the API Management address from module 04, never the Function address." },
       "99": { requires: [], text: "Run it last, even if you stopped early. Use the same private files and Terraform state as the modules you deployed. Clean up in reverse order." },
     };
+    // Concept section a beginner should read before the module, opened directly on its text and diagram.
+    const readFirst = {
+      "01": [1, "New to MCP? Read what MCP solves and who the host, client and server are before your first call.",
+        "Open concepts, section 1: What problem does MCP solve?"],
+      "03": [9, "Authentication, authorization and human approval are three different controls. Read why before you sign in.",
+        "Open concepts, section 9: Three independent controls"],
+      "05": [10, "On-Behalf-Of (OBO) is the key idea of this module. Read the simple explanation and its diagram first.",
+        "Open concepts, section 10: On-Behalf-Of explained simply (text and diagram)"],
+    };
+    function readFirstNotice(section, text, label) {
+      const node = element("div", undefined, "notice read-first");
+      const heading = element("strong");
+      heading.append(symbol("book"), document.createTextNode(t("Read first")));
+      node.append(heading, element("p", text), link(label, `#/concepts/${section}`, "secondary"));
+      return node;
+    }
     const services = {
       "00": [["subscription", "Azure subscription"], ["entra", "Microsoft Entra ID"]],
       "01": [],
@@ -556,7 +575,7 @@
     }
     function lessonSteps(text) {
       const steps = [];
-      let title = "Before you begin", lines = [], fenced = false, depth = 0;
+      let title = "Before you begin", section = null, lines = [], fenced = false, depth = 0;
       function flush() {
         const blocks = [];
         let block = [], code = false, details = 0;
@@ -615,7 +634,7 @@
         }
         if (page.length) pages.push(join(page));
         pages.forEach((content, index) => steps.push({
-          title, content, ...(pages.length > 1 ? { part: index + 1, parts: pages.length } : {}),
+          title, content, ...(section ? { section } : {}), ...(pages.length > 1 ? { part: index + 1, parts: pages.length } : {}),
         }));
         lines = [];
       }
@@ -628,6 +647,8 @@
           if (heading || action) {
             flush();
             title = (heading ? heading[1] : action[1]).replace(/^\d+[.)]\s+/, "");
+            // A numbered "## 10. Title" section can be opened directly, for example #/concepts/10.
+            if (heading && /^## /.test(line)) section = Number(/^(\d+)[.)]\s/.exec(heading[1])?.[1]) || null;
             if (action?.[2].trim()) lines.push(action[2].trim());
             continue;
           }
@@ -640,7 +661,7 @@
       if (!steps.length) throw new Error("A guided document needs at least one step.");
       return steps;
     }
-    function guidedDocument(text, path) {
+    function guidedDocument(text, path, startSection = null) {
       const steps = lessonSteps(text);
       const section = element("section", undefined, "lesson");
       section.setAttribute("aria-label", t("One step at a time"));
@@ -673,7 +694,7 @@
         list.append(item);
         return jump;
       });
-      let index = 0;
+      let index = startSection ? Math.max(0, steps.findIndex((step) => step.section === startSection)) : 0;
       function show(focus = false) {
         const step = steps[index];
         position.textContent = `${t("Step")} ${index + 1} / ${steps.length}`;
@@ -1072,10 +1093,8 @@
       if (module.guide === null) content.append(notice("Design outline - participant guide not published.",
         "These are the planned outcomes and requirements. Do not treat them as deployment instructions. The complete steps, commands, validation and cleanup will appear here when the module README is added."));
       else {
-        if (["01", "05"].includes(module.module)) {
-          content.append(link(module.module === "05" ? "First read: On-Behalf-Of explained simply (concepts, sections 10 to 12)" :
-            "First read: MCP and agent concepts", "#/concepts", "secondary"));
-        }
+        const first = readFirst[module.module];
+        if (first) content.append(readFirstNotice(...first));
       }
       if (module.originalGuide) {
         content.append(notice("Important", "French participant guide not published. Read the original English guide before executing its commands."));
@@ -1087,7 +1106,10 @@
         content.append(original);
       }
       const exercise = element("section", undefined, "exercise");
-      exercise.append(element("h2", "Try this stage"));
+      const exerciseTitle = element("h2", "Try this stage");
+      exerciseTitle.prepend(symbol("terminal"));
+      exercise.append(exerciseTitle,
+        element("p", "Run these commands in your own VS Code terminal. The guide steps above show the output you should see.", "field-message"));
       if (module.module === "00") exercise.append(link("Your Azure context", "#/deployment", "secondary"));
       else exercise.append(link("Open the call workspace", "#/practice", "secondary"), validationCommands(module));
       if (!["00", "01"].includes(module.module)) {
@@ -1099,9 +1121,10 @@
       exercise.append(hints);
       if (module.guide !== null) content.append(guidedDocument(module.guide, module.sourcePath));
       else content.append(guidedDocument(module.outline, module.sourcePath));
+      // Commands and terminal checks are part of the lesson, not optional reading.
+      content.append(exercise);
       // Optional material comes after the lesson, so the main path reads strictly top to bottom.
       content.append(element("h2", "Go further (optional)", "further-title"),
-        disclosure("Practice and validation", exercise),
         disclosure("Architecture and security flow", architecture(module)));
       if (dependency) content.append(disclosure("Prerequisites", dependency));
       const concepts = element("details");
@@ -1134,6 +1157,9 @@
       if (!state) return;
       content.replaceChildren();
       const route = location.hash || "#/start";
+      // "#/concepts/10" opens the guided concepts page directly on its numbered section 10.
+      const deep = /^#\/(concepts|governance|gettingStarted)\/(\d+)$/.exec(route);
+      const documentKey = deep ? deep[1] : route.slice(2);
       const module = state.modules.find((item) => route === `#/module/${item.module}`);
       if (["#/start", "#/start/devcontainer", "#/start/local", "#/start/codespaces"].includes(route)) showStart(route.split("/")[2]);
       else if (module) showModule(module);
@@ -1143,10 +1169,10 @@
           element("p", "Implementation choices still to resolve. These do not require participant input in this interface.", "lead"),
           markdown(state.openDecisions, "docs/PROGRESS.md"));
         if (language === "fr") content.prepend(notice("Note", "Original repository decisions and evidence remain in English."));
-      } else if (Object.hasOwn(state.documents, route.slice(2))) {
-        const doc = state.documents[route.slice(2)];
-        const guided = ["#/deployment", "#/presenter", "#/hosting", "#/gettingStarted", "#/concepts", "#/governance"].includes(route);
-        const body = guided ? guidedDocument(doc.content, doc.sourcePath) : markdown(doc.content, doc.sourcePath);
+      } else if (Object.hasOwn(state.documents, documentKey)) {
+        const doc = state.documents[documentKey];
+        const guided = ["deployment", "presenter", "hosting", "gettingStarted", "concepts", "governance"].includes(documentKey);
+        const body = guided ? guidedDocument(doc.content, doc.sourcePath, deep ? Number(deep[2]) : null) : markdown(doc.content, doc.sourcePath);
         if (language === "fr" && route.startsWith("#/original")) body.lang = "en";
         content.append(element("h1", doc.title), body);
         if (guided) content.append(disclosure("Full reference guide", markdown(doc.content, doc.sourcePath)));
@@ -1157,7 +1183,7 @@
           link("Workshop overview", "#/overview", "primary"));
       }
       for (const anchor of document.querySelectorAll(".rail nav a")) {
-        if (anchor.getAttribute("href") === route) {
+        if (anchor.getAttribute("href") === (deep ? `#/${deep[1]}` : route)) {
           anchor.setAttribute("aria-current", "page");
           const group = anchor.closest(".nav-group");
           if (group) group.open = true;
