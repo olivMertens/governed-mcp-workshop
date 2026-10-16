@@ -1,4 +1,5 @@
 # Module 04 - private path from API Management to the MCP Function App (level 2). Opt-in with enable_governed_gateway.
+# The virtual network and private endpoint subnet are shared with the module 02 private storage opt-in (private-storage.tf).
 # Pattern from Microsoft Learn: "Integrate an Azure API Management instance with a private virtual network for outbound
 # connections" (Standard v2: dedicated subnet delegated to Microsoft.Web/serverFarms, NSG required, Key Vault outbound rule)
 # and "Use private endpoints for Azure App Service apps" (privatelink.azurewebsites.net, public access disabled).
@@ -7,8 +8,11 @@
 locals {
   gateway_enabled         = local.mcp_auth_enabled && var.enable_governed_gateway
   gateway_function_locked = local.gateway_enabled && var.gateway_lock_function
-  gateway_apim_subnet     = cidrsubnet(var.gateway_vnet_address_space, 24 - tonumber(split("/", var.gateway_vnet_address_space)[1]), 0)
-  gateway_pe_subnet       = cidrsubnet(var.gateway_vnet_address_space, 27 - tonumber(split("/", var.gateway_vnet_address_space)[1]), 8)
+  # Module 02 private storage and module 04 share one virtual network and one private endpoint subnet.
+  network_enabled        = local.gateway_enabled || local.mcp_private_storage
+  gateway_apim_subnet    = cidrsubnet(var.gateway_vnet_address_space, 24 - tonumber(split("/", var.gateway_vnet_address_space)[1]), 0)
+  gateway_pe_subnet      = cidrsubnet(var.gateway_vnet_address_space, 27 - tonumber(split("/", var.gateway_vnet_address_space)[1]), 8)
+  mcp_integration_subnet = cidrsubnet(var.gateway_vnet_address_space, 27 - tonumber(split("/", var.gateway_vnet_address_space)[1]), 9)
   gateway_names = {
     virtual_network         = "vnet-${local.stem}"
     apim_subnet             = "snet-apim"
@@ -20,7 +24,7 @@ locals {
 }
 
 resource "azurerm_virtual_network" "gateway" {
-  count               = local.gateway_enabled ? 1 : 0
+  count               = local.network_enabled ? 1 : 0
   name                = local.gateway_names.virtual_network
   resource_group_name = local.workload_group
   location            = local.workload_location
@@ -47,7 +51,7 @@ resource "azurerm_subnet" "gateway_apim" {
 }
 
 resource "azurerm_subnet" "gateway_private_endpoints" {
-  count                             = local.gateway_enabled ? 1 : 0
+  count                             = local.network_enabled ? 1 : 0
   name                              = local.gateway_names.private_endpoint_subnet
   resource_group_name               = local.workload_group
   virtual_network_name              = azurerm_virtual_network.gateway[0].name

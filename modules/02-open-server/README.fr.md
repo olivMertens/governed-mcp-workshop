@@ -34,6 +34,7 @@ Tout est créé dans votre groupe de ressources d'atelier, depuis `infra/workloa
 | Identité managée attribuée par l'utilisateur | Seule identité de l'application | Aucun secret ; trois attributions de rôle ci-dessous |
 | Compte de stockage | Stockage de l'hôte, paquet de déploiement et file `tickets` | Accès par clé partagée **désactivé**, autorisation Entra par défaut, aucun blob public |
 | Espace Log Analytics et Application Insights | Télémétrie sans contenu | Authentification locale désactivée ; plafond de 1 Go/jour |
+| *Facultatif, `mcp_private_storage = true` :* réseau virtuel, sous-réseau d'intégration Flex, points de terminaison privés blob et file d'attente, deux zones DNS privées | Pour les locataires où une Azure Policy force l'accès réseau public du stockage à `Disabled` | Stockage joignable uniquement depuis le sous-réseau de l'application ; le point de terminaison MCP et sa clé ne changent pas |
 
 Attributions de rôle, chacune sur une ressource précise :
 
@@ -65,7 +66,8 @@ Aucune fonctionnalité en **Preview** n'est utilisée. Le code et l'infrastructu
 
 **Coût :** Flex Consumption facture les exécutions et le temps de mémoire utilisé, plus les transactions de stockage et
 l'ingestion de télémétrie. Le plan descend à zéro instance et est limité à 10 instances, sans instance toujours prête.
-Vérifiez les prix actuels dans votre région avant de demander l'accord. Nettoyez le jour même.
+Vérifiez les prix actuels dans votre région avant de demander l'accord. Nettoyez le jour même. Le stockage privé
+facultatif ajoute deux points de terminaison privés (facturés à l'heure et au Go traité) et deux zones DNS privées.
 
 ## Prérequis et rôles nécessaires
 
@@ -136,6 +138,15 @@ approuvez séparément cette interruption. Cette mise à jour ne publie ni les n
 Arrêtez-vous et examinez toute autre modification. Transmettez les deux fichiers de variables
 à chaque nouveau plan ; sinon, Terraform proposera de supprimer le serveur.
 
+**Votre locataire impose-t-il un stockage privé ?** Certaines organisations attribuent une Azure Policy avec l'effet
+`modify`, qui met l'accès réseau public du stockage à `Disabled` dès sa création. Terraform relit alors `Disabled`, et la
+publication du code échoue avec HTTP 403 (voir Dépannage). Demandez à votre administrateur, ou vérifiez après l'application :
+`az storage account list -g $group --query "[].publicNetworkAccess" -o tsv`. Dans ce cas, ajoutez
+`"mcp_private_storage": true` au fichier d'activation privé et planifiez de nouveau. Attendez-vous à **neuf ressources
+de plus** (réseau virtuel, deux sous-réseaux, deux zones DNS privées et leurs liens, points de terminaison privés blob et
+file d'attente) et à une mise à jour sur place de l'application, qui ajoute l'intégration au réseau virtuel. Ne demandez
+jamais d'exemption de stratégie et n'activez jamais les clés partagées pour contourner ce blocage.
+
 > **Résultat réel** — résumé du plan sauvegardé dans l'abonnement de test de l'auteur, 2026-10-16. Noms et identifiants masqués.
 >
 > ```text
@@ -204,16 +215,20 @@ Ne mettez jamais la clé dans une URL (`?code=`), un fichier, une conversation o
 Dans VS Code, demandez à l'agent d'appeler `create_ticket` avec des valeurs synthétiques.
 L'appel réussit pour quiconque détient la clé.
 
-> **Résultat attendu** — messages du validateur ; pas encore une capture d'un serveur déployé. Votre version de protocole peut différer.
+> **Résultat réel** — exécution dans l'abonnement de test de l'auteur, 2026-10-16, avec `mcp_private_storage = true`
+> (une stratégie du locataire imposait un stockage privé). Noms et identifiants masqués.
 >
 > ```text
+> PASS Function App is running and HTTPS-only (expected HTTP 200 from Azure Resource Manager).
 > PASS MCP request without the mcp_extension key is refused (expected HTTP 401).
 > PASS anonymous access disabled: a random wrong key is refused (expected HTTP 401).
-> PASS MCP initialize with the key succeeds; negotiated protocol <version> (expected HTTP 200).
+> PASS MCP initialize with the key succeeds; negotiated protocol 2025-06-18 (expected HTTP 200).
 > PASS tools/list with the key returns exactly the five workshop tools (expected HTTP 200).
 > PASS RISK SHOWN: create_ticket succeeds with only the key; no user or role was checked (expected HTTP 200).
 > PASS module 02 live checks complete. Rotate or remove the key after the exercise (see README).
 > ```
+>
+> Votre version de protocole peut différer.
 >
 > **Ce que cela signifie pour vous :** le serveur n'est pas anonyme (401 sans clé), **mais la clé est le seul contrôle**.
 > Quiconque la détient, collègue ou attaquant, peut écrire. `whoami` répond `caller: unknown` : les journaux ne
@@ -304,13 +319,15 @@ juste après les modules 00 et 01.
 | HTTP 403 | Votre adresse IP n'est pas dans `mcp_allowed_ip_ranges`. Modifiez le fichier privé et planifiez de nouveau. |
 | HTTP 404 sur `/runtime/webhooks/mcp` | La publication a échoué ou a utilisé le mauvais dossier. Vérifiez l'état du déploiement dans le portail. |
 | L'hôte ne démarre pas / erreurs de stockage | Les attributions de rôle peuvent prendre quelques minutes. Vérifiez les trois attributions ; n'activez jamais les clés partagées. |
+| Échec de publication : `BlobUploadFailedException ... 403 (This request is not authorized)` | L'accès réseau public du stockage est `Disabled`, souvent imposé par une Azure Policy. Définissez `mcp_private_storage = true`, planifiez, appliquez, puis publiez de nouveau. |
 | Le plan propose de supprimer le serveur | Vous avez oublié `-var-file=..\..\.workshop\module02.tfvars.json`. |
 | Erreur d'outil `Unexpected argument` | Les outils n'acceptent que leurs arguments documentés. C'est voulu. |
 
 ## Nettoyer
 
 Lancez le nettoyage après l'exercice. Il génère un plan avec le module désactivé et refuse de continuer si une modification
-n'est pas la suppression d'une ressource du module 02. Lancez-le une première fois pour relire le plan, puis relancez-le avec `-Apply`.
+n'est ni la suppression d'une ressource du module 02 (réseau de stockage privé facultatif compris), ni le seul retrait
+de l'indication `WORKSHOP_MCP_ENDPOINT` du portail. Lancez-le une première fois pour relire le plan, puis relancez-le avec `-Apply`.
 Il est idempotent : s'il ne reste rien, il le dit et ne change rien.
 
 ```powershell
@@ -346,5 +363,10 @@ vous pouvez garder le serveur et sauter le nettoyage ; le module 03 remplace la 
 - [Azure-Samples/remote-mcp-functions-dotnet au commit 468c518](https://github.com/Azure-Samples/remote-mcp-functions-dotnet/tree/468c518c884ec318e3001b9573254c9e775409c9)
 - [Ressource Flex Consumption d'AzureRM 5.9.0](https://github.com/hashicorp/terraform-provider-azurerm/blob/v5.9.0/website/docs/r/function_app_flex_consumption.html.markdown)
 - [Configuration MCP et saisies protégées dans VS Code](https://code.visualstudio.com/docs/agent-customization/mcp-servers)
+- [Réseau Functions : taille du sous-réseau Flex Consumption et délégation `Microsoft.App/environments`](https://learn.microsoft.com/azure/azure-functions/functions-networking-options)
+- [Utiliser un compte de stockage sécurisé avec Azure Functions](https://learn.microsoft.com/azure/azure-functions/configure-networking-how-to#restrict-your-storage-account-to-a-virtual-network)
+- [Points de terminaison privés pour Azure Storage](https://learn.microsoft.com/azure/storage/common/storage-private-endpoints)
+- [Accès sortant par défaut : non applicable aux sous-réseaux délégués](https://learn.microsoft.com/azure/virtual-network/ip-services/default-outbound-access)
 
-Dernière vérification : 2026-10-14. Rédigé et vérifié hors ligne seulement ; pas encore déployé ni validé dans Azure.
+Dernière vérification : 2026-10-16. Validé en conditions réelles dans l'abonnement de test de l'auteur le 2026-10-16,
+avec le stockage privé facultatif imposé par la stratégie de ce locataire. Les participants valident encore dans leur propre abonnement.
