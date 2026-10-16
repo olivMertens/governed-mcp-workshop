@@ -31,6 +31,11 @@ The selected baseline is Terraform 1.16.6, AzureRM 5.9.0, Azure CLI 2.88.0, .NET
 (SDK) 10, PowerShell 7.4+, Node.js 22.19+ and Functions Core Tools v4 >= 4.5.0.
 The separate Functions command-line interface (CLI) v5 is **Preview** and is not selected.
 
+**Optional shortcut:** the [Microsoft Foundry Dev Pack](https://devblogs.microsoft.com/foundry/foundry-devpack-announcement/)
+can install Azure CLI, Azure Developer CLI (`azd`) and the Foundry extension in one step
+(Windows: `winget install Microsoft.FoundryDevPack`). It does **not** install Terraform, the .NET SDK, Node.js,
+PowerShell or Functions Core Tools, so keep the baseline above. Run `scripts/check-tools.ps1` afterwards: it must still showAzure CLI 2.88.0 or later. If the Dev Pack install does not meet that minimum, use the standard Azure CLI install instead.
+
 For a new group, the explicit subscription scope needs resource-group read/write/delete grants.
 For an existing group, use that group's scoped permissions; do not obtain subscription Owner just for this lab.
 The script evaluates Azure Resource Manager (ARM) `actions` minus `notActions` within each permission record,
@@ -152,5 +157,6 @@ The optional portal is public documentation only, not an authenticated internal 
 - [Flex capacity and runtimes](https://learn.microsoft.com/azure/azure-functions/flex-consumption-plan).
 - [VS Code containers](https://code.visualstudio.com/docs/devcontainers/containers).
 - [Pinned choices and upstream sample](../../docs/sources.md).
+- [Foundry Dev Pack announcement](https://devblogs.microsoft.com/foundry/foundry-devpack-announcement/) (optional installer shortcut).
 
 Last verified: 2026-10-14. Local tests are not a live Azure deployment or container validation.

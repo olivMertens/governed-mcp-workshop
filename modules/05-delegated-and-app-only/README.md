@@ -29,6 +29,8 @@ other APIs, and the key design question is **whose rights are used for that call
 | Result | Differs per user | **Same for every caller** the gateway lets through |
 | Risk if misused | Low: the server cannot exceed the user's rights | Confused deputy: anyone allowed to call the tool reads what the app can read |
 
+### Follow the downstream identity, not just HTTP
+
 **One token per hop, one audience per token.** The MCP client's token has the MCP API audience. The server never forwards it to
 Graph or Storage (no token passthrough). For user-context tools it sends that token **only to Microsoft Entra ID** as the OBO
 *assertion* and receives a separate token per downstream resource. For the app-only tool, the caller's token is not used at all.
@@ -51,6 +53,8 @@ error with HTTP 200 means "the tool ran, and the downstream API refused the iden
 Opt-in variables, default off: modules 00 to 04 are unchanged when `enable_delegated_access` is false, and the server keeps the
 module 02 demonstrations for `whoami` and `read_report_*`.
 
+### Inspect the workload identities
+
 **Workload** (`infra/workload/delegated-access.tf`, participant):
 
 | Resource | Settings |
@@ -66,6 +70,8 @@ module 02 demonstrations for `whoami` and `read_report_*`.
 **Why two new identities?** The OBO identity can act as the MCP API registration, so it holds no data role: a user-context call
 can only ever use the user's delegated rights. The app-only rights live on a different identity. The module 02 host identity
 (Blob Data Owner on the whole account for the Functions host) is never used by a tool.
+
+### Inspect the Entra trust and consent
 
 **Microsoft Entra** (`infra/entra/delegation.tf`, identity administrator, created application only):
 
@@ -124,7 +130,7 @@ Run from the repository root. Steps 2 to 5 change Azure or Microsoft Entra: do t
     ConvertTo-Json | Set-Content -LiteralPath .\.workshop\module05.tfvars.json
 ```
 
-**3. Workload apply.** Select your approved context first (`& .\scripts\select-azure-context.ps1`). Pass every var file you used
+**3. Plan the workload changes.** Select your approved context first (`& .\scripts\select-azure-context.ps1`). Pass every var file you used
 before, plus module 05 (drop `module04.tfvars.json` if you skipped module 04).
 
 ```powershell
@@ -133,9 +139,29 @@ $vars = '-var-file=..\..\.workshop\participant.tfvars.json', '-var-file=..\..\.w
         '-var-file=..\..\.workshop\module05.tfvars.json'
 terraform '-chdir=infra\workload' plan @vars '-out=..\..\.workshop\module05.tfplan'
 if ($LASTEXITCODE -ne 0) { throw 'Terraform plan failed.' }
-# Review: 2 identities, 1 container, 3 role assignments on that container, and an in-place Function App update. After approval:
+```
+
+**Observe:** two identities, one container, three role assignments on that container and an in-place Function App update.
+Nothing has been applied. Explain which identity carries the app-only rights.
+
+### Apply the workload plan only after approval
+
+**STOP:** obtain approval for this exact saved plan before running this command.
+
+```powershell
 terraform '-chdir=infra\workload' apply '..\..\.workshop\module05.tfplan'
+if ($LASTEXITCODE -ne 0) { throw 'Terraform apply failed.' }
+```
+
+**Observe:** the approved resources exist. The API still needs the identity administrator's trust configuration.
+
+### Read only the administrator's required output
+
+**Action:** transmit this reference privately to the administrator, never through the shared UI or a repository.
+
+```powershell
 terraform '-chdir=infra\workload' output -json entra_module05_tfvars   # send this to the identity administrator
+if ($LASTEXITCODE -ne 0) { throw 'Cannot read the administrator handoff.' }
 ```
 
 Until step 4 is done, `whoami` and `read_report_as_user` fail closed (tool error): the API does not trust the identity yet.
@@ -146,8 +172,18 @@ Until step 4 is done, `whoami` and `read_report_as_user` fail closed (tool error
 @{ enable_delegated_access = $true; obo_identity_principal_id = '<principal-id-from-step-3>'; grant_downstream_admin_consent = $true } |
     ConvertTo-Json | Set-Content -LiteralPath .\.workshop\entra-module05.tfvars.json
 terraform '-chdir=infra\entra' plan '-var-file=..\..\.workshop\entra.tfvars.json' '-var-file=..\..\.workshop\entra-module05.tfvars.json' '-out=..\..\.workshop\entra05.tfplan'
-# Review: 2 API access entries, 1 federated credential, 2 consent grants. After approval:
+if ($LASTEXITCODE -ne 0) { throw 'Entra plan failed.' }
+```
+
+**Observe:** two API access entries, one federated credential and two consent grants are proposed. No consent has been granted.
+
+### Identity administrator: approve trust and consent before applying
+
+**STOP:** review the exact delegated permissions and saved plan. Only the identity administrator runs this in their own context.
+
+```powershell
 terraform '-chdir=infra\entra' apply '..\..\.workshop\entra05.tfplan'
+if ($LASTEXITCODE -ne 0) { throw 'Entra apply failed.' }
 ```
 
 **5. Publish the synthetic report** (Microsoft Entra authentication, no key; retries while the role propagates):
@@ -171,6 +207,20 @@ foreach ($persona in 'Alice', 'Bob') {
 }
 Remove-Item Env:\AZURE_CONFIG_DIR
 ```
+
+> **Expected result** — validator messages; not yet a capture from your tenant (excerpt).
+>
+> ```text
+> PASS Alice whoami: On-Behalf-Of to Microsoft Graph returns the synthetic persona 'alice' and no name or email (expected HTTP 200).
+> PASS Alice read_report_as_user returns the synthetic report with her own Storage role (expected HTTP 200, isError false).
+> PASS Bob read_report_as_user: the MCP call succeeds but the tool result is an error, because Storage refuses Bob downstream (expected HTTP 200, isError true, downstream HTTP 403).
+> PASS read_report_as_app returned the same result for Alice and Bob: the managed identity, not the caller, carries the rights (expected HTTP 200).
+> ```
+>
+> **What it means for you:** same question, two users, two answers **with On-Behalf-Of**: the data's own permissions
+> decide. With the app identity, everyone gets the same answer: the **application's** permissions decide.
+> Bob's "error inside HTTP 200" is not a bug: the gateway let him call the tool, Storage refused **him**.
+> Choose per tool which behavior you want ([OBO explained simply](../../docs/MCP-CONCEPTS.md)).
 
 ### Bash
 
@@ -216,6 +266,23 @@ Same question, two personas. Outer HTTP status first, then the MCP tool result
 Server logs show one line per call with the tool name, the caller object ID, the outcome (`success`, `denied-downstream:403`,
 `rejected-caller`), the latency and the invocation ID. Never the arguments, the report, a name or a token.
 
+### Read alongside the demonstration
+
+Follow the identity used for each call, not just the outer HTTP status. The choice is fixed per tool; a user cannot select
+app-only access as a fallback for a failed delegated call.
+
+| Demonstration or choice | What to understand in Microsoft Learn | API or SDK reference |
+|---|---|---|
+| Alice and Bob call `whoami` | [On-Behalf-Of (OBO)](https://learn.microsoft.com/entra/identity-platform/v2-oauth2-on-behalf-of-flow) exchanges the MCP user token for a separate Graph token. | [Graph GET /me](https://learn.microsoft.com/graph/api/user-get?view=graph-rest-1.0) with `User.Read` and `$select=id`; [OnBehalfOfCredential](https://learn.microsoft.com/dotnet/api/azure.identity.onbehalfofcredential). The server maps the ID to a synthetic persona, not a real profile. |
+| Alice reads as user; Bob is denied | [Authorize Blob Storage with Entra](https://learn.microsoft.com/azure/storage/blobs/authorize-access-azure-active-directory): Storage evaluates the caller's resource role, not just the MCP scope. | [Get Blob authorization](https://learn.microsoft.com/rest/api/storageservices/get-blob#authorization) and [DownloadContentAsync](https://learn.microsoft.com/dotnet/api/azure.storage.blobs.specialized.blobbaseclient.downloadcontentasync), inherited by `BlobClient`. Bob's downstream HTTP 403 becomes an MCP tool error inside outer HTTP 200. |
+| Alice and Bob read the same report as app | [Managed identities](https://learn.microsoft.com/entra/identity/managed-identities-azure-resources/overview): the application identity owns the downstream rights. MCP caller authorization still applies. | [ManagedIdentityCredential](https://learn.microsoft.com/dotnet/api/azure.identity.managedidentitycredential), then the same [Get Blob API](https://learn.microsoft.com/rest/api/storageservices/get-blob#authorization) with the managed identity's container-scoped role. |
+| No client secret, including for OBO | [Application trust in a managed identity](https://learn.microsoft.com/entra/workload-id/workload-identity-federation-config-app-trust-managed-identity): the federated identity credential proves the API application's identity during token exchange. | The callback overload of [OnBehalfOfCredential](https://learn.microsoft.com/dotnet/api/azure.identity.onbehalfofcredential) supplies a managed-identity assertion. Do not copy client-secret examples from general OBO documentation. |
+| An app-only caller tries `whoami` or `read_report_as_user` | [OBO flow](https://learn.microsoft.com/entra/identity-platform/v2-oauth2-on-behalf-of-flow): the user-delegation path needs a user assertion. | The server rejects that caller before Graph or Storage; no silent switch to [ManagedIdentityCredential](https://learn.microsoft.com/dotnet/api/azure.identity.managedidentitycredential). |
+
+Synthetic report data does not make the deployed authorization a simulation. Conversely, fake clients in offline tests do not
+prove Azure authorization. Only the live persona checks above prove the expected differences.
+Documentation links last verified: 2026-10-16.
+
 ## Validate
 
 `validate.ps1` (or `validate.sh`) always runs the offline checks first: On-Behalf-Of with a managed-identity assertion and one
@@ -236,6 +303,8 @@ PASS locked build and unit tests: Alice reads, Bob denied downstream, app-only i
 PASS Terraform format, schema and mock-only plans for infra/entra and infra/workload (expected HTTP N/A; no live plan/apply).
 PASS offline checks only. Module 05 is NOT deployed or validated by this result.
 ```
+
+### Verify real delegated and app-only access
 
 Live modes, after an approved deployment:
 

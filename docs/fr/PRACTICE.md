@@ -4,7 +4,7 @@ Ce guide sert à tester **votre serveur déjà déployé**, pas à le déployer.
 **Sans Azure :** commencez par le [module 01 local](../../modules/01-discover-mcp/README.fr.md),
 avec ses commandes réelles et sans champ d'adresse distante.
 Le tableau prépare les commandes. VS Code ou MCP Inspector les exécute.
-Un résultat attendu dans le guide n'est pas un test déjà réussi.
+Un résultat attendu décrit dans le guide ne prouve pas qu'un test a réussi.
 
 ## Commencer par un test simple
 
@@ -13,7 +13,7 @@ Un résultat attendu dans le guide n'est pas un test déjà réussi.
    et le sélecteur d'outils dans VS Code.
 3. Commencez par `get_service_health` s'il est disponible. Lisez les informations demandées par l'outil
    et utilisez seulement des données fictives. S'il n'est pas disponible, arrêtez-vous.
-4. Lancez **Call Tool** dans Inspector, ou utilisez la consigne proposée dans le tableau avec VS Code.
+4. Lancez **Call Tool** dans Inspector ou, dans VS Code, utilisez la consigne proposée dans le tableau.
    Vérifiez la trace de l'exécution, pas seulement la réponse de l'assistant.
 5. Comparez le résultat avec celui du module. Un code HTTP 200 peut contenir une erreur MCP.
    Lancez ensuite le script de vérification du module, s'il est publié.
@@ -36,7 +36,7 @@ Pour Inspector, lisez les précisions ci-dessous avant de lancer la commande.
 <details>
 <summary>Pour aller plus loin : installer Inspector et se connecter en toute sécurité</summary>
 
-Les commandes utilisent Inspector **2.9.0** et demandent Node.js 22.19.0 minimum.
+Les commandes utilisent Inspector **2.9.0** et nécessitent au minimum Node.js 22.19.0.
 Vérifiez la demande d'installation de `npx`, puis ouvrez l'adresse locale affichée.
 Elle contient un accès privé à votre session : ne la partagez pas.
 La version 2.11.0 publiée sur GitHub n'était pas disponible dans le registre de paquets configuré lors du
@@ -93,8 +93,8 @@ Ces résultats décrivent les exercices prévus. Ils ne prouvent pas que votre d
 | 05 | Lire avec `read_report_as_app`, en tant qu'Alice puis Bob | Le même rapport fictif est accessible aux deux |
 | 06 | Examiner une trace et l'inventaire | Métadonnées autorisées uniquement ; adresse de la passerelle dans API Center |
 
-Utilisez seulement les comptes de test dédiés. Ne reprenez pas la session d'une autre personne.
-Un refus prévu est une réussite du contrôle : ne donnez pas plus de droits à Bob pour obtenir une réponse positive.
+Utilisez seulement les comptes de test dédiés. N'utilisez pas la session d'une autre personne.
+Un refus prévu signifie que le contrôle fonctionne : ne donnez pas plus de droits à Bob pour obtenir une réponse positive.
 Les outils qui dépendent de l'identité restent simulés avant le module 05.
 
 Ne conservez comme preuves que les métadonnées autorisées et les lignes `PASS` ou `FAIL`.
@@ -125,14 +125,14 @@ des consignes, les paramètres des outils ou leurs résultats.
 **Conseil :** reprenez la commande de démarrage du guide ; cette étape n'utilise pas d'adresse HTTPS.
 Lancez `pwsh -File .\modules\01-discover-mcp\validate.ps1` à la racine, puis démarrez `workshop-local`
 dans VS Code ou utilisez Inspector avec le [guide exécutable](../../modules/01-discover-mcp/README.fr.md).
-`get_service_health` avec `service=workshop-api` renvoie `healthy` fictif, pas un contrôle Azure.
+`get_service_health` avec `service=workshop-api` renvoie une valeur `healthy` fictive ; ce n'est pas un contrôle Azure.
 **En cas de problème :** vérifiez la trace et la version du protocole, sans fabriquer de messages de connexion.
 
 ## 02 - Comprendre les limites d'une clé partagée
 
 **À vérifier :** la clé protège l'accès, mais ne distingue pas Alice de Bob.
 **Conseil :** utilisez la clé système MCP prévue, pas une autre clé de la Function. Un refus HTTP 401 sans clé est normal.
-**En cas de problème :** gardez la protection du point d'entrée activée. Les accès liés à l'identité sont encore simulés.
+**En cas de problème :** laissez la protection du point d'entrée activée. Les accès liés à l'identité sont encore simulés.
 
 ## 03 - Vérifier qui se connecte et avec quels droits
 
@@ -150,7 +150,7 @@ dans VS Code ou utilisez Inspector avec le [guide exécutable](../../modules/01-
 
 **À vérifier :** l'accès délégué utilise les droits de l'utilisateur ; l'accès applicatif utilise ceux de l'application.
 **Conseil :** prévoyez les résultats pour Alice et Bob avec chacun des deux outils, puis comparez-les.
-**En cas de problème :** vérifiez les droits sur le conteneur de stockage. Ne remplacez pas l'utilisateur par le développeur.
+**En cas de problème :** vérifiez les droits sur le conteneur de stockage. N'utilisez pas l'identité du développeur à la place de celle de l'utilisateur.
 
 ## 06 - Suivre les appels sans enregistrer leur contenu
 
@@ -161,7 +161,7 @@ dans VS Code ou utilisez Inspector avec le [guide exécutable](../../modules/01-
 ## 07 - Utiliser un autre client sans changer les protections
 
 **À vérifier :** le client facultatif utilise la même passerelle et une connexion officiellement prise en charge.
-**Conseil :** cette démonstration est réservée à l'animateur ; vérifiez licences, identité et fonctions en **Preview**.
+**Conseil :** cette démonstration est réservée à l'animateur ; vérifiez les licences, l'identité et les fonctions en **Preview**.
 **En cas de problème :** reportez tout parcours qui exige un secret client. Ne transmettez pas le jeton MCP aux API cibles.
 
 ## 99 - Supprimer les ressources de l'atelier

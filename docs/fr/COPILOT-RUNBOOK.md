@@ -1,7 +1,7 @@
 # Préparer l'atelier avec l'application GitHub Copilot
 
 Ce guide s'adresse aux personnes qui construisent l'atelier, pas aux participants qui suivent les exercices.
-**Un module = une session = une branche = une pull request (PR).** Fusionnez avant le module suivant.
+**Un module = une session = une branche = une pull request (PR).** Fusionnez la PR avant de passer au module suivant.
 La préparation du module 00 et l'exercice MCP local du module 01 sont implémentés.
 Aucun de ces modules n'est encore entièrement validé.
 
@@ -12,44 +12,44 @@ Le tableau s'ouvre par défaut sur `#/start`. Choisir un environnement ne valide
 
 ## Avant de commencer
 
-Installez et connectez GitHub Copilot app selon la politique de votre organisation.
+Installez l'application GitHub Copilot et connectez-vous selon la politique de votre organisation.
 Les versions candidates de Git, GitHub CLI, Azure CLI, Terraform, PowerShell 7, Node.js, .NET et Functions Core Tools
 sont décrites dans les [références](REFERENCES.md). Le module 00 fixe leurs versions et prévoit les contrôles.
-Choisissez votre [tenant et abonnement de test](DEPLOYMENT.md). L'administrateur d'identité approuve séparément
-applications, consentements et comptes de test Alice, Bob et Eve. Aucun identifiant réel dans le dépôt.
+Choisissez votre [tenant et abonnement de test](DEPLOYMENT.md). L'administrateur des identités approuve séparément
+les applications, les consentements et les comptes de test Alice, Bob et Eve. Aucun identifiant réel dans le dépôt.
 
-Le serveur MCP Microsoft Learn public est configuré dans `.mcp.json` et `.vscode/mcp.json` pour compatibilité :
+Le serveur MCP Microsoft Learn public est configuré dans `.mcp.json` et `.vscode/mcp.json` par souci de compatibilité :
 `https://learn.microsoft.com/api/mcp`, HTTP, sans authentification.
-Pour un autre client, ajoutez-le via Customize ou `/mcp add`, nom `microsoft-learn`. Évitez les doublons.
+Pour un autre client, ajoutez-le via Customize ou `/mcp add`, avec le nom `microsoft-learn`. Évitez les doublons.
 
 ## Démarrer depuis les bons fichiers
 
 Si vous avez déjà le dépôt, ouvrez ce dossier en session **locale**. N'y relancez pas le bootstrap.
-Pour une destination neuve et vide seulement :
+Uniquement pour un dossier de destination neuf et vide :
 
 ```powershell
 pwsh -ExecutionPolicy Bypass -File .\setup-workshop-mcp.ps1
 ```
 
-Le script nécessite Git et GitHub CLI sauf `-SkipGitHub`. Si nécessaire, installez ces outils via les commandes
+Le script nécessite Git et GitHub CLI, sauf avec `-SkipGitHub`. Si nécessaire, installez ces outils avec les commandes
 winget indiquées par le script, puis rouvrez le terminal. L'identité Git doit être configurée.
 La publication utilise une identité noreply locale au dépôt, sans modifier l'identité Git globale.
 Le bootstrap refuse un dossier non vide et un dépôt distant existant : ne videz pas un dossier pour contourner ce contrôle.
 Options : `-Visibility private`, `-SkipGitHub`, `-OpenVSCode`, `-Path`, `-RepoName`.
-Il ne crée ni ne modifie de ressource Azure ou Entra. Une publication nouvelle nécessite votre approbation.
+Il ne crée ni ne modifie de ressource Azure ou Entra. Toute nouvelle publication nécessite votre approbation.
 
 ## Modes et responsabilités
 
 | Mode | Usage |
 |---|---|
-| Plan | Lire les sources et proposer avant de coder. |
-| Interactive, session locale | Tout accès ou changement Azure/Entra, avec votre contexte Azure CLI. |
+| Plan | Lire les sources et faire des propositions avant de coder. |
+| Interactive, session locale | Tout accès ou toute modification Azure/Entra, avec votre contexte Azure CLI. |
 | Autopilot | Documentation seulement, éventuellement en parallèle. |
 
 `docs/BUILD-PLAN.md` est le plan technique canonique en anglais. `docs/PROGRESS.md` reste la seule source de statut.
 L'agent suit `.github/skills/workshop-module-builder/SKILL.md` et `.github/copilot-instructions.md`.
-Il doit présenter le plan Terraform, les objets Entra, rôles, coûts, Preview et nettoyage puis attendre votre
-approbation explicite avant tout changement cloud.
+Il doit présenter le plan Terraform, les objets Entra, les rôles, les coûts, les éléments Preview et le nettoyage, puis attendre votre
+approbation explicite avant toute modification dans le cloud.
 
 ## Consignes à copier dans Copilot
 
@@ -79,7 +79,7 @@ Après fusion, démarre une autre session et branche pour le module 01 ; arrête
 ```text
 Utilise workshop-module-builder pour le module 02, préfixe participant p00 et contexte de test approuvé.
 Montre le plan Terraform et les coûts avant application. Attends mon approbation.
-Utilise la clé système MCP et l'autorisation System, jamais un endpoint anonyme. Valide puis ouvre la PR.
+Utilise la clé système MCP et l'autorisation System, jamais un point de terminaison anonyme. Valide puis ouvre la PR.
 ```
 
 ### P4 - Module 03, Microsoft Entra
@@ -95,15 +95,15 @@ de infra/entra ; applique seulement après approbation. Active l'authentificatio
 ```text
 Utilise workshop-module-builder pour le module 04. API Management est le seul point d'entrée.
 Prouve avec validate.ps1 : écriture de Bob 403, Alice 200 et succès MCP, seuil de débit 429,
-Function directe refusée et journaux sans corps. Présente le plan et attends mon accord avant modification.
+Function directe refusée et journaux sans corps. Présente le plan et attends mon accord avant toute modification.
 ```
 
 ### P6 - Module 05, délégation et app-only
 
 ```text
 Utilise workshop-module-builder pour le module 05. Compare OBO et identité managée avec Alice et Bob.
-Valide les quatre cas, avec statut HTTP et indicateur d'erreur MCP. Aucun secret, transfert de jeton MCP
-aux API cibles ni repli sur l'identité développeur.
+Valide les quatre cas, avec statut HTTP et indicateur d'erreur MCP. Aucun secret, aucun transfert du jeton MCP
+aux API cibles, aucun repli sur l'identité du développeur.
 ```
 
 ### P7 - Module 06, observation et inventaire
@@ -118,8 +118,8 @@ Toute création ou modification nécessite mon accord préalable.
 
 ```text
 Utilise workshop-module-builder pour le module 99. Présente le vrai plan de destruction et attends mon accord.
-Supprime les ressources Azure avant les seuls objets Entra créés pour l'atelier. Préserve les identités fournies et les ressources
-partagées. Vérifie inventaire, rôles, réseau privé, rétention et coûts restants.
+Supprime les ressources Azure, puis uniquement les objets Entra créés pour l'atelier. Préserve les identités fournies et les ressources
+partagées. Vérifie l'inventaire, les rôles, le réseau privé, la rétention et les coûts restants.
 ```
 
 ### PD - Documentation en parallèle
@@ -145,24 +145,24 @@ Vérifiez les coûts et préparez des vidéos de secours.
 
 ## Utiliser le tableau
 
-Demandez « Affiche le Workshop build board ». Le SDK canvas Copilot est en **Preview**, indépendant d'un agent Foundry.
+Demandez « Affiche le Workshop build board ». Le SDK canvas Copilot est en **Preview** et ne dépend pas d'un agent Foundry.
 Choisissez EN ou FR. `?lang=fr#/module/04` ouvre directement le module 04 en français.
 L'URL conserve le choix de langue ; aucun compte ni suivi personnel n'est créé.
-Les pages incluent schémas, gouvernance, références, contexte Azure et espace de test.
+Les pages comprennent les schémas, la gouvernance, les références, le contexte Azure et un espace de test.
 
 Le tableau ne change aucun statut ni aucune ressource et n'exécute aucune commande. Il affiche le guide publié lorsqu'il existe ;
-sinon, une conception explicitement non exécutable. Si un futur README français manque, il le dit et permet de
+sinon, une conception explicitement non exécutable. Si un futur README français manque, il le signale et permet de
 lire l'original anglais sans prétendre l'avoir traduit.
-Les décisions et preuves de construction conservent leur texte original anglais, clairement signalé.
+Les décisions et preuves de construction conservent leur texte anglais d'origine, clairement signalé.
 
-Dans **Tester votre serveur MCP**, seule une adresse HTTPS sans clé ni paramètre reste en mémoire de page.
-Les copies de commandes, configurations et prompts ne font aucun appel réseau MCP.
-Codespaces ouvre le choix de création de la branche publiée, pas une machine prête ni les modifications non poussées.
-Inspector reste privé, authentifié et sans stockage de jetons. Chaque client Entra demande sa propre approbation.
+Dans **Tester votre serveur MCP**, seule une adresse HTTPS sans clé ni paramètre est conservée, uniquement dans la mémoire de la page.
+La copie de commandes, de configurations et de prompts ne déclenche aucun appel réseau MCP.
+Codespaces ouvre la page de création pour la branche publiée ; il ne fournit ni machine prête ni modifications non poussées.
+Inspector reste privé, authentifié et sans stockage de jetons. Chaque client Entra nécessite sa propre approbation.
 
-Les actions agent restent `get_progress`, `set_module_status` et `list_open_decisions`.
-L'écriture de statut exige la révision courante. `validated` exige date et vraie preuve du validateur.
-Le tableau ne certifie pas cette preuve. N'y mettez ni jetons, consignes, paramètres ou résultats d'outils,
+Les actions de l'agent restent `get_progress`, `set_module_status` et `list_open_decisions`.
+La mise à jour d'un statut exige la révision actuelle. `validated` exige une date et une preuve réelle du validateur.
+Le tableau ne certifie pas cette preuve. N'y mettez ni jetons, ni consignes, ni paramètres ou résultats d'outils,
 ni données réelles de comptes.
 
 ## Sources

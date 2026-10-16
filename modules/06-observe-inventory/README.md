@@ -10,7 +10,7 @@
 
 Make the governed MCP server visible. By the end you can:
 
-1. Query every MCP request that reached API Management in Application Insights, with KQL, filtered to MCP traffic.
+1. Query available MCP request telemetry in Application Insights with KQL, filtered to MCP traffic.
 2. Register the MCP server in an Azure API Center inventory so that other teams can discover it.
 3. Know where a bring-your-own (BYO) MCP server is listed in the Microsoft 365 admin center, and what that listing does and does not prove.
 
@@ -47,7 +47,38 @@ No Terraform is used. The module has no `infra/` folder because it adds no infra
 
 ## Steps
 
-Each step has a PowerShell and a bash version. Both call the same offline and KQL assets.
+### Read the three separate flows
+
+![Runtime requests go through API Management; metadata goes to Application Insights; API Center only inventories the gateway.](../../assets/architecture/06.en.svg)
+
+Application Insights is not an authorization gate. API Center is not a runtime hop.
+Neither registration nor a successful HTTP status proves that a tool completed.
+
+### What can you actually trace?
+
+Kusto Query Language (KQL) queries read stored telemetry, not the agent's reasoning.
+
+| Evidence | Available here | Limit |
+|---|---|---|
+| Time, operation, HTTP status, latency | Selected by the supplied query | Ingestion delay, sampling and the 200-row limit mean this is not a complete audit |
+| Tool name and error type | Selected when emitted by MCP diagnostics | A missing field does not mean no tool ran |
+| Caller object ID and correlation | Module 04 policy emits `caller-oid` in `workshop-mcp-gateway` traces; request telemetry has correlation | The supplied request query does not select caller identity or join traces; verify these separately |
+| Downstream refusal | Inspect the MCP result in the client | HTTP 200 can contain `isError: true`; HTTP success is not tool success |
+| Human approval, prompt, arguments, result | Not collected here | Do not claim the gateway proves approval or records the conversation |
+
+App-only downstream logs identify the application, not Alice or Bob.
+OBO can preserve user identity, but downstream audit still needs its own configuration and permissions.
+Correlate available metadata across services; never add tokens or bodies to fill a gap.
+
+**Question:** a request returned HTTP 200. Does that prove Bob read the report?
+
+<details>
+<summary>Show answer</summary>
+
+No. Storage can refuse Bob and the server can return an MCP tool error inside HTTP 200.
+Check the client result and the available downstream evidence. An empty log query proves neither success nor absence of activity.
+
+</details>
 
 ### Step 1 - Run the offline checks
 
@@ -113,7 +144,7 @@ Check: the listing shows the server name and an approval state. An approval stat
 
 ## What you should see
 
-- The KQL query returns rows with `api.type` equal to `Mcp`, one row per request, for `tools/list` and `tools/call`.
+- With ingested MCP traffic, the KQL query returns available rows with `api.type` equal to `Mcp`, for `tools/list` and `tools/call`. It is not an exhaustive audit.
 - Columns contain tool names and status codes, and no request body, response body, token, prompt or tool argument.
 - The API Center asset exists, with a remote URL and an environment.
 - The offline validator prints one `PASS` line per check and exits with code 0.
@@ -172,7 +203,10 @@ Without `-Apply` (or `--apply`), the script only reports. With the flag it remov
 
 Official Microsoft Learn pages used for this module are recorded with last-verified dates in `docs/sources.md` under module 06:
 
-- Monitor MCP server traffic in API Management (Application Insights `requests`, `customDimensions`, payload logging off by default).
-- Inventory and discover MCP servers in Azure API Center (Preview registration flow).
-- Bring your own MCP server in the Microsoft 365 admin center (Preview).
-- Agent 365 with API Management (Preview).
+- [Monitor MCP traffic](https://learn.microsoft.com/azure/api-management/monitor-mcp-servers): default dimensions and payload logging, kept off here.
+- [Application Insights integration](https://learn.microsoft.com/azure/api-management/api-management-howto-app-insights): sampling and correlation.
+- [API Center inventory](https://learn.microsoft.com/azure/api-center/register-discover-mcp-server) (Preview registration flow).
+- [Bring your own MCP server](https://learn.microsoft.com/microsoft-365/admin/manage/manage-byo-mcp-server) (Preview).
+- [Agent 365 with API Management](https://learn.microsoft.com/azure/api-management/agent-365) (Preview; optional talk track, not revalidated here).
+
+Last verified: 2026-10-16 for the reader and telemetry clarification. Agent 365 talk track: 2026-10-14.

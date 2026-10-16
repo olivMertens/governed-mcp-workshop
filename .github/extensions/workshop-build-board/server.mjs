@@ -5,13 +5,13 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { BoardError } from "./progress.mjs";
 
-const html = readFileSync(new URL("./board.html", import.meta.url), "utf8");
-const french = readFileSync(new URL("./locale-fr.js", import.meta.url));
+const boardUrl = new URL("./board.html", import.meta.url);
+const frenchUrl = new URL("./locale-fr.js", import.meta.url);
 const defaultAssets = fileURLToPath(new URL("../../../assets/", import.meta.url));
 
 function publicAsset(url, root) {
     let type;
-    if (/^\/assets\/icons\/(?:azure|microsoft|entra|apim|functions|storage|insights|api-center|subscription)\.svg$/.test(url) ||
+    if (/^\/assets\/icons\/(?:azure|microsoft|entra|apim|functions|storage|insights|api-center|subscription|foundry-agent-service|copilot-studio)\.svg$/.test(url) ||
         /^\/assets\/architecture\/(?:00|01|02|03|04|05|06|07|99)\.(?:en|fr)\.svg$/.test(url)) type = "image/svg+xml";
     else if (/^\/assets\/architecture\/(?:00|01|02|03|04|05|06|07|99)\.(?:en|fr)\.png$/.test(url)) type = "image/png";
     else if (url === "/assets/architecture/workshop.drawio") type = "application/xml";
@@ -50,13 +50,14 @@ export async function startServer(store, readJourney, assetsRoot = defaultAssets
                 throw new BoardError("invalid_host", "Unexpected host.", 403);
             }
             if (req.method === "GET" && /^\/(?:\?lang=(?:en|fr))?$/.test(req.url)) {
+                // Read on each request so a long-lived canvas never serves a stale interface.
                 res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-                res.end(html.replace("__BOARD_KEY__", key));
+                res.end(readFileSync(boardUrl, "utf8").replace("__BOARD_KEY__", key));
                 return;
             }
             if (req.method === "GET" && req.url === "/locale-fr.js") {
                 res.writeHead(200, { "Content-Type": "text/javascript; charset=utf-8" });
-                res.end(french);
+                res.end(readFileSync(frenchUrl));
                 return;
             }
             if (req.method === "GET" && req.url.startsWith("/assets/")) {

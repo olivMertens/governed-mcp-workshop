@@ -59,6 +59,107 @@ variables would disappear with the child process. Authentication and context che
 > Re-select the approved context before any Terraform command. Never paste `az account get-access-token` output here.
 > These helpers support Azure public cloud. A sovereign-cloud workshop requires a separately reviewed configuration.
 
+## Inspect the resources from your terminal
+
+Every code block in the app has a **Copy code** button. Copying never runs a command.
+Review the block, replace placeholders and paste it into your own PowerShell 7 terminal at the repository root.
+Keep the terminal used by the context selector above. Results appear in that terminal, not in the shared app.
+
+After an approved deployment, use these **read-only** commands. They check the selected tenant and subscription,
+read only the group name and tags from your local workload state, then list that participant's tagged resources.
+They do not sign in, change subscriptions, deploy resources or call MCP tools.
+
+### Inspect 1. Check the context before reading resources
+
+**Why:** a resource group name does not identify the approved subscription.
+**Predict:** the selected Azure context must match the context selector's variables.
+Run this in the same terminal after an approved deployment:
+
+```powershell
+$ErrorActionPreference = 'Stop'
+if (-not $env:ARM_TENANT_ID -or -not $env:ARM_SUBSCRIPTION_ID) {
+    throw 'Run the workshop context selector in this terminal first.'
+}
+$inspectionTenant = $env:ARM_TENANT_ID
+$inspectionSubscription = $env:ARM_SUBSCRIPTION_ID
+. .\scripts\context-common.ps1
+Assert-WorkshopAzureContext -TenantId $inspectionTenant -SubscriptionId $inspectionSubscription
+```
+
+**Observe:** no error. The helper checked the tenant and subscription, not your deployment.
+**Before continuing:** stop on a mismatch. Keep this terminal open; the next steps reuse its variables.
+
+### Inspect 2. Find the resource group in your state
+
+**Why:** do not guess a name or query the whole subscription.
+**Predict:** Terraform returns the group from your original workload state.
+
+```powershell
+$workloadPath = Join-Path 'infra' 'workload'
+$resourceGroup = & terraform "-chdir=$workloadPath" output -raw resource_group_name
+if ($LASTEXITCODE -ne 0 -or -not $resourceGroup) {
+    throw 'No resource group output. Use the original workload state after an approved deployment.'
+}
+$resourceGroup
+```
+
+**Observe:** one group name in your private terminal. No resource was created.
+**Before continuing:** compare it with the approved group. Missing state is a stop, not permission to create new state.
+
+### Inspect 3. Identify only your participant's resources
+
+**Why:** a shared group can contain other participants' resources.
+**Predict:** the `workshop` tag contains your prefix and stable suffix.
+
+```powershell
+$tagJson = & terraform "-chdir=$workloadPath" output -json resource_tags
+if ($LASTEXITCODE -ne 0) { throw 'Cannot read the workshop tags from the original workload state.' }
+$workshopTag = ($tagJson | ConvertFrom-Json -AsHashtable).workshop
+if ($workshopTag -cnotmatch '^mcp-[a-z][a-z0-9]{1,7}-([a-f0-9]{10}|[a-f0-9]{16})$') {
+    throw 'Invalid workshop tag. Stop and inspect the original workload state.'
+}
+$workshopTag
+```
+
+**Observe:** a tag such as `mcp-p01-0123456789abcdef`, not a credential.
+**Before continuing:** compare your prefix. Never remove the tag filter to obtain more results.
+
+### Inspect 4. List and interpret the result
+
+**Why:** now the query has both an approved subscription and a participant-scoped filter.
+**Predict:** only matching resources in that group appear. Recheck context immediately before the Azure call.
+
+```powershell
+Assert-WorkshopAzureContext -TenantId $inspectionTenant -SubscriptionId $inspectionSubscription
+az resource list --subscription $inspectionSubscription `
+    --resource-group $resourceGroup `
+    --query "[?tags.workshop=='$workshopTag'].{Name:name,Type:type,Location:location}" --output table --only-show-errors
+if ($LASTEXITCODE -ne 0) { throw 'Resource inspection failed. Check the context and scoped read permissions.' }
+```
+
+**Observe:** a table of resource names, types and locations for your participant tag in the selected group.
+Azure CLI does not allow `--tag` together with `--resource-group`. The query stays group-scoped;
+the validated tag is filtered with the CLI query expression instead.
+Missing local state or an access error is a stop, not a successful empty result.
+An empty table only means this query found no tagged resources; it is not proof of complete cleanup or correct authorization.
+Module 01 creates no Azure resources. Run each module's validator separately to check its expected behavior.
+Do not paste private outputs, identifiers or tokens into the app or chat.
+
+### Inspect 5. Compare in the portals
+
+**Why:** the resource list proves inventory, not sign-in or tool authorization.
+**Action:** compare the same group and tag in Azure; inspect identity separately in Entra.
+
+To inspect visually, open the [Azure portal](https://portal.azure.com/), select the same directory and subscription,
+then open **Resource groups** and the group printed by your Terraform output.
+In a shared group, filter on the same `workshop` tag; other participants' resources are not yours.
+For module 03 identities, use the [Microsoft Entra admin center](https://entra.microsoft.com/),
+select the approved directory and inspect only the workshop applications under **App registrations**.
+These links do not select a tenant, grant permissions or deploy anything.
+
+**Before continuing:** explain which portal contains resources and which contains identities.
+Then run the module's own validation to test access.
+
 ## 3. Review the real module before a paid deployment
 
 1. Complete module 00's published prerequisite/permission checks, then module 01's local MCP exercise.
@@ -106,7 +207,10 @@ retention and soft-deletion behavior. Stop Inspector and unused codespaces too.
 - [Azure CLI subscription and tenant selection](https://learn.microsoft.com/cli/azure/manage-azure-subscriptions-azure-cli).
 - [Azure CLI interactive sign-in](https://learn.microsoft.com/cli/azure/authenticate-azure-cli-interactively).
 - [Azure role assignment authority](https://learn.microsoft.com/azure/role-based-access-control/role-assignments-cli).
+- [Read resources with Azure CLI](https://learn.microsoft.com/cli/azure/resource#az-resource-list).
 - [AzureRM authentication and provider configuration](https://registry.terraform.io/providers/hashicorp/azurerm/5.9.0/docs).
 - [Build plan](BUILD-PLAN.md), [practice guide](PRACTICE.md) and [source assessment](sources.md).
+
+Inspection and copy-button guidance last verified: 2026-10-16 (offline checks only; no tenant queried).
 
 Last verified: 2026-10-14. No subscription was accessed or resource deployed to write this guidance.
