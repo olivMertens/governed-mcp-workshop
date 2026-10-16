@@ -59,7 +59,7 @@ privés. Les variables d'activation sont désactivées par défaut : les modules
 
 | Ressource | Paramètres |
 |---|---|
-| Réseau virtuel `vnet-mcp-<prefix>-<suffix>` | `10.42.0.0/23` par défaut (`gateway_vnet_address_space`) |
+| Réseau virtuel `vnet-mcp-<prefix>-<suffix>` | `10.42.0.0/23` par défaut (`gateway_vnet_address_space`). Déjà présent, avec son sous-réseau de points de terminaison privés, si le module 02 a utilisé `mcp_private_storage` ; le module 04 n'ajoute alors que son propre sous-réseau et son point de terminaison |
 | Sous-réseau `snet-apim` + NSG | `/24`, **délégué à `Microsoft.Web/serverFarms`**, réservé à API Management ; NSG avec la règle sortante Key Vault documentée |
 | Sous-réseau `snet-private-endpoints` | `/27`, pour le point de terminaison privé de la Function |
 | Zone DNS privée `privatelink.azurewebsites.net` + lien | Résout le nom d'hôte de la Function en son adresse IP privée dans le réseau virtuel |

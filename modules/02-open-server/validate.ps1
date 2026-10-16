@@ -98,7 +98,8 @@ $group = $outputs.resource_group_name?.value
 if (-not $app -or -not $group) { Fail 'module 02 is not deployed in this state (enable_mcp_server is false). Deploy it first, or use -Offline.' }
 
 $site = Invoke-WorkshopAzureJson -Arguments @('functionapp', 'show', '--resource-group', $group, '--name', $app,
-    '--query', '{host:defaultHostName,httpsOnly:httpsOnly,state:state}')
+    # Azure CLI 2.91 returns the raw ARM shape (fields under properties) for Flex Consumption apps; older versions flatten it.
+    '--query', '{host:properties.defaultHostName || defaultHostName,httpsOnly:properties.httpsOnly || httpsOnly,state:properties.state || state}')
 if (-not $site.httpsOnly -or $site.state -ne 'Running' -or $site.host -notmatch '^[a-z0-9.-]+$') {
     Fail 'Function App must be running with HTTPS only (expected HTTP 200 from Azure Resource Manager).'
 }
@@ -159,7 +160,9 @@ try {
     if ($DemonstrateWrite) {
         $call = Invoke-Mcp @{ jsonrpc = '2.0'; id = 3; method = 'tools/call'; params = @{ name = 'create_ticket'; arguments = @{
             service = 'ticket-queue'; severity = 'low'; summary = 'Synthetic level 0 risk demonstration' } } } $keyed
-        if ($call.Status -ne 200 -or $call.Payload?.result?.isError) { Fail "create_ticket with only the key returned HTTP $($call.Status) (expected HTTP 200)." }
+        $result = $call.Payload?.result
+        $isError = $result -is [System.Collections.IDictionary] -and $result.Contains('isError') -and $result['isError']
+        if ($call.Status -ne 200 -or $result -isnot [System.Collections.IDictionary] -or $isError) { Fail "create_ticket with only the key returned HTTP $($call.Status) (expected HTTP 200)." }
         Pass 'RISK SHOWN: create_ticket succeeds with only the key; no user or role was checked (expected HTTP 200).'
     } else {
         Write-Output 'INFO write demonstration skipped. Rerun with -DemonstrateWrite to queue one synthetic ticket.'
