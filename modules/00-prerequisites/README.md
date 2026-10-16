@@ -1,6 +1,6 @@
 # 00 - Prepare the approved environment
 
-[Francais](README.fr.md)
+[Français](README.fr.md)
 
 ## Goal
 
