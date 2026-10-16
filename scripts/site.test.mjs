@@ -53,7 +53,7 @@ test("public site exports only the allowlist, with no capability, root URLs, pri
         assert.equal(local.validation.powershell, "modules/01-discover-mcp/validate.ps1");
         assert.equal(local.validation.bash, "modules/01-discover-mcp/validate.sh");
         const open = language.modules.find((module) => module.module === "02");
-        assert.equal(open.status, "authored");
+        assert.equal(open.status, "validated");
         assert.match(open.guide, /webhookAuthorizationLevel/);
         assert.match(open.guide, /create_ticket/);
         assert.match(open.guide, /HTTP 401/);

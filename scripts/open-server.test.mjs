@@ -93,7 +93,7 @@ test("module 02 validator offline mode passes without Azure and states it is not
     assert.match(result.stdout, /Module 02 is NOT deployed or Azure-validated/);
 });
 
-test("module 02 cleanup deletes only module 02 resources, refuses foreign changes and is idempotent (synthetic Terraform)", (t) => {
+test("module 02 cleanup deletes only module 02 resources, refuses foreign changes, allows only the portal hint removal and is idempotent (synthetic Terraform)", (t) => {
     const directory = mkdtempSync(join(tmpdir(), "workshop-open-cleanup-"));
     t.after(() => rmSync(directory, { recursive: true, force: true }));
     const parameters = join(directory, "participant.tfvars.json");
@@ -118,13 +118,16 @@ function global:terraform {
             'empty' { @(@{address='azurerm_resource_group.workshop[0]';change=@{actions=@('no-op')}}) }
             'foreign' { @(@{address='azurerm_storage_account.mcp[0]';change=@{actions=@('delete')}}, @{address='azurerm_resource_group.workshop[0]';change=@{actions=@('delete')}}) }
             'update' { @(@{address='azurerm_function_app_flex_consumption.mcp[0]';change=@{actions=@('update')}}) }
+            'hint' { @(@{address='azurerm_private_endpoint.storage["blob"]';change=@{actions=@('delete')}},
+                @{address='azurerm_linux_web_app.portal[0]';change=@{actions=@('update');before=@{https_only=$true;app_settings=@{A='1';WORKSHOP_MCP_ENDPOINT='https://func.example.invalid/runtime/webhooks/mcp'}};after=@{https_only=$true;app_settings=@{A='1'}}}}) }
+            'portal' { @(@{address='azurerm_linux_web_app.portal[0]';change=@{actions=@('update');before=@{https_only=$true;app_settings=@{A='1';WORKSHOP_MCP_ENDPOINT='https://func.example.invalid/runtime/webhooks/mcp'}};after=@{https_only=$false;app_settings=@{A='1'}}}}) }
             default { @(@{address='azurerm_storage_account.mcp[0]';change=@{actions=@('delete')}}, @{address='azurerm_role_assignment.mcp_ticket_sender[0]';change=@{actions=@('delete')}}) }
         }
         return (@{resource_changes=$changes} | ConvertTo-Json -Depth 10)
     }
 }
 $cleanup='${join(module02, "cleanup.ps1").replaceAll("'", "''")}'
-foreach ($global:scenario in @('report','apply','empty','foreign','update')) {
+foreach ($global:scenario in @('report','apply','empty','foreign','update','hint','portal')) {
     $global:applied=0; $failed=$false; $text=''
     try { $text = (& $cleanup -TenantId $tenant -SubscriptionId $global:subscription -ParametersPath '${parameters.replaceAll("'", "''")}' -Apply:($global:scenario -eq 'apply')) -join [char]10 }
     catch { $failed=$true; $text=$_.Exception.Message }
@@ -132,11 +135,12 @@ foreach ($global:scenario in @('report','apply','empty','foreign','update')) {
         'report' { if ($failed -or $global:applied -ne 0 -or $text -notmatch 'rerun with -Apply') { throw "report: $text" } }
         'apply' { if ($failed -or $global:applied -ne 1) { throw "apply: $text" } }
         'empty' { if ($failed -or $global:applied -ne 0 -or $text -notmatch 'nothing to delete') { throw "empty: $text" } }
+        'hint' { if ($failed -or $text -notmatch 'remove only the WORKSHOP_MCP_ENDPOINT hint' -or $text -notmatch 'deletes only 1 module 02') { throw "hint: $text" } }
         default { if (-not $failed -or $global:applied -ne 0) { throw "$global:scenario must refuse." } }
     }
     Write-Output "PASS synthetic cleanup $global:scenario"
 }
 `);
     assert.equal(result.status, 0, result.stderr + result.stdout);
-    assert.equal((result.stdout.match(/PASS synthetic cleanup /g) ?? []).length, 5);
+    assert.equal((result.stdout.match(/PASS synthetic cleanup /g) ?? []).length, 7);
 });

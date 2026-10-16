@@ -33,6 +33,7 @@ All in your workshop resource group, from `infra/workload` with `enable_mcp_serv
 | User-assigned managed identity | The app's only identity | No secret; three role assignments below |
 | Storage account | Host storage, deployment package and the `tickets` queue | Shared key access **disabled**, Entra authorization by default, no public blobs |
 | Log Analytics workspace and Application Insights | Payload-free telemetry | Local authentication disabled; 1 GB/day workspace cap |
+| *Optional, `mcp_private_storage = true`:* virtual network, Flex integration subnet, blob and queue private endpoints, two private DNS zones | For tenants where an Azure Policy forces Storage public network access to `Disabled` | Storage reachable only from the app's subnet; the MCP endpoint and its key gate are unchanged |
 
 Role assignments, each on one exact resource:
 
@@ -63,7 +64,8 @@ No **Preview** feature is used. Code and infrastructure adapt
 
 **Cost:** Flex Consumption bills per execution and memory time, plus Storage transactions and telemetry ingestion.
 The plan scales to zero and is capped at 10 instances; there is no always-ready instance. Check current prices
-for your region before approval. Clean up the same day.
+for your region before approval. Clean up the same day. The optional private storage adds two private endpoints
+(billed per hour and per GB processed) and two private DNS zones.
 
 ## Prerequisites and required roles
 
@@ -130,6 +132,14 @@ If the optional public portal already exists, also expect an **in-place app sett
 `WORKSHOP_MCP_ENDPOINT`, its non-secret connection hint. This can restart the portal; approve that interruption
 separately. It does not publish a new guide bundle or the Function code. Stop and investigate any other change.
 Keep passing both var files in every later plan, otherwise Terraform proposes to delete the server.
+
+**Does your tenant force private Storage?** Some organizations assign an Azure Policy with a `modify` effect that sets
+Storage public network access to `Disabled` at creation. Terraform then reads `Disabled` back, and code publishing
+fails with HTTP 403 (see Troubleshooting). Ask your administrator, or check after apply:
+`az storage account list -g $group --query "[].publicNetworkAccess" -o tsv`. In that case add
+`"mcp_private_storage": true` to the private opt-in file and plan again. Expect **nine more resources** (virtual network,
+two subnets, two private DNS zones and their links, blob and queue private endpoints) and an in-place Function App
+update that adds virtual network integration. Never ask for a policy exemption or enable shared keys to work around it.
 
 > **Real result** — saved plan summary in the author's test subscription, 2026-10-16. Names and IDs withheld.
 >
@@ -198,16 +208,20 @@ Never put the key in a URL (`?code=`), a file, a chat or a screenshot.
 
 In VS Code, ask the agent to call `create_ticket` with synthetic values. It works for anyone who holds the key.
 
-> **Expected result** — validator messages; not yet a capture from a deployed server. Your protocol version may differ.
+> **Real result** — live run in the author's test subscription, 2026-10-16, with `mcp_private_storage = true`
+> (a tenant policy forced private Storage). Names and IDs withheld.
 >
 > ```text
+> PASS Function App is running and HTTPS-only (expected HTTP 200 from Azure Resource Manager).
 > PASS MCP request without the mcp_extension key is refused (expected HTTP 401).
 > PASS anonymous access disabled: a random wrong key is refused (expected HTTP 401).
-> PASS MCP initialize with the key succeeds; negotiated protocol <version> (expected HTTP 200).
+> PASS MCP initialize with the key succeeds; negotiated protocol 2025-06-18 (expected HTTP 200).
 > PASS tools/list with the key returns exactly the five workshop tools (expected HTTP 200).
 > PASS RISK SHOWN: create_ticket succeeds with only the key; no user or role was checked (expected HTTP 200).
 > PASS module 02 live checks complete. Rotate or remove the key after the exercise (see README).
 > ```
+>
+> Your protocol version may differ.
 >
 > **What it means for you:** the server is not anonymous (401 without a key), **but the key is the only check**.
 > Whoever holds it, colleague or attacker, can write. `whoami` answers `caller: unknown`: logs cannot say who acted.
@@ -296,13 +310,15 @@ The module is done only when the live checks pass on a fresh subscription right 
 | HTTP 403 | Your IP is not in `mcp_allowed_ip_ranges`. Update the private file and plan again. |
 | HTTP 404 on `/runtime/webhooks/mcp` | Publish failed or used the wrong package folder. Check the deployment status in the portal. |
 | Host does not start / storage errors | Role assignments can take a few minutes. Check the three assignments; never enable shared keys. |
+| Publish fails: `BlobUploadFailedException ... 403 (This request is not authorized)` | Storage public network access is `Disabled`, often forced by an Azure Policy. Set `mcp_private_storage = true`, plan, apply, publish again. |
 | Plan proposes to delete the server | You forgot `-var-file=..\..\.workshop\module02.tfvars.json`. |
 | `Unexpected argument` tool error | The tools accept only their documented arguments. This is intended. |
 
 ## Clean up
 
 Run the clean-up after the exercise. It plans with the module disabled and refuses to continue unless every change
-is a deletion of a module 02 resource. Run it once to review, then again with `-Apply`.
+is a deletion of a module 02 resource (including the optional private storage network), or the removal of only the
+portal's `WORKSHOP_MCP_ENDPOINT` hint. Run it once to review, then again with `-Apply`.
 It is idempotent: when nothing remains, it says so and changes nothing.
 
 ```powershell
@@ -338,5 +354,10 @@ skip clean-up; module 03 replaces the key with Microsoft Entra authentication.
 - [Azure-Samples/remote-mcp-functions-dotnet at 468c518](https://github.com/Azure-Samples/remote-mcp-functions-dotnet/tree/468c518c884ec318e3001b9573254c9e775409c9)
 - [AzureRM 5.9.0 Flex Consumption resource](https://github.com/hashicorp/terraform-provider-azurerm/blob/v5.9.0/website/docs/r/function_app_flex_consumption.html.markdown)
 - [VS Code MCP configuration and inputs](https://code.visualstudio.com/docs/agent-customization/mcp-servers)
+- [Functions networking: Flex Consumption subnet size and `Microsoft.App/environments` delegation](https://learn.microsoft.com/azure/azure-functions/functions-networking-options)
+- [Use a secured storage account with Azure Functions](https://learn.microsoft.com/azure/azure-functions/configure-networking-how-to#restrict-your-storage-account-to-a-virtual-network)
+- [Use private endpoints for Azure Storage](https://learn.microsoft.com/azure/storage/common/storage-private-endpoints)
+- [Default outbound access: not applicable to delegated subnets](https://learn.microsoft.com/azure/virtual-network/ip-services/default-outbound-access)
 
-Last verified: 2026-10-14. Authored and checked offline only; not yet deployed or validated in Azure.
+Last verified: 2026-10-16. Validated live in the author's test subscription on 2026-10-16, with the optional private
+storage required by that tenant's policy. Participants still validate in their own subscription.

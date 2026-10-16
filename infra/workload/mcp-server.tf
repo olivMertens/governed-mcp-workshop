@@ -36,7 +36,7 @@ resource "azurerm_storage_account" "mcp" {
   cross_tenant_replication_enabled = false
   local_user_enabled               = false
   sftp_enabled                     = false
-  public_network_access            = "Enabled"
+  public_network_access            = local.mcp_private_storage ? "Disabled" : "Enabled" # private-storage.tf
   tags                             = local.tags
 }
 
@@ -133,6 +133,7 @@ resource "azurerm_function_app_flex_consumption" "mcp" {
   storage_user_assigned_identity_id              = azurerm_user_assigned_identity.mcp[0].id
   https_only                                     = true
   public_network_access_enabled                  = !local.gateway_function_locked # module 04 stage 2: private endpoint only
+  virtual_network_subnet_id                      = local.mcp_private_storage ? azurerm_subnet.mcp_integration[0].id : null
   webdeploy_publish_basic_authentication_enabled = false
   client_certificate_enabled                     = false
   tags                                           = local.tags
@@ -215,6 +216,7 @@ resource "azurerm_function_app_flex_consumption" "mcp" {
     azurerm_role_assignment.mcp_ticket_sender,
     azurerm_role_assignment.mcp_telemetry,
     azurerm_role_assignment.report_app_reader,
+    azurerm_private_endpoint.storage,
   ]
 }
 
