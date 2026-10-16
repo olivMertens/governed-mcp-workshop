@@ -448,6 +448,13 @@ Last verified: 2026-10-15. Module 07 is an optional facilitator demo with no Azu
 - [Module 07 EN/FR guide](../modules/07-clients/README.md) and [Module 99 EN/FR guide](../modules/99-cleanup/README.md), with the source links in each README.
 - [Copilot Studio MCP support](https://learn.microsoft.com/microsoft-copilot-studio/agent-extend-action-mcp): fetched 2026-10-15. The page says Copilot Studio supports MCP tools and resources. It does not name a transport, so the Streamable HTTP and SSE wording in module 07 is not confirmed by this page and must be re-checked against [Copilot Studio existing MCP server](https://learn.microsoft.com/microsoft-copilot-studio/mcp-add-existing-server-to-agent) before module 07 is validated.
 
+## Presenter App Service portal evidence
+
+Last verified: 2026-10-16. Operational evidence from the presenter's deployment, not a Microsoft source.
+
+- [App Service hosting procedure](../docs/HOSTING.md#optional-public-app-service-deployment): the ZIP deploy and `/health` steps used. `az webapp deploy` with `--track-status` is the deployment mechanism.
+- [Azure App Service deployment with ZIP](https://learn.microsoft.com/azure/app-service/deploy-zip): fetched 2026-10-16. Used to confirm that the deployment log, not the Kudu status code alone, is the reliable success signal.
+
 ## Sources
 
 The pinned upstream snapshots and official register above are the sources for this assessment.
