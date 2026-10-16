@@ -66,6 +66,8 @@ ajout de `-EnablePublicPortal` avec les paramètres d'origine, construction du c
 preuve privée de quota et de coût, préflight, examen du plan et publication ZIP authentifiée par Entra.
 
 Résultat prévu : **un plan Linux B1 et une application web** dans ce groupe.
+Les adresses réelles suivent la forme `https://<nom-de-l'application>.azurewebsites.net/?lang=fr#/start` (ou `?lang=en#/start`).
+Les chemins `/fr/` et `/en/` renvoient 404 : la langue passe par la requête, pas par le chemin.
 Ce déploiement ne crée ni identité managée, ni application Entra, ni serveur Functions, ni API Management.
 La lecture du portail est publique ; le déploiement utilise Microsoft Entra, sans clé de publication.
 Le plan B1 reste facturé tant qu'il existe, même si le site est arrêté.
