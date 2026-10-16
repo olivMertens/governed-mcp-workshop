@@ -43,7 +43,26 @@ GitHub renders its native Mermaid blocks. The board and static portal match each
 generated SVG, retaining the verified icons and routing without loading a Mermaid library or external service.
 Unknown Mermaid blocks fail explicitly; this is not a general-purpose diagram editor.
 Each module offers its Mermaid source in a closed-by-default section with a copy button.
+The module 99 READMEs also embed the matching generated block in a disclosure for GitHub readers.
+When changing its architecture, copy the regenerated module 99 block from each `STEPS` guide to its README;
+`node --test scripts/site.test.mjs` rejects drift in either language.
 After changing architecture, regenerate, inspect the PNGs and check both languages before committing.
+
+## Portable README callouts
+
+Use GitHub alerts (`> [!NOTE]`, `> [!TIP]`, `> [!IMPORTANT]`, `> [!WARNING]`, `> [!CAUTION]`).
+Keep blank quoted lines (`>`) between paragraphs, lists and fenced code.
+Both GitHub and the shared board/presenter renderer preserve these blocks.
+The app adds a decorative icon, translated type label and distinct color to each alert.
+Normal quotes stay blockquotes; arbitrary HTML remains inert text.
+Use the [clean-up guide](../../modules/99-cleanup/README.md) as the bilingual example.
+These formatting changes do not prove deployment or successful clean-up.
+
+All non-Mermaid fenced blocks use the shared copy control in the app, including JSON and plain text.
+Code is copied verbatim, without translation or execution. Shell blocks remind readers to review commands
+and replace placeholders in their own terminal. Clipboard failures show an explicit manual-copy message.
+The [Azure context guide](../../docs/DEPLOYMENT.md) provides guarded read-only inspection commands and portal links;
+results and credentials remain in the participant's terminal, never in the shared UI.
 
 ## Icon provenance
 
@@ -68,9 +87,20 @@ The priority catalog lacks the exact Entra ID and corporate logo variants used h
 Fallback [MsiconsCollections](https://aka.ms/MsiconsCollections) resolved to
 [Microsoft Icon Collections](https://tomkiljo.github.io/ms-icons/); its rendered index links these exact paths.
 
+Retrieved 2026-10-16, for the module 07 service list in the board (not used in the diagrams):
+
+| Local asset | Exact download URL | Official identity / archive path |
+|---|---|---|
+| `../icons/foundry-agent-service.svg` | https://arch-center.azureedge.net/icons/Azure_Public_Service_Icons_V24.zip (az-icons.com lookup: https://az-icons.com/export/icons/2104c885475f575147fe7f0fbdcf6552.svg) | `ai + machine learning/038470523-icon-service-Foundry-Agent-Service.svg`, extracted unchanged from the official archive |
+| `../icons/copilot-studio.svg` | https://download.microsoft.com/download/498606aa-6d27-4f13-aa5c-1401078c153b/Power-Platform-icons-scalable.zip | `CopilotStudio_scalable.svg`, official Power Platform pack, December 2025 update |
+
+az-icons.com located the Foundry icon; the committed file is the official archive's copy. Copilot Studio is not an
+Azure service: az-icons.com has no entry, and MsiconsCollections only offers a generic Copilot logo, which must not be
+relabeled. The [Power Platform icons](https://learn.microsoft.com/power-platform/guidance/icons) page supplies it.
+
 ## Usage and trademarks
 
-Microsoft owns these product icons and logos. Azure and Entra architecture icons are permitted in architecture,
+Microsoft owns these product icons and logos. Azure, Entra and Power Platform icons are permitted in architecture,
 training and documentation under their linked terms; they are **not relicensed under this repository's MIT license**.
 The corporate Azure/Microsoft logos are identifying brand assets from the UX collection and remain subject to
 Microsoft's trademark guidelines, not a blanket license granted by this repository. Review permission for your
@@ -82,6 +112,7 @@ This independent workshop is not Microsoft-endorsed. Do not use its board as Mic
 - [Official Azure icon terms and update history](https://learn.microsoft.com/azure/architecture/icons/).
 - [Official Azure V24 archive](https://arch-center.azureedge.net/icons/Azure_Public_Service_Icons_V24.zip).
 - [Official Entra icon terms and October 2023 pack](https://learn.microsoft.com/entra/architecture/architecture-icons).
+- [Official Power Platform icon terms and pack](https://learn.microsoft.com/power-platform/guidance/icons).
 - [Microsoft trademark and brand guidelines](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks).
 - [Workshop build plan](../../docs/BUILD-PLAN.md) and [source register](../../docs/sources.md).
 - [GitHub diagram rendering](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/creating-diagrams).

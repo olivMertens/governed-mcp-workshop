@@ -92,6 +92,22 @@ Run from the repository root. Stop at any failed command. Steps 3 to 6 change Az
 & .\modules\02-open-server\validate.ps1 -Offline
 ```
 
+> **Real result** — offline capture on the authoring host, 2026-10-16 (no Azure call).
+>
+> ```text
+> PASS host.json MCP webhook authorization level is System (expected HTTP 401 without the mcp_extension key).
+> PASS no anonymous authorization level in server source (expected HTTP N/A).
+> PASS no key, SAS, connection-string or client-secret pattern in module 02 files (expected HTTP N/A).
+> PASS Terraform disables Storage shared keys, uses managed identity and outputs no key (expected HTTP N/A).
+> PASS locked build and tool unit tests: synthetic results, strict inputs, no write without the exact shape (expected HTTP N/A).
+> PASS Terraform format, schema and mock-only plans, including module 02 opt-in (expected HTTP N/A; no live plan/apply).
+> NOT DEPLOYED CHECKS SKIPPED: supply -TenantId and -SubscriptionId after an approved deployment for HTTP checks.
+> PASS offline checks only. Module 02 is NOT deployed or Azure-validated by this result.
+> ```
+>
+> **What it means for you:** the code you are about to deploy is never anonymous and holds no secret.
+> The last line is deliberate: nothing in Azure has been proven yet.
+
 **2. Select your approved context.**
 
 ```powershell
@@ -109,8 +125,23 @@ terraform '-chdir=infra\workload' plan '-var-file=..\..\.workshop\participant.tf
 if ($LASTEXITCODE -ne 0) { throw 'Terraform plan failed.' }
 ```
 
-Review the plan: it must only **add** the eleven module 02 resources. Keep passing both var files in every later plan,
-otherwise Terraform proposes to delete the server.
+Review the plan: expect **eleven new module 02 resources**, with no replacement or deletion.
+If the optional public portal already exists, also expect an **in-place app settings update** to add
+`WORKSHOP_MCP_ENDPOINT`, its non-secret connection hint. This can restart the portal; approve that interruption
+separately. It does not publish a new guide bundle or the Function code. Stop and investigate any other change.
+Keep passing both var files in every later plan, otherwise Terraform proposes to delete the server.
+
+> **Real result** — saved plan summary in the author's test subscription, 2026-10-16. Names and IDs withheld.
+>
+> ```text
+> Plan: 11 to add, 1 to change, 0 to destroy.
+> ```
+>
+> The change is the existing optional portal receiving `WORKSHOP_MCP_ENDPOINT`. Without a portal, expect
+> `11 to add, 0 to change, 0 to destroy`.
+>
+> **What it means for you:** a plan is a promise, not an action. **Any `to destroy` here is a stop signal.**
+> Read the eleven additions: three role assignments, each on one exact resource, and no client secret.
 
 **4. Apply the reviewed plan (after approval).**
 
@@ -167,6 +198,21 @@ Never put the key in a URL (`?code=`), a file, a chat or a screenshot.
 
 In VS Code, ask the agent to call `create_ticket` with synthetic values. It works for anyone who holds the key.
 
+> **Expected result** — validator messages; not yet a capture from a deployed server. Your protocol version may differ.
+>
+> ```text
+> PASS MCP request without the mcp_extension key is refused (expected HTTP 401).
+> PASS anonymous access disabled: a random wrong key is refused (expected HTTP 401).
+> PASS MCP initialize with the key succeeds; negotiated protocol <version> (expected HTTP 200).
+> PASS tools/list with the key returns exactly the five workshop tools (expected HTTP 200).
+> PASS RISK SHOWN: create_ticket succeeds with only the key; no user or role was checked (expected HTTP 200).
+> PASS module 02 live checks complete. Rotate or remove the key after the exercise (see README).
+> ```
+>
+> **What it means for you:** the server is not anonymous (401 without a key), **but the key is the only check**.
+> Whoever holds it, colleague or attacker, can write. `whoami` answers `caller: unknown`: logs cannot say who acted.
+> This is the problem modules 03 to 05 solve.
+
 **8. Rotate the key after the exercise.** This invalidates every copy that may have leaked.
 
 ```powershell
@@ -215,6 +261,20 @@ PASS MCP initialize with the key succeeds; negotiated protocol <version> (expect
 PASS tools/list with the key returns exactly the five workshop tools (expected HTTP 200).
 PASS RISK SHOWN: create_ticket succeeds with only the key; no user or role was checked (expected HTTP 200).
 ```
+
+### Read alongside the demonstration
+
+Use these links when you run the matching check above. They explain the mechanism, not a result observed in your subscription.
+
+| Demonstration | What to understand in Microsoft Learn | API or SDK reference |
+|---|---|---|
+| No key or wrong key: HTTP 401; correct `mcp_extension` key: HTTP 200 | [Functions access keys](https://learn.microsoft.com/azure/azure-functions/function-keys-how-to): a system key is a shared credential, not a user identity. | [MCP extension configuration](https://learn.microsoft.com/azure/azure-functions/functions-bindings-mcp): `webhookAuthorizationLevel` and the MCP endpoint. |
+| Discover the five tools, then call one | [MCP tool trigger](https://learn.microsoft.com/azure/azure-functions/functions-bindings-mcp-tool-trigger): how a function becomes a callable tool. | The same reference describes `McpToolTrigger` and `ToolInvocationContext`, used by this server. |
+| `create_ticket` returns `status: queued` | The ticket is synthetic, but publishing a message is a real side effect after deployment. [Authorize Queue Storage with Entra](https://learn.microsoft.com/azure/storage/queues/authorize-access-azure-active-directory) explains the separate downstream identity. | [QueueClient.SendMessageAsync](https://learn.microsoft.com/dotnet/api/azure.storage.queues.queueclient.sendmessageasync), called by the ticket queue adapter. |
+| `whoami` is unknown; `read_report_as_*` is a demonstration only | [App Service MCP authorization](https://learn.microsoft.com/azure/app-service/configure-authentication-mcp) explains the authenticated server boundary introduced in module 03. Protected Resource Metadata is **Preview**. | No Graph or report Blob API is called at this stage. Module 05 adds those real calls; a function key does not prove user access. |
+
+Reading these references does not approve deployment, disclose a key or enable anonymous access.
+Documentation links last verified: 2026-10-16.
 
 ## Validate
 

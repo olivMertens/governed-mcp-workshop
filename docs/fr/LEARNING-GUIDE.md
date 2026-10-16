@@ -23,7 +23,7 @@ Ce ne sont pas des appels MCP. Un codespace est une machine de développement, p
 
 **Résultat attendu :** les vérifications du module 00 réussissent et la demande Entra est comprise.
 Choisir l'abonnement ne suffit pas.
-**Suite :** module 01 après réussite du validateur publié du module 00. Aucune ressource cloud dans le module 01.
+**Suite :** module 01, une fois le validateur publié du module 00 réussi. Aucune ressource cloud dans le module 01.
 
 **Approfondir :** [tenant et abonnement](https://learn.microsoft.com/cli/azure/manage-azure-subscriptions-azure-cli),
 [attribution des rôles Azure](https://learn.microsoft.com/azure/role-based-access-control/role-assignments-cli).
@@ -31,18 +31,18 @@ Choisir l'abonnement ne suffit pas.
 ## 01 - Découvrir MCP sans Azure
 
 **Objectif :** afficher les outils disponibles, puis en exécuter un.
-Model Context Protocol (MCP) permet au client de connaître les outils et les informations qu'ils attendent.
+Le Model Context Protocol (MCP) permet au client de découvrir les outils et les informations qu'ils attendent.
 Le serveur local communique avec le client par ses entrées et sorties standard (stdio).
-Les serveurs distants utilisent Streamable HTTP. Ouvrir une adresse dans le navigateur ne teste pas les outils.
+Les serveurs distants utilisent le transport Streamable HTTP. Ouvrir une adresse dans le navigateur ne teste pas les outils.
 
 **Schéma :** client local, serveur local, outil synthétique. Ni Entra, ni passerelle, ni ressource cloud payante.
-Les annotations d'outil aident le client mais ne font pas respecter les autorisations.
+Les annotations d'outil aident le client, mais n'imposent pas les autorisations.
 
 > [!IMPORTANT]
-> Conservez l'approbation humaine des écritures. Vérifiez la trace d'appel réelle, pas seulement la réponse de l'assistant.
+> Maintenez l'approbation humaine pour les écritures. Vérifiez la trace d'appel réelle, pas seulement la réponse de l'assistant.
 
 **Résultat attendu :** les outils s'affichent, l'un d'eux s'exécute avec des données fictives et la confirmation manuelle reste disponible.
-**Suite :** module 02 seulement après validation et approbation du déploiement payant de test.
+**Suite :** module 02, uniquement après la validation et l'approbation du déploiement de test payant.
 
 **Approfondir :** [architecture MCP](https://modelcontextprotocol.io/specification/2026-07-28/architecture),
 [transports](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports),
@@ -59,7 +59,7 @@ Le point d'entrée conserve le niveau d'autorisation `System`. « Ouvert » ne s
 Les outils dépendant d'une identité restent explicitement simulés jusqu'au module 05.
 
 > [!WARNING]
-> Gardez cette étape brève. Ne désactivez jamais la protection du webhook. Pas de clé dans une URL ou un en-tête enregistré.
+> Limitez la durée de cette étape. Ne désactivez jamais la protection du webhook. Ne placez pas la clé dans une URL ni dans un en-tête enregistré.
 > Toute personne possédant la clé peut utiliser les outils exposés : ce n'est pas une protection suffisante pour l'entreprise.
 
 **Résultat attendu :** HTTP 401 sans clé ; HTTP 200 et réussite de l'outil avec la bonne clé.
@@ -72,11 +72,11 @@ Les outils dépendant d'une identité restent explicitement simulés jusqu'au mo
 
 **Objectif :** n'accepter que les jetons d'accès destinés au serveur MCP.
 La plateforme vérifie qui a émis le jeton, l'annuaire, le service destinataire (audience) et la date d'expiration.
-Les autorisations déléguées (scopes) définissent ce que le client peut demander pour l'utilisateur.
+Les autorisations déléguées (scopes) définissent ce que le client peut demander au nom de l'utilisateur.
 Les rôles applicatifs définissent les actions permises à cet utilisateur ou à une application.
 Utilisez les contrôles de la plateforme et les bibliothèques officielles, pas un validateur de jetons écrit à la main.
 
-**Schéma :** la connexion remet d'abord un jeton au client. Une ligne séparée montre ensuite le client appeler
+**Schéma :** la connexion remet d'abord un jeton au client. Une ligne distincte montre ensuite le client qui appelle
 la Function avec ce jeton. Entra ne relaie pas les appels d'outils.
 Les métadonnées de ressource protégée (PRM) sont en **Preview**.
 
@@ -85,7 +85,7 @@ Les métadonnées de ressource protégée (PRM) sont en **Preview**.
 > Pour expliquer le contenu d'un jeton, utilisez des exemples fictifs. Ne copiez jamais un jeton réel dans un site de décodage, une conversation ou un fichier.
 
 **Résultat attendu :** HTTP 401 sans jeton ou avec un jeton destiné à un autre service ; Alice et Bob se connectent ;
-Eve ne peut pas obtenir le jeton nécessitant une affectation. Les contrôles d'outil arrivent au module 04.
+Eve ne peut pas obtenir ce jeton, qui exige une affectation. Les contrôles par outil sont traités au module 04.
 **Suite :** module 04 : API Management devient le point d'entrée imposé.
 
 **Approfondir :** [autorisation MCP et PRM](https://learn.microsoft.com/azure/app-service/configure-authentication-mcp),
@@ -102,14 +102,14 @@ L'API de gestion MCP `2025-09-01-preview` est en **Preview**. Ce n'est pas l'off
 la connectivité ; la désactivation de l'accès public empêche le contournement. Le réseau ne remplace pas la validation du jeton.
 
 > [!WARNING]
-> Testez aussi le refus d'accès direct à la Function. Une passerelle fonctionnelle ne suffit pas.
-> N'attribuez pas Tools.Write à Bob pour rendre la démonstration artificiellement positive.
+> Vérifiez aussi que l'accès direct à la Function est refusé. Une passerelle qui fonctionne ne suffit pas.
+> N'attribuez pas Tools.Write à Bob pour faire réussir artificiellement la démonstration.
 
 **Résultat attendu :** création de ticket avec des données fictives, approuvée pour chaque test :
 HTTP 403 pour Bob ; HTTP 200 et réussite de l'outil pour Alice.
-Un dépassement de débit renvoie HTTP 429 ; l'accès direct est refusé.
+Un dépassement de la limite de débit renvoie HTTP 429 ; l'accès direct est refusé.
 Les journaux ne contiennent aucun corps de requête ou de réponse.
-**Suite :** module 05 pour comprendre quels droits sont utilisés pour lire les données.
+**Suite :** module 05 pour comprendre avec quels droits les données sont lues.
 
 **Approfondir :** [exposer un serveur existant](https://learn.microsoft.com/azure/api-management/expose-existing-mcp-server),
 [validation de jeton](https://learn.microsoft.com/azure/api-management/validate-azure-ad-token-policy),
@@ -119,7 +119,7 @@ Les journaux ne contiennent aucun corps de requête ou de réponse.
 ## 05 - Accès délégué ou applicatif
 
 **Objectif :** comparer deux façons d'accéder aux données.
-L'accès délégué On-Behalf-Of (OBO) agit au nom de l'utilisateur et conserve ses droits.
+L'accès délégué On-Behalf-Of (OBO) agit au nom de l'utilisateur, avec ses droits.
 L'accès applicatif utilise une identité managée, avec ses propres droits sur la ressource.
 Chaque accès obtient un **autre jeton**, destiné à l'API appelée ; le jeton MCP n'est jamais transmis.
 
@@ -128,16 +128,16 @@ le second utilise un jeton de l'identité managée pour le même stockage.
 L'outil `whoami` appelle séparément Microsoft Graph avec un jeton destiné à Graph, pas à Storage.
 
 > [!WARNING]
-> Ne transmettez jamais le jeton MCP à Graph ou Storage. Une identité applicative n'usurpe pas l'utilisateur.
+> Ne transmettez jamais le jeton MCP à Graph ou Storage. Une identité applicative ne se fait pas passer pour l'utilisateur.
 > Pas de repli sur l'identité du développeur lorsqu'une délégation échoue.
 
 | Outil | Alice | Bob | Droits utilisés |
 |---|---|---|---|
-| `read_report_as_user` | Autorisé | Refus de la ressource cible | Ceux de l'utilisateur |
+| `read_report_as_user` | Autorisé | Refusé par la ressource cible | Ceux de l'utilisateur |
 | `read_report_as_app` | Même rapport synthétique autorisé | Même rapport synthétique autorisé | Ceux de l'identité managée |
 
 **Résultat attendu :** les quatre cas du tableau. Notez le code HTTP et l'éventuelle erreur MCP :
-un refus HTTP 403 de Storage peut se trouver dans une enveloppe HTTP 200.
+un refus HTTP 403 de Storage peut être encapsulé dans une réponse HTTP 200.
 **Suite :** module 06 pour observer les métadonnées sans capturer le contenu.
 
 **Approfondir :** [fonctionnement des jetons OBO](https://learn.microsoft.com/entra/identity-platform/v2-oauth2-on-behalf-of-flow),
@@ -149,12 +149,12 @@ un refus HTTP 403 de Storage peut se trouver dans une enveloppe HTTP 200.
 Conservez uniquement l'identifiant de l'appelant authentifié, le nom de l'outil, le statut, la durée et
 l'identifiant de corrélation. Ces informations sont des métadonnées.
 
-**Schéma :** chemin des requêtes, télémétrie et enregistrement d'inventaire sont séparés.
+**Schéma :** le chemin des requêtes, la télémétrie et l'inscription à l'inventaire sont séparés.
 Application Insights reçoit des métadonnées, pas le contenu. Azure API Center référence l'URL de la passerelle ;
 il ne relaie pas les requêtes, n'authentifie pas les clients et ne donne aucun droit sur les outils.
 
 > [!WARNING]
-> Aucun contenu de requête ou de réponse dans les journaux, y compris les configurations héritées.
+> Aucun contenu de requête ou de réponse dans les journaux, y compris dans les configurations héritées.
 > Ne conservez ni jetons, ni consignes, ni paramètres, ni résultats d'outils et n'exportez pas les traces Inspector.
 > L'inventaire Microsoft 365 facultatif est en **Preview**, réservé à l'animateur.
 
@@ -169,7 +169,7 @@ Le blocage par outil, le suivi d'activité par outil et la protection contre les
 
 Le consentement à l'échelle du tenant attribue à l'identité du service Agent 365 le rôle
 **A365 MCP Gateway Policy Operator**, avec lecture et écriture des stratégies d'API dans les abonnements
-actuels et futurs du tenant. Aucun script participant ne demande cette autorisation.
+actuels et futurs du tenant. Aucun script destiné aux participants ne demande cette autorisation.
 Une démonstration exige l'accord distinct de l'administrateur.
 Agent 365 ne redirige pas automatiquement les clients : l'accès direct au serveur doit rester bloqué.
 
@@ -185,7 +185,7 @@ Dernière vérification : 2026-10-14.
 </details>
 
 **Résultat attendu :** des traces limitées aux métadonnées, des requêtes permettant d'examiner les refus et l'adresse de la passerelle dans l'inventaire.
-**Suite :** module 99 pour arrêter les coûts. Le module 07 est une branche facultative, pas un prérequis.
+**Suite :** module 99 pour arrêter les coûts. Le module 07 est un parcours facultatif, pas un prérequis.
 
 **Approfondir :** [télémétrie APIM](https://learn.microsoft.com/azure/api-management/api-management-howto-app-insights),
 [enregistrement API Center](https://learn.microsoft.com/azure/api-center/register-discover-mcp-server),
@@ -194,19 +194,19 @@ Dernière vérification : 2026-10-14.
 ## 07 - D'autres clients, les mêmes protections
 
 **Objectif :** comparer client délégué et identité applicative sans modifier les protections du serveur.
-Le schéma montre une **connexion optionnelle prévue**, pas un agent Foundry créé ni un agent Copilot Studio configuré.
+Le schéma montre une **connexion facultative prévue**, pas un agent Foundry créé ni un agent Copilot Studio configuré.
 
 **Schéma :** un client facultatif passe par la même passerelle pour accéder à la Function privée.
-Vérifiez l'identité utilisée, les licences et les fonctions en Preview.
+Vérifiez l'identité utilisée, les licences et les fonctionnalités en Preview.
 La connexion du client choisi doit être prise en charge sans secret.
 
 > [!IMPORTANT]
 > Reportez le parcours OAuth manuel documenté de Copilot Studio s'il exige un secret client.
-> Une fonction appelée « identity passthrough » n'autorise pas à transmettre le jeton MCP aux API cibles.
+> Une fonctionnalité nommée « identity passthrough » n'autorise pas à transmettre le jeton MCP aux API cibles.
 
 **Résultat attendu :** une connexion sans secret, approuvée et officiellement prise en charge.
-Aucun client supplémentaire n'est requis pour finir le parcours principal.
-**Suite :** module 99, même si cette démonstration est ignorée.
+Aucun client supplémentaire n'est requis pour terminer le parcours principal.
+**Suite :** module 99, même si vous sautez cette démonstration.
 
 **Approfondir :** [authentification Foundry, certains flux en Preview](https://learn.microsoft.com/azure/foundry/agents/how-to/mcp-authentication),
 [MCP dans Copilot Studio](https://learn.microsoft.com/microsoft-copilot-studio/mcp-add-existing-server-to-agent).
@@ -217,20 +217,20 @@ Aucun client supplémentaire n'est requis pour finir le parcours principal.
 Les deux lignes du schéma représentent des opérations administratives, pas des appels d'outils.
 
 > [!WARNING]
-> Examinez le vrai plan de destruction et obtenez l'approbation explicite.
+> Examinez le plan de destruction réel et obtenez l'approbation explicite.
 > Nettoyez d'abord les ressources, puis seulement les objets Entra créés pour l'atelier.
-> Préservez identifiants fournis, comptes existants et infrastructure partagée.
+> Préservez les identifiants fournis, les comptes existants et l'infrastructure partagée.
 
 **Résultat attendu :** aucune ressource portant l'étiquette de l'atelier ne subsiste ; les identités créées et
 les rôles attribués sont tous pris en compte. Vérifiez l'inventaire, les durées de conservation et les suppressions récupérables.
-Arrêtez les clients et codespaces inutilisés.
+Arrêtez les clients et les codespaces inutilisés.
 **Suite :** retour à l'accueil, ou nouveau préfixe approuvé après vérification du nettoyage.
 
-**Approfondir :** [sémantique Terraform destroy](https://developer.hashicorp.com/terraform/cli/commands/destroy),
+**Approfondir :** [fonctionnement de Terraform destroy](https://developer.hashicorp.com/terraform/cli/commands/destroy),
 [affectations de rôles Azure](https://learn.microsoft.com/azure/role-based-access-control/role-assignments-cli).
 
 ## Sources
 
 La page des références rassemble les liens officiels, les versions retenues, les licences et les limites de compatibilité.
 Voir [REFERENCES.md](REFERENCES.md), [DEPLOYMENT.md](DEPLOYMENT.md) et [PRACTICE.md](PRACTICE.md).
-Dernière vérification : 2026-10-14. Synthèses pédagogiques originales, pas reproduction des documentations tierces.
+Dernière vérification : 2026-10-14. Synthèses pédagogiques originales, et non reproduction des documentations tierces.

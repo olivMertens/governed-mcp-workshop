@@ -43,7 +43,8 @@ Set-Location .\workshop-mcp
 
 **Expected:** `README.md`, `scripts` and `infra` are in the current folder.
 Run the following commands from this folder. If VS Code is installed, open it with `code .`.
-Each participant needs their own checkout. Cloning this public repository needs no GitHub account or GitHub CLI.
+Each participant needs their own checkout. Once this repository is public, cloning needs no GitHub account or GitHub CLI.
+While it is private, your presenter must grant repository access or share the documentation portal instead.
 
 <details>
 <summary>Already have a checkout? Find it and update it</summary>
@@ -241,6 +242,9 @@ Get these IDs privately from your administrator; do not post them to GitHub or t
 Signing in does not grant new permissions, and the validator creates no resources.
 On failure, stop and use the [Azure context guide](DEPLOYMENT.md).
 
+<details>
+<summary>More detail: review a Terraform plan and preserve its state</summary>
+
 Select your approved context with the [Azure context guide](DEPLOYMENT.md), **in the same terminal** as Terraform.
 Then, only in an approved deployment session, review the actual foundation plan:
 
@@ -265,6 +269,8 @@ Use one checkout/state location for the whole deployment. Switching local/contai
 checkout preserves files, but a different clone or codespace has different local state. Do not redeploy there:
 restore the private parameters and state securely, or configure an approved isolated remote backend first.
 Do not commit, upload to the board or share state, saved plans, CLI credentials or participant files.
+
+</details>
 
 The [module 01 local exercise](../modules/01-discover-mcp/README.md) is now runnable with .NET 10 and PowerShell 7,
 without Azure sign-in, Terraform or the presenter portal. Its validator and Inspector CLI checks pass locally;

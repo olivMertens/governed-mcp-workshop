@@ -31,6 +31,8 @@ A key identifies nobody. A Microsoft Entra access token says **who** calls (`oid
 | `roles` | **App roles**: what *this user* may do | `Tools.Read`, `Tools.Write` | Entra issues roles only to assigned users; per-tool checks arrive in module 04 |
 | `exp`, `nbf` | Validity window | synthetic timestamps | Built-in authentication |
 
+### Predict Alice, Bob and Eve's access
+
 Bob has the same `aud` and `scp` but only `Tools.Read` ([bob.json](synthetic-claims/bob.json)).
 Eve never gets a token: Entra refuses with `AADSTS50105` because **assignment is required** and she has no role
 ([eve.json](synthetic-claims/eve.json)). A Graph token held by Alice is valid, but for another audience, so the
@@ -39,6 +41,8 @@ MCP server refuses it ([wrong-audience.json](synthetic-claims/wrong-audience.jso
 > [!IMPORTANT]
 > Built-in authentication controls access **to the server**, not to individual tools. At level 1, Bob can still call
 > `create_ticket`. Module 04 adds the per-tool role check (`create_ticket` requires `Tools.Write`).
+
+### Understand the two-stage authentication change
 
 **Why the function key is no longer the gate.** Built-in authentication runs in front of the Functions host and returns
 HTTP 401 before any MCP code runs. The documented setting
@@ -187,6 +191,20 @@ No code is republished: `host.json` is unchanged.
 & .\modules\03-entra-authentication\validate.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID
 ```
 
+> **Expected result** — validator messages; not yet a capture from your tenant.
+>
+> ```text
+> PASS MCP request without a token is refused by built-in authentication (expected HTTP 401).
+> PASS Protected Resource Metadata (Preview) names the tenant authorization server and the user_impersonation scope (expected HTTP 200).
+> PASS a valid token for another audience (Microsoft Graph) is refused (expected HTTP 401).
+> PASS deployed authsettingsV2: required, Return401, tenant issuer, MCP audience only, no secret setting (expected HTTP 200 from Azure Resource Manager).
+> PASS the level 0 system key alone no longer opens the server (expected HTTP 401).
+> PASS module 03 operator checks complete. Persona checks are still required for validation.
+> ```
+>
+> **What it means for you:** the platform now refuses callers **before your code runs**. A real Microsoft token is
+> not enough: it must be issued **for this server** (audience). The old shared key is useless on its own.
+
 **9. Connect VS Code with sign-in.** In your **user** MCP configuration, replace the `workshop-open` server (and its key
 input) with a URL only. There is no header and nothing secret.
 
@@ -212,6 +230,20 @@ foreach ($persona in 'Alice', 'Bob', 'Eve') {
 }
 Remove-Item Env:\AZURE_CONFIG_DIR
 ```
+
+> **Expected result** — validator messages per persona; not yet a capture from your tenant.
+>
+> ```text
+> PASS Alice initialize with a token for the MCP audience succeeds; negotiated protocol <version> (expected HTTP 200).
+> PASS Alice tools/list returns exactly the five workshop tools (expected HTTP 200).
+> PASS Bob initialize with a token for the MCP audience succeeds; negotiated protocol <version> (expected HTTP 200).
+> PASS Bob tools/list returns exactly the five workshop tools (expected HTTP 200).
+> PASS Eve cannot obtain a token: she is not assigned to the enterprise application (expected HTTP 400 from the token endpoint, AADSTS50105).
+> ```
+>
+> **What it means for you:** you now know **who** is calling. Eve is stopped at sign-in and never reaches the server.
+> But Alice and Bob see the same five tools, **including the write**: being signed in is not yet being authorized.
+> Module 04 adds per-tool roles.
 
 ### Bash
 
@@ -254,6 +286,21 @@ unset AZURE_CONFIG_DIR
 | Alice, then Bob, with a token for `api://<client-id>` | HTTP 200, five tools | Assigned users reach the server. |
 | Eve asks for a token | `AADSTS50105`, no token | Assignment required: Eve never reaches the server. |
 | Bob calls `create_ticket` in VS Code | Still works at level 1 | Server-level access only; module 04 adds per-tool roles. |
+
+### Read alongside the demonstration
+
+Use these links when you run the matching check above. Authentication, consent and authorization are different decisions.
+
+| Demonstration or choice | What to understand in Microsoft Learn | Configuration or API reference |
+|---|---|---|
+| No token or only the old function key: HTTP 401 | [App Service authentication](https://learn.microsoft.com/azure/app-service/overview-authentication-authorization): the platform checks identity before the tool runs. | [authsettingsV2 resource](https://learn.microsoft.com/azure/templates/microsoft.web/sites/config-authsettingsv2): `requireAuthentication`, `unauthenticatedClientAction` and `allowedAudiences`. |
+| Client discovers where to sign in | [MCP authorization and Protected Resource Metadata (**Preview**)](https://learn.microsoft.com/azure/app-service/configure-authentication-mcp). This protects access to the server, not each tool. | The same page documents `WEBSITE_AUTH_PRM_DEFAULT_WITH_SCOPES` and the metadata challenge. |
+| A Graph token is refused; an MCP token is accepted | [Access tokens](https://learn.microsoft.com/entra/identity-platform/access-tokens): the audience identifies the target API. | [authsettingsV2 allowed audiences](https://learn.microsoft.com/azure/templates/microsoft.web/sites/config-authsettingsv2), not a list of interchangeable API tokens. |
+| Alice and Bob get access; Eve gets `AADSTS50105` | [Require user assignment](https://learn.microsoft.com/entra/identity-platform/howto-restrict-your-app-to-a-set-of-users): signing into the tenant alone is not enough. | [Assign application roles](https://learn.microsoft.com/entra/identity-platform/howto-add-app-roles-in-apps), used for the existing test accounts. |
+| `user_impersonation` scope versus `Tools.Read` / `Tools.Write`; Bob can still write here | [Scopes and consent](https://learn.microsoft.com/entra/identity-platform/scopes-oidc) describe delegated permission granted to a client. [App roles](https://learn.microsoft.com/entra/identity-platform/howto-add-app-roles-in-apps) express the assigned user's rights. | Module 04 adds the per-tool role check. Defining a role does not enforce it automatically. |
+
+Never paste a workshop token into an online decoder, even if a linked article uses one as an example.
+Documentation links last verified: 2026-10-16; no live authentication result is implied.
 
 ## Validate
 

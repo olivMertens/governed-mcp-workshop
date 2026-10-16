@@ -4,7 +4,7 @@
 
 Utilisez le [schéma du module 05](../../../assets/architecture/05.fr.svg) et la
 [vue Mermaid générée](../../../assets/architecture/STEPS.fr.md#05--qui-porte-les-droits).
-`assets/architecture/workshop.drawio` reste l'unique source d'architecture.
+`assets/architecture/workshop.drawio` reste la seule source de référence de l'architecture.
 
 ## La règle
 
@@ -18,29 +18,29 @@ Functions -> Microsoft Graph : jeton B, audience = Microsoft Graph
 Functions -> Azure Storage : jeton C, audience = Azure Storage
 ```
 
-Le jeton A peut traverser API Management (APIM) vers la Function privée, car ils protègent une même ressource
-MCP logique. Il n'est jamais envoyé à Graph ou Storage. La Function obtient un nouveau jeton par On-Behalf-Of
-(OBO) pour un outil au nom de l'utilisateur, ou par identité managée pour un outil applicatif.
+Le jeton A peut passer par API Management (APIM) jusqu'à la Function privée, car toutes deux protègent la même
+ressource MCP logique. Il n'est jamais envoyé à Graph ou à Storage. La Function obtient un nouveau jeton par
+On-Behalf-Of (OBO) pour un outil qui agit au nom de l'utilisateur, ou via une identité managée pour un outil applicatif.
 
 ## Parcours synthétique
 
 1. Alice se connecte. Le client demande le scope délégué du serveur MCP.
 2. APIM valide le jeton A, le nom fixe de l'outil et le rôle applicatif d'Alice.
 3. `whoami` échange l'assertion d'Alice contre le jeton B.
-4. `read_report_as_user` obtient un jeton Storage distinct avec le contexte d'Alice.
-5. `read_report_as_app` obtient un jeton Storage de l'identité managée, sans contexte Alice.
+4. `read_report_as_user` obtient un jeton Storage distinct dans le contexte d'Alice.
+5. `read_report_as_app` obtient un jeton Storage de l'identité managée, sans le contexte d'Alice.
 
 Le jeton MCP de Bob peut être valide alors que Storage refuse `read_report_as_user`. Eve ne peut pas obtenir
-le jeton réservé aux utilisateurs affectés. Un refus HTTP 403 en aval peut apparaître dans une erreur MCP sous HTTP 200.
+le jeton réservé aux utilisateurs affectés. Un refus HTTP 403 en aval peut être renvoyé sous forme d'erreur MCP dans une réponse HTTP 200.
 
 ## Résultat attendu
 
-Vous identifiez l'émetteur, l'audience et le propriétaire des droits à chaque étape sans examiner de jeton réel.
+Vous savez identifier, à chaque étape, l'émetteur, l'audience et le détenteur des droits, sans examiner de jeton réel.
 Aucun jeton, prompt, argument ou résultat n'est journalisé. APIM reste le seul point d'entrée public.
 
 > [!WARNING]
-> Transmettre un jeton n'est pas déléguer. N'envoyez jamais le jeton MCP à une API aval, n'élargissez pas les
-> audiences acceptées et ne revenez pas à l'identité du développeur après un échec OBO.
+> Transmettre un jeton n'est pas déléguer. N'envoyez jamais le jeton MCP à une API en aval, n'élargissez pas les
+> audiences acceptées et ne vous rabattez pas sur l'identité du développeur en cas d'échec OBO.
 
 ## Sources
 

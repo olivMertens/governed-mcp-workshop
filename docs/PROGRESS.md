@@ -11,7 +11,7 @@ or in an approved author-owned non-production tenant.
 |---|---|---|---|---|---|
 | 00 | Prerequisites and environment | validated | 2026-10-14 | Live local-terminal validator: explicit context, region, Microsoft.Resources registration, required ARM grants and group capacity PASS; isolated offline suite 14/14 and Terraform tests 11/11 PASS. | Validated on the selected non-production local-terminal route without creating resources. The optional dev-container/Codespaces route remains unverified and is not implied by this result. |
 | 01 | Discover MCP (no Azure) | authored | | Real local SDK validator and Inspector 2.9.0 tools/list + tools/call pass; protocol 2026-07-28 with SDK client. | EN/FR guide, locked .NET 10 stdio server and client config implemented. Manual VS Code approval observation remains pending; no Azure needed here. |
-| 02 | An "open" MCP server (level 0) | authored | | Offline validator: host.json System, no anonymous level, no secret pattern, identity-only Terraform, 24/24 unit tests, Terraform fmt/validate and 18/18 mock runs PASS. | Authored, offline checks pass, not deployed/validated. User approved author-only scope: no plan/apply, no Azure or Entra change. Live HTTP 401/200 checks pending an approved deployment. |
+| 02 | An "open" MCP server (level 0) | authored | | Offline validator rerun 2026-10-16: System authorization, no anonymous level or secret pattern, identity-only Storage, 39/39 unit tests, Terraform fmt/validate and mocked tests PASS. Approved read-only saved plan: 11 additions, 1 existing-portal configuration update, 0 deletions. | Not deployed or live-validated. Approval covers prerequisites and plan only, not apply, publishing, Entra changes or tool writes. Existing portal stays enabled; its non-secret MCP endpoint hint update can restart it. Full preflight stops on unregistered API Center (later module); module 02 scoped action grants and regional isolated .NET 10 support pass. Live quota evidence and cost approval remain outstanding. |
 | 03 | Identity with Microsoft Entra (level 1) | authored | | Offline validator: System host.json kept, key gate tied to enforced auth + Return401, Entra root single tenant/scope/3 roles/assignment required/no secret or user, no token pattern, synthetic claims, Terraform fmt/validate + 8/8 Entra and 26/26 workload mock runs PASS. | Authored, offline checks pass, not deployed. User approved author-only scope: no plan/apply, no Azure or Entra change. Live 401/PRM/Graph-401/Alice-Bob-200/Eve-refused checks pending an approved deployment. |
 | 04 | API Management as the only entry point (level 2) | authored | | Offline validator: gateway policy (MCP audience only, create_ticket → Tools.Write, safe denials, per-oid rate limit, optional ip-filter, gateway PRM challenge), gateway PRM, Standard v2 + private endpoint + staged lock + no subscription key, 0 body bytes at both scopes, no secret pattern, Terraform fmt/validate + 8/8 Entra and 39/39 workload mock runs PASS; node 5/5 (13 synthetic validator and 5 clean-up scenarios). | Authored, offline checks pass, not deployed. User approved author-only scope: no plan/apply, no Azure or Entra change. Live 401/PRM/direct-403/Bob-403/Alice-200/429/telemetry checks pending an approved deployment and Standard v2 cost approval. MCP server API is **Preview**. |
 | 05 | On-Behalf-Of vs app-only (level 3) | authored | | Offline validator: server OBO with managed-identity assertion, one token per downstream, app-only callers refused, no developer fallback or token parsing; Entra FIC + delegated Graph User.Read/Storage user_impersonation only, opt-in consent, no password; workload two separate identities and container-scoped roles; synthetic data; no secret pattern; 39/39 unit tests; Terraform fmt/validate + 15/15 Entra and 46/46 workload mock runs PASS; node 6/6 (16 synthetic validator, 7 clean-up, 2 publish scenarios). | Authored, offline checks pass, not deployed. User approved author-only scope: no plan/apply, no Azure or Entra change. Live Alice 200 / Bob 200+isError / as_app identical / whoami persona / no-secret checks pending an approved deployment and identity-administrator consent. |
@@ -19,7 +19,73 @@ or in an approved author-owned non-production tenant.
 | 07 | Optional: other clients | authored | | Offline validator 14/14 PASS in a fresh clone (PR #13, merged `6eb049c`). Bash syntax check passed. | Facilitator demo only: Foundry agent (managed identity or OAuth identity passthrough, Preview) and Copilot Studio outline. No Azure or Entra resources. |
 | 99 | Clean up | authored | 2026-10-15 | Offline validator passes in a fresh clone at `4c8cece`: `validate.ps1 -Offline` RESULT PASS (0 failures); `validate.sh --offline` 11 PASS, exit 0 (PR #15). | Report-mode `cleanup.ps1` is not verified in a clean clone: it needs attendee state (`.workshop/participant.tfvars.json` and the module 02/03 opt-in files). Run it on a real attendee machine before validating. Open decision: skip or fail clearly when that state is absent. |
 
+## Interface appearance evidence
+
+Release checks (2026-10-16): module 01's real local SDK validator passes build, negotiation, discovery,
+both synthetic reads, invalid-input refusals and post-error responsiveness. Manual VS Code approval remains
+unverified, so the module stays authored. Focused reader/site/portal/deployment suite: 42/42 PASS;
+module 06 offline 20/20 and module 07 offline 14/14 PASS; architecture consistency PASS.
+The public ZIP contains the exact 52-asset allowlist plus its integrity manifest and server (54 files).
+The deployment fixture now compares exact ZIP names, not the obsolete fixed count.
+Local MCP configuration is unchanged and matches the committed file. The deployment script matches the
+upstream status-check fix. These checks do not validate any Azure MCP runtime or later workshop module.
+
+Reader repair (2026-10-16, local UI only): corrected the module 06/07 folder mappings so their existing bilingual
+guides and offline-validator commands are published instead of design outlines. Repeated module lead text
+and reader instructions were removed; service/dependency summaries are now a closed optional reference.
+Seven concept questions per language have closed-by-default answers. Modules 06/07 add matching questions
+and reuse the existing editable Draw.io-derived 05/06/07 diagrams inline, without changing the architecture.
+Module 06 separates request metadata, caller traces, client approval and downstream audit, including missing
+fields, sampling and HTTP 200 tool errors. Module 07 documents the delegated-scope incompatibility of app-only
+Foundry callers and stops the documented Copilot Studio Manual flow at its client-secret requirement.
+No cloud deployment, publication, identity change or live module validation is implied.
+Validation: focused board/site/portal tests 41/41 PASS; module 06 offline 20/20 and module 07 offline 14/14 PASS;
+architecture `--check` PASS for 18 SVG/PNG pairs and both Mermaid guides. Real local browser checks covered
+108 reading pages across concepts and modules 06/07 in EN/FR at 320/1366 px: 18 answers hidden/revealed/hidden,
+8 inline diagram instances loaded, no page overflow or JavaScript page errors. Existing diagram exports were reused,
+not regenerated; no component, identity or deployment boundary changed.
+
+Appearance update (2026-10-16): the shared presenter/participant interface reuses the existing Microsoft
+and Azure SVG icons in an accessible appearance dialog, with Template (system colors), White and Dark choices.
+Neutral White/Dark surfaces use small Azure-blue accents; the preference is browser-local.
+All 39 focused board/site/portal tests pass. Real local Edge checks pass for 18 EN/FR combinations
+(320/390/1366 px, three themes), including loaded icons, no dialog overflow, Escape/focus restoration
+and theme persistence after reload. This is local UI evidence only; no Azure publication or module validation.
+
+## MCP fundamentals and reading pages
+
+Added original EN/FR MCP concept pages (2026-10-16), linked from Start and every module.
+They cover host/client/server, agent building blocks, tools/resources/prompts, one illustrative execution loop,
+transports/version differences, API/connector/retrieval distinctions and identity/approval boundaries.
+Only verified public sources were used; no private event material was copied.
+All module readers, including design outlines without published guides, paginate long content at complete elements.
+The 180-word target preserves executable fences, nested disclosures and list items; long tables repeat their headers
+without splitting rows. Indivisible elements and short displayed code can exceed the target.
+Focused board/site/portal suite: 40/40 PASS.
+Real local Edge validation: 22 EN/FR module/concept/governance routes, 390 reading pages, no JavaScript errors,
+no page overflow at 320/1366 px, next/previous and heading focus PASS. Largest observed page: 211 visible words.
+No module status was promoted and no cloud action or publication was performed.
+
+Reading order and brand update (2026-10-16): each guided page now reads top to bottom (position and progress bar,
+content, then Previous/Next naming the next step, then a closed outline). Optional material follows the lesson
+under "Go further". The rail uses an inline Azure-gradient shield mark that needs no network asset.
+Product icons fall back to a neutral glyph instead of a broken image. Root cause of the reported broken icons:
+the shared canvas tab outlived its local board server (connection refused) and showed a stale page;
+the server now rereads the interface on each load. Concept pages add OBO explained simply, OBO versus app-only
+choice criteria and implementation implications (EN/FR). Focused suite: 40/40 PASS; local Edge checks of module 05
+and the OBO pages PASS. No cloud action or publication.
+
+Command results for attendees (2026-10-16): modules 01 to 05, EN/FR, now place a result box directly after each key
+command: the output, its provenance label, then "What it means for you". Green "Real result" boxes are actual
+captures: module 01 validator and Inspector discovery/call/error (local, synthetic data), module 02 offline validator,
+and the module 02 saved-plan summary from the author's test subscription (no names or IDs). Blue "Expected result"
+boxes quote the exact validator messages for live checks not yet run (02 live, 03 operator/personas, 04, 05); they are
+labelled as not a capture from the reader's tenant. Output blocks have no copy button. Pagination never separates a
+result from its command (20 boxes checked in Edge, 0 orphans). Offline validators 02-05 PASS; focused suite 40/40 PASS
+(portal counts aligned with the two new product icons).
+
 ## Open decisions
+
 - Network (module 04): implemented as recommended (Standard v2 outbound virtual network integration, Function private
   endpoint, private DNS, public Function access disabled in a separate stage 2 apply). Open: how participants republish
   code after stage 2 (deployment endpoints become private); the guide says publish before stage 2.
@@ -309,8 +375,54 @@ or in an approved author-owned non-production tenant.
   Protected Resource Metadata, API Management MCP management APIs, Foundry identity passthrough, Agent 365 and
   AI Gateway tier are marked **Preview** where used. Agent 365/AI Gateway remain facilitator-only.
   This is documentation evidence only: module statuses and validation evidence are unchanged.
+- Module 99 README visuals (2026-10-16, user-approved scope): EN/FR guides embed the existing generated
+  Mermaid in a closed disclosure and link icon-rich SVG/PNG exports. All five GitHub alert types have
+  translated labels, decorative icons and distinct light/dark colors in the shared board/presenter renderer.
+  Alert paragraphs, lists, code and ordinary blockquotes retain their structure; inline bold stays inline.
+  `PASS 31/31 focused board, static export and presenter portal tests`;
+  `PASS module 99 offline validator (0 failures)`; `PASS architecture --check (18 exports and both Mermaid guides)`.
+  Local presenter-bundle browser checks pass in EN/FR, light/dark, at 320/390/1366 pixels.
+  Tip and diagram screenshots were inspected. No global page overflow; diagrams scroll in their own region.
+  No architecture, icon asset, deployment, permission or module status changed. No Azure/Entra action was run.
+- Shared code-copy and Azure inspection UI (2026-10-16, user selected terminal execution):
+  every non-Mermaid fenced code block uses the existing copy control, with a language label and
+  shell-specific review guidance. Code is preserved verbatim rather than translated.
+  EN/FR Azure context guides provide read-only, context-checked inspection of the exact workload group
+  and participant tag from local Terraform outputs, plus Azure/Entra portal links.
+  The shared UI never executes these commands or collects credentials, identifiers or private results.
+  `PASS 34/34 focused board/export/portal tests`, including nine mocked inspection scenarios.
+  Browser checks cover all 18 module/language routes and 128 exact README/outline code blocks;
+  copy events use a mocked clipboard and clipboard denial shows the French manual-copy message.
+  The Azure context page passes EN/FR light/dark checks at 320/390/1366 pixels; its code block was visually inspected.
+  No live Azure query, resource change, public deployment or module-status change was performed.
+- Contextual authentication documentation (2026-10-16, user requested all authentication modules):
+  modules 02 through 05 now link each demonstrated result to its Microsoft Learn explanation and the relevant
+  API, SDK or policy reference, in EN/FR. References sit in expected results, before validation, and are exported
+  unchanged to the attendee/presenter application. They distinguish key-only access, server authentication,
+  per-tool authorization and downstream OBO versus managed identity.
+  `PASS 31/31 distinct official documentation URLs (HTTP 200)`;
+  `PASS 35/35 focused board/export/portal tests`, including bilingual reference parity, source registration,
+  placement and Preview labels. Fake offline clients are not presented as live identity evidence.
+  Token-decoder, secret-based OBO and payload-logging examples in general documentation are explicitly excluded.
+  No Azure/Entra query or change, deployment, permission change or module-status change was performed.
+- Progressive teaching UI (2026-10-16, user requested concise presenter pages and deliberate commands):
+  published module guides and the Azure context, presenter, hosting and workspace documents now show one authored
+  section or numbered action at a time. Previous/next controls, a step selector and keyboard focus support reading;
+  navigation never executes commands or records completion. Complete guides, architecture and long reference
+  blocks remain closed by default. Code fences and nested disclosures are never split automatically.
+  EN/FR Azure inspection is taught as context, group, participant tag, query and portal comparison;
+  the local MCP lesson separates preparation, discovery and invocation. Presenter foundation and health checks
+  explain prediction and observation. Module 05 separates planning, explicit approval, apply and the private
+  administrator handoff. Long conceptual sections have explicit teaching headings rather than automatic truncation.
+  `PASS 38/38 focused board/export/portal tests`, including reader controls, unchanged fenced content and
+  ten mocked inspection outcomes; changing Azure context between reading state and querying stops before the resource read.
+  Local browser checks cover 22 EN/FR routes and 371 reading steps: one article at a time, no JavaScript errors,
+  all 14 long blocks closed, maximum 341 displayed article words excluding closed reference content.
+  Twelve EN/FR light/dark layouts at 320/390/1366 pixels have no page overflow; exact copy uses a mocked clipboard.
+  Opening a long reference block and the desktop teaching view were checked. Preview bundle contains only
+  52 allowlisted files and was used locally only. No Azure/Entra access, deployment or module-status change.
 - Presenter App Service portal (2026-10-16): deployed the optional public portal in the presenter's own
-  non-production subscription (tenant `<tenant>`), approved for the portal only. Resource group
+  non-production subscription, approved for the portal only. Resource group
   in westeurope, one Linux B1 plan, one Node 22 web app (HTTPS-only). ZIP deploy via Entra-authenticated
   `az webapp deploy`; no publishing keys or basic auth used. `GET /health` returned 200 `{"status":"ok"}`;
   `/?lang=en#/start` and `/?lang=fr#/start` returned 200. `/en/` and `/fr/` return 404 by design (language is

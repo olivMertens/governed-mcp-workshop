@@ -14,9 +14,9 @@ L'approbation du client ne remplace pas l'autorisation du serveur. Ici, on ne te
 
 ## Ce que vous déployez
 
-Rien dans Azure. Votre client lance un processus C# par ses entrées et sorties standard, dites stdio.
+Rien dans Azure. Votre client lance un processus C# et communique avec lui par ses entrées et sorties standard (stdio).
 Il expose uniquement `get_service_health`, avec des données fictives fixes, sans appeler d'autre service.
-Aucune adresse HTTP, donnée persistante, écriture ni journalisation du contenu des échanges.
+Pas d'adresse HTTP, de données persistantes, d'écriture ni de journalisation du contenu des échanges.
 
 ![Découverte locale : architecture](../../assets/architecture/01.fr.svg)
 
@@ -50,14 +50,70 @@ Ouvrez PowerShell 7 à la racine du dépôt. Arrêtez-vous si une commande écho
 Le script restaure les paquets verrouillés, compile en Release, lance son serveur, l'appelle, puis l'arrête.
 Il n'installe aucun service permanent et n'utilise pas votre connexion Azure.
 
+> **Résultat réel** — capture locale sur le poste de l'auteur, 2026-10-16. Données fictives ; vos durées diffèrent.
+>
+> ```text
+> PASS locked local server build (expected HTTP N/A).
+> PASS SDK protocol negotiation (expected HTTP N/A; stdio).
+> INFO negotiated MCP protocol: 2026-07-28
+> PASS tools/list exposes exactly one read tool (expected HTTP N/A; stdio).
+> PASS tools/call workshop-api succeeds (expected HTTP N/A; stdio).
+> PASS unknown service returns a tool error (expected HTTP N/A; stdio).
+> PASS write tool is not exposed (expected HTTP N/A; stdio).
+> PASS local MCP checks complete (expected HTTP N/A; stdio, no Azure).
+> MANUAL CHECK: client approval prompts are not tested by this validator.
+> ```
+>
+> **Ce que cela signifie pour vous :** votre poste sait compiler et lancer un serveur MCP, et un client peut négocier
+> une version du protocole avec lui. `MANUAL CHECK` est honnête : un script ne peut pas prouver qu'une personne a vu
+> la demande d'approbation. L'étape 3 s'en charge.
+
 **2. L'inspecter sans modèle d'IA, avec un second client facultatif.**
+
+### Préparer Inspector dans le même terminal PowerShell
+
+**Pourquoi :** le client a besoin du chemin du serveur compilé ; les commandes suivantes réutilisent ces variables.
+Examinez la demande d'installation de npm. Les identifiants d'Inspector restent uniquement en mémoire.
 
 ```powershell
 $server = (Resolve-Path .\modules\01-discover-mcp\server\bin\Release\net10.0\Workshop.LocalMcp.dll).Path
 $env:MCP_INSPECTOR_SECRET_STORE = 'memory'
 $env:MCP_INSPECTOR_PERSIST_TOKENS = 'none'
+```
+
+**Observez :** aucun serveur n'a démarré. Si la DLL est absente, l'étape 1 n'est pas terminée ; arrêtez-vous.
+
+### Découvrir le contrat sans exécuter d'outil
+
+**Prévoyez :** un seul outil, `get_service_health`, avec un argument obligatoire `service`.
+
+```powershell
 npx @modelcontextprotocol/inspector@2.9.0 --cli dotnet $server --method tools/list
 if ($LASTEXITCODE -ne 0) { throw 'Inspector discovery failed.' }
+```
+
+**Observez :** le nom et le schéma de l'outil, pas un résultat de santé.
+
+> **Résultat réel** — capture locale, 2026-10-16 (extrait de la sortie d'Inspector).
+>
+> ```text
+> "name": "get_service_health",
+> "description": "Read fixed synthetic health data. No Azure access, network calls or real monitoring.",
+> "inputSchema": { "type": "object", "properties": { "service": { "type": "string", ... } }, "required": ["service"] },
+> "annotations": { "readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false }
+> ```
+>
+> **Ce que cela signifie pour vous :** c'est le **contrat** qu'un agent lit avant de choisir un outil. Le modèle
+> s'appuie sur `description` pour décider et sur `inputSchema` pour construire les arguments. Les `annotations` sont
+> des indications pour le client, pas un contrôle de sécurité : un serveur pourrait mentir. Rien ne s'est encore exécuté.
+
+**Avant de continuer :** expliquez la différence entre lister un outil et l'appeler.
+
+### Faire un appel explicite en lecture seule
+
+**Prévoyez :** `workshop-api` renvoie `healthy` et `isError: false`, avec des données fictives.
+
+```powershell
 npx @modelcontextprotocol/inspector@2.9.0 --cli dotnet $server --method tools/call --tool-name get_service_health --tool-arg service=workshop-api
 if ($LASTEXITCODE -ne 0) { throw 'Inspector tool call failed.' }
 ```
@@ -66,12 +122,32 @@ Examinez la demande d'installation de npm. Chaque commande lance et ferme son pr
 Ces commandes affichent des résultats fictifs, pas des identifiants cloud.
 Ne réutilisez pas un enregistrement de terminal pour les modules suivants.
 
+**Observez :** un véritable appel local d'outil, pas une réponse inventée par un modèle. Aucun service Azure n'a été contacté.
+
+> **Résultat réel** — capture locale, 2026-10-16.
+>
+> ```text
+> "structuredContent": { "service": "workshop-api", "status": "healthy", "source": "synthetic", "environment": "local-only" },
+> "isError": false
+> ```
+>
+> Avec une valeur non prise en charge (`service=billing`), la même commande renvoie :
+>
+> ```text
+> "text": "An error occurred invoking 'get_service_health': Unknown synthetic service. Use workshop-api or ticket-queue."
+> "isError": true
+> ```
+>
+> **Ce que cela signifie pour vous :** un outil peut échouer **à l'intérieur d'un échange MCP réussi**. Lisez toujours
+> `isError`, pas seulement le fait que la commande a tourné. Le serveur refuse une entrée inconnue au lieu de deviner :
+> c'est le comportement attendu de chaque outil, surtout avant l'arrivée des écritures.
+
 **3. Connecter VS Code et observer une approbation.**
 
 Ouvrez cette copie du dépôt dans VS Code. Le fichier `.vscode/mcp.json` contient `workshop-local`
 et conserve le serveur Microsoft Learn. Lancez **MCP: List Servers**, choisissez **workshop-local**, puis **Start**.
 La configuration lance directement le fichier DLL compilé. Ne le démarrez pas à la main dans un autre terminal.
-Aucune adresse à coller.
+Vous n'avez aucune adresse à coller.
 
 Utilisez une conversation locale avec **Manual permissions**, pas Allow all ni Autopilot.
 Avec Agent Host, choisissez l'isolation Folder ; une session worktree peut imposer Allow all.
@@ -79,7 +155,7 @@ Dans **Chat: Manage Tool Approval**, désactivez la préapprobation de cet outil
 Si la confirmation est encore ignorée, utilisez le réglage documenté
 `chat.tools.eligibleForAutoApproval`, avec `false` pour l'identifiant réel de l'outil affiché par votre client.
 N'activez pas l'approbation globale et ne modifiez pas une règle de votre organisation.
-La confiance accordée au dossier et le démarrage du serveur ne sont pas une approbation d'appel.
+La confiance accordée au dossier et le démarrage du serveur ne valent pas approbation d'un appel.
 
 Sélectionnez uniquement `workshop-local` dans les outils du chat et envoyez :
 
@@ -93,7 +169,7 @@ Le script automatique ne peut pas prouver qu'une personne a vu une confirmation.
 
 ### Bash
 
-Le même script utilise PowerShell 7, sans seconde implémentation du serveur :
+Le même script s'appuie sur PowerShell 7, sans seconde implémentation du serveur :
 
 ```bash
 bash ./modules/01-discover-mcp/validate.sh
@@ -111,7 +187,7 @@ Exécutez les commandes séparément et arrêtez-vous si le code de sortie est d
 | Action | Résultat attendu | Ce que cela signifie |
 |---|---|---|
 | `tools/list` | Un seul outil, `get_service_health`, avec le paramètre texte obligatoire `service` | Vous avez découvert un contrat, pas exécuté un outil. |
-| `service=workshop-api` | `isError: false`, `status: healthy` | Un appel réel renvoie une santé fictive. |
+| `service=workshop-api` | `isError: false`, `status: healthy` | Un appel réel renvoie un état de santé fictif. |
 | `service=ticket-queue` | `isError: false`, `status: degraded` | Un état fictif dégradé n'est pas une erreur de protocole. |
 | Service inconnu | `isError: true` | L'outil refuse cette entrée ; il ne vérifie pas Azure. |
 | `create_ticket` | Outil absent ou appel rejeté | Aucun outil d'écriture ici ; ce n'est pas un refus fondé sur un rôle. |
@@ -133,8 +209,8 @@ MANUAL CHECK: client approval prompts are not tested by this validator.
 ```
 
 **Statut HTTP : sans objet.** stdio relie des processus locaux ; ce n'est pas un service HTTP.
-Le contrôle entre clients et serveurs du SDK a négocié le protocole `2026-07-28` sur le poste de construction.
-Inspector 2.9.0 a également découvert et appelé le serveur. Laissez les clients négocier ; ne fabriquez pas de dialogue de connexion.
+Le test croisé entre clients et serveurs du SDK a négocié la version `2026-07-28` du protocole sur le poste de construction.
+Inspector 2.9.0 a également découvert et appelé le serveur. Laissez les clients négocier ; n'écrivez pas vous-même l'échange d'initialisation.
 Ces résultats ne prouvent pas la compatibilité des futurs modules Functions ou passerelle.
 
 ## Valider
@@ -142,9 +218,9 @@ Ces résultats ne prouvent pas la compatibilité des futurs modules Functions ou
 Relancez `validate.ps1` ou `validate.sh`. Chaque contrôle automatique doit afficher `PASS`, avec un code de sortie 0.
 Le script vérifie le protocole, la liste exacte, le schéma, les indications de lecture seule,
 les deux résultats fictifs complets, les entrées inconnues ou manquantes et le rejet d'un nom d'outil d'écriture.
-Il n'enregistre que les contrôles, pas les paramètres, résultats ou échanges du protocole.
+Il n'enregistre que les contrôles, pas les paramètres, les résultats ni les échanges du protocole.
 
-Observez séparément l'approbation et le résultat dans VS Code. Une réussite automatique ne valide pas cette observation.
+Observez séparément l'approbation et le résultat dans VS Code. La réussite des contrôles automatiques ne remplace pas cette observation.
 Le module reste `in-progress` tant que l'approbation manuelle et le jalon d'environnement précédent ne sont pas consignés.
 
 ## Dépannage
@@ -171,8 +247,8 @@ Puis lancez :
 bash ./modules/01-discover-mcp/cleanup.sh
 ```
 
-L'aide rappelle les actions manuelles ; elle ne tue pas d'autres processus et ne supprime aucun fichier.
-Les fichiers compilés restent dans `server/bin` et `server/obj`, ignorés par Git, pour réutilisation.
+Ce script d'aide rappelle les actions manuelles ; il n'arrête aucun autre processus et ne supprime aucun fichier.
+Les fichiers compilés restent dans `server/bin` et `server/obj`, ignorés par Git, pour être réutilisés.
 Conservez les paramètres et l'état privés du module 00. Aucun nettoyage Azure n'est nécessaire ici.
 
 ## Aller plus loin
@@ -180,7 +256,7 @@ Conservez les paramètres et l'état privés du module 00. Aucun nettoyage Azure
 Essayez `ticket-queue` après avoir prédit le résultat. Expliquez pourquoi une indication de lecture seule n'est pas un contrôle d'accès.
 Lisez ensuite le [plan du module 02](../../docs/fr/BUILD-PLAN.md#02---serveur-par-clé-niveau-0).
 Son serveur cloud reste à construire ; le serveur local ne le déploie pas.
-Le portail facultatif du présentateur ne sert que ces instructions.
+Le portail facultatif du présentateur ne fait que diffuser ces instructions.
 
 ## Sources
 
@@ -190,4 +266,4 @@ Le portail facultatif du présentateur ne sert que ces instructions.
 - [MCP Inspector](https://modelcontextprotocol.io/docs/tools/inspector).
 - [Configuration MCP de VS Code](https://code.visualstudio.com/docs/agent-customization/mcp-servers) et [approbations](https://code.visualstudio.com/docs/agents/run/approvals).
 
-Dernière vérification : 2026-10-14. Exécution locale Windows avec le SDK et Inspector, pas une validation Azure ou de l'approbation dans l'interface.
+Dernière vérification : 2026-10-14. Exécution locale sous Windows avec le SDK et Inspector ; ni validation Azure, ni vérification de l'approbation dans l'interface.

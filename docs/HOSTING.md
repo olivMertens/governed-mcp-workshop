@@ -94,7 +94,7 @@ so a later ordinary plan cannot silently disable the portal.
 **Cost:** B1 runs a paid dedicated worker continuously. Review regional pricing and subscription policy.
 Stopping the web app does not stop plan charges. HTTPS and Transport Layer Security (TLS) 1.2+ are enforced;
 File Transfer Protocol (FTP) and basic publishing are disabled. The read-only server logs no request bodies,
-queries, credentials or access payloads. It exposes only 50 public assets and `/health`, never the canvas API.
+queries, credentials or access payloads. It exposes only 52 public assets and `/health`, never the canvas API.
 GitHub Pages remains the simpler choice for a shared public workshop.
 
 ### Prepare and review locally
@@ -125,7 +125,7 @@ node portal-dist/server.mjs
 ```
 
 The last command serves loopback port 8080. Inspect EN/FR routes and diagrams, then stop it with Ctrl+C.
-The new `portal-dist` contains 52 exact files: the public static allowlist, a hash manifest and the reviewed
+The new `portal-dist` contains 54 exact files: the public static allowlist, a hash manifest and the reviewed
 stdlib-only server. The builder refuses an existing destination; choose a fresh `--output` directory when rebuilding.
 The server honors App Service's `PORT` and listens externally only when it is set.
 
