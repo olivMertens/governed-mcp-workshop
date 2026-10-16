@@ -1,24 +1,34 @@
-# Module 06 - Observe and inventory (level 4)
+# 06 - Observe and inventory (level 4)
 
 [Français](README.fr.md)
 
-> [!NOTE]
-> Status: **authored**. Offline checks pass. This module has not been validated live in an Azure tenant.
-> Everything uses synthetic data (Contoso, Alice, Bob, Eve). Never paste a token, a prompt, or a tool argument into a log, a ticket or a slide.
-
 ## Goal
 
-Make the governed MCP server visible. By the end you can:
+Your MCP server is now protected by Microsoft Entra ID (module 03), reachable only through Azure API Management
+(APIM, module 04), and it calls downstream data with the right identity (module 05).
+One question remains: **can you see what happens, and can other teams find the server?**
 
-1. Query available MCP request telemetry in Application Insights with KQL, filtered to MCP traffic.
-2. Register the MCP server in an Azure API Center inventory so that other teams can discover it.
-3. Know where a bring-your-own (BYO) MCP server is listed in the Microsoft 365 admin center, and what that listing does and does not prove.
+This module answers that question in two separate parts:
+
+- **Observe:** see which tool was called, by which caller, when, with which status and how long it took.
+  You read this metadata in Application Insights with a Kusto Query Language (KQL) query.
+- **Inventory:** list the server in a catalog, so other teams know it exists, who owns it and where to call it.
+  You register it in Azure API Center (**Preview**). An administrator can also list it in the Microsoft 365 admin
+  center as a bring-your-own (BYO) MCP server (**Preview**).
+
+You deploy nothing new. You read the telemetry, register the server, and learn what each piece of evidence proves
+(a log line, an inventory entry, a BYO listing) and what it does not prove.
 
 ## Why it matters
 
-A governed endpoint that nobody can see is not governed. Module 04 put a gate in front of the tools. Module 05 proved who the caller is. This module answers the next questions: what was called, by whom, how often, and what failed, without ever storing the content of the call.
+A server that nobody can see is not governed. Without metadata, you cannot answer "who used the write tool yesterday?".
+Without an inventory, teams build duplicate servers or use unknown ones ("shadow MCP").
 
-Observability and inventory are also where data-protection mistakes happen. Payload logging captures prompts and tool results. This module keeps it off and shows you how to confirm that it stays off.
+Two traps to avoid:
+
+- **Logging too much.** Storing prompts, tool arguments or tool results leaks data. This workshop logs metadata only.
+- **Trusting too much.** A log line or a catalog entry is evidence, not a control. HTTP 200 does not prove that the tool
+  succeeded, and an inventory entry authorizes nobody.
 
 **Log rules for this module:** zero body bytes, no tokens, no prompts and no tool arguments or results in any log, query, workbook, ticket or slide. Log metadata only: operation, tool name, status, duration and error type.
 

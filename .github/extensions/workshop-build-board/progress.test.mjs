@@ -76,6 +76,14 @@ test("guided reading splits authored actions, never code fences or nested disclo
     assert.match(steps[2].content, /```powershell\n## Not a heading\n\*\*2\. Not an action\.\*\*\n```/);
     assert.match(steps[3].content, /## Kept inside[\s\S]*### Also inside[\s\S]*<\/details>\n<\/details>$/);
     assert.deepEqual(split("# Module\n[Français](README.fr.md)\n\n## Goal\nLearn one thing.").map((step) => step.title), ["Goal"]);
+    // Every published module guide opens on its Goal: no language link, status note or banner becomes a preliminary step.
+    for (const folder of ["00-prerequisites", "01-discover-mcp", "02-open-server", "03-entra-authentication", "04-governed-gateway",
+        "05-delegated-and-app-only", "06-observe-inventory", "07-clients", "99-cleanup"]) {
+        for (const [file, goal] of [["README.md", "Goal"], ["README.fr.md", "Objectif"]]) {
+            const first = split(readFileSync(join(repository, "modules", folder, file), "utf8"))[0];
+            assert.equal(first.title, goal, `${folder}/${file} must open on ${goal}, not "${first.title}"`);
+        }
+    }
     assert.deepEqual(split("# Concepts\n## 1. Discover\nOne idea.\n## 2. Execute\nAnother idea.").map((step) => step.title),
         ["Discover", "Execute"]);
     assert.throws(() => split("# Empty\n"), /at least one step/);

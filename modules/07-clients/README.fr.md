@@ -1,6 +1,6 @@
-# Module 07 — Optionnel : autres clients (démo du formateur)
+# 07 - Optionnel : autres clients (démo du formateur)
 
-> English: [README.md](README.md)
+[English](README.md)
 
 ## Objectif
 

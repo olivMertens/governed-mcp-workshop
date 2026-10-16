@@ -1,6 +1,6 @@
-# Module 07 — Optional: other clients (facilitator demo)
+# 07 - Optional: other clients (facilitator demo)
 
-> Français : [README.fr.md](README.fr.md)
+[Français](README.fr.md)
 
 ## Goal
 

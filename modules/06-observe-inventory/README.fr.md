@@ -1,24 +1,36 @@
-# Module 06 - Observer et inventorier (niveau 4)
+# 06 - Observer et inventorier (niveau 4)
 
 [English](README.md)
 
-> [!NOTE]
-> Statut : **authored**. Les vérifications hors ligne passent. Ce module n'a pas été validé en direct dans un tenant Azure.
-> Toutes les données sont synthétiques (Contoso, Alice, Bob, Eve). Ne collez jamais un jeton, un prompt ou un argument d'outil dans un journal, un ticket ou une diapositive.
-
 ## Objectif
 
-Rendre visible le serveur MCP gouverné. À la fin, vous pouvez :
+Votre serveur MCP est protégé par Microsoft Entra ID (module 03), joignable uniquement via
+Azure API Management (APIM, module 04), et il appelle les données en aval avec la bonne identité (module 05).
+Reste une question : **voyez-vous ce qui se passe, et les autres équipes trouvent-elles ce serveur ?**
 
-1. Interroger en KQL, dans Application Insights, la télémétrie disponible des requêtes MCP reçues par API Management.
-2. Enregistrer le serveur MCP dans un inventaire Azure API Center afin que d'autres équipes puissent le découvrir.
-3. Savoir où figure, dans le centre d'administration Microsoft 365, une entrée de serveur MCP apporté par le client (BYO), et ce que cette entrée prouve et ne prouve pas.
+Ce module y répond en deux parties :
+
+- **Observer :** quel outil, quel appelant, quand, quel statut, quelle durée. Vous lisez ces métadonnées dans
+  Application Insights avec une requête KQL (Kusto Query Language).
+- **Inventorier :** inscrire le serveur dans un catalogue (existence, responsable, adresse). Vous l'enregistrez dans
+  Azure API Center (**Preview**). Un administrateur peut aussi le déclarer dans le centre d'administration
+  Microsoft 365 comme serveur MCP apporté par le client (BYO) (**Preview**).
+
+Vous ne déployez rien de nouveau. Vous apprenez aussi ce que prouve chaque élément (journal, inventaire,
+déclaration BYO) et ce qu'il ne prouve pas.
 
 ## Pourquoi c'est important
 
-Un point de terminaison gouverné que personne ne voit n'est pas réellement gouverné. Le module 04 a placé un contrôle d'accès devant les outils. Le module 05 a prouvé qui est l'appelant. Ce module répond aux questions suivantes : ce qui a été appelé, par qui, à quelle fréquence, et ce qui a échoué, sans jamais stocker le contenu de l'appel.
+Un serveur que personne ne voit n'est pas gouverné. Sans métadonnées, impossible de répondre à « qui a utilisé l'outil
+d'écriture hier ? ». Sans inventaire, les équipes créent des serveurs en double ou utilisent des serveurs inconnus
+(« shadow MCP »).
 
-L'observabilité et l'inventaire sont aussi des sources d'erreurs de protection des données. La journalisation des charges utiles capture les prompts et les résultats d'outils. Ce module la laisse désactivée et montre comment vérifier qu'elle le reste.
+Deux pièges à éviter :
+
+- **Trop journaliser.** Stocker les prompts, les arguments ou les résultats d'outils fait fuiter des données.
+  Cet atelier ne journalise que des métadonnées.
+- **Trop faire confiance.** Une ligne de journal ou une entrée de catalogue est une preuve, pas un contrôle. HTTP 200 ne
+  prouve pas que l'outil a réussi, et une entrée d'inventaire n'autorise personne.
 
 **Règles de journalisation de ce module :** zéro octet de corps, aucun jeton, aucun prompt et aucun argument ou résultat d'outil dans un journal, une requête, un classeur, un ticket ou une diapositive. Ne journalisez que les métadonnées : opération, nom de l'outil, statut, durée et type d'erreur.
 
