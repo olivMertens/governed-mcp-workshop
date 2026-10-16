@@ -309,3 +309,11 @@ or in an approved author-owned non-production tenant.
   Protected Resource Metadata, API Management MCP management APIs, Foundry identity passthrough, Agent 365 and
   AI Gateway tier are marked **Preview** where used. Agent 365/AI Gateway remain facilitator-only.
   This is documentation evidence only: module statuses and validation evidence are unchanged.
+- Presenter App Service portal (2026-10-16): deployed the optional public portal in the presenter's own
+  non-production subscription (tenant `TenantE5Sandbox-admin`), approved for the portal only. Resource group
+  in westeurope, one Linux B1 plan, one Node 22 web app (HTTPS-only). ZIP deploy via Entra-authenticated
+  `az webapp deploy`; no publishing keys or basic auth used. `GET /health` returned 200 `{"status":"ok"}`;
+  `/?lang=en#/start` and `/?lang=fr#/start` returned 200. `/en/` and `/fr/` return 404 by design (language is
+  a query parameter). `deploy-portal.ps1` reported a false failure at its status check (Kudu status 4 on a
+  successful OneDeploy); fixed in PR #19 by reading the deployment log instead. GitHub Pages stays off.
+  Module statuses are unchanged: no module 01 to 07 or 99 live validation was run.
