@@ -7,6 +7,31 @@ Publishing the portal does not deploy the Model Context Protocol (MCP) server.
 Module 00 is validated live. Modules 01 to 07 and 99 are authored (offline checks pass) and still need a live run in a test subscription.
 Students can run [module 01](../modules/01-discover-mcp/README.md) without waiting for your portal or Azure deployment.
 
+## Teach one step at a time
+
+Before module 01, open **MCP and agent concepts** in the Start menu
+([repository version](MCP-CONCEPTS.md)). Discuss host/client/server, the agent loop and tools/resources/prompts.
+Use each prediction question before revealing its answer; the conceptual sequence does not execute a tool.
+
+Module, Azure context and presenter pages show one authored step at a time.
+Ask participants to explain the goal and predict the result **before** copying a command.
+Run one short block in the same terminal, inspect the real output, then use **Next** at the bottom of the page.
+That button only changes the page: it never executes code or records a passed exercise.
+
+Pages read from top to bottom: position, content, then the buttons. To return to an explanation, open the
+**Outline** below the buttons. Long blocks stay closed until deliberately opened;
+their checks are never split automatically. The complete guide and architecture remain available in closed sections.
+Long sections continue across numbered parts, targeting 180 visible words per page at complete content boundaries.
+Paragraphs, table rows, nested list items, executable blocks and disclosures stay intact; table headers repeat on continuation pages.
+An indivisible element can exceed the target.
+Selecting another page does not validate the preceding one.
+Do not project private outputs. Keep approvals, identity-administrator actions and cleanup as explicit pauses.
+
+Use the appearance button in the top bar to open the Microsoft/Azure dialog.
+Choose **Template** (original style, follows system colors), **White**, or **Dark**.
+White and Dark use neutral surfaces with small Azure-blue accents. The choice stays in the current browser;
+it does not change the shared guide or deploy anything. Press Escape or the close button to return to the lesson.
+
 ## Who deploys what
 
 You cannot deploy into participants' tenants, and you must not try: no shared credential, no deployment key,
@@ -40,14 +65,43 @@ then run the foundation validator. Choose a realistic expiry; the tag does not d
 
 From the repository root, in the same signed-in PowerShell terminal:
 
+### 2.1 Initialize without deploying
+
+**Why:** Terraform must load the locked providers before it can plan.
+**Predict:** initialization succeeds without creating Azure resources.
+
 ```powershell
 terraform '-chdir=infra\workload' init -lockfile=readonly
 if ($LASTEXITCODE -ne 0) { throw 'Terraform init failed.' }
+```
+
+**Observe:** initialization succeeds. Stop on an error; do not update the lock file to bypass it.
+
+### 2.2 Predict the changes
+
+**Why:** a plan is a proposal, not a deployment.
+**Predict:** one group is added, or an existing approved group is read. No service should be created.
+
+```powershell
 terraform '-chdir=infra\workload' plan '-var-file=..\..\.workshop\participant.tfvars.json' '-out=..\..\.workshop\presenter-foundation.tfplan'
 if ($LASTEXITCODE -ne 0) { throw 'Foundation plan failed.' }
+```
+
+**Observe:** the plan summary. Explain the proposed changes before continuing.
+
+### 2.3 Inspect the saved plan
+
+**Why:** approval applies to this exact saved plan, not to a later recalculation.
+**Action:** read the target group, tags and changes. Keep private output in your terminal.
+
+```powershell
 terraform '-chdir=infra\workload' show '..\..\.workshop\presenter-foundation.tfplan'
 if ($LASTEXITCODE -ne 0) { throw 'Plan review failed.' }
 ```
+
+**Observe:** only the approved foundation. If a paid service or unexpected deletion appears, stop.
+
+### 2.4 Apply only after approval
 
 **STOP: approve this exact target and saved plan.** Expect one new group, no service.
 If using an existing administrator-provided group, Terraform does not create or own it.
@@ -57,6 +111,8 @@ Only after approval, run this separate command:
 terraform '-chdir=infra\workload' apply '..\..\.workshop\presenter-foundation.tfplan'
 if ($LASTEXITCODE -ne 0) { throw 'Foundation apply failed.' }
 ```
+
+**Observe:** the approved group exists, or the administrator-provided group is reused. No portal is published yet.
 
 ## 3. Plan and publish the portal
 
@@ -74,21 +130,49 @@ Apply the portal plan only after separate cost/plan approval. Keep the ZIP uploa
 
 After a successful deployment, read the actual HTTPS hostname from Terraform:
 
+### 4.1 Identify the deployed site
+
+**Why:** a calculated name is not evidence that a site exists.
+**Predict:** your deployed state returns an HTTPS App Service address.
+
 ```powershell
 $portal = terraform '-chdir=infra\workload' output -raw public_portal_url
 if ($LASTEXITCODE -ne 0 -or $portal -notmatch '^https://[a-z0-9.-]+\.azurewebsites\.net$') {
     throw 'No valid deployed portal URL.'
 }
+```
+
+**Observe:** `$portal` contains the validated address in this terminal. Do not share it yet.
+
+### 4.2 Test the site, not only its address
+
+**Why:** the site can exist without serving the expected bundle.
+**Predict:** the health endpoint returns HTTP 200 and exactly `{"status":"ok"}`.
+
+```powershell
 $health = Invoke-WebRequest -Uri "$portal/health" -TimeoutSec 30
 if ($health.StatusCode -ne 200 -or $health.Content -cne '{"status":"ok"}') {
     throw 'Portal health check failed.'
 }
+$health.StatusCode
+```
+
+**Observe:** 200 and no error. If the check fails, investigate before sharing.
+
+### 4.3 Open both languages before sharing
+
+**Action:** only after the health check succeeds, print the two links.
+
+```powershell
+if (-not $health -or $health.StatusCode -ne 200 -or $health.Content -cne '{"status":"ok"}') { throw 'Check portal health first.' }
 "Student link (English): $portal/?lang=en#/start"
 "Lien participant (francais) : $portal/?lang=fr#/start"
 ```
 
 Open both links. Check language switching, modules 00/01 and diagrams before sending them.
 Never send a guessed URL or one that has not passed these checks.
+
+**Before continuing:** have an attendee explain the first action. If it is unclear, do not send a larger script.
 
 Suggested student message:
 

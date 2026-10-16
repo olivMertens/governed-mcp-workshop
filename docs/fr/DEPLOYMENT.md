@@ -38,19 +38,19 @@ Ne demandez pas le rôle Propriétaire (Owner) sur l'abonnement pour contourner 
 
 ## 2. Sélectionner l'environnement dans votre terminal
 
-Lisez le script, puis lancez-le depuis le dossier principal du dépôt :
+Lisez le script, puis lancez-le depuis la racine du dépôt :
 
 ```powershell
 & .\scripts\select-azure-context.ps1 -Language fr
 ```
 
-Il ouvre la connexion Azure dans le navigateur, sélectionne l'abonnement demandé et vérifie le contexte.
-Respectez l'authentification multifacteur de votre organisation.
+Il ouvre la page de connexion Azure dans le navigateur, sélectionne l'abonnement demandé et vérifie le contexte.
+Suivez les règles d'authentification multifacteur de votre organisation.
 Le script ne crée aucune ressource et n'attribue aucun rôle.
 
 **Gardez ce même terminal pour Terraform.** Lancez le script avec `&`, pas dans un nouveau processus
 `pwsh -File` : les paramètres de contexte doivent rester disponibles pour la suite.
-Si le script échoue, arrêtez-vous. Ne poursuivez pas avec l'ancien abonnement sélectionné.
+Si le script échoue, arrêtez-vous. Ne poursuivez pas avec l'abonnement sélectionné auparavant.
 
 <details>
 <summary>Vous utilisez bash ?</summary>
@@ -72,10 +72,114 @@ Il définit `ARM_TENANT_ID` et `ARM_SUBSCRIPTION_ID` dans le processus courant u
 Il refuse les paramètres d'authentification incompatibles plutôt que de les ignorer.
 La confirmation demandée atteste votre accord ; elle ne détecte pas automatiquement un environnement de production.
 
-Ces scripts concernent Azure public. Un cloud souverain nécessite une configuration distincte, à examiner
+Ces scripts ciblent le cloud public Azure. Un cloud souverain nécessite une configuration distincte, à examiner
 avant utilisation. Ne collez jamais la sortie de `az account get-access-token` dans cette page.
 
 </details>
+
+## Voir les ressources depuis votre terminal
+
+Chaque bloc de code de l'application propose **Copier le code**. La copie n'exécute rien.
+Relisez le bloc, remplacez les valeurs entre chevrons, puis collez-le dans votre terminal PowerShell 7,
+à la racine du dépôt. Utilisez le même terminal que pour le sélecteur de contexte ci-dessus.
+Les résultats s'affichent dans ce terminal, pas dans l'application partagée.
+
+Après un déploiement approuvé, utilisez ces commandes en **lecture seule**.
+Elles vérifient l'annuaire et l'abonnement sélectionnés, lisent uniquement le nom du groupe et les tags
+dans votre état Terraform local, puis listent les ressources portant votre tag.
+Elles n'ouvrent aucune session, ne changent pas d'abonnement, ne déploient rien et n'appellent aucun outil MCP.
+
+### Observer 1. Vérifier le contexte avant les ressources
+
+**Pourquoi :** le nom d'un groupe ne suffit pas à identifier l'abonnement approuvé.
+**Prévoyez :** le contexte Azure actif doit correspondre aux variables du sélecteur.
+Exécutez ce bloc dans le même terminal, après un déploiement approuvé :
+
+```powershell
+$ErrorActionPreference = 'Stop'
+if (-not $env:ARM_TENANT_ID -or -not $env:ARM_SUBSCRIPTION_ID) {
+    throw 'Run the workshop context selector in this terminal first.'
+}
+$inspectionTenant = $env:ARM_TENANT_ID
+$inspectionSubscription = $env:ARM_SUBSCRIPTION_ID
+. .\scripts\context-common.ps1
+Assert-WorkshopAzureContext -TenantId $inspectionTenant -SubscriptionId $inspectionSubscription
+```
+
+**Observez :** aucune erreur. Le script a vérifié l'annuaire et l'abonnement, pas le déploiement.
+**Avant de continuer :** arrêtez-vous en cas d'écart. Gardez ce terminal ouvert ; la suite réutilise ses variables.
+
+### Observer 2. Retrouver le groupe dans votre état
+
+**Pourquoi :** ne devinez pas le nom et ne cherchez pas dans tout l'abonnement.
+**Prévoyez :** Terraform renvoie le groupe enregistré dans l'état d'origine de votre charge de travail.
+
+```powershell
+$workloadPath = Join-Path 'infra' 'workload'
+$resourceGroup = & terraform "-chdir=$workloadPath" output -raw resource_group_name
+if ($LASTEXITCODE -ne 0 -or -not $resourceGroup) {
+    throw 'No resource group output. Use the original workload state after an approved deployment.'
+}
+$resourceGroup
+```
+
+**Observez :** un nom de groupe dans votre terminal privé. Aucune ressource n'a été créée.
+**Avant de continuer :** comparez-le au groupe approuvé. Si l'état est absent, arrêtez-vous ; n'en recréez pas un.
+
+### Observer 3. Distinguer les ressources de votre participant
+
+**Pourquoi :** un groupe partagé peut contenir les ressources d'autres participants.
+**Prévoyez :** le tag `workshop` contient votre préfixe et votre suffixe stable.
+
+```powershell
+$tagJson = & terraform "-chdir=$workloadPath" output -json resource_tags
+if ($LASTEXITCODE -ne 0) { throw 'Cannot read the workshop tags from the original workload state.' }
+$workshopTag = ($tagJson | ConvertFrom-Json -AsHashtable).workshop
+if ($workshopTag -cnotmatch '^mcp-[a-z][a-z0-9]{1,7}-([a-f0-9]{10}|[a-f0-9]{16})$') {
+    throw 'Invalid workshop tag. Stop and inspect the original workload state.'
+}
+$workshopTag
+```
+
+**Observez :** un tag comme `mcp-p01-0123456789abcdef`, pas un identifiant de connexion.
+**Avant de continuer :** vérifiez votre préfixe. Ne retirez jamais le filtre pour obtenir davantage de résultats.
+
+### Observer 4. Lister et interpréter le résultat
+
+**Pourquoi :** la requête est maintenant limitée à l'abonnement approuvé et à votre tag de participant.
+**Prévoyez :** seules les ressources correspondantes de ce groupe apparaissent. Revérifiez le contexte juste avant l'appel Azure.
+
+```powershell
+Assert-WorkshopAzureContext -TenantId $inspectionTenant -SubscriptionId $inspectionSubscription
+az resource list --subscription $inspectionSubscription `
+    --resource-group $resourceGroup `
+    --query "[?tags.workshop=='$workshopTag'].{Name:name,Type:type,Location:location}" --output table --only-show-errors
+if ($LASTEXITCODE -ne 0) { throw 'Resource inspection failed. Check the context and scoped read permissions.' }
+```
+
+**Observez :** un tableau des noms, types et régions des ressources portant votre tag dans le groupe sélectionné.
+Azure CLI n'accepte pas `--tag` avec `--resource-group`. La requête reste limitée au groupe ;
+son expression de filtre sélectionne ensuite le tag validé.
+Si l'état local est absent ou l'accès refusé, arrêtez-vous : ce n'est pas un résultat vide valide.
+Un tableau vide signifie seulement que cette requête n'a rien trouvé : ce n'est ni une preuve de nettoyage complet
+ni un test des autorisations du serveur. Le module 01 ne crée aucune ressource Azure.
+Lancez séparément le script de vérification du module pour tester son comportement.
+Ne collez pas de sorties privées, d'identifiants ou de jetons dans l'application ou dans le chat.
+
+### Observer 5. Comparer dans les portails
+
+**Pourquoi :** cette liste établit un inventaire ; elle ne prouve ni la connexion ni l'autorisation des outils.
+**Action :** comparez le même groupe et le même tag dans Azure ; vérifiez séparément l'identité dans Entra.
+
+Pour vérifier visuellement, ouvrez le [portail Azure](https://portal.azure.com/), sélectionnez le même annuaire
+et le même abonnement, puis ouvrez **Groupes de ressources** et le groupe indiqué par la sortie Terraform.
+Dans un groupe partagé, filtrez sur le même tag `workshop` ; les ressources des autres ne vous appartiennent pas.
+Pour les identités du module 03, ouvrez le [centre d'administration Microsoft Entra](https://entra.microsoft.com/),
+sélectionnez l'annuaire approuvé et consultez uniquement les applications de l'atelier dans **Inscriptions d'applications**.
+Ces liens ne sélectionnent aucun tenant, n'accordent aucun droit et ne déploient rien.
+
+**Avant de continuer :** expliquez quel portail contient les ressources et lequel contient les identités.
+Lancez ensuite la validation du module pour tester les accès.
 
 ## 3. Suivre le module avant de déployer
 
@@ -84,10 +188,10 @@ du module 01 lorsqu'il sera disponible. Sélectionner un abonnement ne valide pa
 
 Le code Terraform actuel prépare le groupe et un portail App Service public facultatif, désactivé par défaut.
 Le serveur MCP et les modules suivants ne sont pas encore implémentés. Attendez leurs guides de déploiement,
-de vérification et de nettoyage. Ce tableau n'a pas de bouton qui déploie tout l'atelier.
+de vérification et de nettoyage. Ce tableau ne propose aucun bouton pour déployer tout l'atelier.
 
 > [!IMPORTANT]
-> Avant toute création payante, examinez le plan Terraform, les droits, les quotas et les coûts.
+> Avant de créer une ressource payante, examinez le plan Terraform, les droits, les quotas et les coûts.
 > L'application du plan exige un accord explicite. Conservez les mêmes paramètres et le même état Terraform.
 
 <details>
@@ -126,7 +230,7 @@ Un code HTTP 200 peut contenir une erreur d'outil MCP.
 
 Suivez le module 99 après avoir examiné et fait approuver les suppressions.
 Supprimez uniquement les ressources et les identités créées pour l'atelier.
-Préservez les groupes et les comptes existants. Arrêtez Inspector et les codespaces inutilisés.
+Ne touchez pas aux groupes et aux comptes existants. Arrêtez Inspector et les codespaces inutilisés.
 Le module 07 est facultatif ; il ne doit pas retarder le nettoyage.
 
 <details>
@@ -135,7 +239,7 @@ Le module 07 est facultatif ; il ne doit pas retarder le nettoyage.
 Nettoyez les ressources avant les identités créées pour l'atelier.
 Vérifiez les étiquettes, le réseau privé, les attributions de rôles et l'inventaire.
 Examinez aussi les durées de conservation et les suppressions récupérables.
-Arrêter un service ne signifie pas nécessairement arrêter tous ses frais.
+Arrêter un service ne met pas nécessairement fin à tous ses frais.
 
 </details>
 
@@ -144,7 +248,10 @@ Arrêter un service ne signifie pas nécessairement arrêter tous ses frais.
 - [Choix du tenant et de l'abonnement avec Azure CLI](https://learn.microsoft.com/cli/azure/manage-azure-subscriptions-azure-cli).
 - [Connexion interactive Azure CLI](https://learn.microsoft.com/cli/azure/authenticate-azure-cli-interactively).
 - [Attribution des rôles Azure](https://learn.microsoft.com/azure/role-based-access-control/role-assignments-cli).
+- [Lister les ressources avec Azure CLI](https://learn.microsoft.com/cli/azure/resource#az-resource-list).
 - [Configuration et authentification AzureRM](https://registry.terraform.io/providers/hashicorp/azurerm/5.9.0/docs).
 - [Plan technique original en anglais](../BUILD-PLAN.md) et [guide de test](PRACTICE.md).
 
 Dernière vérification : 2026-10-14. Aucun abonnement consulté et aucune ressource déployée lors de la préparation.
+
+Commandes de lecture et boutons de copie vérifiés le 2026-10-16 : contrôles hors ligne uniquement, aucun tenant interrogé.

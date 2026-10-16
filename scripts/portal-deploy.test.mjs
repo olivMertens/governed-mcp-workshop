@@ -6,9 +6,10 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { buildPortal } from "./build-site.mjs";
+import { publicPaths } from "./portal-server.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-test("portal deployment checks ownership and protection, honors WhatIf, and packages exactly 52 files without real Azure access", (t) => {
+test("portal deployment checks ownership and protection, honors WhatIf, and packages the exact public allowlist without real Azure access", (t) => {
     const directory = mkdtempSync(join(tmpdir(), "workshop-deploy-fixture-"));
     t.after(() => rmSync(directory, { recursive: true, force: true }));
     const scripts = join(directory, "scripts");
@@ -71,8 +72,10 @@ foreach ($global:scenario in @('what-if','wrong-owner','basic-enabled','wrong-ru
     if ($global:scenario -eq 'valid') {
         $archive=[IO.Compression.ZipFile]::OpenRead($zipPath)
         try {
-            if ($archive.Entries.Count -ne 52 -or $null -eq $archive.GetEntry('.nojekyll') -or
+            if ($archive.Entries.Count -ne ${publicPaths.length + 2} -or $null -eq $archive.GetEntry('.nojekyll') -or
                 $archive.Entries.FullName -match '(^|/)([.]workshop|[.]git)(/|$)|[.]tfstate|[.]tfplan|participant[.]tfvars') { throw 'Incorrect public ZIP contents.' }
+            $expected=@(${[...publicPaths, "server.mjs", "site-manifest.json"].map((path) => `'${path}'`).join(",")})
+            if (Compare-Object ($archive.Entries.FullName | Sort-Object) ($expected | Sort-Object)) { throw 'ZIP differs from the public allowlist.' }
         } finally { $archive.Dispose() }
     }
     Write-Output "PASS synthetic portal $global:scenario (expected HTTP N/A; no real Azure access)"

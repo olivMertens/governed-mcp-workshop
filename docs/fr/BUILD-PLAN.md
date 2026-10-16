@@ -1,12 +1,20 @@
 # Le parcours de l'atelier
 
 Ce parcours présente ce que vous apprendrez à chaque étape. Suivez les modules dans l'ordre.
-Les modules 00 et 01 ont des guides exécutables ; les contrôles Azure du 00 restent en attente.
+
+> [!IMPORTANT]
+> Les modules s'enchaînent : chacun réutilise les fichiers privés, l'état Terraform et les ressources des précédents.
+> Ne passez au module suivant qu'après la réussite du script de validation du module en cours.
+> Sauter une étape provoque des erreurs difficiles à diagnostiquer plus loin. La ligne **Dépend de** indique les prérequis de chaque module.
+
+Les modules 00 et 01 ont des guides exécutables ; les contrôles Azure du module 00 sont encore en attente.
 Le module 01 est local et indépendant d'Azure. Les modules 02 à 07 et 99 restent prévus.
 N'utilisez pas ces résumés comme procédure de déploiement : suivez le guide du module lorsqu'il est publié.
 Le [plan technique en anglais](../BUILD-PLAN.md) s'adresse aux personnes qui construisent l'atelier.
 
 ## 00 - Prérequis et environnement
+**Dépend de :** aucun module. Commencez ici.
+
 
 **Objectif :** vérifier vos outils et préparer un environnement de test autorisé.
 **À vérifier :** les contrôles réussissent et l'administrateur comprend la demande de configuration Entra.
@@ -23,6 +31,8 @@ Aucun serveur MCP ni code Terraform Entra n'est encore implémenté.
 </details>
 
 ## 01 - Découvrir MCP sans Azure
+**Dépend de :** outils du module 00. Sans Azure : possible même si les vérifications Azure du 00 sont en attente.
+
 
 **Objectif :** afficher les outils d'un serveur local, puis en exécuter un avec des données fictives.
 **À vérifier :** une exécution réelle et une confirmation manuelle disponible dans le client.
@@ -33,6 +43,8 @@ Un outil de lecture, `get_service_health`, est disponible. Le script et Inspecto
 L'observation de l'approbation dans VS Code reste manuelle. Aucun portail présentateur n'est nécessaire.
 
 ## 02 - Serveur par clé, niveau 0
+**Dépend de :** module 00 validé pour votre abonnement et module 01 terminé.
+
 
 **Objectif :** comprendre qu'une clé partagée protège l'accès sans identifier chaque utilisateur.
 **À vérifier :** HTTP 401 sans clé ; HTTP 200 et réussite de l'outil avec la bonne clé.
@@ -50,6 +62,8 @@ Le point d'entrée gardera le niveau d'autorisation `System`, jamais un accès a
 </details>
 
 ## 03 - Identité Microsoft Entra, niveau 1
+**Dépend de :** module 02 déployé (mêmes fichiers privés, même état Terraform) et demande Entra approuvée par l'administrateur des identités.
+
 
 **Objectif :** autoriser les utilisateurs prévus, plutôt que toute personne possédant une clé.
 **À vérifier :** Alice et Bob peuvent se connecter, pas Eve. Un jeton absent ou destiné à un autre service est refusé.
@@ -69,6 +83,8 @@ Le [guide du module 03](../../modules/03-entra-authentication/README.fr.md) est 
 encore déployé dans Azure ni créé dans Microsoft Entra.
 
 ## 04 - API Management comme entrée unique, niveau 2
+**Dépend de :** modules 02 et 03 (les deux étapes) déployés avec les mêmes fichiers privés et le même état Terraform.
+
 
 **Objectif :** imposer le passage par la passerelle API Management.
 **À vérifier :** Bob ne peut pas créer de ticket, Alice le peut après approbation.
@@ -92,6 +108,8 @@ API de serveur MCP (**Preview**), stratégies, réseau privé et verrouillage de
 Rien n'est encore déployé dans Azure.
 
 ## 05 - On-Behalf-Of et accès applicatif, niveau 3
+**Dépend de :** modules 02 et 03 déployés (04 recommandé). Publiez le code serveur **avant** l'étape 2 du module 04.
+
 
 **Objectif :** comparer les droits de l'utilisateur et ceux de l'application.
 **À vérifier :** la lecture au nom de l'utilisateur réussit pour Alice et échoue pour Bob ;
@@ -112,6 +130,8 @@ assertion d'identité managée (sans secret), deux identités distinctes, rôles
 avec `isError: true`. Rien n'est encore déployé dans Azure ni créé dans Microsoft Entra.
 
 ## 06 - Observation et inventaire, niveau 4
+**Dépend de :** modules 00 à 05 terminés, avec le point de terminaison MCP d'APIM qui répond.
+
 
 **Objectif :** savoir qui a utilisé quel outil et avec quel résultat, sans enregistrer les données échangées.
 **À vérifier :** les journaux ne contiennent ni jetons, ni consignes, ni paramètres ou résultats d'outils.
@@ -132,6 +152,8 @@ Les limites et les résultats attendus figurent dans la [fiche de gouvernance](L
 </details>
 
 ## 07 - Clients supplémentaires, facultatif
+**Dépend de :** modules 03 à 06 validés (ou leur enregistrement). Facultatif.
+
 
 **Objectif :** utiliser le même serveur depuis un client Foundry ou Copilot Studio officiellement pris en charge,
 sans secret. Vérifiez les licences, l'identité utilisée et les fonctions en **Preview**.
@@ -139,6 +161,8 @@ L'authentification OAuth manuelle Copilot Studio exigeant un secret reste report
 Cette démonstration de l'animateur ne doit pas retarder le nettoyage.
 
 ## 99 - Nettoyage
+**Dépend de :** à lancer en dernier, avec les mêmes fichiers privés et le même état Terraform que les modules déployés. Ordre inverse.
+
 
 **Objectif :** supprimer les ressources créées pour l'atelier, puis les identités et rôles créés pour les tests.
 Examinez le plan de suppression et faites-le approuver. Préservez les ressources partagées et les comptes existants.

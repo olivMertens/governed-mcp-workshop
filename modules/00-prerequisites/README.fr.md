@@ -9,7 +9,7 @@ Vous préparerez aussi les informations à transmettre à l'administrateur Micro
 
 ## Pourquoi cette étape est importante
 
-Un outil installé ne garantit pas que vous avez les droits ou la capacité nécessaires dans Azure.
+Un outil installé ne garantit pas que vous ayez les droits ou la capacité nécessaires dans Azure.
 Les noms propres à chaque participant limitent les conflits, mais n'augmentent pas les quotas disponibles.
 
 Consultez les [schémas étape par étape](../../assets/architecture/STEPS.fr.md) et
@@ -26,6 +26,11 @@ et désactivé par défaut. Aucun serveur Model Context Protocol (MCP) n'est enc
 ## Prérequis et droits nécessaires
 
 Commencez par [choisir votre environnement de travail](../../docs/fr/GETTING-STARTED.md).
+
+**Raccourci facultatif :** le [Microsoft Foundry Dev Pack](https://devblogs.microsoft.com/foundry/foundry-devpack-announcement/),
+en anglais, peut installer en une seule fois Azure CLI, Azure Developer CLI (`azd`) et l'extension Foundry
+(Windows : `winget install Microsoft.FoundryDevPack`). Il n'installe **pas** Terraform, le SDK .NET, Node.js,
+PowerShell ni Functions Core Tools : gardez donc les outils de la liste de référence. Lancez ensuite `scripts/check-tools.ps1`, qui doit toujours afficher Azure CLI 2.88.0 ou une version plus récente. Sinon, installez Azure CLI de la façon habituelle.
 Utilisez uniquement un annuaire Microsoft Entra et un abonnement Azure autorisés pour des tests hors production.
 L'annuaire contient les identités ; l'abonnement contient les ressources facturées.
 
@@ -56,7 +61,7 @@ Pour un groupe existant, ajoutez `-ExistingResourceGroupName` avec son nom dès 
 `prepare-workshop.ps1`. Conservez le fichier de paramètres privé et l'état Terraform jusqu'au nettoyage.
 
 Le sélecteur vous demande les identifiants de l'annuaire et de l'abonnement, puis la confirmation `NONPROD`.
-Il ouvre la connexion Azure et sélectionne l'abonnement. **Gardez le même terminal pour la suite.**
+Il lance la connexion à Azure et sélectionne l'abonnement. **Gardez le même terminal pour la suite.**
 Ne copiez aucune clé, aucun jeton ni aucune information de compte dans le tableau, le dépôt ou la conversation.
 
 <details>
@@ -77,10 +82,10 @@ bash ./modules/00-prerequisites/validate.sh -TenantId "$ARM_TENANT_ID" -Subscrip
 ## Résultat attendu
 
 Chaque contrôle réussi affiche `PASS`. En cas d'erreur, corrigez le problème avant de poursuivre.
-Les lectures Azure attendent un code HTTP 200 ; les contrôles locaux indiquent `N/A`, car ils ne font pas
+Les lectures Azure doivent renvoyer un code HTTP 200 ; les contrôles locaux indiquent `N/A`, car ils ne font pas
 de requête réseau. Le script n'enregistre aucun fournisseur de ressources et n'attribue aucun rôle.
 
-Le conteneur et Codespaces n'ont pas encore été testés à l'exécution sur le poste de préparation.
+Le conteneur et Codespaces n'ont pas encore été testés en conditions réelles sur le poste de préparation.
 Si vous utilisez l'un de ces environnements, les contrôles doivent y réussir : un test sur votre poste ne suffit pas.
 
 ## Vérifier avant de poursuivre
@@ -88,7 +93,7 @@ Si vous utilisez l'un de ces environnements, les contrôles doivent y réussir :
 Exécutez `validate.ps1` ou `validate.sh` dans l'abonnement de test approuvé.
 Notez la date, le type d'environnement et les lignes `PASS` non sensibles dans `docs/PROGRESS.md`.
 Vérifiez aussi que la demande Entra est comprise et pourra être transmise en privé à l'administrateur.
-Ne commencez le module 01 qu'après la réussite de cette validation réelle.
+Ne commencez le module 01 qu'une fois cette validation réelle réussie.
 
 ## En cas de problème
 

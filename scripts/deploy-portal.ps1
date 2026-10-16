@@ -52,11 +52,23 @@ try {
     }
     if ($PSCmdlet.ShouldProcess("$name in $group", 'Replace public documentation code using Entra-authenticated ZIP deployment')) {
         & (Join-Path $PSScriptRoot 'package-portal.ps1') -BundlePath $BundlePath -OutputPath $PackagePath
-        $null = & az webapp deploy --subscription $SubscriptionId.ToString() --resource-group $group --name $name `
+        $deployOutput = & az webapp deploy --subscription $SubscriptionId.ToString() --resource-group $group --name $name `
             --src-path ([IO.Path]::GetFullPath($PackagePath)) --type zip --clean false --restart true `
-            --track-status true --output none --only-show-errors 2>&1
+            --track-status true --only-show-errors 2>&1
         if ($LASTEXITCODE -ne 0) {
-            throw 'Entra ZIP deployment failed. Inspect the deployment status privately; do not enable basic publishing or use credentials as a fallback.'
+            # The Kudu status can report a false failure while the OneDeploy log shows success, so check the log.
+            $deployId = & az webapp log deployment list --subscription $SubscriptionId.ToString() --resource-group $group `
+                --name $name --query '[0].id' -o tsv --only-show-errors 2>$null
+            $deployLog = if ($deployId) {
+                & az webapp log deployment show --subscription $SubscriptionId.ToString() --resource-group $group `
+                    --name $name --deployment-id $deployId -o json --only-show-errors 2>$null
+            }
+            $succeeded = $deployLog -and (($deployLog | Out-String) -match 'Deployment successful')
+            if (-not $succeeded) {
+                Write-Warning (($deployOutput | Out-String).Trim())
+                throw 'Entra ZIP deployment failed. Inspect the deployment status privately; do not enable basic publishing or use credentials as a fallback.'
+            }
+            Write-Warning 'az webapp deploy reported a non-zero exit, but the latest deployment log shows success. Continuing with the health check.'
         }
         $health = Invoke-WebRequest -Uri "https://$($app.defaultHostName)/health" -SkipHttpErrorCheck -TimeoutSec 30
         if ($health.StatusCode -ne 200 -or $health.Content -cne '{"status":"ok"}') {
