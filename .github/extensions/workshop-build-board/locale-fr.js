@@ -177,7 +177,6 @@ const french = {
   "Warning": "Attention",
   "Danger": "Danger",
   "Architecture and security flow": "Comprendre les échanges et les protections",
-  "Planned target - not deployed or validated": "Architecture prévue, pas encore déployée ni validée",
   "Scroll the diagram or open its full-size SVG.": "Faites défiler le schéma ou ouvrez le SVG en taille réelle.",
   "Open SVG": "Ouvrir le SVG",
   "Open PNG": "Ouvrir le PNG",

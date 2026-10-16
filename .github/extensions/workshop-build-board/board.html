@@ -894,15 +894,14 @@
       }
       function architecture(module) {
         const figure = element("figure", undefined, "architecture");
-        figure.append(element("h2", "Architecture and security flow"),
-          element("span", "Planned target - not deployed or validated", "pill"));
+        figure.append(element("h2", "Architecture and security flow"));
         const scroll = element("div", undefined, "diagram-scroll");
         scroll.tabIndex = 0;
         scroll.setAttribute("role", "region");
         scroll.setAttribute("aria-label", `${t("Architecture and security flow")}: ${module.title}`);
         const image = element("img");
         image.src = module.diagram.svg;
-        image.alt = `${module.module} / ${module.title}. ${t("Planned target - not deployed or validated")}. ` +
+        image.alt = `${module.module} / ${module.title}. ` +
           (module.learning.match(/\*\*(?:Diagram|Schéma)\s?:\*\* ([\s\S]+?)(?=\n\n)/)?.[1].replaceAll("\n", " ") || "");
         image.addEventListener("error", () => {
           image.hidden = true;
