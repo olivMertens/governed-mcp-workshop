@@ -76,6 +76,9 @@ test("guided reading splits authored actions, never code fences or nested disclo
     assert.match(steps[2].content, /```powershell\n## Not a heading\n\*\*2\. Not an action\.\*\*\n```/);
     assert.match(steps[3].content, /## Kept inside[\s\S]*### Also inside[\s\S]*<\/details>\n<\/details>$/);
     assert.deepEqual(split("# Module\n[Français](README.fr.md)\n\n## Goal\nLearn one thing.").map((step) => step.title), ["Goal"]);
+    // The Microsoft product chips are part of the visible module header, never hidden in a disclosure.
+    assert.match(html, /content\.append\(intro, servicesList\(module\)\);/);
+    assert.doesNotMatch(html, /disclosure\([^)]*servicesList/);
     // Every published module guide opens on its Goal: no language link, status note or banner becomes a preliminary step.
     for (const folder of ["00-prerequisites", "01-discover-mcp", "02-open-server", "03-entra-authentication", "04-governed-gateway",
         "05-delegated-and-app-only", "06-observe-inventory", "07-clients", "99-cleanup"]) {
