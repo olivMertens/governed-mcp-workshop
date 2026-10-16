@@ -421,3 +421,11 @@ result from its command (20 boxes checked in Edge, 0 orphans). Offline validator
   Twelve EN/FR light/dark layouts at 320/390/1366 pixels have no page overflow; exact copy uses a mocked clipboard.
   Opening a long reference block and the desktop teaching view were checked. Preview bundle contains only
   52 allowlisted files and was used locally only. No Azure/Entra access, deployment or module-status change.
+- Presenter App Service portal (2026-10-16): deployed the optional public portal in the presenter's own
+  non-production subscription, approved for the portal only. Resource group
+  in westeurope, one Linux B1 plan, one Node 22 web app (HTTPS-only). ZIP deploy via Entra-authenticated
+  `az webapp deploy`; no publishing keys or basic auth used. `GET /health` returned 200 `{"status":"ok"}`;
+  `/?lang=en#/start` and `/?lang=fr#/start` returned 200. `/en/` and `/fr/` return 404 by design (language is
+  a query parameter). `deploy-portal.ps1` reported a false failure at its status check (Kudu status 4 on a
+  successful OneDeploy); fixed in PR #19 by reading the deployment log instead. GitHub Pages stays off.
+  Module statuses are unchanged: no module 01 to 07 or 99 live validation was run.

@@ -129,6 +129,15 @@ The new `portal-dist` contains 54 exact files: the public static allowlist, a ha
 stdlib-only server. The builder refuses an existing destination; choose a fresh `--output` directory when rebuilding.
 The server honors App Service's `PORT` and listens externally only when it is set.
 
+**Live address shape (verified 2026-10-16):** the app is served at `https://<web-app-name>.azurewebsites.net`.
+Routes are `/?lang=en#/start` and `/?lang=fr#/start`, plus `/health`, which returns `{"status":"ok"}`.
+Paths such as `/en/` or `/fr/` return 404 by design: the server routes by query string and hash, not by path.
+`/participant.json` returns 404 unless the endpoint and scope settings are configured.
+
+**Deploy status note:** `scripts/deploy-portal.ps1` treats a non-zero `az webapp deploy` exit as a failure only when
+the latest deployment log does not contain `Deployment successful`. A Kudu status of `4` alone is not a failure;
+the health check is the final gate.
+
 ### Review capacity privately
 
 For this optional stage the group must already exist: first review/apply the **foundation-only** plan from the

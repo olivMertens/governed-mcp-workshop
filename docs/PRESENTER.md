@@ -120,6 +120,8 @@ Use the [App Service hosting procedure](HOSTING.md#optional-public-app-service-d
 It covers persistent `-EnablePublicPortal` opt-in with the original parameters, building the public bundle,
 private quota/cost evidence, portal preflight, plan review and Entra-authenticated ZIP deployment.
 
+Live example (presenter subscription, 2026-10-16): the portal is served at `https://<web-app>.azurewebsites.net/?lang=en#/start` and `?lang=fr#/start`. Health check: `/health`. Language paths such as `/en/` return 404 by design; use the `?lang=` query.
+
 Expect **one Linux B1 plan and one web app** in the group. No managed identity, Entra application,
 Functions server or API Management is created by this portal deployment.
 Public reading is intentional; deployment uses Microsoft Entra, not publishing keys.
