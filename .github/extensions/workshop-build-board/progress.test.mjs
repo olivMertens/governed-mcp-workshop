@@ -79,6 +79,17 @@ test("guided reading splits authored actions, never code fences or nested disclo
     // The Microsoft product chips are part of the visible module header, never hidden in a disclosure.
     assert.match(html, /content\.append\(intro, servicesList\(module\)\);/);
     assert.doesNotMatch(html, /disclosure\([^)]*servicesList/);
+    // Commands and terminal checks stay in the main lesson flow, not in optional reading.
+    assert.match(html, /content\.append\(exercise\);/);
+    assert.doesNotMatch(html, /disclosure\("Practice and validation"/);
+    // "Read first" links open the exact numbered concept section that holds the explanation and its diagram.
+    for (const [file, diagram] of [["MCP-CONCEPTS.md", "05.en.svg"], [join("fr", "MCP-CONCEPTS.md"), "05.fr.svg"]]) {
+        const concepts = split(readFileSync(join(repository, "docs", file), "utf8"));
+        const obo = concepts.findIndex((step) => step.section === 10);
+        assert.ok(obo > 0, `${file} must expose section 10`);
+        assert.match(concepts.filter((step) => step.section === 10).map((step) => step.content).join("\n"), new RegExp(diagram.replace(".", "\\.")));
+        for (const section of [1, 9]) assert.ok(concepts.some((step) => step.section === section), `${file} section ${section}`);
+    }
     // Every published module guide opens on its Goal: no language link, status note or banner becomes a preliminary step.
     for (const folder of ["00-prerequisites", "01-discover-mcp", "02-open-server", "03-entra-authentication", "04-governed-gateway",
         "05-delegated-and-app-only", "06-observe-inventory", "07-clients", "99-cleanup"]) {
