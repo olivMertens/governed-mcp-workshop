@@ -1,5 +1,5 @@
 const french = {
-  "Prerequisites and services": "Prérequis et services utilisés",
+  "Prerequisites": "Prérequis",
   "One step at a time": "Une étape à la fois",
   "Before you begin": "Avant de commencer",
   "Choose a step": "Choisir une étape",

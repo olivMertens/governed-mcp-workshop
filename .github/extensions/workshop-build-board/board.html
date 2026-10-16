@@ -1066,7 +1066,8 @@
       title.append(element("span", module.module === "07" ? "Optional / facilitator demo" : module.module === "99" ? "Cleanup" : "Workshop module", "pill"),
         element("h1", module.title));
       intro.append(element("span", module.module, "chapter"), title);
-      content.append(intro);
+      // Microsoft product chips stay visible: they tell the reader at a glance which services this stage touches.
+      content.append(intro, servicesList(module));
       const dependency = dependencyNotice(module);
       if (module.guide === null) content.append(notice("Design outline - participant guide not published.",
         "These are the planned outcomes and requirements. Do not treat them as deployment instructions. The complete steps, commands, validation and cleanup will appear here when the module README is added."));
@@ -1102,9 +1103,7 @@
       content.append(element("h2", "Go further (optional)", "further-title"),
         disclosure("Practice and validation", exercise),
         disclosure("Architecture and security flow", architecture(module)));
-      const preparation = disclosure("Prerequisites and services", servicesList(module));
-      if (dependency) preparation.append(dependency);
-      content.append(preparation);
+      if (dependency) content.append(disclosure("Prerequisites", dependency));
       const concepts = element("details");
       concepts.append(element("summary", "Why this boundary matters"), markdown(module.learning, module.learningSourcePath),
         link("Read the full governance guide", "#/governance", "secondary"));
