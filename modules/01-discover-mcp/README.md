@@ -152,8 +152,10 @@ For Agent Host sessions, use Folder isolation; worktree sessions can force Allow
 Run **Chat: Manage Tool Approval** and turn off pre-approval for this tool.
 If a confirmation is still skipped, use the documented per-tool
 `chat.tools.eligibleForAutoApproval` setting with `false` for the actual tool identifier shown by your client.
-Do not enable global auto-approval or change organization policy.
-Workspace Trust and starting a server are different from approving a tool call.
+
+> [!WARNING]
+> Do not enable global auto-approval or change organization policy.
+> Workspace Trust and starting a server are different from approving a tool call.
 
 Select only `workshop-local` in the tool picker and send:
 
@@ -162,8 +164,10 @@ Select only `workshop-local` in the tool picker and send:
 
 Review the actual tool name and arguments; approve **once**.
 Expand the tool-call record and inspect its result, not only the assistant's answer.
-If your client cannot enforce per-call approval, record this exercise as **not verified**.
-The validator cannot prove that a human saw a dialog.
+
+> [!IMPORTANT]
+> If your client cannot enforce per-call approval, record this exercise as **not verified**.
+> The validator cannot prove that a human saw a dialog.
 
 ### Bash
 

@@ -18,10 +18,11 @@ Governance must hold no matter which client calls the server. Each client has it
 
 Nothing. This module creates no Azure, Microsoft Entra or Copilot Studio resources. It only documents the steps and provides an offline check of this folder.
 
-Preview features used in this demo (label them as Preview when you show them):
-
-- **Preview:** OAuth identity passthrough for MCP tools in Microsoft Foundry.
-- **Preview:** Microsoft Foundry MCP tool configuration in the Agent Builder.
+> [!NOTE]
+> Preview features used in this demo (label them as Preview when you show them):
+>
+> - **Preview:** OAuth identity passthrough for MCP tools in Microsoft Foundry.
+> - **Preview:** Microsoft Foundry MCP tool configuration in the Agent Builder.
 
 ## Prerequisites and required roles
 
@@ -48,9 +49,10 @@ The product changes; the server's authorization does not.
 
 ![User-context and application-context tools use different downstream tokens, never the MCP token.](../../assets/architecture/05.en.svg)
 
-**Compatibility gate:** the current gateway requires a delegated scope and the server's OBO tools require a user.
-A Foundry managed identity is app-only: assigning an app role alone does **not** make it compatible.
-Do not claim a working app-only client demo or relax the scope gate. Use an approved user flow or a recording.
+> [!IMPORTANT]
+> **Compatibility gate:** the current gateway requires a delegated scope and the server's OBO tools require a user.
+> A Foundry managed identity is app-only: assigning an app role alone does **not** make it compatible.
+> Do not claim a working app-only client demo or relax the scope gate. Use an approved user flow or a recording.
 
 **Question:** Foundry calls with its managed identity. Can `whoami` act for Alice?
 
@@ -79,6 +81,10 @@ OBO tools must also reject app-only callers. Application identity at the client 
 3. Inspect **OAuth 2.0**, never **None**. The documented **Manual** setup asks for a **Client secret**, which is outside this workshop's no-secret rules. Stop before creating that connection; use the outline or a recording. Discovery does not prove secretless compatibility, and the workshop does not implement dynamic client registration. Do not switch to **API key** to bypass this gate.
 4. Only the **Streamable** transport is supported. SSE is no longer supported.
 5. Only test a read tool if an administrator has separately verified a supported secretless flow with the correct MCP audience, delegated scope and roles. This guide does not claim that such a connection has been configured or validated.
+
+> [!CAUTION]
+> Stop before creating a Copilot Studio connection that asks for a **Client secret**. Never switch to **None**
+> or **API key** to make it work: that removes the identity check this workshop builds.
 
 > The exact screen labels can change. Check the source page below before the session.
 
