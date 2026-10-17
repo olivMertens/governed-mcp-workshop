@@ -20,7 +20,7 @@ Functions -> Azure Storage : jeton C, audience = Azure Storage
 
 Le jeton A peut passer par API Management (APIM) jusqu'à la Function privée, car toutes deux protègent la même
 ressource MCP logique. Il n'est jamais envoyé à Graph ou à Storage. La Function obtient un nouveau jeton par
-On-Behalf-Of (OBO) pour un outil qui agit au nom de l'utilisateur, ou via une identité managée pour un outil applicatif.
+On-Behalf-Of (OBO) pour un outil qui agit au nom de l'utilisateur, ou par une identité managée pour un outil applicatif.
 
 ## Parcours synthétique
 
@@ -31,7 +31,7 @@ On-Behalf-Of (OBO) pour un outil qui agit au nom de l'utilisateur, ou via une id
 5. `read_report_as_app` obtient un jeton Storage de l'identité managée, sans le contexte d'Alice.
 
 Le jeton MCP de Bob peut être valide alors que Storage refuse `read_report_as_user`. Eve ne peut pas obtenir
-le jeton réservé aux utilisateurs affectés. Un refus HTTP 403 en aval peut être renvoyé sous forme d'erreur MCP dans une réponse HTTP 200.
+le jeton réservé aux utilisateurs affectés. Un refus HTTP 403 en aval peut revenir sous forme d'erreur MCP dans une réponse HTTP 200.
 
 ## Résultat attendu
 

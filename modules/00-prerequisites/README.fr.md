@@ -9,7 +9,7 @@ Vous préparerez aussi les informations à transmettre à l'administrateur Micro
 
 ## Pourquoi cette étape est importante
 
-Un outil installé ne garantit pas que vous ayez les droits ou la capacité nécessaires dans Azure.
+Avoir les bons outils ne suffit pas : il faut aussi les droits et la capacité nécessaires dans Azure.
 Les noms propres à chaque participant limitent les conflits, mais n'augmentent pas les quotas disponibles.
 
 > [!IMPORTANT]
@@ -23,8 +23,8 @@ Un schéma explique l'objectif ; il ne prouve pas que des identités ou des ress
 ## Ce que vous déployez
 
 **Les scripts de vérification ne créent aucune ressource.** Ils consultent votre configuration et vos droits.
-Terraform permet, séparément et après approbation, de créer un groupe de ressources dédié ou d'utiliser
-un groupe fourni par l'administrateur. Le [portail public facultatif](../../docs/fr/HOSTING.md) est payant
+Plus tard, dans une étape distincte et après approbation, Terraform crée un groupe de ressources dédié
+ou réutilise celui fourni par l'administrateur. Le [portail public facultatif](../../docs/fr/HOSTING.md) est payant
 et désactivé par défaut. Aucun serveur Model Context Protocol (MCP) n'est encore déployé.
 
 ## Prérequis et droits nécessaires
@@ -34,7 +34,7 @@ Commencez par [choisir votre environnement de travail](../../docs/fr/GETTING-STA
 **Raccourci facultatif :** le [Microsoft Foundry Dev Pack](https://devblogs.microsoft.com/foundry/foundry-devpack-announcement/),
 en anglais, peut installer en une seule fois Azure CLI, Azure Developer CLI (`azd`) et l'extension Foundry
 (Windows : `winget install Microsoft.FoundryDevPack`). Il n'installe **pas** Terraform, le SDK .NET, Node.js,
-PowerShell ni Functions Core Tools : gardez donc les outils de la liste de référence. Lancez ensuite `scripts/check-tools.ps1`, qui doit toujours afficher Azure CLI 2.88.0 ou une version plus récente. Sinon, installez Azure CLI de la façon habituelle.
+PowerShell ni Functions Core Tools : gardez donc les outils de la liste de référence. Lancez ensuite `scripts/check-tools.ps1` : il doit toujours indiquer Azure CLI 2.88.0 ou plus récent. Sinon, installez Azure CLI par la méthode habituelle.
 Utilisez uniquement un annuaire Microsoft Entra et un abonnement Azure autorisés pour des tests hors production.
 L'annuaire contient les identités ; l'abonnement contient les ressources facturées.
 
@@ -86,7 +86,7 @@ $expiry = [datetime]::UtcNow.AddDays(1).ToString('yyyy-MM-dd')
 > PASS module 00 foundation environment checks. Record only the verified workspace route and stage; this is not MCP runtime validation.
 > ```
 >
-> **Ce que cela signifie pour vous :** vos outils correspondent aux versions de référence et votre cible de test peut être lue.
+> **Ce que cela signifie pour vous :** vos outils correspondent aux versions de référence et le script peut lire votre abonnement de test.
 > Rien n'a été créé. Entre les deux groupes, `prepare-workshop.ps1` affiche `PASS private participant parameters created with a
 > stable random suffix.` (ou `PASS existing participant parameters reused unchanged.` lors d'une relance), et le sélecteur affiche
 > `PASS contexte : tenant et abonnement vérifiés. ...`. Le script de validation répète d'abord les lignes des outils (omises ici).
@@ -97,7 +97,7 @@ Pour un groupe existant, ajoutez `-ExistingResourceGroupName` avec son nom dès 
 `prepare-workshop.ps1`. Conservez le fichier de paramètres privé et l'état Terraform jusqu'au nettoyage.
 
 Le sélecteur vous demande les identifiants de l'annuaire et de l'abonnement, puis la confirmation `NONPROD`.
-Il lance la connexion à Azure et sélectionne l'abonnement. **Gardez le même terminal pour la suite.**
+Il ouvre la connexion à Azure, puis sélectionne l'abonnement. **Gardez le même terminal pour la suite.**
 
 > [!WARNING]
 > Ne copiez aucune clé, aucun jeton ni aucune information de compte dans le tableau, le dépôt ou la conversation.
@@ -125,8 +125,8 @@ Chaque contrôle réussi affiche `PASS`. En cas d'erreur, corrigez le problème 
 Les lectures Azure doivent renvoyer un code HTTP 200 ; les contrôles locaux indiquent `N/A`, car ils ne font pas
 de requête réseau. Le script n'enregistre aucun fournisseur de ressources et n'attribue aucun rôle.
 
-Le conteneur et Codespaces n'ont pas encore été testés en conditions réelles sur le poste de préparation.
-Si vous utilisez l'un de ces environnements, les contrôles doivent y réussir : un test sur votre poste ne suffit pas.
+L'auteur n'a pas encore testé le conteneur ni Codespaces en conditions réelles.
+Si vous travaillez dans l'un d'eux, lancez les contrôles à l'intérieur : un test sur votre poste ne suffit pas.
 
 **Question :** toutes les lignes du contrôle préalable affichent `PASS`. Pouvez-vous maintenant déployer sans rien demander ?
 
@@ -134,7 +134,7 @@ Si vous utilisez l'un de ces environnements, les contrôles doivent y réussir :
 <summary>Afficher la réponse</summary>
 
 Non. Le contrôle préalable lit seulement les droits, les fournisseurs et la capacité. Des refus explicites, Azure Policy et
-les quotas partagés peuvent encore bloquer un déploiement, et chaque vrai plan Terraform doit être relu et approuvé séparément.
+les quotas partagés peuvent encore bloquer un déploiement. Chaque plan Terraform réel doit aussi être relu et approuvé à part.
 
 </details>
 
@@ -144,7 +144,7 @@ les quotas partagés peuvent encore bloquer un déploiement, et chaque vrai plan
 <summary>Afficher la réponse</summary>
 
 Le suffixe et l'état permettent à Terraform et aux scripts de nettoyage de retrouver ce que vous avez créé. De nouveaux noms
-laisseraient des ressources orphelines et ne remettent aucun quota à zéro.
+laisseraient des ressources orphelines et ne remettraient aucun quota à zéro.
 
 </details>
 
@@ -153,14 +153,14 @@ laisseraient des ressources orphelines et ne remettent aucun quota à zéro.
 Exécutez `validate.ps1` ou `validate.sh` dans l'abonnement de test approuvé.
 Notez la date, le type d'environnement et les lignes `PASS` non sensibles dans `docs/PROGRESS.md`.
 Vérifiez aussi que la demande Entra est comprise et pourra être transmise en privé à l'administrateur.
-Ne commencez le module 01 qu'une fois cette validation réelle réussie.
+Ne passez au module 01 qu'après la réussite de cette validation réelle.
 
 ## En cas de problème
 
 - **Mauvais abonnement :** relancez le sélecteur dans le terminal utilisé pour l'atelier.
 - **Droits manquants :** demandez à l'administrateur de vérifier l'action refusée sur le groupe concerné.
-- **Fournisseur non enregistré :** faites examiner son enregistrement par l'administrateur ; le script ne le fera pas.
-- **Quota insuffisant :** vérifiez la capacité partagée. Changer les noms des ressources ne résout pas le problème.
+- **Fournisseur non enregistré :** demandez à l'administrateur d'examiner son enregistrement ; le script ne l'enregistre pas.
+- **Quota insuffisant :** vérifiez la capacité partagée. Renommer les ressources ne règle rien.
 - **Functions Core Tools ne démarre pas :** terminez son installation selon la procédure approuvée.
 - **Blocage par Azure Policy :** examinez la règle avec l'administrateur ; ne la désactivez pas.
 
@@ -194,11 +194,11 @@ Versions retenues : Terraform 1.16.6, fournisseur AzureRM 5.9.0, Azure CLI 2.88.
 PowerShell 7.4+, Node.js 22.19+ et Functions Core Tools v4 >= 4.5.0.
 La CLI Functions v5, distincte, est en **Preview** (préversion) et n'est pas utilisée.
 
-Créer un groupe demande des droits de lecture, de création et de suppression au niveau de l'abonnement.
+Pour créer un groupe, il faut des droits de lecture, de création et de suppression sur l'abonnement.
 Un groupe existant évite de demander ces droits, mais nécessite toujours les autorisations prévues sur ce groupe.
-Le script examine les actions autorisées par Azure Resource Manager (ARM), déduit les exclusions de chaque
-ensemble de permissions, puis combine les ensembles. Les pages de résultats doivent rester sur le même
-serveur HTTPS et dans le même périmètre. Les refus explicites et les règles Azure Policy peuvent encore
+Le script lit les actions qu'Azure Resource Manager (ARM) autorise, retire les exclusions de chaque
+ensemble d'autorisations, puis combine les ensembles. Chaque page de résultats doit venir du même
+serveur HTTPS et rester dans le même périmètre. Les refus explicites et les règles Azure Policy peuvent encore
 empêcher un déploiement, même si ces contrôles réussissent.
 
 Le mode « nouveau groupe » vérifie aussi la limite de 980 groupes par abonnement.
@@ -235,7 +235,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Provider initialization failed.' }
 > ```
 >
 > **Ce que cela signifie pour vous :** les scripts et le code Terraform se comportent comme prévu face à des réponses fictives.
-> `terraform init` affiche d'abord `Terraform has been successfully initialized!`. La dernière ligne est honnête : aucun contrôle Azure n'a eu lieu.
+> `terraform init` affiche d'abord `Terraform has been successfully initialized!`. La dernière ligne le dit clairement : aucun contrôle Azure n'a eu lieu.
 
 ```bash
 terraform -chdir=infra/workload init -backend=false -lockfile=readonly &&
@@ -255,8 +255,8 @@ Leur réussite ne valide **ni votre abonnement Azure ni le conteneur**.
 Les options `-Stage portal` et `-Stage mcp` demandent une vérification privée de capacité et de coût,
 fournie avec `-CapacityReviewPath`. Consultez le [guide d'hébergement](../../docs/fr/HOSTING.md).
 Le mode `mcp` prépare les besoins futurs : il ne valide pas les services qui restent à construire.
-Il vérifie aussi la possibilité d'attribuer des rôles. Faites réaliser ces attributions séparément par
-l'administrateur plutôt que d'élargir les droits de tous les participants.
+Il vérifie aussi la possibilité d'attribuer des rôles. Confiez ces attributions à l'administrateur,
+dans une étape séparée, plutôt que d'élargir les droits de tous les participants.
 
 </details>
 

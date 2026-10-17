@@ -10,18 +10,18 @@ Afficher un outil du protocole de contexte de modèle (MCP), lire ses paramètre
 ## Pourquoi cette étape compte
 
 Découvrir un outil ne l'exécute pas. Une réponse du modèle ne prouve pas qu'un appel a eu lieu.
-L'approbation du client ne remplace pas l'autorisation du serveur. Ici, on ne teste ni identité ni rôle.
+L'approbation du client ne remplace pas l'autorisation du serveur. Ce module ne teste ni identité ni rôle.
 
 ## Ce que vous déployez
 
 Rien dans Azure. Votre client lance un processus C# et communique avec lui par ses entrées et sorties standard (stdio).
 Il expose uniquement `get_service_health`, avec des données fictives fixes, sans appeler d'autre service.
-Pas d'adresse HTTP, de données persistantes, d'écriture ni de journalisation du contenu des échanges.
+Il n'y a ni adresse HTTP, ni données persistantes, ni écriture, ni journalisation du contenu des échanges.
 
 ![Découverte locale : architecture](../../assets/architecture/01.fr.svg)
 
 Ce schéma explique le parcours ; il ne prouve pas qu'un service est déployé.
-Aucune fonctionnalité **Preview** n'est utilisée ici. Les préversions des étapes suivantes restent indiquées dans leurs modules.
+Aucune fonctionnalité **Preview** n'est utilisée ici. Les modules suivants signalent eux-mêmes leurs préversions.
 
 ## Prérequis et rôles nécessaires
 
@@ -30,10 +30,10 @@ Aucune fonctionnalité **Preview** n'est utilisée ici. Les préversions des ét
 - Un accès autorisé aux paquets. Les versions sont fixées et verrouillées ; ne contournez pas les contrôles réseau.
 - Node.js 22.19+ et npm pour l'exercice facultatif avec Inspector.
 - Visual Studio Code (VS Code) avec GitHub Copilot pour observer l'approbation manuelle.
-  Les contrôles de protocole ne demandent ni modèle ni abonnement Copilot. L'utilisation de Copilot peut consommer votre forfait.
+  Les contrôles de protocole ne demandent ni modèle ni abonnement Copilot. Utiliser Copilot peut toutefois consommer votre forfait.
 
-**Aucun rôle Azure.** Vous pouvez faire cet exercice sans Azure pendant que les contrôles Azure du module 00 restent en attente.
-Ils restent nécessaires, avec les approbations de déploiement, avant tout exercice dans le cloud.
+**Aucun rôle Azure.** Vous pouvez faire cet exercice même si les contrôles Azure du module 00 ne sont pas encore faits.
+Ils restent obligatoires, avec les approbations de déploiement, avant tout exercice dans le cloud.
 
 ## Étapes
 
@@ -62,13 +62,13 @@ Ouvrez PowerShell 7 à la racine du dépôt. Arrêtez-vous si une commande écho
 > ```
 >
 > **Ce que cela signifie pour vous :** votre poste sait compiler et lancer un serveur MCP, et un client peut négocier
-> une version du protocole avec lui. `MANUAL CHECK` est honnête : un script ne peut pas prouver qu'une personne a vu
+> une version du protocole avec lui. La ligne `MANUAL CHECK` le rappelle : un script ne peut pas prouver qu'une personne a vu
 > la demande d'approbation. L'étape 3 s'en charge.
 
 Le script restaure les paquets verrouillés, compile en Release, lance son serveur, l'appelle, puis l'arrête.
 Il n'installe aucun service permanent et n'utilise pas votre connexion Azure.
 
-**2. L'inspecter sans modèle d'IA, avec un second client facultatif.**
+**2. Inspecter le serveur sans modèle d'IA, avec un second client facultatif.**
 
 ### Préparer Inspector dans le même terminal PowerShell
 
@@ -82,7 +82,7 @@ $env:MCP_INSPECTOR_PERSIST_TOKENS = 'none'
 ```
 
 > **Résultat attendu** — d'après les commandes elles-mêmes ; ces lignes n'affichent rien.
-> La réussite est un retour silencieux. Vérifiez avec `Test-Path $server`, qui affiche `True`.
+> Si tout se passe bien, rien ne s'affiche. Vérifiez avec `Test-Path $server`, qui affiche `True`.
 > Si `Resolve-Path` signale un chemin inexistant, l'étape 1 n'est pas terminée.
 
 **Observez :** aucun serveur n'a démarré. Si la DLL est absente, l'étape 1 n'est pas terminée ; arrêtez-vous.
@@ -147,14 +147,14 @@ if ($LASTEXITCODE -ne 0) { throw 'Inspector tool call failed.' }
 > ```
 >
 > **Ce que cela signifie pour vous :** un outil peut échouer **à l'intérieur d'un échange MCP réussi**. Lisez toujours
-> `isError`, pas seulement le fait que la commande a tourné. Le serveur refuse une entrée inconnue au lieu de deviner :
-> c'est le comportement attendu de chaque outil, surtout avant l'arrivée des écritures.
+> `isError` : il ne suffit pas que la commande se soit exécutée. Le serveur refuse une entrée inconnue au lieu de deviner :
+> c'est ce que l'on attend de chaque outil, et plus encore quand viendront les outils d'écriture.
 
 Examinez la demande d'installation de npm. Chaque commande lance et ferme son propre serveur.
 Ces commandes affichent des résultats fictifs, pas des identifiants cloud.
-Ne réutilisez pas un enregistrement de terminal pour les modules suivants.
+N'enregistrez pas la transcription du terminal pour la réutiliser dans les modules suivants.
 
-**Observez :** un véritable appel local d'outil, pas une réponse inventée par un modèle. Aucun service Azure n'a été contacté.
+**Observez :** un vrai appel d'outil en local, et non une réponse inventée par un modèle. Aucun service Azure n'a été contacté.
 
 **Question :** la commande Inspector s'est terminée avec le code 0. Cela prouve-t-il que l'outil a réussi ?
 
@@ -188,7 +188,7 @@ Sélectionnez uniquement `workshop-local` dans les outils du chat et envoyez :
 > Appelle get_service_health une seule fois avec service workshop-api. Demande mon approbation avant l'appel.
 > Ne remplace pas l'outil par une commande de terminal et n'invente pas le résultat.
 
-Vérifiez le vrai nom et les paramètres, puis approuvez **une seule fois**.
+Vérifiez le nom réel de l'outil et ses paramètres, puis approuvez **une seule fois**.
 Dépliez l'appel et examinez son résultat, pas seulement la réponse de l'assistant.
 
 > [!IMPORTANT]
@@ -197,7 +197,7 @@ Dépliez l'appel et examinez son résultat, pas seulement la réponse de l'assis
 
 ### Bash
 
-Le même script s'appuie sur PowerShell 7, sans seconde implémentation du serveur :
+La version bash appelle le même script PowerShell 7. Il n'existe pas de seconde version du serveur :
 
 ```bash
 bash ./modules/01-discover-mcp/validate.sh
@@ -210,7 +210,7 @@ npx @modelcontextprotocol/inspector@2.9.0 --cli dotnet "$server" --method tools/
 > **Résultat attendu** — les mêmes lignes PASS et la même sortie d'Inspector que les exécutions PowerShell ci-dessus ; `validate.sh` appelle le même `validate.ps1`.
 
 Faites ensuite l'exercice VS Code ci-dessus dans la même copie.
-Exécutez les commandes séparément et arrêtez-vous si le code de sortie est différent de zéro.
+Exécutez les commandes une par une et arrêtez-vous dès qu'un code de sortie n'est pas nul.
 
 ## Ce que vous devez voir
 
@@ -239,16 +239,16 @@ MANUAL CHECK: client approval prompts are not tested by this validator.
 ```
 
 **Statut HTTP : sans objet.** stdio relie des processus locaux ; ce n'est pas un service HTTP.
-Le test croisé entre clients et serveurs du SDK a négocié la version `2026-07-28` du protocole sur le poste de construction.
+Sur le poste de l'auteur, le test entre le client et le serveur du SDK a négocié la version `2026-07-28` du protocole.
 Inspector 2.9.0 a également découvert et appelé le serveur. Laissez les clients négocier ; n'écrivez pas vous-même l'échange d'initialisation.
-Ces résultats ne prouvent pas la compatibilité des futurs modules Functions ou passerelle.
+Ces résultats ne prouvent rien sur la compatibilité des modules suivants (Functions et passerelle).
 
 ## Valider
 
 Relancez `validate.ps1` ou `validate.sh`. Chaque contrôle automatique doit afficher `PASS`, avec un code de sortie 0.
 Le script vérifie le protocole, la liste exacte, le schéma, les indications de lecture seule,
 les deux résultats fictifs complets, les entrées inconnues ou manquantes et le rejet d'un nom d'outil d'écriture.
-Il n'enregistre que les contrôles, pas les paramètres, les résultats ni les échanges du protocole.
+Il ne consigne que l'issue des contrôles, jamais les paramètres, les résultats d'outil ni les échanges du protocole.
 
 Observez séparément l'approbation et le résultat dans VS Code. La réussite des contrôles automatiques ne remplace pas cette observation.
 Le module reste `in-progress` tant que l'approbation manuelle et le jalon d'environnement précédent ne sont pas consignés.
@@ -260,14 +260,14 @@ Le module reste `in-progress` tant que l'approbation manuelle et le jalon d'envi
 | .NET 10 absent ou restauration impossible | Suivez le guide d'installation et rouvrez PowerShell. Utilisez votre accès aux paquets autorisé ; ne désactivez pas TLS. |
 | Fichier DLL introuvable | Lancez d'abord le script dans votre copie. Ne copiez pas les fichiers compilés d'un autre participant. |
 | Aucun outil dans VS Code | Démarrez `workshop-local`, actualisez les outils et vérifiez l'erreur réelle de démarrage. |
-| Aucune approbation | Vérifiez les permissions, la préapprobation de l'outil et les règles de l'organisation. Un résultat n'est pas une confirmation. |
-| Inspector ne démarre pas | Vérifiez Node/npm et la version fixée dans votre registre. Ne changez pas silencieusement la version ou le registre géré. |
+| Aucune approbation | Vérifiez les autorisations, la préapprobation de l'outil et les règles de l'organisation. Un résultat n'est pas une confirmation. |
+| Inspector ne démarre pas | Vérifiez Node/npm et la version fixée dans votre registre. Ne changez pas la version ni le registre géré sans le signaler. |
 | Le client demande une URL | Vous avez choisi HTTP au lieu de stdio. Ce serveur n'a pas d'adresse réseau. |
 
 ## Nettoyer
 
 Arrêtez `workshop-local` avec **MCP: List Servers**. Les commandes Inspector s'arrêtent seules.
-Puis lancez :
+Lancez ensuite :
 
 ```powershell
 & .\modules\01-discover-mcp\cleanup.ps1
@@ -282,7 +282,7 @@ Puis lancez :
 > KEEP private module 00 parameters and Terraform state. This script does not delete files or stop unrelated processes.
 > ```
 >
-> **Ce que cela signifie pour vous :** il n'y a rien à supprimer dans Azure. Les lignes `MANUAL CHECK` sont à faire vous-même dans VS Code.
+> **Ce que cela signifie pour vous :** il n'y a rien à supprimer dans Azure. Les lignes `MANUAL CHECK` décrivent ce que vous devez faire vous-même dans VS Code.
 
 ```bash
 bash ./modules/01-discover-mcp/cleanup.sh

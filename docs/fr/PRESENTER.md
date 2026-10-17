@@ -10,8 +10,9 @@ Les participants peuvent faire le [module 01](../../modules/01-discover-mcp/READ
 ## Enseigner une étape à la fois
 
 Avant le module 01, ouvrez **Comprendre MCP et les agents** dans le menu Commencer
-([version du dépôt](MCP-CONCEPTS.md)). Expliquez hôte/client/serveur, la boucle de l'agent et outils/ressources/prompts.
-Posez les questions de prédiction avant de lire la réponse ; cette séquence conceptuelle n'exécute aucun outil.
+([version du dépôt](MCP-CONCEPTS.md)). Expliquez les rôles d'hôte, de client et de serveur, la boucle de l'agent,
+puis les outils, les ressources et les prompts.
+Posez les questions de prédiction avant de lire la réponse. Cette séquence de concepts n'exécute aucun outil.
 
 Les pages des modules, du contexte Azure et du présentateur affichent une seule étape à la fois.
 Demandez aux participants d'expliquer l'objectif et de prévoir le résultat **avant** de copier une commande.
@@ -21,13 +22,13 @@ Ce bouton change seulement de page : il n'exécute rien et ne valide pas l'exerc
 Chaque page se lit de haut en bas : position, contenu, puis les boutons. Pour revenir à une explication, ouvrez le
 **Sommaire** sous les boutons. Les blocs longs restent fermés tant qu'on ne les ouvre pas ;
 leurs contrôles ne sont jamais découpés automatiquement. Le guide complet et l'architecture restent accessibles dans des sections fermées.
-Les longues sections continuent en parties numérotées, avec une cible de 180 mots visibles par page aux limites des éléments complets.
+Les longues sections se poursuivent en parties numérotées. Chaque page vise 180 mots visibles et s'arrête toujours à la fin d'un élément complet.
 Paragraphes, lignes de tableau, éléments de liste imbriqués, blocs exécutables et sections repliables restent intacts.
 Les en-têtes des tableaux sont répétés sur les pages suivantes ;
 un élément indivisible peut dépasser la cible. Changer de page ne valide pas la précédente.
 Ne projetez pas les sorties privées. Marquez une pause explicite pour les accords, l'administrateur des identités et le nettoyage.
 
-Le bouton d'apparence de la barre supérieure ouvre le dialogue avec les icônes Microsoft et Azure.
+Le bouton d'apparence de la barre supérieure ouvre la boîte de dialogue avec les icônes Microsoft et Azure.
 Choisissez **Template** (style d'origine, suit les couleurs du système), **Blanc** ou **Sombre**.
 Blanc et Sombre utilisent des surfaces neutres avec de petites touches de bleu Azure. Le choix reste dans le navigateur ;
 il ne modifie pas le guide partagé et ne déploie rien. Appuyez sur Échap ou sur le bouton de fermeture pour revenir à la leçon.
@@ -55,7 +56,7 @@ Les sections 1 à 4 ne concernent que l'hébergement de la copie partagée dans 
 
 Utilisez une copie du dépôt et un état Terraform distincts de ceux des participants.
 Utilisez la branche par défaut, `main`, pour votre copie et pour Codespaces.
-Vérifiez que tout le groupe utilise la même version publiée avant la session.
+Avant la session, vérifiez que tout le groupe utilise la même version publiée.
 Ne publiez jamais votre compte administrateur, votre tenant, votre abonnement, vos paramètres, votre état ni vos plans sauvegardés.
 
 Suivez les [commandes PowerShell du module 00](../../modules/00-prerequisites/README.fr.md) :
@@ -81,7 +82,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Terraform init failed.' }
 ### 2.2 Prévoir les modifications
 
 **Pourquoi :** un plan est une proposition, pas un déploiement.
-**Prévoyez :** un groupe est ajouté, ou un groupe existant approuvé est lu. Aucun service ne doit être créé.
+**Prévoyez :** Terraform ajoute un groupe, ou lit un groupe existant approuvé. Aucun service ne doit être créé.
 
 ```powershell
 terraform '-chdir=infra\workload' plan '-var-file=..\..\.workshop\participant.tfvars.json' '-out=..\..\.workshop\presenter-foundation.tfplan'
@@ -118,12 +119,12 @@ if ($LASTEXITCODE -ne 0) { throw 'Foundation apply failed.' }
 ## 3. Planifier et publier le portail
 
 Suivez la [procédure App Service](HOSTING.md#portail-public-facultatif-sur-app-service) :
-ajout de `-EnablePublicPortal` avec les paramètres d'origine, construction du contenu public,
-preuve privée de quota et de coût, contrôles préalables, examen du plan et publication ZIP authentifiée par Entra.
+ajoutez `-EnablePublicPortal` aux paramètres d'origine, construisez le contenu public, conservez en privé la preuve
+de quota et de coût, lancez les contrôles préalables, examinez le plan, puis publiez le ZIP avec une authentification Entra.
 
 Résultat prévu : **un plan Linux B1 et une application web** dans ce groupe.
 Les adresses réelles suivent la forme `https://<nom-de-l'application>.azurewebsites.net/?lang=fr#/start` (ou `?lang=en#/start`).
-Les chemins `/fr/` et `/en/` renvoient 404 : la langue passe par la requête, pas par le chemin.
+Les chemins `/fr/` et `/en/` renvoient 404 : la langue se choisit dans la chaîne de requête, pas dans le chemin.
 Ce déploiement ne crée ni identité managée, ni application Entra, ni serveur Functions, ni API Management.
 La lecture du portail est publique ; le déploiement utilise Microsoft Entra, sans clé de publication.
 Le plan B1 reste facturé tant qu'il existe, même si le site est arrêté.
@@ -175,7 +176,7 @@ if (-not $health -or $health.StatusCode -ne 200 -or $health.Content -cne '{"stat
 Ouvrez les deux liens. Vérifiez le changement de langue, les modules 00/01 et les schémas avant de les envoyer.
 Ne partagez pas une adresse calculée à l'avance ni un site non vérifié.
 
-**Avant de continuer :** faites expliquer la première action par un participant. Si elle n'est pas claire, ne lui envoyez pas un script plus long.
+**Avant de continuer :** demandez à un participant d'expliquer la première action. Si elle n'est pas claire, ne lui envoyez pas un script plus long.
 
 Message prêt à transmettre :
 

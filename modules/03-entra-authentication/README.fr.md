@@ -25,10 +25,10 @@ le code du serveur ne lit jamais le jeton lui-même.
 
 | Revendication | Sens | Valeur synthétique (Alice, voir [alice.json](synthetic-claims/alice.json)) | Qui la vérifie au niveau 1 |
 |---|---|---|---|
-| `aud` | Audience : l'API à laquelle le jeton est destiné. Un jeton par saut, une audience par jeton. | `44444444-…` (ID client de l'API MCP) | Authentification intégrée : seulement l'API MCP |
+| `aud` | Audience : l'API à laquelle le jeton est destiné. Un jeton par appel, une audience par jeton. | `44444444-…` (ID client de l'API MCP) | Authentification intégrée : seulement l'API MCP |
 | `iss`, `tid` | Émetteur et tenant | `https://login.microsoftonline.com/00000000-…/v2.0` | Authentification intégrée : seulement le tenant de l'atelier |
 | `azp` | Application cliente appelante | `aebc6443-…` (Visual Studio Code) | Règle d'autorisation intégrée : seulement les clients autorisés |
-| `scp` | **Étendue** (permission déléguée) : ce que *l'application cliente* peut faire *pour l'utilisateur* | `user_impersonation` | Pré-autorisation du client dans Entra |
+| `scp` | **Scope** (permission déléguée) : ce que *l'application cliente* peut faire *pour l'utilisateur* | `user_impersonation` | Pré-autorisation du client dans Entra |
 | `roles` | **Rôles d'application** : ce que *cet utilisateur* a le droit de faire | `Tools.Read`, `Tools.Write` | Entra n'émet des rôles qu'aux utilisateurs attribués ; le contrôle par outil arrive au module 04 |
 | `exp`, `nbf` | Période de validité | horodatages synthétiques | Authentification intégrée |
 
@@ -49,10 +49,10 @@ le serveur MCP le refuse ([wrong-audience.json](synthetic-claims/wrong-audience.
 renvoie HTTP 401 avant l'exécution du moindre code MCP. Le paramètre documenté
 `AzureFunctionsJobHost__extensions__mcp__system__webhookAuthorizationLevel = Anonymous` indique alors à l'extension MCP de ne
 plus demander la clé système : une clé est un secret partagé que les clients devraient aussi détenir, et elle n'apporte
-aucune identité. Le webhook n'est anonyme *que pour l'hôte* ; rien d'anonyme ne l'atteint depuis Internet. `host.json`
+aucune identité. Le webhook n'est anonyme *que du point de vue de l'hôte* : aucun appel anonyme ne l'atteint depuis Internet. `host.json`
 conserve `System` : un paquet déployé sans authentification intégrée reste protégé par la clé. Terraform ne définit ce paramètre
-que lorsque l'authentification intégrée est appliquée, et lors d'un **second apply** (deux étapes) : Azure écrit les
-paramètres d'application et ceux d'authentification en deux appels distincts ; tout appliquer en une fois pourrait exposer
+qu'une fois l'authentification intégrée en place, et seulement lors d'un **second apply** (deux étapes). En effet, Azure écrit
+les paramètres d'application et ceux d'authentification en deux appels distincts : tout appliquer d'un coup pourrait exposer
 brièvement le webhook.
 
 ## Ce que vous déployez
@@ -62,15 +62,15 @@ brièvement le webhook.
 | Objet | Réglages |
 |---|---|
 | Inscription d'application « Workshop MCP API (mcp-&lt;préfixe&gt;-&lt;suffixe&gt;) » | Un seul tenant, jetons d'accès v2, URI d'ID d'application `api://<client-id>`, aucune URI de redirection, **aucun secret, certificat ni mot de passe** |
-| Étendue déléguée | `user_impersonation` |
+| Scope délégué | `user_impersonation` |
 | Rôles d'application | `Tools.Read`, `Tools.Write` (membres : utilisateurs) ; `Tools.Execute.All` (membres : applications, non attribué ici) |
 | Application d'entreprise (principal de service) | **Attribution obligatoire** = oui |
 | Clients pré-autorisés pour `user_impersonation` | Visual Studio Code `aebc6443-996d-45c2-90f0-388ff96faa56`, Azure CLI `04b07795-8ddb-461a-bbee-02f9e1bf7b46` |
 | Attributions de rôles (comptes de test existants seulement) | Alice → `Tools.Read` + `Tools.Write` ; Bob → `Tools.Read` ; Eve → aucune |
 
 Aucune permission Microsoft Graph ou Storage n'est encore demandée, donc **aucun consentement administrateur** n'est
-nécessaire : les clients pré-autorisés obtiennent `user_impersonation` sans invite de consentement. Le module 05 ajoute les
-permissions On-Behalf-Of et la fédération d'identité de l'identité managée (la sortie `module05_federated_credential`
+nécessaire : les clients pré-autorisés obtiennent `user_impersonation` sans demande de consentement. Le module 05 ajoute les
+permissions On-Behalf-Of et la fédération d'identité pour l'identité managée (la sortie `module05_federated_credential`
 en prépare les valeurs).
 
 **Charge de travail (`infra/workload`, participant) :** une mise à jour en place de la Function App du module 02 :
@@ -88,8 +88,8 @@ en prépare les valeurs).
 ![Architecture du niveau 1](../../assets/architecture/03.fr.svg)
 
 **Preview :** les métadonnées de ressource protégée (PRM, RFC 9728) de l'authentification App Service sont en **Preview** ;
-leur configuration peut changer. Le bouton « authentification MCP » du portail (**Preview**) n'est pas utilisé : il crée un
-secret client.
+leur configuration peut changer. L'atelier n'utilise pas le bouton « authentification MCP » du portail (**Preview**) : il crée
+un secret client.
 
 **Coût :** aucune nouvelle ressource Azure. L'authentification intégrée et les objets Entra n'entraînent pas de frais
 supplémentaires. Toute modification des paramètres d'application redémarre l'application.
@@ -148,14 +148,14 @@ Exécutez les commandes depuis la racine du dépôt. Les étapes 2 à 7 modifien
 az login --tenant <tenant-id> --allow-no-subscriptions
 ```
 
-> **Résultat attendu** — forme de la sortie Azure CLI ; ce n'est pas une capture. Une connexion s'ouvre dans le navigateur.
+> **Résultat attendu** — forme de la sortie Azure CLI ; ce n'est pas une capture. Le navigateur ouvre une page de connexion.
 > Azure CLI liste ensuite les comptes utilisables. Un tenant où cet administrateur n'a pas d'abonnement apparaît comme
 > `N/A(tenant level account)`.
 >
 > **Ce que cela signifie pour vous :** l'administrateur travaille uniquement dans le tenant et n'a besoin d'aucun rôle sur un abonnement Azure.
 
 **3. Administrateur des identités : paramètres privés.** Reprenez le préfixe, le suffixe, le propriétaire et l'expiration
-du participant (reçus en privé) et les ID d'objet des trois comptes de test. Le fichier est ignoré par Git.
+du participant (reçus en privé) et les ID d'objet des trois comptes de test. Git ignore ce fichier.
 
 ```powershell
 $p = Get-Content -LiteralPath .\.workshop\participant.tfvars.json -Raw | ConvertFrom-Json
@@ -166,11 +166,11 @@ $p = Get-Content -LiteralPath .\.workshop\participant.tfvars.json -Raw | Convert
 } | ConvertTo-Json | Set-Content -LiteralPath .\.workshop\entra.tfvars.json
 ```
 
-> **Résultat attendu** — aucune sortie. La réussite est un retour silencieux.
+> **Résultat attendu** — aucune sortie. En cas de réussite, la commande n'affiche rien.
 > Vérifiez avec `Test-Path .\.workshop\entra.tfvars.json`, qui affiche `True`. Le fichier ne contient que des ID, aucun secret.
 
 Pour réutiliser une application déjà créée par un administrateur, ajoutez `"create_application": false` et
-`"existing_application_client_id": "<client-id>"`. Terraform se contente alors de la lire (et de vérifier son étendue,
+`"existing_application_client_id": "<client-id>"`. Terraform se contente alors de la lire (et de vérifier son scope,
 ses rôles et l'attribution obligatoire) ; il ne la modifie ni ne la supprime jamais.
 
 **4. Administrateur des identités : planifier, relire, appliquer.**
@@ -203,8 +203,8 @@ terraform '-chdir=infra\entra' apply '..\..\.workshop\entra.tfplan'
 >
 > Avec `create_application = false`, Terraform se contente de lire l'application existante : attendez-vous aux trois attributions seulement.
 >
-> **Ce que cela signifie pour vous :** huit objets Entra, sans mot de passe ni certificat. Tout `to destroy` ou `to change`
-> lors d'une première exécution est un signal d'arrêt.
+> **Ce que cela signifie pour vous :** huit objets Entra, sans mot de passe ni certificat. Lors d'une première exécution,
+> arrêtez-vous si le plan affiche `to destroy` ou `to change`.
 
 **5. Transmission au participant (ID non secrets seulement).**
 
@@ -284,22 +284,22 @@ Aucun code n'est republié : `host.json` ne change pas.
 > ```
 >
 > **Ce que cela signifie pour vous :** la plateforme refuse désormais les appelants **avant que votre code s'exécute**.
-> Un vrai jeton Microsoft ne suffit pas : il doit être émis **pour ce serveur** (audience). L'ancienne clé partagée
-> ne sert plus à rien seule.
+> Un vrai jeton Microsoft ne suffit pas : il doit être émis **pour ce serveur** (audience). Seule, l'ancienne clé
+> partagée ne sert plus à rien.
 
 **Question :** Alice détient un jeton Microsoft Graph valide de votre tenant et l'envoie au serveur MCP. Est-il accepté ?
 
 <details>
 <summary>Afficher la réponse</summary>
 
-Non, HTTP 401. Le jeton est authentique, mais son audience (`aud`) est Microsoft Graph, pas l'API MCP. Un jeton par saut,
+Non, HTTP 401. Le jeton est authentique, mais son audience (`aud`) est Microsoft Graph, pas l'API MCP. Un jeton par appel,
 une audience par jeton : le serveur n'accepte que les jetons émis pour `api://<client-id>`. L'inverse vaut aussi : le serveur
-ne doit jamais transmettre le jeton d'Alice à Graph (pas de transmission de jeton) ; le module 05 utilise On-Behalf-Of.
+ne doit jamais transmettre le jeton d'Alice à Graph (pas de token passthrough) : le module 05 utilise On-Behalf-Of.
 
 </details>
 
-**9. Connecter VS Code avec ouverture de session.** Dans votre configuration MCP **utilisateur**, remplacez le serveur
-`workshop-open` (et son invite de saisie de la clé) par une simple URL. Aucun en-tête, rien de secret.
+**9. Connecter VS Code avec une connexion Entra.** Dans votre configuration MCP **utilisateur**, remplacez le serveur
+`workshop-open` (et sa demande de clé) par une simple URL. Aucun en-tête, rien de secret.
 
 ```json
 {
@@ -313,7 +313,7 @@ Démarrez le serveur. VS Code lit les métadonnées de ressource protégée et v
 Microsoft**. Connectez-vous en tant qu'Alice : les cinq outils apparaissent. Connectez-vous en tant qu'Eve (autre profil
 VS Code) : Entra affiche `AADSTS50105`.
 
-**10. Vérifications par personne.** Utilisez un profil Azure CLI distinct pour chaque compte de test afin de ne pas écraser votre session.
+**10. Vérifications par persona.** Utilisez un profil Azure CLI distinct pour chaque compte de test afin de ne pas écraser votre session.
 
 ```powershell
 foreach ($persona in 'Alice', 'Bob', 'Eve') {
@@ -397,18 +397,18 @@ unset AZURE_CONFIG_DIR
 
 ### Lire la documentation au moment de la démonstration
 
-Ouvrez ces liens au moment du contrôle correspondant ci-dessus. Authentification, consentement et autorisation sont des décisions différentes.
+Ouvrez chaque lien au moment du contrôle correspondant ci-dessus. Authentification, consentement et autorisation sont trois décisions distinctes.
 
 | Démonstration ou choix | Ce qu'il faut comprendre dans Microsoft Learn | Référence de configuration ou d'API |
 |---|---|---|
 | Sans jeton ou avec la seule ancienne clé : HTTP 401 | [Authentification App Service](https://learn.microsoft.com/azure/app-service/overview-authentication-authorization) : la plateforme contrôle l'identité avant l'exécution de l'outil. | [Ressource authsettingsV2](https://learn.microsoft.com/azure/templates/microsoft.web/sites/config-authsettingsv2) : `requireAuthentication`, `unauthenticatedClientAction` et `allowedAudiences`. |
 | Le client découvre où se connecter | [Autorisation MCP et métadonnées de ressource protégée (**Preview**)](https://learn.microsoft.com/azure/app-service/configure-authentication-mcp). Cela protège l'accès au serveur, pas chaque outil. | La même page décrit `WEBSITE_AUTH_PRM_DEFAULT_WITH_SCOPES` et la réponse indiquant l'URL des métadonnées. |
 | Un jeton Graph est refusé ; un jeton MCP est accepté | [Jetons d'accès](https://learn.microsoft.com/entra/identity-platform/access-tokens) : l'audience désigne l'API cible. | [Audiences autorisées dans authsettingsV2](https://learn.microsoft.com/azure/templates/microsoft.web/sites/config-authsettingsv2), pas une liste de jetons d'API interchangeables. |
-| Alice et Bob accèdent au serveur ; Eve reçoit `AADSTS50105` | [Exiger une attribution utilisateur](https://learn.microsoft.com/entra/identity-platform/howto-restrict-your-app-to-a-set-of-users) : se connecter au tenant ne suffit pas. | [Attribuer des rôles applicatifs](https://learn.microsoft.com/entra/identity-platform/howto-add-app-roles-in-apps), utilisés pour les comptes de test existants. |
-| Scope `user_impersonation` comparé aux rôles `Tools.Read` / `Tools.Write` ; Bob peut encore écrire ici | [Scopes et consentement](https://learn.microsoft.com/entra/identity-platform/scopes-oidc) décrivent la permission déléguée accordée au client. Les [rôles applicatifs](https://learn.microsoft.com/entra/identity-platform/howto-add-app-roles-in-apps) expriment les droits attribués à l'utilisateur. | Le module 04 ajoute le contrôle du rôle par outil. Définir un rôle ne l'applique pas automatiquement. |
+| Alice et Bob accèdent au serveur ; Eve reçoit `AADSTS50105` | [Exiger une attribution utilisateur](https://learn.microsoft.com/entra/identity-platform/howto-restrict-your-app-to-a-set-of-users) : se connecter au tenant ne suffit pas. | [Attribuer des rôles d'application](https://learn.microsoft.com/entra/identity-platform/howto-add-app-roles-in-apps), utilisés pour les comptes de test existants. |
+| Scope `user_impersonation` comparé aux rôles `Tools.Read` / `Tools.Write` ; Bob peut encore écrire ici | [Scopes et consentement](https://learn.microsoft.com/entra/identity-platform/scopes-oidc) décrivent la permission déléguée accordée au client. Les [rôles d'application](https://learn.microsoft.com/entra/identity-platform/howto-add-app-roles-in-apps) expriment les droits attribués à l'utilisateur. | Le module 04 ajoute le contrôle du rôle par outil. Définir un rôle ne l'applique pas automatiquement. |
 
 Ne collez jamais de jeton de l'atelier dans un décodeur en ligne, même si un article lié l'utilise comme exemple.
-Liens documentaires vérifiés le 2026-10-16 ; cela ne prouve aucun résultat d'authentification en ligne.
+Liens vérifiés le 2026-10-16. Cette vérification ne prouve aucun résultat d'authentification en ligne.
 
 ## Valider
 
@@ -416,7 +416,7 @@ Liens documentaires vérifiés le 2026-10-16 ; cela ne prouve aucun résultat d'
 le webhook anonyme n'existe qu'avec l'authentification intégrée appliquée et HTTP 401 ; `infra/entra` conserve un seul
 tenant, `user_impersonation`, les trois rôles et l'attribution obligatoire, sans secret, mot de passe, certificat ni
 utilisateur ; aucun motif de jeton ou de clé dans les fichiers du module ; les revendications synthétiques n'utilisent que
-des ID synthétiques ; format, schéma et tests simulés Terraform pour les deux modules racines.
+des ID synthétiques ; format, schéma et tests Terraform simulés pour les deux modules racines.
 
 Sortie hors ligne (ce résultat **ne prouve pas** un déploiement) :
 
@@ -434,12 +434,12 @@ Modes en ligne, après un déploiement approuvé :
 
 - **Opérateur** (`-TenantId -SubscriptionId`) : HTTP 401 sans jeton, métadonnées PRM, HTTP 401 pour un jeton Graph,
   authsettingsV2 et paramètres d'application lus dans Azure Resource Manager, HTTP 401 avec la seule clé.
-- **Personne** (`-TenantId -Persona Alice|Bob|Eve`, connecté avec ce compte) : Alice et Bob obtiennent HTTP 200 pour
-  `initialize` et `tools/list` ;   Eve ne doit obtenir aucun jeton (erreur `AADSTS50105`). Si `.workshop/module03-personas.json`
-    existe, l'ID d'objet du compte connecté est vérifié.
+- **Persona** (`-TenantId -Persona Alice|Bob|Eve`, connecté avec ce compte) : Alice et Bob obtiennent HTTP 200 pour
+  `initialize` et `tools/list` ; Eve ne doit obtenir aucun jeton (erreur `AADSTS50105`). Si `.workshop/module03-personas.json`
+  existe, le validateur vérifie aussi l'ID d'objet du compte connecté.
 
 Les jetons et les clés restent en mémoire et ne sont jamais affichés. Le module n'est terminé que lorsque la vérification
-opérateur et les trois vérifications par personne réussissent sur un abonnement neuf, juste après les modules 00 à 02.
+opérateur et les trois vérifications par persona réussissent sur un abonnement neuf, juste après les modules 00 à 02.
 
 ## Dépannage
 
@@ -449,15 +449,15 @@ opérateur et les trois vérifications par personne réussissent sur un abonneme
 | HTTP 401 pour Alice après l'étape 1 | Normal : l'étape 1 exige encore la clé. Appliquez l'étape 2. |
 | HTTP 403 avec un jeton valide | L'application cliente n'est pas autorisée. Utilisez VS Code ou Azure CLI. |
 | `AADSTS65001` (consentement requis) | Le client n'est pas pré-autorisé pour `user_impersonation`. Vérifiez les deux pré-autorisations. |
-| `AADSTS50105` pour Alice ou Bob | L'attribution de rôle manque ou n'est pas encore propagée. Attendez quelques minutes, reconnectez-vous. |
+| `AADSTS50105` pour Alice ou Bob | L'attribution de rôle manque ou n'est pas encore propagée. Attendez quelques minutes, puis reconnectez-vous. |
 | `AADSTS500011` (ressource introuvable) | Mauvaise URI d'ID d'application ou mauvais tenant. Utilisez la sortie `mcp_auth_audience`. |
 | Le plan propose de retirer l'authentification | Vous avez oublié `-var-file=..\..\.workshop\module03.tfvars.json`. |
 | `entra_auth_replace_key_gate requires enable_entra_auth` | N'activez jamais l'étape 2 sans l'étape 1. |
 
 ## Nettoyer
 
-Nettoyez dans l'ordre inverse. Chaque script planifie d'abord et refuse toute modification hors du module 03 ;
-lancez-le une fois pour relire, puis avec `-Apply`. Les deux sont idempotents.
+Nettoyez dans l'ordre inverse. Chaque script commence par un plan et refuse toute modification hors du module 03.
+Lancez-le une première fois pour relire le plan, puis relancez-le avec `-Apply`. Les deux scripts sont idempotents.
 
 ```powershell
 # Participant : remettre la clé derrière Entra (phase 1), puis retirer l'authentification intégrée (phase 2).
@@ -515,7 +515,7 @@ passez directement au module 04, conservez tout.
 - Ouvrez [alice.json](synthetic-claims/alice.json) et [bob.json](synthetic-claims/bob.json) : quelle revendication
   diffère, et quelle couche l'utilise ?
 - En tant que Bob, appelez `create_ticket` dans VS Code. Cela fonctionne : pourquoi est-ce un problème, et quel module le corrige ?
-- Lisez les concepts [étendues et rôles d'application](../../docs/fr/concepts/scopes-and-app-roles.md) et
+- Lisez les concepts [scopes et rôles d'application](../../docs/fr/concepts/scopes-and-app-roles.md) et
   [chaîne de jetons](../../docs/fr/concepts/token-chain.md).
 - Suite : [plan du module 04](../../docs/fr/BUILD-PLAN.md).
 

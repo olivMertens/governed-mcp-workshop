@@ -15,7 +15,7 @@ de déploiement partagée et n'a aucun accès aux tenants des participants.
 | Ressources MCP du participant | Abonnement et groupe de test approuvés | Terraform exécuté depuis son terminal connecté à Azure, après examen du plan. |
 
 App Service et Azure Container Apps (ACA) sont des services différents.
-Y héberger le portail ne déploie pas les services de l'atelier. L'architecture MCP reste Azure Functions derrière API Management ;
+Héberger le portail sur l'un d'eux ne déploie pas les services de l'atelier. L'architecture MCP reste Azure Functions derrière API Management ;
 elle ne devient pas automatiquement une application ACA.
 
 ## Construire le portail
@@ -39,7 +39,7 @@ node --test scripts/site.test.mjs && node scripts/build-site.mjs
 Le dossier de sortie `site-dist` est ignoré par Git. Un dossier existant n'est pas écrasé.
 Pour reconstruire, choisissez un nouveau dossier avec `--output` ; ne supprimez une ancienne sortie qu'après l'avoir inspectée.
 Servez le dossier avec un serveur HTTP, pas via `file://`.
-La sortie portable contient le HTML, la traduction JavaScript, le parcours JSON public et uniquement les icônes/schémas autorisés.
+La sortie portable contient le HTML, la traduction JavaScript, le parcours public en JSON et seulement les icônes et schémas autorisés.
 Elle ne contient ni dépôt complet, ni `.git`, ni `.workshop`, ni identifiants, ni état Terraform, ni serveur canvas, ni capacité d'accès locale.
 Les chemins relatifs fonctionnent aussi sous `/workshop-mcp/`.
 
@@ -95,12 +95,12 @@ Pendant cette préparation, l'auteur ne s'est pas connecté à Azure et n'a ni d
 ## Portail public facultatif sur App Service
 
 Cette option, déjà implémentée, héberge la **même application monopage (SPA) publique**, pas un site interne authentifié.
-Il utilise App Service Linux Basic B1 et Node.js 22 LTS (version maintenue à long terme).
+Elle utilise App Service Linux Basic B1 et Node.js 22 LTS (version maintenue à long terme).
 Elle n'utilise ni registre de conteneurs, ni construction d'image, ni secret client, ni profil de publication, ni clé de déploiement.
 ACA n'est pas implémenté dans cette version. Suivez d'abord le
 [module 00](../../modules/00-prerequisites/README.fr.md).
-Une seule racine `infra/workload` et un seul état. L'activation reste dans les paramètres privés ;
-un plan ultérieur ordinaire ne désactive pas implicitement le portail.
+Tout passe par une seule racine, `infra/workload`, et un seul état. L'activation reste dans les paramètres privés ;
+un plan ultérieur ordinaire ne désactive pas le portail à votre insu.
 
 **Coût :** l'instance B1 dédiée est facturée en continu. Vérifiez les prix de la région et les règles de l'abonnement.
 Arrêter le site n'interrompt pas la facturation du plan. HTTPS et Transport Layer Security (TLS) 1.2+ sont imposés ;
@@ -138,11 +138,11 @@ node scripts/portal-server.mjs --verify portal-dist &&
 node portal-dist/server.mjs
 ```
 
-Le serveur local écoute sur la boucle locale, port 8080. Examinez les deux langues et les schémas ;
+Le serveur local écoute sur l'adresse de bouclage (localhost), port 8080. Examinez les deux langues et les schémas ;
 arrêtez-le avec Ctrl+C. `portal-dist`, ignoré par Git, contient exactement 54 fichiers :
 les 50 éléments publics, le manifeste d'empreintes et le serveur sans dépendance externe.
 Le script de construction refuse un dossier existant ; choisissez un nouveau `--output` pour reconstruire.
-Sur App Service, le serveur lit `PORT` et n'écoute sur l'extérieur que si cette variable est définie.
+Sur App Service, le serveur lit `PORT` et n'accepte de connexions extérieures que si cette variable est définie.
 
 ### Vérifier capacité et coût en privé
 
@@ -150,7 +150,7 @@ Le groupe doit déjà exister pour les contrôles du portail : examinez et faite
 [socle seul](GETTING-STARTED.md), **avant** d'activer le portail, qui nécessite sa propre approbation.
 Un groupe fourni par l'administrateur n'est ni créé ni importé.
 
-L'administrateur examine séparément l'enregistrement de `Microsoft.Web` si nécessaire.
+Si nécessaire, l'administrateur examine séparément l'inscription du fournisseur de ressources `Microsoft.Web`.
 Vérifiez la disponibilité de B1 Linux, le quota régional d'instances, les règles et le coût d'une instance.
 Pour le futur `-Stage mcp`, consultez **Diagnose and solve problems > Flex Consumption Quota** :
 la demande maximale en mémoire est partagée entre les participants. Les noms aléatoires ne changent pas les quotas.
@@ -174,13 +174,13 @@ Cet exemple **échoue volontairement** tant que l'abonnement, la capacité, l'he
 
 Pour Flex, utilisez `stage: "mcp"` et `unit: "MB"`. Plafond par défaut : 2048 Mo fois 10 instances.
 Adaptez `-FlexMemoryMB` et `-FlexMaximumInstances` dans l'appel à `scripts/preflight.ps1` si le plan diffère.
-La preuve doit correspondre à l'abonnement, à la région et à l'étape, dater de moins de 24 heures et jamais du futur.
+La preuve doit correspondre à l'abonnement, à la région et à l'étape. Elle doit dater de moins de 24 heures, sans être dans le futur.
 C'est une **revue humaine de quota/coût**, pas une lecture automatique du quota ni une réservation.
 Les capacités API Management/réseau/télémétrie et les règles seront vérifiées avec le plan réel du module concerné.
 
 ### Planifier, approuver, déployer
 
-Ces commandes lisent la cible approuvée sans se connecter, sans changer d'abonnement et sans enregistrement ni attribution.
+Ces commandes lisent la cible approuvée sans se connecter, sans changer d'abonnement, sans inscription de fournisseur ni attribution de rôle.
 Conservez le contexte sélectionné en privé dans le même terminal.
 
 ```powershell
@@ -257,7 +257,7 @@ terraform -chdir=infra/workload show ../../.workshop/destroy.tfplan
 # STOP : obtenir une approbation de suppression distincte avant d'appliquer ce plan.
 ```
 
-Le groupe existant fourni par l'administrateur reste une source de données, jamais une cible de destroy.
+Le groupe existant fourni par l'administrateur reste une source de données, jamais une cible de suppression.
 Le groupe dédié non vide reste protégé. Conservez paramètres et état privés jusqu'à vérification de la suppression.
 Ne supprimez pas un groupe entier pour masquer des ressources non suivies.
 
@@ -277,11 +277,11 @@ Quand le portail et le serveur MCP partagent cet état Terraform, le plan ajoute
 | `WORKSHOP_MCP_SCOPE` | `mcp_auth_scope` (`api://…/user_impersonation`) | `enable_entra_auth = true` (module 03) |
 
 Le serveur du portail revérifie ces deux valeurs et n'expose qu'elles, sur `/participant.json`.
-La page **Essayer votre MCP** préremplit le point de terminaison et affiche l'étendue déléguée. Rien n'est prérempli
+La page **Essayer votre MCP** préremplit le point de terminaison et affiche le scope délégué. Rien n'est prérempli
 sur GitHub Pages : le participant saisit son adresse, qui reste dans la mémoire du navigateur.
 
 - Jamais ajoutés : la clé système du module 02, les jetons, les ID de tenant ou d'abonnement, les chaînes de connexion, les secrets client.
-- Le portail est public : il révèle le nom d'hôte et l'étendue, qui ne sont pas des secrets. Le point de terminaison reste
+- Le portail est public : il révèle le nom d'hôte et le scope, qui ne sont pas des secrets. Le point de terminaison reste
   protégé par la clé système (niveau 0) ou Microsoft Entra (niveau 1). Ne diffusez pas le lien hors de votre groupe de test,
   et supprimez le portail avec le workload.
 - Relancez le plan et le déploiement du portail après chaque nouveau module pour mettre à jour les valeurs préremplies.

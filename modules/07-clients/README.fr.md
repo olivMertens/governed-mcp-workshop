@@ -4,7 +4,7 @@
 
 ## Objectif
 
-Montrer que le même serveur MCP gouverné peut être appelé depuis d'autres clients : un agent Microsoft Foundry et Microsoft Copilot Studio. Ce module est une **démo du formateur**. Les participants regardent et lisent la checklist. Ils n'ont pas besoin de le construire.
+Montrer que d'autres clients peuvent appeler le même serveur MCP gouverné : un agent Microsoft Foundry et Microsoft Copilot Studio. Ce module est une **démo du formateur**. Les participants regardent et lisent la checklist. Ils n'ont rien à construire.
 
 ## Pourquoi c'est important
 
@@ -12,7 +12,7 @@ La gouvernance doit s'appliquer quel que soit le client qui appelle le serveur. 
 
 - Quelle identité appelle le serveur MCP (l'utilisateur, une identité managée ou une identité d'agent) ?
 - Quelle est l'audience du jeton, et s'agit-il bien de l'audience propre au serveur MCP ?
-- Y a-t-il un passage de jeton (token passthrough) vers un service en aval ?
+- Le jeton est-il transmis tel quel à un service en aval (token passthrough) ?
 
 ## Ce que vous déployez
 
@@ -26,7 +26,7 @@ Rien. Ce module ne crée aucune ressource Azure, Microsoft Entra ou Copilot Stud
 
 ## Prérequis et rôles nécessaires
 
-- Modules 03 à 06 terminés et validés (ou leur enregistrement).
+- Modules 03 à 06 terminés et validés (ou un enregistrement de leur démonstration).
 - L'URL du serveur MCP du module 04 (via la passerelle, jamais l'URL de la Function).
 - Pour une démo en direct seulement : un projet Microsoft Foundry et un environnement Copilot Studio autorisés par votre tenant. Votre administrateur les approuve. Rien dans ce module ne modifie leurs rôles.
 
@@ -40,11 +40,11 @@ Le produit change ; les droits exigés par le serveur ne changent pas.
 
 | Appel | Jeton et contrôle à prévoir |
 |---|---|
-| Client vers passerelle MCP | Jeton destiné à l'audience MCP. Validation de l'émetteur, du tenant, de l'audience, de l'expiration, du scope et du rôle par les contrôles de plateforme |
-| Passerelle vers Function | Même ressource logique MCP dans l'atelier ; pas d'échange vers une audience en aval. Authentification et accès privé de la Function conservés |
+| Client vers passerelle MCP | Jeton destiné à l'audience MCP. Les contrôles de la plateforme valident l'émetteur, le tenant, l'audience, l'expiration, le scope et le rôle |
+| Passerelle vers Function | Même ressource logique MCP dans l'atelier ; pas d'échange vers une audience en aval. L'authentification et l'accès privé de la Function restent en place |
 | Serveur MCP vers Graph ou Storage comme utilisateur | Nouveau jeton pour cette API par On-Behalf-Of (OBO) ; droits utilisateur et consentement délégué |
 | Serveur MCP vers Storage comme application | Nouveau jeton Storage par identité managée ; droits applicatifs limités au conteneur |
-| Serveur local en stdio | Pas de jeton OAuth HTTP sur ce transport ; accès au processus et droits du système d'exploitation restent nécessaires |
+| Serveur local en stdio | Pas de jeton OAuth HTTP sur ce transport ; l'accès au processus et les droits du système d'exploitation restent nécessaires |
 | Calcul synthétique dans un outil | Aucun jeton en aval s'il n'y a aucun appel en aval ; l'accès MCP distant reste authentifié |
 
 ![Les outils utilisateur et applicatifs emploient des jetons en aval distincts, jamais le jeton MCP.](../../assets/architecture/05.fr.svg)
@@ -70,15 +70,15 @@ les outils OBO doivent aussi refuser les appelants applicatifs. L'identité du c
 2. Indiquez l'URL de la passerelle du module 04. Utilisez le transport **Streamable HTTP**.
 3. Choisissez l'authentification :
    - **Identité managée du projet :** option documentée de Foundry, mais incompatible avec le contrôle de scope délégué actuel de l'atelier. Expliquez la différence ; ne la présentez pas comme une démonstration réussie.
-   - **Passage d'identité OAuth (préversion) :** l'identité de chaque utilisateur connecté est utilisée. Le serveur doit accepter un jeton dont l'audience est sa propre audience. Les jetons Microsoft ne sont pas transmis à des points de terminaison MCP non approuvés.
+   - **Passage d'identité OAuth (préversion) :** l'appel utilise l'identité de chaque utilisateur connecté. Le serveur doit accepter un jeton dont l'audience est sa propre audience. Les jetons Microsoft ne sont pas transmis à des points de terminaison MCP non approuvés.
 4. Posez une question en lecture seule qui appelle un outil de lecture. Montrez le résultat.
-5. Avant toute écriture, vérifiez que ce client peut exiger une confirmation humaine pour cet appel précis. Sinon, omettez l'écriture. La confirmation ne donne jamais le rôle manquant : Bob doit toujours être refusé.
+5. Avant toute écriture, vérifiez que ce client peut exiger une confirmation humaine pour cet appel précis. Sinon, ne montrez pas l'écriture. La confirmation ne donne jamais le rôle manquant : Bob doit toujours être refusé.
 
 ### Partie B — Microsoft Copilot Studio (plan)
 
 1. Dans l'agent, ouvrez **Outils**, puis **Ajouter un outil**, puis **Nouvel outil**, puis **Model Context Protocol**.
 2. Saisissez un **Nom du serveur**, une **Description du serveur** et l'**URL du serveur** (URL de la passerelle).
-3. Examinez **OAuth 2.0**, jamais **Aucune**. Le parcours **Manual** documenté demande un **Client secret**, interdit dans cet atelier. Arrêtez-vous avant de créer cette connexion ; utilisez le plan ou un enregistrement. La découverte ne prouve pas une compatibilité sans secret et l'atelier n'implémente pas l'inscription dynamique de clients. Ne passez pas à **Clé API** pour contourner ce blocage.
+3. Examinez **OAuth 2.0**, jamais **Aucune**. Le parcours **Manual** documenté demande un **Client secret**, interdit dans cet atelier. Arrêtez-vous avant de créer cette connexion ; utilisez le plan ou un enregistrement. Une découverte réussie ne prouve pas qu'une connexion sans secret soit possible, et l'atelier n'implémente pas l'inscription dynamique de clients. Ne passez pas à **Clé API** pour contourner ce blocage.
 4. Seul le transport **Streamable** est pris en charge. SSE n'est plus pris en charge.
 5. Ne testez un outil de lecture que si un administrateur a vérifié séparément un flux sans secret pris en charge, avec la bonne audience MCP, le scope délégué et les rôles. Ce guide ne prétend pas avoir configuré ou validé une telle connexion.
 
@@ -94,7 +94,7 @@ les outils OBO doivent aussi refuser les appelants applicatifs. L'identité du c
 <summary>Afficher la réponse</summary>
 
 Une clé API n'identifie aucun utilisateur. La passerelle ne pourrait plus vérifier un jeton pour l'audience MCP, un scope délégué
-ni les rôles d'application d'Alice et de Bob : l'autorisation par utilisateur disparaîtrait. Un secret client est aussi interdit par la règle « aucun secret » de l'atelier.
+ni les rôles d'application d'Alice et de Bob : l'autorisation par utilisateur disparaîtrait. Quant au secret client, la règle « aucun secret » de l'atelier l'interdit.
 Arrêtez-vous et utilisez le plan ou un enregistrement.
 
 </details>
@@ -109,8 +109,8 @@ Arrêtez-vous et utilisez le plan ou un enregistrement.
 ## Résultat attendu
 
 - Avec un flux utilisateur compatible et approuvé, Foundry peut renvoyer un résultat de lecture ; sinon, montrez l'enregistrement et la limite de compatibilité.
-- L'écriture de Bob est refusée même s'il confirme. Alice a besoin du rôle et d'une confirmation pour l'appel précis.
-- Les métadonnées disponibles de la passerelle montrent les requêtes sans corps. Elles ne prouvent pas l'affichage d'une confirmation dans le client ; vérifiez-le séparément.
+- L'écriture de Bob est refusée même s'il confirme. Alice a besoin du rôle et d'une confirmation pour cet appel précis.
+- Les métadonnées disponibles de la passerelle montrent les requêtes sans corps. Elles ne prouvent pas que le client a affiché une confirmation : vérifiez-le séparément.
 
 ## Valider
 
@@ -149,7 +149,7 @@ bash ./modules/07-clients/validate.sh --offline
 
 > **Résultat attendu** — les mêmes lignes PASS/FAIL que l'exécution PowerShell ci-dessus.
 
-Chaque vérification affiche une ligne `PASS` ou `FAIL`. Aucune vérification en direct n'est automatisée, car cette démo dépend des paramètres du tenant.
+Chaque vérification affiche une ligne `PASS` ou `FAIL`. Aucune vérification réelle n'est automatisée : cette démo dépend des paramètres du tenant.
 
 ## Dépannage
 
@@ -160,7 +160,7 @@ Chaque vérification affiche une ligne `PASS` ou `FAIL`. Aucune vérification en
 
 ## Nettoyage
 
-Rien n'a été créé : il n'y a donc rien à supprimer. Retirez tout agent ou outil de test ajouté au projet Foundry ou à Copilot Studio après la démo :
+Ce module n'a rien créé : le script n'a rien à supprimer. Après la démo, retirez tout agent ou outil de test ajouté au projet Foundry ou à Copilot Studio :
 
 ```powershell
 pwsh ./modules/07-clients/cleanup.ps1
@@ -185,7 +185,7 @@ bash ./modules/07-clients/cleanup.sh
 ## Aller plus loin
 
 - Ajoutez un deuxième client et comparez les choix d'authentification.
-- Lisez les notes de préversion de la documentation Foundry et surveillez le moment où le passage d'identité OAuth sera en disponibilité générale.
+- Lisez les notes de préversion de la documentation Foundry et guettez l'annonce de la disponibilité générale du passage d'identité OAuth.
 
 ## Sources
 
