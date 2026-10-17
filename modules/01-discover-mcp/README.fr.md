@@ -47,9 +47,6 @@ Ouvrez PowerShell 7 à la racine du dépôt. Arrêtez-vous si une commande écho
 & .\modules\01-discover-mcp\validate.ps1
 ```
 
-Le script restaure les paquets verrouillés, compile en Release, lance son serveur, l'appelle, puis l'arrête.
-Il n'installe aucun service permanent et n'utilise pas votre connexion Azure.
-
 > **Résultat réel** — capture locale sur le poste de l'auteur, 2026-10-16. Données fictives ; vos durées diffèrent.
 >
 > ```text
@@ -68,6 +65,9 @@ Il n'installe aucun service permanent et n'utilise pas votre connexion Azure.
 > une version du protocole avec lui. `MANUAL CHECK` est honnête : un script ne peut pas prouver qu'une personne a vu
 > la demande d'approbation. L'étape 3 s'en charge.
 
+Le script restaure les paquets verrouillés, compile en Release, lance son serveur, l'appelle, puis l'arrête.
+Il n'installe aucun service permanent et n'utilise pas votre connexion Azure.
+
 **2. L'inspecter sans modèle d'IA, avec un second client facultatif.**
 
 ### Préparer Inspector dans le même terminal PowerShell
@@ -81,6 +81,10 @@ $env:MCP_INSPECTOR_SECRET_STORE = 'memory'
 $env:MCP_INSPECTOR_PERSIST_TOKENS = 'none'
 ```
 
+> **Résultat attendu** — d'après les commandes elles-mêmes ; ces lignes n'affichent rien.
+> La réussite est un retour silencieux. Vérifiez avec `Test-Path $server`, qui affiche `True`.
+> Si `Resolve-Path` signale un chemin inexistant, l'étape 1 n'est pas terminée.
+
 **Observez :** aucun serveur n'a démarré. Si la DLL est absente, l'étape 1 n'est pas terminée ; arrêtez-vous.
 
 ### Découvrir le contrat sans exécuter d'outil
@@ -91,8 +95,6 @@ $env:MCP_INSPECTOR_PERSIST_TOKENS = 'none'
 npx @modelcontextprotocol/inspector@2.9.0 --cli dotnet $server --method tools/list
 if ($LASTEXITCODE -ne 0) { throw 'Inspector discovery failed.' }
 ```
-
-**Observez :** le nom et le schéma de l'outil, pas un résultat de santé.
 
 > **Résultat réel** — capture locale, 2026-10-16 (extrait de la sortie d'Inspector).
 >
@@ -107,7 +109,19 @@ if ($LASTEXITCODE -ne 0) { throw 'Inspector discovery failed.' }
 > s'appuie sur `description` pour décider et sur `inputSchema` pour construire les arguments. Les `annotations` sont
 > des indications pour le client, pas un contrôle de sécurité : un serveur pourrait mentir. Rien ne s'est encore exécuté.
 
+**Observez :** le nom et le schéma de l'outil, pas un résultat de santé.
+
 **Avant de continuer :** expliquez la différence entre lister un outil et l'appeler.
+
+**Question :** les `annotations` indiquent `readOnlyHint: true`. Cela empêche-t-il cet outil d'écrire quoi que ce soit ?
+
+<details>
+<summary>Afficher la réponse</summary>
+
+Non. Les annotations sont des indications déclarées par le serveur pour le client ; rien ne les impose. Seul le code du
+serveur et, dans les modules suivants, ses contrôles d'authentification et de rôles d'application décident de ce qu'un appelant peut faire.
+
+</details>
 
 ### Faire un appel explicite en lecture seule
 
@@ -117,12 +131,6 @@ if ($LASTEXITCODE -ne 0) { throw 'Inspector discovery failed.' }
 npx @modelcontextprotocol/inspector@2.9.0 --cli dotnet $server --method tools/call --tool-name get_service_health --tool-arg service=workshop-api
 if ($LASTEXITCODE -ne 0) { throw 'Inspector tool call failed.' }
 ```
-
-Examinez la demande d'installation de npm. Chaque commande lance et ferme son propre serveur.
-Ces commandes affichent des résultats fictifs, pas des identifiants cloud.
-Ne réutilisez pas un enregistrement de terminal pour les modules suivants.
-
-**Observez :** un véritable appel local d'outil, pas une réponse inventée par un modèle. Aucun service Azure n'a été contacté.
 
 > **Résultat réel** — capture locale, 2026-10-16.
 >
@@ -141,6 +149,22 @@ Ne réutilisez pas un enregistrement de terminal pour les modules suivants.
 > **Ce que cela signifie pour vous :** un outil peut échouer **à l'intérieur d'un échange MCP réussi**. Lisez toujours
 > `isError`, pas seulement le fait que la commande a tourné. Le serveur refuse une entrée inconnue au lieu de deviner :
 > c'est le comportement attendu de chaque outil, surtout avant l'arrivée des écritures.
+
+Examinez la demande d'installation de npm. Chaque commande lance et ferme son propre serveur.
+Ces commandes affichent des résultats fictifs, pas des identifiants cloud.
+Ne réutilisez pas un enregistrement de terminal pour les modules suivants.
+
+**Observez :** un véritable appel local d'outil, pas une réponse inventée par un modèle. Aucun service Azure n'a été contacté.
+
+**Question :** la commande Inspector s'est terminée avec le code 0. Cela prouve-t-il que l'outil a réussi ?
+
+<details>
+<summary>Afficher la réponse</summary>
+
+Non. L'échange MCP peut réussir alors que l'outil signale une erreur. Lisez `isError` (et le contenu du résultat) :
+un service inconnu renvoie `isError: true` dans un appel réussi.
+
+</details>
 
 **3. Connecter VS Code et observer une approbation.**
 
@@ -182,6 +206,8 @@ export MCP_INSPECTOR_SECRET_STORE=memory MCP_INSPECTOR_PERSIST_TOKENS=none
 npx @modelcontextprotocol/inspector@2.9.0 --cli dotnet "$server" --method tools/list
 npx @modelcontextprotocol/inspector@2.9.0 --cli dotnet "$server" --method tools/call --tool-name get_service_health --tool-arg service=workshop-api
 ```
+
+> **Résultat attendu** — les mêmes lignes PASS et la même sortie d'Inspector que les exécutions PowerShell ci-dessus ; `validate.sh` appelle le même `validate.ps1`.
 
 Faites ensuite l'exercice VS Code ci-dessus dans la même copie.
 Exécutez les commandes séparément et arrêtez-vous si le code de sortie est différent de zéro.
@@ -247,9 +273,22 @@ Puis lancez :
 & .\modules\01-discover-mcp\cleanup.ps1
 ```
 
+> **Résultat attendu** — d'après les messages de `cleanup.ps1` ; pas encore de capture enregistrée.
+>
+> ```text
+> PASS no Azure resources or persistent tool data created by module 01 (expected HTTP N/A).
+> MANUAL CHECK: stop workshop-local in MCP: List Servers; stop Inspector with Ctrl+C in its terminal.
+> MANUAL CHECK: you may leave workshop-local configured but stopped; do not remove other servers.
+> KEEP private module 00 parameters and Terraform state. This script does not delete files or stop unrelated processes.
+> ```
+>
+> **Ce que cela signifie pour vous :** il n'y a rien à supprimer dans Azure. Les lignes `MANUAL CHECK` sont à faire vous-même dans VS Code.
+
 ```bash
 bash ./modules/01-discover-mcp/cleanup.sh
 ```
+
+> **Résultat attendu** — les mêmes quatre lignes que l'exécution PowerShell ci-dessus.
 
 Ce script d'aide rappelle les actions manuelles ; il n'arrête aucun autre processus et ne supprime aucun fichier.
 Les fichiers compilés restent dans `server/bin` et `server/obj`, ignorés par Git, pour être réutilisés.

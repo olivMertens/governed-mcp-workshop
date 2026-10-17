@@ -63,6 +63,34 @@ $expiry = [datetime]::UtcNow.AddDays(1).ToString('yyyy-MM-dd')
 & .\modules\00-prerequisites\validate.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID
 ```
 
+> **Résultat réel** — `check-tools.ps1` et `validate.ps1` en direct dans l'abonnement de test de l'auteur, 2026-10-17.
+> Les lignes des scripts de préparation et de sélection du contexte sont décrites sous l'encadré. Noms et identifiants masqués.
+>
+> ```text
+> PASS git (Git 2+; expected HTTP N/A)
+> PASS az (Azure CLI >= 2.88.0; expected HTTP N/A)
+> PASS terraform (Terraform >= 1.16.6, < 2; expected HTTP N/A)
+> PASS dotnet (.NET SDK 10; expected HTTP N/A)
+> PASS node (Node.js >= 22.19.0; expected HTTP N/A)
+> PASS func (Functions Core Tools >= 4.5.0, < 5 (not the Preview v5 CLI); expected HTTP N/A)
+> PASS PowerShell 7.6.7 (expected HTTP N/A)
+> PASS local tools only; Azure context, permissions, quota and deployment remain separate checks.
+> ...
+> PASS explicit interactive context (expected HTTP N/A; no sign-in, token output or context change)
+> PASS subscription region (expected HTTP 200; availability is not a capacity reservation)
+> PASS provider Microsoft.Resources (expected HTTP 200; Registered)
+> PASS required ARM permission grants (expected HTTP 200; deny assignments, policy and deployment approval remain separate)
+> PASS resource group capacity (expected HTTP 200; below the documented 980-group limit)
+> PASS foundation preflight only. No resource, registration, permission, login or context was changed. A real plan and separate approval are still required.
+> PASS administrator request template present (expected HTTP N/A; approval and identity creation are separate)
+> PASS module 00 foundation environment checks. Record only the verified workspace route and stage; this is not MCP runtime validation.
+> ```
+>
+> **Ce que cela signifie pour vous :** vos outils correspondent aux versions de référence et votre cible de test peut être lue.
+> Rien n'a été créé. Entre les deux groupes, `prepare-workshop.ps1` affiche `PASS private participant parameters created with a
+> stable random suffix.` (ou `PASS existing participant parameters reused unchanged.` lors d'une relance), et le sélecteur affiche
+> `PASS contexte : tenant et abonnement vérifiés. ...`. Le script de validation répète d'abord les lignes des outils (omises ici).
+
 Adaptez `p01`, la région, le libellé du propriétaire et la date aux choix approuvés pour votre atelier.
 La date sert de rappel : elle ne déclenche pas de suppression automatique.
 Pour un groupe existant, ajoutez `-ExistingResourceGroupName` avec son nom dès le premier appel à
@@ -87,6 +115,8 @@ source ./scripts/select-azure-context.sh fr
 bash ./modules/00-prerequisites/validate.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId "$ARM_SUBSCRIPTION_ID"
 ```
 
+> **Résultat attendu** — les mêmes lignes PASS que l'exécution PowerShell ci-dessus (les scripts bash appellent les mêmes scripts PowerShell).
+
 </details>
 
 ## Résultat attendu
@@ -97,6 +127,26 @@ de requête réseau. Le script n'enregistre aucun fournisseur de ressources et n
 
 Le conteneur et Codespaces n'ont pas encore été testés en conditions réelles sur le poste de préparation.
 Si vous utilisez l'un de ces environnements, les contrôles doivent y réussir : un test sur votre poste ne suffit pas.
+
+**Question :** toutes les lignes du contrôle préalable affichent `PASS`. Pouvez-vous maintenant déployer sans rien demander ?
+
+<details>
+<summary>Afficher la réponse</summary>
+
+Non. Le contrôle préalable lit seulement les droits, les fournisseurs et la capacité. Des refus explicites, Azure Policy et
+les quotas partagés peuvent encore bloquer un déploiement, et chaque vrai plan Terraform doit être relu et approuvé séparément.
+
+</details>
+
+**Question :** votre première tentative a échoué. Pourquoi garder le même suffixe et le même état Terraform au lieu de générer de nouveaux noms ?
+
+<details>
+<summary>Afficher la réponse</summary>
+
+Le suffixe et l'état permettent à Terraform et aux scripts de nettoyage de retrouver ce que vous avez créé. De nouveaux noms
+laisseraient des ressources orphelines et ne remettent aucun quota à zéro.
+
+</details>
 
 ## Vérifier avant de poursuivre
 
@@ -120,7 +170,16 @@ Ne commencez le module 01 qu'une fois cette validation réelle réussie.
 & .\modules\00-prerequisites\cleanup.ps1
 ```
 
-Avec bash : `bash ./modules/00-prerequisites/cleanup.sh`.
+> **Résultat réel** — poste de l'auteur, 2026-10-17.
+>
+> ```text
+> PASS module 00 preflight cleanup (expected HTTP N/A): checks create no Azure or Entra resources.
+> PASS private parameters and state preserved (expected HTTP N/A). Optional paid portal cleanup requires the reviewed Terraform destroy flow in docs/HOSTING.md.
+> ```
+>
+> **Ce que cela signifie pour vous :** il n'y a rien à supprimer pour le module 00, et vos paramètres privés restent en place pour la suite.
+
+Avec bash : `bash ./modules/00-prerequisites/cleanup.sh` (mêmes lignes PASS).
 Les vérifications n'ont rien créé. Ce script conserve vos paramètres privés et votre état Terraform.
 Si vous avez déployé le groupe ou le portail, suivez la
 [procédure de suppression à faire approuver](../../docs/fr/HOSTING.md#nettoyer).
@@ -157,10 +216,33 @@ if ($LASTEXITCODE -ne 0) { throw 'Provider initialization failed.' }
 & .\modules\00-prerequisites\validate.ps1 -Offline
 ```
 
+> **Résultat réel** — exécution hors ligne sur le poste de l'auteur, 2026-10-17. Extrait ; vos durées diffèrent.
+>
+> ```text
+> ✔ preflight is read-only and fails closed for context, permission, provider, quota, runtime and evidence errors (2819.2349ms)
+> ...
+> ℹ tests 19
+> ℹ suites 0
+> ℹ pass 19
+> ℹ fail 0
+> ...
+> PASS local script/HTTP checks (expected HTTP N/A; no Azure access)
+> Success! The configuration is valid.
+> ...
+> Success! 49 passed, 0 failed.
+> PASS Terraform schema and mock-only plans (expected HTTP N/A; no live plan/apply)
+> PASS offline checks only. Module 00 is NOT Azure-validated by this result.
+> ```
+>
+> **Ce que cela signifie pour vous :** les scripts et le code Terraform se comportent comme prévu face à des réponses fictives.
+> `terraform init` affiche d'abord `Terraform has been successfully initialized!`. La dernière ligne est honnête : aucun contrôle Azure n'a eu lieu.
+
 ```bash
 terraform -chdir=infra/workload init -backend=false -lockfile=readonly &&
 bash ./modules/00-prerequisites/validate.sh -Offline
 ```
+
+> **Résultat attendu** — les mêmes lignes PASS que l'exécution PowerShell ci-dessus.
 
 Ces tests utilisent des réponses fictives et des fournisseurs Terraform simulés.
 Leur réussite ne valide **ni votre abonnement Azure ni le conteneur**.

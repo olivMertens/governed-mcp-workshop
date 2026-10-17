@@ -119,6 +119,18 @@ Les étapes 3 à 6 modifient Azure : faites-les uniquement après accord.
 & .\scripts\select-azure-context.ps1 -Language fr
 ```
 
+> **Résultat attendu** — d'après les invites et le message final du sélecteur ; ce n'est pas une capture.
+>
+> ```text
+> ID du tenant Entra de test approuvé (terminal uniquement): <tenant-id>
+> ID de votre abonnement Azure de test approuvé: <subscription-id>
+> Tapez NONPROD pour confirmer le périmètre de test et la connexion interactive: NONPROD
+> PASS contexte : tenant et abonnement vérifiés. Variables ARM définies dans ce processus uniquement. Aucune ressource créée ; ce contrôle ne valide pas le module 00.
+> ```
+>
+> **Ce que cela signifie pour vous :** une connexion dans le navigateur s'ouvre après la saisie de `NONPROD`. Les commandes
+> suivantes lisent `$env:ARM_TENANT_ID` et `$env:ARM_SUBSCRIPTION_ID` dans ce terminal : gardez-le ouvert pendant tout le module.
+
 **3. Activez le module en privé, puis planifiez.** Le fichier d'activation est ignoré par Git. Ajoutez votre plage
 IPv4 publique dans `mcp_allowed_ip_ranges` (par exemple `"203.0.113.10/32"`) pour limiter les appelants ;
 laissez la liste vide pour montrer le niveau ouvert.
@@ -130,6 +142,18 @@ if ($LASTEXITCODE -ne 0) { throw 'Terraform init failed.' }
 terraform '-chdir=infra\workload' plan '-var-file=..\..\.workshop\participant.tfvars.json' '-var-file=..\..\.workshop\module02.tfvars.json' '-out=..\..\.workshop\module02.tfplan'
 if ($LASTEXITCODE -ne 0) { throw 'Terraform plan failed.' }
 ```
+
+> **Résultat réel** — résumé du plan sauvegardé dans l'abonnement de test de l'auteur, 2026-10-16. Noms et identifiants masqués.
+>
+> ```text
+> Plan: 11 to add, 1 to change, 0 to destroy.
+> ```
+>
+> La modification correspond au portail facultatif existant, qui reçoit `WORKSHOP_MCP_ENDPOINT`. Sans portail,
+> attendez-vous à `11 to add, 0 to change, 0 to destroy`.
+>
+> **Ce que cela signifie pour vous :** un plan est une promesse, pas une action. **Tout `to destroy` ici est un signal d'arrêt.**
+> Relisez les onze ajouts : trois attributions de rôle, chacune sur une ressource précise, et aucun secret client.
 
 Relisez le plan : attendez-vous à **onze nouvelles ressources du module 02**, sans remplacement ni suppression.
 Si le portail public optionnel existe déjà, prévoyez aussi une **mise à jour sur place de ses paramètres**
@@ -147,24 +171,24 @@ de plus** (réseau virtuel, deux sous-réseaux, deux zones DNS privées et leurs
 file d'attente) et à une mise à jour sur place de l'application, qui ajoute l'intégration au réseau virtuel. Ne demandez
 jamais d'exemption de stratégie et n'activez jamais les clés partagées pour contourner ce blocage.
 
-> **Résultat réel** — résumé du plan sauvegardé dans l'abonnement de test de l'auteur, 2026-10-16. Noms et identifiants masqués.
->
-> ```text
-> Plan: 11 to add, 1 to change, 0 to destroy.
-> ```
->
-> La modification correspond au portail facultatif existant, qui reçoit `WORKSHOP_MCP_ENDPOINT`. Sans portail,
-> attendez-vous à `11 to add, 0 to change, 0 to destroy`.
->
-> **Ce que cela signifie pour vous :** un plan est une promesse, pas une action. **Tout `to destroy` ici est un signal d'arrêt.**
-> Relisez les onze ajouts : trois attributions de rôle, chacune sur une ressource précise, et aucun secret client.
-
 **4. Appliquez le plan relu (après accord).**
 
 ```powershell
 terraform '-chdir=infra\workload' apply '..\..\.workshop\module02.tfplan'
 if ($LASTEXITCODE -ne 0) { throw 'Terraform apply failed.' }
 ```
+
+> **Résultat réel** — résumé de l'application dans l'abonnement de test de l'auteur, 2026-10-16. Noms et identifiants masqués.
+>
+> ```text
+> ...
+> Apply complete! Resources: 11 added, 1 changed, 0 destroyed.
+> ```
+>
+> Avec `mcp_private_storage = true`, la seconde application dans ce locataire a affiché
+> `Apply complete! Resources: 9 added, 1 changed, 0 destroyed.`
+>
+> **Ce que cela signifie pour vous :** les chiffres doivent correspondre au plan relu. Le serveur existe, mais n'exécute encore aucun code.
 
 **5. Publiez le code du serveur.** Azure CLI utilise votre connexion Microsoft Entra ; aucun mot de passe de publication n'existe.
 
@@ -177,6 +201,24 @@ Compress-Archive -Path .\.workshop\module02-publish\* -DestinationPath .\.worksh
 az functionapp deployment source config-zip --resource-group $group --name $app --src .\.workshop\module02.zip --output none
 if ($LASTEXITCODE -ne 0) { throw 'Code deployment failed.' }
 ```
+
+> **Résultat réel** — publication dans l'abonnement de test de l'auteur, 2026-10-16. Noms et identifiants masqués.
+> `dotnet publish` affiche ses lignes de compilation ; l'envoi lui-même n'affiche rien (`--output none`) et `$LASTEXITCODE` vaut 0.
+> `az functionapp function list --resource-group $group --name $app --query "[].name" --output tsv` a ensuite listé :
+>
+> ```text
+> func-mcp-p01-<suffix>/CreateTicket
+> func-mcp-p01-<suffix>/GetServiceHealth
+> func-mcp-p01-<suffix>/ReadReportAsApp
+> func-mcp-p01-<suffix>/ReadReportAsUser
+> func-mcp-p01-<suffix>/WhoAmI
+> ```
+>
+> Quand une stratégie du locataire désactivait l'accès public du stockage sans `mcp_private_storage`, l'envoi a échoué avec
+> `ERROR: ... BlobUploadFailedException: Failed to upload blob to storage account: ... 403 (This request is not authorized to perform this operation.)`.
+>
+> **Ce que cela signifie pour vous :** cinq fonctions signifient que le code est en ligne. Un 403 ici vient d'une règle réseau,
+> pas d'un rôle manquant (voir Dépannage).
 
 **6. Connectez VS Code sans enregistrer la clé.** Ajoutez ce serveur à votre configuration MCP **utilisateur**
 (pas à un fichier versionné). VS Code demande la clé et la garde dans son stockage de secrets.
@@ -203,6 +245,10 @@ Ne récupérez la clé que lorsque VS Code la demande, puis videz le presse-papi
 az functionapp keys list --resource-group $group --name $app --query systemKeys.mcp_extension --output tsv | Set-Clipboard
 ```
 
+> **Résultat attendu** — aucune sortie. La clé va uniquement dans le presse-papiers, jamais à l'écran.
+> La réussite est un retour silencieux avec `$LASTEXITCODE` égal à 0. Un presse-papiers vide signifie que l'hôte n'a pas
+> encore démarré (voir Dépannage).
+
 Après l'avoir collée dans la fenêtre de VS Code, exécutez `Set-Clipboard -Value $null`.
 Ne mettez jamais la clé dans une URL (`?code=`), un fichier, une conversation ou une capture d'écran.
 
@@ -211,9 +257,6 @@ Ne mettez jamais la clé dans une URL (`?code=`), un fichier, une conversation o
 ```powershell
 & .\modules\02-open-server\validate.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID -DemonstrateWrite
 ```
-
-Dans VS Code, demandez à l'agent d'appeler `create_ticket` avec des valeurs synthétiques.
-L'appel réussit pour quiconque détient la clé.
 
 > **Résultat réel** — exécution dans l'abonnement de test de l'auteur, 2026-10-16, avec `mcp_private_storage = true`
 > (une stratégie du locataire imposait un stockage privé). Noms et identifiants masqués.
@@ -234,11 +277,43 @@ L'appel réussit pour quiconque détient la clé.
 > Quiconque la détient, collègue ou attaquant, peut écrire. `whoami` répond `caller: unknown` : les journaux ne
 > peuvent pas dire qui a agi. C'est le problème que résolvent les modules 03 à 05.
 
+Dans VS Code, demandez à l'agent d'appeler `create_ticket` avec des valeurs synthétiques.
+L'appel réussit pour quiconque détient la clé.
+
+**Question :** le serveur répond HTTP 401 sans la clé. Cela veut-il dire qu'il est protégé utilisateur par utilisateur ?
+
+<details>
+<summary>Afficher la réponse</summary>
+
+Non. HTTP 401 prouve seulement que le point d'accès n'est pas anonyme. Toute personne qui détient la clé obtient le même
+accès complet, `create_ticket` compris. Une clé ne porte ni identité ni rôle d'application : le serveur ne distingue pas
+Alice d'Eve (`whoami` renvoie `caller: unknown`). L'autorisation par utilisateur exige un jeton Microsoft Entra et des
+rôles d'application (modules 03 et 05).
+
+</details>
+
 **8. Renouvelez la clé après l'exercice.** Les éventuelles copies divulguées deviennent alors inutilisables.
 
 ```powershell
 az functionapp keys set --resource-group $group --name $app --key-type systemKeys --key-name mcp_extension --output none
 ```
+
+> **Résultat réel** — renouvellement de la clé dans l'abonnement de test de l'auteur, 2026-10-16.
+> Aucune sortie (`--output none`) ; `$LASTEXITCODE` valait 0. La nouvelle valeur n'est jamais affichée.
+>
+> **Ce que cela signifie pour vous :** toute ancienne copie de la clé reçoit désormais HTTP 401, y compris votre session VS Code.
+
+**Question :** après le renouvellement, un collègue a encore l'ancienne clé dans une configuration enregistrée. Que se passe-t-il
+quand il appelle le serveur, et qu'est-ce que cela vous apprend sur les clés ?
+
+<details>
+<summary>Afficher la réponse</summary>
+
+Son appel reçoit HTTP 401. Le renouvellement est le seul moyen de révoquer une clé divulguée, et il coupe en même temps
+tous les clients légitimes. Comme la clé est partagée, impossible de révoquer une seule personne sans toucher tout le
+monde. Les jetons Entra expirent d'eux-mêmes et sont émis pour un utilisateur ou une application.
+
+</details>
 
 ### Bash
 
@@ -259,6 +334,9 @@ az functionapp deployment source config-zip --resource-group "$group" --name "$a
 bash ./modules/02-open-server/validate.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId "$ARM_SUBSCRIPTION_ID" -DemonstrateWrite
 az functionapp keys set --resource-group "$group" --name "$app" --key-type systemKeys --key-name mcp_extension --output none
 ```
+
+> **Résultat attendu** — les mêmes lignes PASS, le même résumé de plan, et la même publication et le même renouvellement silencieux
+> que l'exécution PowerShell ci-dessus. `validate.sh -Offline` s'arrête après les vérifications hors ligne, comme `validate.ps1 -Offline`.
 
 Utilisez la même configuration VS Code qu'à l'étape 6.
 
@@ -337,9 +415,50 @@ Remove-Item -LiteralPath .\.workshop\module02.tfvars.json, .\.workshop\module02.
 Remove-Item -LiteralPath .\.workshop\module02-publish -Recurse -ErrorAction SilentlyContinue
 ```
 
+> **Résultat réel** — rapport de nettoyage (première commande, sans `-Apply`) dans l'abonnement de test de l'auteur, 2026-10-16,
+> avec `mcp_private_storage = true` et le portail facultatif. Noms et identifiants masqués.
+>
+> ```text
+> PASS explicit Azure context and private participant parameters (expected HTTP 200 from Azure Resource Manager).
+> PLAN delete azurerm_application_insights.mcp[0]
+> PLAN delete azurerm_function_app_flex_consumption.mcp[0]
+> PLAN delete azurerm_log_analytics_workspace.mcp[0]
+> PLAN delete azurerm_private_dns_zone.storage["blob"]
+> PLAN delete azurerm_private_dns_zone.storage["queue"]
+> PLAN delete azurerm_private_dns_zone_virtual_network_link.storage["blob"]
+> PLAN delete azurerm_private_dns_zone_virtual_network_link.storage["queue"]
+> PLAN delete azurerm_private_endpoint.storage["blob"]
+> PLAN delete azurerm_private_endpoint.storage["queue"]
+> PLAN delete azurerm_role_assignment.mcp_host_storage[0]
+> PLAN delete azurerm_role_assignment.mcp_telemetry[0]
+> PLAN delete azurerm_role_assignment.mcp_ticket_sender[0]
+> PLAN delete azurerm_service_plan.mcp[0]
+> PLAN delete azurerm_storage_account.mcp[0]
+> PLAN delete azurerm_storage_container.mcp_package[0]
+> PLAN delete azurerm_storage_queue.tickets[0]
+> PLAN delete azurerm_subnet.gateway_private_endpoints[0]
+> PLAN delete azurerm_subnet.mcp_integration[0]
+> PLAN delete azurerm_user_assigned_identity.mcp[0]
+> PLAN delete azurerm_virtual_network.gateway[0]
+> PLAN update azurerm_linux_web_app.portal[0]: remove only the WORKSHOP_MCP_ENDPOINT hint (portal may restart)
+> PASS cleanup plan deletes only 20 module 02 resource(s) and removes the portal endpoint hint. Review it, then rerun with -Apply.
+> ```
+>
+> Sans stockage privé, attendez-vous à 11 suppressions du module 02 ; sans portail, à aucune ligne `PLAN update`.
+> Avec `-Apply`, le script affiche la sortie de l'application Terraform, puis (messages du script, hors de cette capture)
+> `PASS module 02 resources deleted; the system key was deleted with the Function App (expected HTTP 200 from Azure Resource Manager).`
+> et `KEEP private participant parameters, Terraform state and the resource group for later modules.`
+> Les deux lignes `Remove-Item` n'affichent rien.
+>
+> **Ce que cela signifie pour vous :** lisez chaque ligne `PLAN` avant `-Apply`. Une ligne `FAIL cleanup plan contains ... change(s) outside module 02 deletions`
+> signifie qu'autre chose changerait : rien n'est appliqué, examinez en privé. Une seconde exécution affiche
+> `PASS no module 02 resources remain in this state; nothing to delete`.
+
 ```bash
 bash ./modules/02-open-server/cleanup.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId "$ARM_SUBSCRIPTION_ID" -Apply
 ```
+
+> **Résultat attendu** — les mêmes lignes PASS, PLAN et KEEP que l'exécution PowerShell ci-dessus.
 
 Le groupe de ressources, vos paramètres privés et votre état sont conservés pour les modules suivants. Retirez le serveur
 `workshop-open` de votre configuration VS Code utilisateur. Si vous enchaînez directement avec le module 03,

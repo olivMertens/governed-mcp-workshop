@@ -125,12 +125,34 @@ Exécutez les commandes depuis la racine du dépôt. Les étapes 2 à 7 modifien
 & .\modules\03-entra-authentication\validate.ps1 -Offline
 ```
 
+> **Résultat attendu** — d'après les messages du validateur ; pas encore une capture. Aucun appel à Azure ni à Entra.
+>
+> ```text
+> PASS host.json keeps the level 0 System webhook level; the published package is never anonymous on its own (expected HTTP N/A).
+> PASS the key gate is removed only together with enforced built-in authentication and Return401 (expected HTTP 401 without a token).
+> PASS infra/entra: single tenant, user_impersonation, Tools.Read/Tools.Write/Tools.Execute.All, assignment required, no secret or user (expected HTTP N/A).
+> PASS no access token, key, SAS or client secret in module 03, infra/entra or workload files (expected HTTP N/A).
+> PASS synthetic claim examples use synthetic IDs only and contain no token (4 files, expected HTTP N/A).
+> PASS Terraform format, schema and mock-only plans for infra/entra and infra/workload (expected HTTP N/A; no live plan/apply).
+> NOT DEPLOYED CHECKS SKIPPED: supply -TenantId with -SubscriptionId (operator) or -Persona (test account) after an approved deployment.
+> PASS offline checks only. Module 03 is NOT deployed or Entra-validated by this result.
+> ```
+>
+> **Ce que cela signifie pour vous :** le code et Terraform gardent toutes les barrières fermées et ne contiennent aucun secret.
+> Rien n'est encore déployé.
+
 **2. Administrateur des identités : connexion au tenant seulement.** Utilisez un terminal distinct.
 `--allow-no-subscriptions` suffit.
 
 ```powershell
 az login --tenant <tenant-id> --allow-no-subscriptions
 ```
+
+> **Résultat attendu** — forme de la sortie Azure CLI ; ce n'est pas une capture. Une connexion s'ouvre dans le navigateur.
+> Azure CLI liste ensuite les comptes utilisables. Un tenant où cet administrateur n'a pas d'abonnement apparaît comme
+> `N/A(tenant level account)`.
+>
+> **Ce que cela signifie pour vous :** l'administrateur travaille uniquement dans le tenant et n'a besoin d'aucun rôle sur un abonnement Azure.
 
 **3. Administrateur des identités : paramètres privés.** Reprenez le préfixe, le suffixe, le propriétaire et l'expiration
 du participant (reçus en privé) et les ID d'objet des trois comptes de test. Le fichier est ignoré par Git.
@@ -143,6 +165,9 @@ $p = Get-Content -LiteralPath .\.workshop\participant.tfvars.json -Raw | Convert
     test_user_object_ids = @{ alice = '<alice-object-id>'; bob = '<bob-object-id>'; eve = '<eve-object-id>' }
 } | ConvertTo-Json | Set-Content -LiteralPath .\.workshop\entra.tfvars.json
 ```
+
+> **Résultat attendu** — aucune sortie. La réussite est un retour silencieux.
+> Vérifiez avec `Test-Path .\.workshop\entra.tfvars.json`, qui affiche `True`. Le fichier ne contient que des ID, aucun secret.
 
 Pour réutiliser une application déjà créée par un administrateur, ajoutez `"create_application": false` et
 `"existing_application_client_id": "<client-id>"`. Terraform se contente alors de la lire (et de vérifier son étendue,
@@ -159,12 +184,37 @@ if ($LASTEXITCODE -ne 0) { throw 'Terraform plan failed.' }
 terraform '-chdir=infra\entra' apply '..\..\.workshop\entra.tfplan'
 ```
 
+> **Résultat attendu** — forme de la sortie Terraform pour la création ; pas encore une capture d'un tenant déployé.
+>
+> ```text
+> Terraform has been successfully initialized!
+> ...
+>   # azuread_app_role_assignment.personas["alice-read"] will be created
+>   # azuread_application.mcp[0] will be created
+>   # azuread_service_principal.mcp[0] will be created
+> ...
+> Plan: 8 to add, 0 to change, 0 to destroy.
+> ...
+> Apply complete! Resources: 8 added, 0 changed, 0 destroyed.
+>
+> Outputs:
+> ...
+> ```
+>
+> Avec `create_application = false`, Terraform se contente de lire l'application existante : attendez-vous aux trois attributions seulement.
+>
+> **Ce que cela signifie pour vous :** huit objets Entra, sans mot de passe ni certificat. Tout `to destroy` ou `to change`
+> lors d'une première exécution est un signal d'arrêt.
+
 **5. Transmission au participant (ID non secrets seulement).**
 
 ```powershell
 terraform -chdir=infra/entra output -json workload_module03_tfvars | Set-Content -LiteralPath .\.workshop\module03.tfvars.json
 terraform -chdir=infra/entra output -json persona_object_ids | Set-Content -LiteralPath .\.workshop\module03-personas.json
 ```
+
+> **Résultat attendu** — aucune sortie. Les deux fichiers existent maintenant dans `.workshop` (ignoré par Git) et ne
+> contiennent que des ID : ID client, ID de tenant, audience et ID d'objet. Vérifiez avec `Test-Path .\.workshop\module03.tfvars.json`.
 
 **6. Participant, étape 1 : placer Entra devant la clé.** Sélectionnez d'abord votre contexte approuvé
 (`& .\scripts\select-azure-context.ps1`). Passez désormais toujours les trois fichiers de variables.
@@ -175,6 +225,18 @@ if ($LASTEXITCODE -ne 0) { throw 'Terraform plan failed.' }
 # Relire : une mise à jour en place de la Function App (auth_settings_v2 et deux paramètres WEBSITE_AUTH_*). Après approbation :
 terraform '-chdir=infra\workload' apply '..\..\.workshop\module03.tfplan'
 ```
+
+> **Résultat attendu** — forme de la sortie Terraform ; pas encore une capture d'un serveur déployé.
+>
+> ```text
+>   # azurerm_function_app_flex_consumption.mcp[0] will be updated in-place
+> ...
+> Plan: 0 to add, 1 to change, 0 to destroy.
+> ...
+> Apply complete! Resources: 0 added, 1 changed, 0 destroyed.
+> ```
+>
+> **Ce que cela signifie pour vous :** le serveur est mis à jour en place, pas remplacé. L'application redémarre une fois.
 
 Un appelant a maintenant besoin d'un jeton **et** de la clé : rien n'est anonyme.
 
@@ -188,6 +250,19 @@ terraform '-chdir=infra\workload' plan '-var-file=..\..\.workshop\participant.tf
 # Relire : une mise à jour en place qui ajoute le paramètre du webhook. Après approbation :
 terraform '-chdir=infra\workload' apply '..\..\.workshop\module03.tfplan'
 ```
+
+> **Résultat attendu** — forme de la sortie Terraform ; pas encore une capture d'un serveur déployé.
+>
+> ```text
+>   # azurerm_function_app_flex_consumption.mcp[0] will be updated in-place
+> ...
+> Plan: 0 to add, 1 to change, 0 to destroy.
+> ...
+> Apply complete! Resources: 0 added, 1 changed, 0 destroyed.
+> ```
+>
+> **Ce que cela signifie pour vous :** la seule modification est le paramètre du webhook. Si le plan retire aussi
+> `auth_settings_v2`, arrêtez-vous : un fichier de variables manque.
 
 Aucun code n'est republié : `host.json` ne change pas.
 
@@ -211,6 +286,17 @@ Aucun code n'est republié : `host.json` ne change pas.
 > **Ce que cela signifie pour vous :** la plateforme refuse désormais les appelants **avant que votre code s'exécute**.
 > Un vrai jeton Microsoft ne suffit pas : il doit être émis **pour ce serveur** (audience). L'ancienne clé partagée
 > ne sert plus à rien seule.
+
+**Question :** Alice détient un jeton Microsoft Graph valide de votre tenant et l'envoie au serveur MCP. Est-il accepté ?
+
+<details>
+<summary>Afficher la réponse</summary>
+
+Non, HTTP 401. Le jeton est authentique, mais son audience (`aud`) est Microsoft Graph, pas l'API MCP. Un jeton par saut,
+une audience par jeton : le serveur n'accepte que les jetons émis pour `api://<client-id>`. L'inverse vaut aussi : le serveur
+ne doit jamais transmettre le jeton d'Alice à Graph (pas de transmission de jeton) ; le module 05 utilise On-Behalf-Of.
+
+</details>
 
 **9. Connecter VS Code avec ouverture de session.** Dans votre configuration MCP **utilisateur**, remplacez le serveur
 `workshop-open` (et son invite de saisie de la clé) par une simple URL. Aucun en-tête, rien de secret.
@@ -253,6 +339,17 @@ Remove-Item Env:\AZURE_CONFIG_DIR
 > n'atteint jamais le serveur. Mais Alice et Bob voient les mêmes cinq outils, **écriture comprise** : être connecté
 > ne veut pas encore dire être autorisé. Le module 04 ajoute les rôles par outil.
 
+**Question :** Bob est connecté et reçoit HTTP 200. Son jeton ne porte que `Tools.Read`. Peut-il appeler `create_ticket` au niveau 1 ?
+
+<details>
+<summary>Afficher la réponse</summary>
+
+Oui. L'authentification intégrée décide qui peut atteindre le serveur, pas quel outil s'exécute. La revendication `roles`
+est bien dans le jeton de Bob, mais rien ne la contrôle encore outil par outil. Le module 04 exige `Tools.Write` pour
+`create_ticket`. L'approbation humaine dans VS Code ne remplace pas ce contrôle de rôle.
+
+</details>
+
 ### Bash
 
 ```bash
@@ -282,6 +379,9 @@ for persona in Alice Bob Eve; do
 done
 unset AZURE_CONFIG_DIR
 ```
+
+> **Résultat attendu** — les mêmes lignes PASS, les mêmes résumés de plan et les mêmes écritures de fichiers silencieuses
+> que l'exécution PowerShell ci-dessus.
 
 ## Ce que vous devez voir
 
@@ -370,10 +470,41 @@ Remove-Item -LiteralPath .\.workshop\az-alice, .\.workshop\az-bob, .\.workshop\a
 & .\modules\03-entra-authentication\cleanup.ps1 -TenantId <tenant-id> -Scope Entra -Apply
 ```
 
+> **Résultat attendu** — d'après les messages du script de nettoyage ; pas encore une capture. Les lignes d'application de Terraform sont omises.
+>
+> ```text
+> PASS explicit Azure context and private participant parameters (expected HTTP 200 from Azure Resource Manager).
+> PLAN update azurerm_function_app_flex_consumption.mcp[0] (phase 1: restore the key gate behind Entra)
+> PASS 'phase 1: restore the key gate behind Entra' plan changes only 1 module 03 object(s). Review it, then rerun with -Apply.
+> ```
+>
+> L'exécution avec `-Apply` affiche ensuite `PASS 'phase 1: restore the key gate behind Entra' applied (expected HTTP 200).`,
+> planifie la phase 2 (`PLAN update ... (phase 2: remove built-in authentication)`), l'applique et se termine par
+> `PASS the server is back to the level 0 key gate. Remove .workshop/module03.tfvars.json, then run modules/02-open-server/cleanup.ps1 to delete it.`
+> Les lignes `Remove-Item` n'affichent rien. Le rapport de l'administrateur des identités liste les huit objets :
+>
+> ```text
+> PASS explicit tenant and interactive identity administrator sign-in (expected HTTP 200 from Microsoft Graph).
+> PLAN delete azuread_app_role_assignment.personas["alice-read"] (destroy workshop-created Entra objects)
+> PLAN delete azuread_app_role_assignment.personas["alice-write"] (destroy workshop-created Entra objects)
+> PLAN delete azuread_app_role_assignment.personas["bob-read"] (destroy workshop-created Entra objects)
+> PLAN delete azuread_application.mcp[0] (destroy workshop-created Entra objects)
+> ...
+> PASS 'destroy workshop-created Entra objects' plan changes only 8 module 03 object(s). Review it, then rerun with -Apply.
+> ```
+>
+> Avec `-Apply`, il se termine par `PASS provided applications and existing test users were not touched. Deleted registrations stay restorable for 30 days in Microsoft Entra.`
+>
+> **Ce que cela signifie pour vous :** la clé revient **avant** le retrait d'Entra : le serveur n'est jamais anonyme.
+> Une ligne `FAIL ... change(s) outside module 03` signifie que rien n'a été appliqué. Une seconde exécution affiche
+> `PASS '<phase>': nothing to do in this state (idempotent, expected HTTP N/A).`
+
 ```bash
 bash ./modules/03-entra-authentication/cleanup.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId "$ARM_SUBSCRIPTION_ID" -Apply
 bash ./modules/03-entra-authentication/cleanup.sh -TenantId "<tenant-id>" -Scope Entra -Apply
 ```
+
+> **Résultat attendu** — les mêmes lignes PASS et PLAN que les exécutions PowerShell avec `-Apply` ci-dessus.
 
 Supprimez ensuite le serveur avec le script de nettoyage du module 02, retirez le serveur `workshop-entra` de VS Code et demandez à
 l'administrateur des identités de supprimer les comptes de test s'ils n'ont été créés que pour cet atelier. Si vous

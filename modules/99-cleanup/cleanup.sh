@@ -10,11 +10,14 @@ if ! command -v pwsh >/dev/null 2>&1; then
 fi
 
 args=()
-for a in "$@"; do
-  case "$a" in
+while [ "$#" -gt 0 ]; do
+  case "$1" in
     --apply) args+=("-Apply") ;;
-    *) args+=("$a") ;;
+    --tenant-id) args+=("-TenantId" "${2:?--tenant-id needs a value}"); shift ;;
+    --subscription-id) args+=("-SubscriptionId" "${2:?--subscription-id needs a value}"); shift ;;
+    *) args+=("$1") ;;
   esac
+  shift
 done
 
 exec pwsh -NoProfile -File "$root/modules/99-cleanup/cleanup.ps1" "${args[@]}"
