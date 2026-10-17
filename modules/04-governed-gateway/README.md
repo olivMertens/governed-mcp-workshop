@@ -107,12 +107,31 @@ Run from the repository root. Steps 2 to 4 change Azure: do them only after appr
 & .\modules\04-governed-gateway\validate.ps1 -Offline
 ```
 
+> **Expected result** — from the validator messages; not yet a capture from a participant run.
+>
+> ```text
+> PASS gateway policy: Entra token for the MCP audience only, create_ticket requires Tools.Write, other tools Tools.Read, malformed or unknown calls denied, per-oid rate limit, optional ip-filter, gateway PRM challenge (expected HTTP 401/403/429).
+> PASS Protected Resource Metadata is answered by the gateway itself and never names the private Function host (expected HTTP 200).
+> PASS Terraform: Standard v2 public gateway, outbound integration, Function private endpoint and private DNS, public access disabled only in stage 2, MCP API Preview with no subscription key (expected HTTP 403 on the direct host).
+> PASS diagnostics: 0 body bytes for frontend/backend requests/responses at both scopes, no header logged (no Authorization), no client IP (expected HTTP N/A).
+> PASS no access token, subscription key, function key, SAS or client secret in module 04 or workload files (expected HTTP N/A).
+> PASS Terraform format, schema and mock-only plans for infra/entra and infra/workload (expected HTTP N/A; no live plan/apply).
+> NOT DEPLOYED CHECKS SKIPPED: supply -TenantId with -SubscriptionId (operator) or -Persona (test account) after an approved deployment.
+> PASS offline checks only. Module 04 is NOT deployed or validated by this result.
+> ```
+>
+> **What it means for you:** the policies and Terraform in your copy keep the module 04 controls. Nothing was deployed;
+> a `FAIL` line names the file or rule to fix before you spend money on Standard v2.
+
 **2. Private opt-in file (ignored by Git).** Optional: add `gateway_allowed_ip_ranges` (CIDR list) or change
 `gateway_rate_limit_calls` / `gateway_rate_limit_period`. Keep `gateway_publisher_email` a team or example address.
 
 ```powershell
 @{ enable_governed_gateway = $true; gateway_lock_function = $false } | ConvertTo-Json | Set-Content -LiteralPath .\.workshop\module04.tfvars.json
 ```
+
+> **Expected result** — no output: `Set-Content` returns silently on success.
+> Confirm with `Get-Content .\.workshop\module04.tfvars.json`: it shows `enable_governed_gateway` true and `gateway_lock_function` false.
 
 **3. Stage 1: gateway, private endpoint and private DNS.** Select your approved context first
 (`& .\scripts\select-azure-context.ps1`). From now on, always pass the four var files.
@@ -127,6 +146,27 @@ if ($LASTEXITCODE -ne 0) { throw 'Terraform plan failed.' }
 # identity and one role assignment) and the known in-place Function App app_settings update. Then, after approval:
 terraform '-chdir=infra\workload' apply '..\..\.workshop\module04.tfplan'
 ```
+
+> **Expected result** — Terraform output shape for this configuration; not yet a capture from a deployed gateway (excerpt).
+>
+> ```text
+> Terraform has been successfully initialized!
+> ...
+>   # azurerm_api_management.gateway[0] will be created
+>   # azapi_resource.mcp_api[0] will be created
+>   # azurerm_private_endpoint.function[0] will be created
+>   # azurerm_private_dns_zone.functions[0] will be created
+>   # azurerm_function_app_flex_consumption.mcp[0] will be updated in-place
+> ...
+> Plan: 19 to add, 1 to change, 0 to destroy.
+> ...
+> azurerm_api_management.gateway[0]: Still creating... [10m0s elapsed]
+> ...
+> Apply complete! Resources: 19 added, 1 changed, 0 destroyed.
+> ```
+>
+> **What it means for you:** the gateway, its private path and its payload-free logging exist. The add count is lower if
+> module 02 already created the virtual network. Any `to destroy` in the plan means a var file is missing: do not apply.
 
 Creating a Standard v2 instance takes several minutes. The Function is still public but still requires an Entra token
 (module 03), so nothing is anonymous during stage 1. Try the gateway URL (`terraform -chdir=infra/workload output gateway_mcp_endpoint`)
@@ -143,6 +183,21 @@ terraform '-chdir=infra\workload' plan @vars '-out=..\..\.workshop\module04.tfpl
 terraform '-chdir=infra\workload' apply '..\..\.workshop\module04.tfplan'
 ```
 
+> **Expected result** — Terraform output shape; not yet a capture from a deployed gateway (excerpt).
+>
+> ```text
+>   # azurerm_function_app_flex_consumption.mcp[0] will be updated in-place
+>   ~ resource "azurerm_function_app_flex_consumption" "mcp" {
+>       ~ public_network_access_enabled = true -> false
+> ...
+> Plan: 0 to add, 1 to change, 0 to destroy.
+> ...
+> Apply complete! Resources: 0 added, 1 changed, 0 destroyed.
+> ```
+>
+> **What it means for you:** the Function no longer answers from the internet. From now on, only the gateway reaches it
+> through the private endpoint.
+
 Publish code changes **before** stage 2: once public access is disabled, deployment endpoints are private too.
 
 **5. Connect VS Code to the gateway.** In your **user** MCP configuration, replace the `workshop-entra` server with the
@@ -158,6 +213,18 @@ gateway URL. No header, no key: VS Code reads the gateway PRM and signs you in.
 
 As Alice, ask Copilot to create a synthetic ticket: VS Code asks for **approval** before the write tool runs, then it works.
 As Bob (another VS Code profile), the same request fails with HTTP 403.
+
+**Question:** Bob clicks **Allow** when VS Code asks him to approve `create_ticket`, but he has only `Tools.Read`. What does the
+gateway return, and does the Function see the call?
+
+<details>
+<summary>Show answer</summary>
+
+HTTP 403 from the gateway. Client approval is Bob's consent to run the tool; it does not add an app role to his token. The
+gateway checks the `roles` claim for `Tools.Write`, refuses the call and never forwards it, so the Function never sees it.
+Approval and role are two separate controls: neither replaces the other.
+
+</details>
 
 **6. Operator checks, then persona checks.**
 
@@ -217,6 +284,8 @@ sleep 300
 bash ./modules/04-governed-gateway/validate.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId "$ARM_SUBSCRIPTION_ID" -CheckTelemetry
 ```
 
+> **Expected result** — the same Terraform summaries and PASS/FAIL lines as the PowerShell steps above.
+
 ## What you should see
 
 | Action (through the gateway unless stated) | Expected result | Meaning |
@@ -231,6 +300,16 @@ bash ./modules/04-governed-gateway/validate.sh -TenantId "$ARM_TENANT_ID" -Subsc
 | More calls than the limit from one user | **HTTP 429** with `Retry-After` | Rate limit per caller `oid`. Rate limits are approximate. |
 | Direct call to `https://func-…azurewebsites.net/runtime/webhooks/mcp` | **HTTP 403** (or no connection) | Public network access disabled. |
 | Application Insights | Requests with status and duration, traces `mcp-request` with `mcp-tool` and `caller-oid` | No body, argument, result or token. |
+
+**Question:** Bob's burst gets HTTP 429. If Alice calls a tool at the same moment, is she throttled too?
+
+<details>
+<summary>Show answer</summary>
+
+No. The `rate-limit-by-key` counter key is the caller object ID (`oid`) from the validated token, so each user has their own
+counter. Bob's burst uses only Bob's quota. (Limits are approximate across gateway instances.)
+
+</details>
 
 ### Read alongside the demonstration
 
@@ -310,10 +389,41 @@ Remove-Item -LiteralPath .\.workshop\module04.tfvars.json -ErrorAction SilentlyC
 az apim deletedservice purge --service-name apim-mcp-<prefix>-<suffix> --location <region>
 ```
 
+> **Expected result** — from the clean-up script messages and Terraform output shape; not run by the author (excerpt).
+>
+> ```text
+> PASS explicit Azure context and private participant parameters (expected HTTP 200 from Azure Resource Manager).
+> PLAN update azurerm_function_app_flex_consumption.mcp[0] (phase 1: reopen the Function behind Entra (stage 2 to stage 1))
+> PASS 'phase 1: reopen the Function behind Entra (stage 2 to stage 1)' plan changes only 1 module 04 object(s). Review it, then rerun with -Apply.
+> ```
+>
+> With `-Apply`:
+>
+> ```text
+> PASS explicit Azure context and private participant parameters (expected HTTP 200 from Azure Resource Manager).
+> PLAN update azurerm_function_app_flex_consumption.mcp[0] (phase 1: reopen the Function behind Entra (stage 2 to stage 1))
+> Apply complete! Resources: 0 added, 1 changed, 0 destroyed.
+> PASS 'phase 1: reopen the Function behind Entra (stage 2 to stage 1)' applied (expected HTTP 200).
+> PLAN delete azapi_resource.mcp_api[0] (phase 2: remove the governed gateway)
+> PLAN delete azurerm_api_management.gateway[0] (phase 2: remove the governed gateway)
+> ...
+> Apply complete! Resources: 0 added, 1 changed, 19 destroyed.
+> PASS 'phase 2: remove the governed gateway' applied (expected HTTP 200).
+> INFO API Management keeps a soft-deleted copy for 48 hours. To reuse the name sooner: az apim deletedservice purge --service-name apim-mcp-p01-<suffix> --location <region>
+> PASS the Function is back at level 1 (Entra only). Remove .workshop/module04.tfvars.json; use modules/03-entra-authentication/cleanup.ps1 next if you continue cleaning up.
+> ```
+>
+> `Remove-Item` and `az apim deletedservice purge` print nothing on success.
+>
+> **What it means for you:** the first run only reviews; nothing changes. A rerun prints `nothing to do in this state`
+> for a phase that is already done. A `FAIL ... outside module 04` line means the plan would touch other modules: nothing was applied.
+
 ```bash
 bash ./modules/04-governed-gateway/cleanup.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId "$ARM_SUBSCRIPTION_ID" -Apply
 rm -f .workshop/module04.tfvars.json
 ```
+
+> **Expected result** — the same PASS/PLAN lines as the PowerShell `-Apply` run above; `rm` prints nothing.
 
 Phase 1 reopens the Function to its module 03 state (still Entra-protected, never anonymous). Phase 2 deletes the gateway,
 APIs, policies, diagnostics, logger, gateway identity and role, private endpoint, private DNS, subnets, NSG and virtual network.

@@ -112,6 +112,22 @@ Depuis la racine du dépôt. Les étapes 2 à 4 modifient Azure : ne les exécut
 & .\modules\04-governed-gateway\validate.ps1 -Offline
 ```
 
+> **Résultat attendu** — d'après les messages du validateur ; pas encore une capture d'une exécution participant.
+>
+> ```text
+> PASS gateway policy: Entra token for the MCP audience only, create_ticket requires Tools.Write, other tools Tools.Read, malformed or unknown calls denied, per-oid rate limit, optional ip-filter, gateway PRM challenge (expected HTTP 401/403/429).
+> PASS Protected Resource Metadata is answered by the gateway itself and never names the private Function host (expected HTTP 200).
+> PASS Terraform: Standard v2 public gateway, outbound integration, Function private endpoint and private DNS, public access disabled only in stage 2, MCP API Preview with no subscription key (expected HTTP 403 on the direct host).
+> PASS diagnostics: 0 body bytes for frontend/backend requests/responses at both scopes, no header logged (no Authorization), no client IP (expected HTTP N/A).
+> PASS no access token, subscription key, function key, SAS or client secret in module 04 or workload files (expected HTTP N/A).
+> PASS Terraform format, schema and mock-only plans for infra/entra and infra/workload (expected HTTP N/A; no live plan/apply).
+> NOT DEPLOYED CHECKS SKIPPED: supply -TenantId with -SubscriptionId (operator) or -Persona (test account) after an approved deployment.
+> PASS offline checks only. Module 04 is NOT deployed or validated by this result.
+> ```
+>
+> **Ce que cela signifie pour vous :** les stratégies et le Terraform de votre copie conservent les contrôles du module 04.
+> Rien n'a été déployé ; une ligne `FAIL` indique le fichier ou la règle à corriger avant de payer Standard v2.
+
 **2. Fichier d'activation privé (ignoré par Git).** Facultatif : ajoutez `gateway_allowed_ip_ranges` (liste CIDR) ou modifiez
 `gateway_rate_limit_calls` / `gateway_rate_limit_period`. Pour `gateway_publisher_email`, utilisez une adresse d'équipe ou une
 adresse d'exemple.
@@ -119,6 +135,9 @@ adresse d'exemple.
 ```powershell
 @{ enable_governed_gateway = $true; gateway_lock_function = $false } | ConvertTo-Json | Set-Content -LiteralPath .\.workshop\module04.tfvars.json
 ```
+
+> **Résultat attendu** — aucune sortie : `Set-Content` rend la main en silence en cas de succès.
+> Vérifiez avec `Get-Content .\.workshop\module04.tfvars.json` : `enable_governed_gateway` vaut true et `gateway_lock_function` false.
 
 **3. Étape 1 : passerelle, point de terminaison privé et DNS privé.** Sélectionnez d'abord votre contexte approuvé
 (`& .\scripts\select-azure-context.ps1`). Désormais, passez toujours les quatre fichiers de variables.
@@ -133,6 +152,28 @@ if ($LASTEXITCODE -ne 0) { throw 'Terraform plan failed.' }
 # diagnostics, identité et une attribution de rôle) et la mise à jour en place connue des app_settings. Puis, après approbation :
 terraform '-chdir=infra\workload' apply '..\..\.workshop\module04.tfplan'
 ```
+
+> **Résultat attendu** — forme de sortie Terraform pour cette configuration ; pas encore une capture d'une passerelle déployée (extrait).
+>
+> ```text
+> Terraform has been successfully initialized!
+> ...
+>   # azurerm_api_management.gateway[0] will be created
+>   # azapi_resource.mcp_api[0] will be created
+>   # azurerm_private_endpoint.function[0] will be created
+>   # azurerm_private_dns_zone.functions[0] will be created
+>   # azurerm_function_app_flex_consumption.mcp[0] will be updated in-place
+> ...
+> Plan: 19 to add, 1 to change, 0 to destroy.
+> ...
+> azurerm_api_management.gateway[0]: Still creating... [10m0s elapsed]
+> ...
+> Apply complete! Resources: 19 added, 1 changed, 0 destroyed.
+> ```
+>
+> **Ce que cela signifie pour vous :** la passerelle, son chemin privé et sa journalisation sans contenu existent. Le nombre
+> d'ajouts est plus faible si le module 02 a déjà créé le réseau virtuel. Un `to destroy` dans le plan signifie qu'il manque
+> un fichier de variables : n'appliquez pas.
 
 La création d'une instance Standard v2 prend plusieurs minutes. La Function est encore publique mais exige toujours un jeton
 Entra (module 03) : rien n'est anonyme pendant l'étape 1. Testez l'URL de la passerelle
@@ -149,6 +190,21 @@ terraform '-chdir=infra\workload' plan @vars '-out=..\..\.workshop\module04.tfpl
 terraform '-chdir=infra\workload' apply '..\..\.workshop\module04.tfplan'
 ```
 
+> **Résultat attendu** — forme de sortie Terraform ; pas encore une capture d'une passerelle déployée (extrait).
+>
+> ```text
+>   # azurerm_function_app_flex_consumption.mcp[0] will be updated in-place
+>   ~ resource "azurerm_function_app_flex_consumption" "mcp" {
+>       ~ public_network_access_enabled = true -> false
+> ...
+> Plan: 0 to add, 1 to change, 0 to destroy.
+> ...
+> Apply complete! Resources: 0 added, 1 changed, 0 destroyed.
+> ```
+>
+> **Ce que cela signifie pour vous :** la Function ne répond plus depuis internet. Désormais, seule la passerelle l'atteint
+> par le point de terminaison privé.
+
 Publiez vos modifications de code **avant** l'étape 2 : une fois l'accès public désactivé, les points de déploiement sont aussi privés.
 
 **5. Connecter VS Code à la passerelle.** Dans votre configuration MCP **utilisateur**, remplacez le serveur `workshop-entra` par
@@ -164,6 +220,18 @@ l'URL de la passerelle. Ni en-tête ni clé : VS Code lit les PRM de la passerel
 
 En tant qu'Alice, demandez à Copilot de créer un ticket synthétique : VS Code demande votre **approbation** avant d'exécuter
 l'outil d'écriture, puis l'appel réussit. En tant que Bob (autre profil VS Code), la même demande échoue avec HTTP 403.
+
+**Question :** Bob clique sur **Autoriser** quand VS Code lui demande d'approuver `create_ticket`, mais il n'a que `Tools.Read`.
+Que renvoie la passerelle, et la Function voit-elle l'appel ?
+
+<details>
+<summary>Afficher la réponse</summary>
+
+HTTP 403 de la passerelle. L'approbation dans le client est le consentement de Bob à exécuter l'outil ; elle n'ajoute aucun rôle
+d'application à son jeton. La passerelle vérifie `Tools.Write` dans la revendication `roles`, refuse l'appel et ne le transmet
+jamais : la Function ne le voit pas. Approbation et rôle sont deux contrôles distincts : aucun ne remplace l'autre.
+
+</details>
 
 **6. Contrôles opérateur, puis contrôles par profil.**
 
@@ -223,6 +291,8 @@ sleep 300
 bash ./modules/04-governed-gateway/validate.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId "$ARM_SUBSCRIPTION_ID" -CheckTelemetry
 ```
 
+> **Résultat attendu** — les mêmes résumés Terraform et lignes PASS/FAIL que les étapes PowerShell ci-dessus.
+
 ## Ce que vous devez voir
 
 | Action (via la passerelle sauf mention) | Résultat attendu | Signification |
@@ -237,6 +307,17 @@ bash ./modules/04-governed-gateway/validate.sh -TenantId "$ARM_TENANT_ID" -Subsc
 | Un utilisateur dépasse la limite d'appels | **HTTP 429** avec `Retry-After` | Limite par `oid` de l'appelant. Les limites sont approximatives. |
 | Appel direct à `https://func-…azurewebsites.net/runtime/webhooks/mcp` | **HTTP 403** (ou pas de connexion) | Accès réseau public désactivé. |
 | Application Insights | Requêtes avec statut et durée, traces `mcp-request` avec `mcp-tool` et `caller-oid` | Ni corps, ni argument, ni résultat, ni jeton. |
+
+**Question :** la rafale de Bob reçoit HTTP 429. Si Alice appelle un outil au même moment, est-elle limitée elle aussi ?
+
+<details>
+<summary>Afficher la réponse</summary>
+
+Non. La clé du compteur de `rate-limit-by-key` est l'identifiant d'objet de l'appelant (`oid`) tiré du jeton validé : chaque
+utilisateur a son propre compteur. La rafale de Bob ne consomme que le quota de Bob. (Les limites sont approximatives entre
+instances de la passerelle.)
+
+</details>
 
 ### Lire la documentation au moment de la démonstration
 
@@ -317,10 +398,42 @@ Remove-Item -LiteralPath .\.workshop\module04.tfvars.json -ErrorAction SilentlyC
 az apim deletedservice purge --service-name apim-mcp-<prefix>-<suffix> --location <region>
 ```
 
+> **Résultat attendu** — d'après les messages du script de nettoyage et la forme de sortie Terraform ; non exécuté par l'auteur (extrait).
+>
+> ```text
+> PASS explicit Azure context and private participant parameters (expected HTTP 200 from Azure Resource Manager).
+> PLAN update azurerm_function_app_flex_consumption.mcp[0] (phase 1: reopen the Function behind Entra (stage 2 to stage 1))
+> PASS 'phase 1: reopen the Function behind Entra (stage 2 to stage 1)' plan changes only 1 module 04 object(s). Review it, then rerun with -Apply.
+> ```
+>
+> Avec `-Apply` :
+>
+> ```text
+> PASS explicit Azure context and private participant parameters (expected HTTP 200 from Azure Resource Manager).
+> PLAN update azurerm_function_app_flex_consumption.mcp[0] (phase 1: reopen the Function behind Entra (stage 2 to stage 1))
+> Apply complete! Resources: 0 added, 1 changed, 0 destroyed.
+> PASS 'phase 1: reopen the Function behind Entra (stage 2 to stage 1)' applied (expected HTTP 200).
+> PLAN delete azapi_resource.mcp_api[0] (phase 2: remove the governed gateway)
+> PLAN delete azurerm_api_management.gateway[0] (phase 2: remove the governed gateway)
+> ...
+> Apply complete! Resources: 0 added, 1 changed, 19 destroyed.
+> PASS 'phase 2: remove the governed gateway' applied (expected HTTP 200).
+> INFO API Management keeps a soft-deleted copy for 48 hours. To reuse the name sooner: az apim deletedservice purge --service-name apim-mcp-p01-<suffix> --location <region>
+> PASS the Function is back at level 1 (Entra only). Remove .workshop/module04.tfvars.json; use modules/03-entra-authentication/cleanup.ps1 next if you continue cleaning up.
+> ```
+>
+> `Remove-Item` et `az apim deletedservice purge` n'affichent rien en cas de succès.
+>
+> **Ce que cela signifie pour vous :** la première exécution ne fait que relire ; rien ne change. Une nouvelle exécution affiche
+> `nothing to do in this state` pour une phase déjà faite. Une ligne `FAIL ... outside module 04` signifie que le plan toucherait
+> d'autres modules : rien n'a été appliqué.
+
 ```bash
 bash ./modules/04-governed-gateway/cleanup.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId "$ARM_SUBSCRIPTION_ID" -Apply
 rm -f .workshop/module04.tfvars.json
 ```
+
+> **Résultat attendu** — les mêmes lignes PASS/PLAN que l'exécution PowerShell avec `-Apply` ci-dessus ; `rm` n'affiche rien.
 
 La phase 1 remet la Function dans son état du module 03 (toujours protégée par Entra, jamais anonyme). La phase 2 supprime la
 passerelle, les API, stratégies, diagnostics, le journaliseur, l'identité et le rôle de la passerelle, le point de terminaison

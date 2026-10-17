@@ -30,13 +30,15 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 
 # Reverse build order. Module 05 Entra must run before module 03 Entra.
+# Each step needs the private files its own clean-up requires. Without them that clean-up cannot plan safely,
+# so the step is skipped with a visible reason instead of failing the whole run.
 $steps = @(
-    @{ Module = '05-delegated-and-app-only'; Scope = 'Workload' },
-    @{ Module = '05-delegated-and-app-only'; Scope = 'Entra' },
-    @{ Module = '04-governed-gateway'; Scope = $null },
-    @{ Module = '03-entra-authentication'; Scope = 'Workload' },
-    @{ Module = '03-entra-authentication'; Scope = 'Entra' },
-    @{ Module = '02-open-server'; Scope = $null }
+    @{ Module = '05-delegated-and-app-only'; Scope = 'Workload'; Requires = @('module02.tfvars.json', 'module03.tfvars.json') },
+    @{ Module = '05-delegated-and-app-only'; Scope = 'Entra'; Requires = @('entra.tfvars.json') },
+    @{ Module = '04-governed-gateway'; Scope = $null; Requires = @('module02.tfvars.json', 'module03.tfvars.json') },
+    @{ Module = '03-entra-authentication'; Scope = 'Workload'; Requires = @('module02.tfvars.json') },
+    @{ Module = '03-entra-authentication'; Scope = 'Entra'; Requires = @('entra.tfvars.json') },
+    @{ Module = '02-open-server'; Scope = $null; Requires = @('participant.tfvars.json') }
 )
 
 Write-Output "Module 99 clean-up. Mode: $(if ($Apply) { 'APPLY' } else { 'REPORT ONLY (no change)' })"
@@ -48,6 +50,11 @@ foreach ($step in $steps) {
     }
 
     $label = if ($step.Scope) { "$($step.Module) -Scope $($step.Scope)" } else { $step.Module }
+    $missing = @($step.Requires | Where-Object { -not (Test-Path -LiteralPath (Join-Path $root '.workshop' $_) -PathType Leaf) })
+    if ($missing.Count) {
+        Write-Output "SKIP $label (missing .workshop/$($missing -join ', .workshop/'); if you deployed this stage, restore the file and run again)"
+        continue
+    }
     Write-Output "--> $label"
 
     $arguments = @{ TenantId = $TenantId; SubscriptionId = $SubscriptionId }

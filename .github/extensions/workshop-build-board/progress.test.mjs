@@ -105,6 +105,22 @@ test("guided reading splits authored actions, never code fences or nested disclo
             assert.equal(first.title, goal, `${folder}/${file} must open on ${goal}, not "${first.title}"`);
             assert.match(readFileSync(join(repository, "modules", folder, file), "utf8"), /^> \[!(?:TIP|NOTE|IMPORTANT|WARNING|CAUTION)\]$/m,
                 `${folder}/${file} needs at least one learning callout`);
+            // Every command in the main flow shows attendees what their terminal should print.
+            const guide = readFileSync(join(repository, "modules", folder, file), "utf8").split(/\r?\n/);
+            assert.ok(guide.some((line) => /^\*\*Question\s?:\*\*/.test(line)), `${folder}/${file} needs a learning question`);
+            let fence = false, language = "", disclosed = 0;
+            for (const [index, line] of guide.entries()) {
+                if (!fence && line === "<details>") disclosed++;
+                if (!fence && line === "</details>") disclosed--;
+                const marker = /^\s*```(\w*)/.exec(line);
+                if (!marker || line.trim().startsWith(">")) continue;
+                if (!fence) { fence = true; language = marker[1]; continue; }
+                fence = false;
+                if (!["powershell", "bash", "sh"].includes(language) || disclosed) continue;
+                const next = guide.slice(index + 1).find((item) => item.trim()) || "";
+                assert.match(next, /^> \*\*(?:Real result|Expected result|Résultat réel|Résultat attendu)\b/,
+                    `${folder}/${file}: the ${language} block ending on line ${index + 1} needs a result box`);
+            }
         }
     }
     assert.deepEqual(split("# Concepts\n## 1. Discover\nOne idea.\n## 2. Execute\nAnother idea.").map((step) => step.title),
