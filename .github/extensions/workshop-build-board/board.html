@@ -1134,13 +1134,16 @@
       const source = element("p", undefined, "source");
       source.append(document.createTextNode(language === "fr" ? "Fichier source : " : "Source: "), element("code", module.sourcePath));
       content.append(source);
-      const details = element("details");
-      details.append(element("summary", "Repository build status and evidence"));
-      if (language === "fr") details.append(element("p", "Original repository decisions and evidence remain in English."));
-      details.append(element("p", `${t(labels[module.status])}${module.validatedOn ? ` / ${module.validatedOn}` : ""}`),
-        element("p", module.evidence || "No validation evidence recorded."),
-        element("p", module.notes || "No build notes."));
-      content.append(details);
+      // Build status and evidence are for authors only: never shown on the published participant site.
+      if (!staticSite) {
+        const details = element("details");
+        details.append(element("summary", "Repository build status and evidence"));
+        if (language === "fr") details.append(element("p", "Original repository decisions and evidence remain in English."));
+        details.append(element("p", `${t(labels[module.status])}${module.validatedOn ? ` / ${module.validatedOn}` : ""}`),
+          element("p", module.evidence || "No validation evidence recorded."),
+          element("p", module.notes || "No build notes."));
+        content.append(details);
+      }
       const index = state.modules.indexOf(module);
       const pager = element("nav", undefined, "pager");
       pager.setAttribute("aria-label", t("Previous and next module"));
