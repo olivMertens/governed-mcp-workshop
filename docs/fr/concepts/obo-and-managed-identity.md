@@ -8,7 +8,7 @@ Management (APIM). Seule l'identité utilisée pour l'appel en aval change.
 | Propriété | On-Behalf-Of (OBO) | Identité managée |
 |---|---|---|
 | Détenteur des droits | Utilisateur connecté | Charge de travail |
-| Type de jeton | Jeton aval délégué | Jeton aval applicatif |
+| Type de jeton | Jeton délégué pour l'API en aval | Jeton applicatif pour l'API en aval |
 | Outil | `read_report_as_user`, `whoami` | `read_report_as_app` |
 | Alice et Bob | Résultats différents selon leurs droits | Même résultat si l'application est autorisée |
 | Secret | Aucun ; fédération prise en charge | Aucun ; Azure gère l'identité |
@@ -26,8 +26,8 @@ même rapport aux deux utilisateurs.
 
 ## Résultat attendu
 
-Vous savez prédire les quatre résultats Alice/Bob et identifier les droits appliqués par Storage. Chaque appel en
-aval utilise un nouveau jeton pour sa propre audience. Aucun secret client, aucun rôle étendu à l'abonnement, aucun
+Vous savez prédire les quatre résultats Alice/Bob et dire quels droits Storage applique. Chaque appel en
+aval utilise un nouveau jeton pour sa propre audience. Aucun secret client, aucun rôle attribué sur tout l'abonnement, aucun
 repli sur l'identité du développeur.
 
 ## Sources

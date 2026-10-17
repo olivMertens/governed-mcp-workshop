@@ -13,7 +13,7 @@ Un résultat attendu décrit dans le guide ne prouve pas qu'un test a réussi.
    et le sélecteur d'outils dans VS Code.
 3. Commencez par `get_service_health` s'il est disponible. Lisez les informations demandées par l'outil
    et utilisez seulement des données fictives. S'il n'est pas disponible, arrêtez-vous.
-4. Lancez **Call Tool** dans Inspector ou, dans VS Code, utilisez la consigne proposée dans le tableau.
+4. Lancez **Call Tool** dans Inspector ou, dans VS Code, utilisez le prompt proposé dans le tableau.
    Vérifiez la trace de l'exécution, pas seulement la réponse de l'assistant.
 5. Comparez le résultat avec celui du module. Un code HTTP 200 peut contenir une erreur MCP.
    Lancez ensuite le script de vérification du module, s'il est publié.
@@ -30,7 +30,7 @@ Récupérez l'adresse dans les sorties de **votre déploiement approuvé**.
 Au module 01, le serveur fonctionne localement : suivez son guide, sans saisir d'adresse HTTPS.
 
 Dans VS Code, lancez **MCP: Add Server**, choisissez HTTP et saisissez l'adresse.
-Utilisez une configuration utilisateur privée sans remplacer les autres serveurs déjà configurés.
+Utilisez une configuration utilisateur privée, sans remplacer les serveurs déjà configurés.
 Pour Inspector, lisez les précisions ci-dessous avant de lancer la commande.
 
 <details>
@@ -39,8 +39,8 @@ Pour Inspector, lisez les précisions ci-dessous avant de lancer la commande.
 Les commandes utilisent Inspector **2.9.0** et nécessitent au minimum Node.js 22.19.0.
 Vérifiez la demande d'installation de `npx`, puis ouvrez l'adresse locale affichée.
 Elle contient un accès privé à votre session : ne la partagez pas.
-La version 2.11.0 publiée sur GitHub n'était pas disponible dans le registre de paquets configuré lors du
-contrôle du 2026-10-14. Si la version prévue manque, la commande s'arrête sans changer de registre ni de version.
+La version 2.11.0 publiée sur GitHub n'était pas disponible dans le registre de paquets configuré lors de la
+vérification du 2026-10-14. Si la version prévue manque, la commande s'arrête sans changer de registre ni de version.
 
 Utilisez une connexion ponctuelle, pas un catalogue enregistré. Les identifiants restent en mémoire ;
 les jetons OAuth ne sont pas enregistrés de façon persistante. N'enregistrez et n'exportez aucun en-tête
@@ -71,8 +71,8 @@ Codespaces n'inclut que les fichiers publiés sur la branche choisie. Vérifiez 
 machine, les quotas et la prise en charge des frais. La configuration du conteneur est disponible,
 mais son exécution et celle de Codespaces restent à vérifier.
 
-Pour Inspector avec connexion utilisateur, privilégiez VS Code installé sur votre poste, éventuellement
-connecté au codespace avec une redirection privée des ports. La connexion depuis le seul navigateur
+Pour Inspector avec connexion utilisateur, privilégiez VS Code installé sur votre poste, connecté si besoin
+au codespace avec une redirection privée des ports. La connexion depuis le seul navigateur
 peut utiliser une autre adresse de retour OAuth. Ne rendez jamais Inspector public et ne désactivez pas
 son authentification. Arrêtez-le avec Ctrl+C. Arrêtez les codespaces inutilisés ; leur stockage peut rester facturé.
 
@@ -89,7 +89,7 @@ Ces résultats décrivent les exercices prévus. Ils ne prouvent pas que votre d
 | 03 | Essayer sans jeton, puis avec un jeton destiné à un autre service | HTTP 401 ; Eve ne peut pas obtenir le jeton requis |
 | 04 | Préparer une création de ticket avec Bob, puis Alice, avec approbation | HTTP 403 pour Bob ; HTTP 200 et réussite pour Alice |
 | 04 | Dépasser la limite de débit ; essayer l'accès direct à la Function | HTTP 429 ; accès direct refusé |
-| 05 | Lire avec `read_report_as_user`, en tant qu'Alice puis Bob | Alice réussit ; Bob est refusé par le stockage, parfois dans une réponse HTTP 200 |
+| 05 | Lire avec `read_report_as_user`, en tant qu'Alice puis Bob | Alice réussit ; le stockage refuse Bob, parfois dans une réponse HTTP 200 |
 | 05 | Lire avec `read_report_as_app`, en tant qu'Alice puis Bob | Le même rapport fictif est accessible aux deux |
 | 06 | Examiner une trace et l'inventaire | Métadonnées autorisées uniquement ; adresse de la passerelle dans API Center |
 
@@ -99,7 +99,7 @@ Les outils qui dépendent de l'identité restent simulés avant le module 05.
 
 Ne conservez comme preuves que les métadonnées autorisées et les lignes `PASS` ou `FAIL`.
 N'exportez pas les traces Network/Protocol d'Inspector : elles peuvent contenir des jetons,
-des consignes, les paramètres des outils ou leurs résultats.
+des prompts, les arguments des outils ou leurs résultats.
 
 ## En cas de problème
 
@@ -161,12 +161,12 @@ dans VS Code ou utilisez Inspector avec le [guide exécutable](../../modules/01-
 ## 07 - Utiliser un autre client sans changer les protections
 
 **À vérifier :** le client facultatif utilise la même passerelle et une connexion officiellement prise en charge.
-**Conseil :** cette démonstration est réservée à l'animateur ; vérifiez les licences, l'identité et les fonctions en **Preview**.
+**Conseil :** cette démonstration est réservée à l'animateur ; vérifiez les licences, l'identité et les fonctionnalités en **Preview**.
 **En cas de problème :** reportez tout parcours qui exige un secret client. Ne transmettez pas le jeton MCP aux API cibles.
 
 ## 99 - Supprimer les ressources de l'atelier
 
-**À vérifier :** les ressources et affectations créées pour l'atelier sont supprimées ; les ressources partagées sont préservées.
+**À vérifier :** les ressources et affectations créées pour l'atelier sont supprimées ; les ressources partagées restent intactes.
 **Conseil :** nettoyez séparément les ressources Azure et les identités. Arrêtez Inspector et les codespaces inutilisés.
 **En cas de problème :** examinez l'inventaire, les durées de conservation et les suppressions récupérables.
 Ne lancez pas de suppression globale sans examen et approbation.
@@ -176,7 +176,7 @@ Ne lancez pas de suppression globale sans examen et approbation.
 - [Configuration MCP dans VS Code](https://code.visualstudio.com/docs/agent-customization/mcp-servers).
 - [Client web Inspector](https://modelcontextprotocol.io/docs/2026-07-28/tools/inspector/web).
 - [Stockage des identifiants Inspector](https://modelcontextprotocol.io/docs/2026-07-28/tools/inspector/configuration).
-- [Autorisation et retours Inspector](https://modelcontextprotocol.io/docs/2026-07-28/tools/inspector/authorization).
+- [Autorisation et adresses de retour dans Inspector](https://modelcontextprotocol.io/docs/2026-07-28/tools/inspector/authorization).
 - [Source Inspector 2.9.0](https://github.com/modelcontextprotocol/inspector/tree/ae865a19178ddf6f375780a02e9c77c4cf4da184).
 - [Création d'un codespace](https://docs.github.com/en/codespaces/developing-in-a-codespace/creating-a-codespace-for-a-repository).
 - [Redirection privée des ports](https://docs.github.com/en/codespaces/developing-in-a-codespace/forwarding-ports-in-your-codespace).

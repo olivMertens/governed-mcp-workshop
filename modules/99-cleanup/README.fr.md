@@ -6,8 +6,8 @@ Supprimer tout ce que l'atelier a créé, dans l'ordre inverse de la création, 
 
 ## Pourquoi c'est important
 
-Les ressources de l'atelier coûtent de l'argent et maintiennent actifs des identités et des points d'accès. Un nettoyage propre
-fait partie de la leçon : chaque contrôle ajouté doit être retiré délibérément, et non oublié.
+Les ressources de l'atelier coûtent de l'argent. Elles laissent aussi des identités et des points de terminaison actifs.
+Bien nettoyer fait partie de la leçon : chaque contrôle ajouté doit être retiré volontairement, pas oublié.
 
 ## Ce que vous déployez
 
@@ -15,7 +15,7 @@ Rien. Ce module exécute les scripts de nettoyage des modules 02 à 05 dans l'or
 
 > [!CAUTION]
 > Supprimez uniquement les ressources et identités créées pour l'atelier.
-> Préservez les comptes, applications et ressources partagées fournis par un administrateur.
+> Conservez les comptes, les applications et les ressources partagées fournis par un administrateur.
 
 <details>
 <summary>Périmètres du nettoyage (Mermaid)</summary>
@@ -56,15 +56,15 @@ flowchart LR
 
 | Ordre | Nettoyage | Ce qui est retiré |
 |---|---|---|
-| 1 | Module 05, `-Scope Workload` | Paramètres de la charge de travail déléguée et application seule |
-| 2 | Module 05, `-Scope Entra` | Identifiant fédéré, demandes de permissions et consentements |
+| 1 | Module 05, `-Scope Workload` | Paramètres du workload délégué et app-only |
+| 2 | Module 05, `-Scope Entra` | Identifiant fédéré, demandes d'autorisations et consentements |
 | 3 | Module 04 | Passerelle, stratégies et chemin de la Function verrouillé |
 | 4 | Module 03, `-Scope Workload` | Authentification intégrée de la Function App |
 | 5 | Module 03, `-Scope Entra` | Objets Entra créés par l'atelier (jamais ceux fournis par un administrateur) |
-| 6 | Module 02 | Function App et le point d'accès ouvert |
+| 6 | Module 02 | La Function App et son point de terminaison ouvert |
 
 > [!TIP]
-> Commencez en **mode rapport**. Le script établit le plan de chaque étape, vérifie la liste autorisée et affiche ce qui changerait.
+> Commencez en **mode rapport**. Le script calcule le plan de chaque étape, le compare à la liste autorisée et affiche ce qui changerait.
 >
 > - Lisez chaque plan avant de continuer.
 > - Rien n'est supprimé tant que vous n'ajoutez pas `-Apply`.
@@ -78,13 +78,13 @@ flowchart LR
 
 > [!IMPORTANT]
 > Gardez vos paramètres privés `.workshop` et votre état Terraform jusqu'à la fin du nettoyage.
-> Conservez les mêmes préfixe et suffixe. Ne régénérez pas les noms pour réessayer une étape.
+> Réutilisez le même préfixe et le même suffixe. Ne régénérez pas les noms pour réessayer une étape.
 
 ## Étapes
 
 > [!WARNING]
 > `-Apply` (PowerShell) ou `--apply` (bash) supprime des ressources.
-> Utilisez cette option uniquement après accord explicite et relecture de chaque plan.
+> N'utilisez cette option qu'après un accord explicite et la relecture de chaque plan.
 > Arrêtez-vous si un plan contient une ressource inattendue.
 
 ### PowerShell
@@ -97,7 +97,7 @@ pwsh ./modules/99-cleanup/cleanup.ps1 -TenantId <guid-tenant> -SubscriptionId <g
 pwsh ./modules/99-cleanup/cleanup.ps1 -TenantId <guid-tenant> -SubscriptionId <guid-abonnement> -Apply
 ```
 
-> **Résultat réel** — mode rapport dans l'abonnement de test de l'auteur, 2026-10-17, où seul le module 02 (avec Storage
+> **Résultat réel** — mode rapport dans l'abonnement de test de l'auteur, 2026-10-17, où seul le module 02 (avec stockage
 > privé et portail facultatif) était déployé. `...` masque 16 lignes `PLAN delete` semblables. Noms et identifiants masqués.
 >
 > ```text
@@ -122,8 +122,8 @@ pwsh ./modules/99-cleanup/cleanup.ps1 -TenantId <guid-tenant> -SubscriptionId <g
 > DONE report only. Nothing was changed. Re-run with -Apply after reviewing each plan.
 > ```
 >
-> **Ce que cela signifie pour vous :** `SKIP` nomme le fichier privé dont le nettoyage d'une étape a besoin. C'est normal pour
-> une étape jamais déployée. Une étape sans rien à retirer affiche `nothing to do`. Chaque étape déployée affiche ses propres
+> **Ce que cela signifie pour vous :** `SKIP` indique le fichier privé qui manque pour nettoyer une étape. C'est normal pour
+> une étape jamais déployée. Une étape qui n'a rien à retirer affiche `nothing to do`. Chaque étape déployée affiche ses propres
 > lignes `PLAN` : lisez-les toutes. Après accord, `-Apply` exécute les mêmes étapes et se termine par `DONE module clean-ups
 > applied. Next: delete test users and role assignments, then run the tag check in README.md.` Si un garde-fou refuse un plan,
 > le script affiche `FAIL` et s'arrête sans rien appliquer.
@@ -149,18 +149,18 @@ pwsh ./modules/99-cleanup/cleanup.ps1 -TenantId <guid-tenant> -SubscriptionId <g
 az resource list --tag workshop=mcp-<prefix>-<suffix> --query "[].{name:name, type:type}" -o table
 ```
 
-> **Résultat attendu** — d'après le format tableau d'Azure CLI ; pas une capture après un nettoyage complet.
+> **Résultat attendu** — établi d'après le format tableau d'Azure CLI ; ce n'est pas une capture faite après un nettoyage complet.
 > Après un nettoyage complet, la commande n'affiche rien (un résultat vide ne produit pas de tableau).
 > Avant le nettoyage, elle affiche une ligne par ressource de l'atelier, par exemple `func-mcp-p01-<suffix>` ou `stp01<suffix>`.
 >
-> **Ce que cela signifie pour vous :** une sortie vide prouve qu'il ne reste aucune ressource marquée de l'atelier. Chaque ligne est un reste.
+> **Ce que cela signifie pour vous :** une sortie vide prouve qu'il ne reste aucune ressource marquée de l'atelier. Chaque ligne affichée est une ressource oubliée.
 
 ## Résultat attendu
 
 - En mode rapport : une ligne `-->` par étape déployée, le résumé du plan, puis `DONE report only. Nothing was changed.`
-  Une étape dont le fichier privé requis est absent affiche `SKIP <étape> (missing .workshop/<fichier>; ...)` : normal si vous ne l'avez jamais déployée.
+  Une étape dont le fichier privé requis est absent affiche `SKIP <étape> (missing .workshop/<fichier>; ...)` : c'est normal si vous ne l'avez jamais déployée.
 - En mode application : `DONE module clean-ups applied.` suivi des étapes manuelles.
-- La vérification des tags renvoie un tableau vide. Chaque ligne affichée correspond à un reste à supprimer.
+- La vérification des tags renvoie un tableau vide. Chaque ligne affichée correspond à une ressource restante à supprimer.
 
 **Question :** pourquoi le module 99 lance-t-il les nettoyages des modules dans l'ordre inverse plutôt qu'un seul `terraform destroy` ?
 
@@ -168,8 +168,8 @@ az resource list --tag workshop=mcp-<prefix>-<suffix> --query "[].{name:name, ty
 <summary>Afficher la réponse</summary>
 
 Les modules suivants dépendent des précédents (la passerelle et l'authentification reposent sur la Function App), et les objets
-Entra du module 05 doivent partir avant ceux du module 03. Le garde-fou de chaque module vérifie que son plan ne supprime que ce
-que ce module a créé : les identités fournies par l'administrateur et les ressources partagées ne sont jamais supprimées par erreur.
+Entra du module 05 doivent être supprimés avant ceux du module 03. Le garde-fou de chaque module vérifie que son plan ne supprime
+que ce que ce module a créé. Ainsi, aucune identité fournie par l'administrateur ni aucune ressource partagée n'est supprimée par erreur.
 
 </details>
 
@@ -178,8 +178,8 @@ que ce module a créé : les identités fournies par l'administrateur et les res
 <details>
 <summary>Afficher la réponse</summary>
 
-Non, si vous n'avez jamais déployé les modules 03 et 04 : il n'y a rien d'eux à retirer. Si vous les avez déployés,
-arrêtez-vous : sans ce fichier de paramètres privé, leur nettoyage ne peut pas planifier sans risque. Restaurez vos fichiers
+Non, si vous n'avez jamais déployé les modules 03 et 04 : il n'y a rien à retirer pour eux. Si vous les avez déployés,
+arrêtez-vous : sans ce fichier de paramètres privé, leur nettoyage ne peut pas établir un plan fiable. Restaurez vos fichiers
 privés `.workshop`, puis relancez le rapport.
 
 </details>
@@ -211,7 +211,7 @@ pwsh ./modules/99-cleanup/validate.ps1 -Offline
 > ```
 >
 > **Ce que cela signifie pour vous :** le guide et le script respectent leurs règles de sécurité (rapport par défaut, pas de
-> destruction globale). Le texte vide après `missing:` signifie qu'aucune section ne manque.
+> destruction globale). Si rien ne suit `missing:`, aucune section ne manque.
 
 ```bash
 ./modules/99-cleanup/validate.sh --offline
@@ -227,12 +227,12 @@ Chaque contrôle affiche `PASS` ou `FAIL`. La dernière ligne est `RESULT: PASS`
 
 ## Dépannage
 
-- **Une étape s'arrête avec un code de sortie.** Le script s'arrête à la première erreur. Lisez le message, corrigez le problème, puis
-  relancez le script. Les étapes déjà appliquées sont ignorées grâce à leurs propres garde-fous.
+- **Une étape s'arrête avec un code d'erreur.** Le script s'arrête à la première erreur. Lisez le message, corrigez le problème, puis
+  relancez le script. Grâce à leurs garde-fous, les étapes déjà appliquées sont ignorées.
 - **Un plan contient une modification inattendue.** Ne l'appliquez pas. Le garde-fou interrompt le script si une modification sort de la
   liste autorisée, et rien n'est appliqué. Adressez-vous au formateur.
-- **La vérification des tags affiche encore des ressources.** Elles ont été créées en dehors de l'atelier, ou une étape a été sautée.
-  Retrouvez chaque ligne dans le portail avant de la supprimer à la main.
+- **La vérification des tags affiche encore des ressources.** Soit elles ont été créées en dehors de l'atelier, soit une étape a été sautée.
+  Identifiez chaque ressource dans le portail avant de la supprimer à la main.
 
 ## Nettoyage
 

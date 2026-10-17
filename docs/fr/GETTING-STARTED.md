@@ -7,7 +7,7 @@ Sans portail, suivez directement ces guides Markdown.
 
 **Essayer MCP sans Azure :** après le clonage et l'installation de .NET 10/PowerShell 7,
 suivez le [module 01](../../modules/01-discover-mcp/README.fr.md).
-Le portail du présentateur n'est qu'un hébergement facultatif des guides.
+Le portail du présentateur ne fait qu'héberger les guides ; il est facultatif.
 
 Choisissez où exécuter les commandes : sur votre poste, dans un conteneur de développement avec
 **Visual Studio Code (VS Code)**, ou dans GitHub Codespaces. Les exercices et les scripts sont les mêmes.
@@ -59,7 +59,7 @@ git pull --ff-only
 if ($LASTEXITCODE -ne 0) { throw 'Mise a jour refusee. Ne forcez pas la fusion.' }
 ```
 
-Conservez `.workshop` et l'état Terraform privés. Ne supprimez pas ces fichiers, ne clonez pas de nouveau le dépôt pour
+Gardez privés `.workshop` et l'état Terraform. Ne supprimez pas ces fichiers, ne clonez pas de nouveau le dépôt pour
 « repartir de zéro » et ne lancez pas `git clean` pour résoudre un problème de mise à jour.
 
 </details>
@@ -157,7 +157,7 @@ bash ./scripts/check-tools.sh
 ```
 
 PowerShell reste requis sur macOS/Linux. Corrigez chaque `FAIL`.
-Ce contrôle se limite à des commandes locales d'affichage de version : il ne vérifie ni permissions Azure ni quota, et ne déploie rien.
+Ce contrôle se limite à des commandes locales d'affichage de version : il ne vérifie ni les permissions Azure ni les quotas, et ne déploie rien.
 
 ## 3. Préparer vos paramètres de déploiement
 
@@ -202,11 +202,11 @@ Le suffixe aléatoire n'est jamais raccourci.
 | Ressource | Nom d'une nouvelle préparation | Contrainte Azure |
 |---|---|---|
 | Nouveau groupe de ressources | `rg-mcp-<participant>-<suffixe>` | 1 à 90 caractères ; unique dans l'abonnement |
-| Compte Storage, prévu | `st<court><suffixe>` | 3 à 24 lettres minuscules ou chiffres ; unique au niveau mondial |
-| Application Functions, prévue | `func-mcp-<court>-<suffixe>` | Nom d'application unique au niveau mondial ; limité ici à 32 caractères pour préserver l'identifiant de l'hôte |
-| API Management, prévu | `apim-mcp-<participant>-<suffixe>` | 1 à 50 lettres, chiffres ou traits d'union ; unique au niveau mondial |
+| Compte Storage, prévu | `st<court><suffixe>` | 3 à 24 lettres minuscules ou chiffres ; unique dans tout Azure |
+| Application Functions, prévue | `func-mcp-<court>-<suffixe>` | Nom d'application unique dans tout Azure ; limité ici à 32 caractères pour préserver l'identifiant de l'hôte |
+| API Management, prévu | `apim-mcp-<participant>-<suffixe>` | 1 à 50 lettres, chiffres ou traits d'union ; unique dans tout Azure |
 | Plan App Service facultatif | `plan-mcp-<participant>-<suffixe>-portal` | 1 à 60 caractères ; unique dans le groupe |
-| Application du portail facultatif | `web-mcp-<participant>-<suffixe>-portal` | 2 à 60 lettres, chiffres ou traits d'union ; nom d'application unique au niveau mondial |
+| Application du portail facultatif | `web-mcp-<participant>-<suffixe>-portal` | 2 à 60 lettres, chiffres ou traits d'union ; nom d'application unique dans tout Azure |
 
 Les sorties Terraform sont des **noms prévus**, pas des serveurs déployés ni une réservation de noms.
 Le caractère aléatoire réduit le risque de collision sans le supprimer : vérifiez la disponibilité avant le déploiement.
@@ -217,8 +217,8 @@ Un état distant ou enregistré ailleurs n'est pas toujours détectable.
 
 Pour un groupe fourni par l'administrateur, ajoutez son nom exact avec `-ExistingResourceGroupName` au **premier**
 appel. Terraform lit ce groupe au moyen d'une source de données : aucun import, renommage, changement d'étiquettes
-ou suppression. Les futures ressources filles conservent le suffixe du participant.
-Créer un groupe exige une autorisation distincte au niveau de l'abonnement ; Contributor sur un groupe existant
+ou suppression. Les ressources créées ensuite dans ce groupe conservent le suffixe du participant.
+Créer un groupe exige une autorisation distincte sur l'abonnement ; Contributor sur un groupe existant
 ne permet pas de créer un groupe voisin. Préférez utiliser un groupe existant plutôt que d'élargir les rôles.
 
 Si un nom est refusé, recherchez-en la cause avant le premier déploiement. Ne renommez pas un groupe déjà
@@ -240,7 +240,7 @@ Le parcours en terminal local a été validé sur la cible de préparation, sans
 Chaque participant doit refaire ces contrôles pour sa propre cible ; le parcours conteneur/Codespaces n'a pas encore été vérifié.
 Le [module 01 local](../../modules/01-discover-mcp/README.fr.md) peut maintenant être exécuté avec .NET 10 et PowerShell 7.
 Il ne demande ni connexion Azure, ni Terraform, ni portail du présentateur.
-Les contrôles SDK et Inspector réussissent en local ; l'approbation du client reste à constater manuellement.
+Les contrôles SDK et Inspector réussissent en local ; l'approbation dans le client reste à vérifier à la main.
 Terminez le module 00 dans l'environnement réellement choisi avant les exercices cloud.
 
 ### Se connecter à son tenant de test
@@ -284,7 +284,7 @@ terraform -chdir=infra/workload plan -var-file=../../.workshop/participant.tfvar
 
 La commande `plan` peut interroger Azure. Le tableau n'exécute aucune commande. Pas d'`apply` avant approbation du plan exact,
 des permissions, du quota et des coûts. Pas de `-auto-approve`. L'enregistrement automatique des fournisseurs
-est désactivé : un administrateur enregistre séparément ceux qui sont requis. Les attributions de rôles et Entra sont distincts.
+est désactivé : un administrateur enregistre séparément ceux qui sont requis. Attribuer des rôles Azure et administrer Entra sont deux permissions distinctes.
 N'utilisez jamais de rôle Owner global, de secret client ni d'abonnement de production pour contourner un blocage.
 
 Gardez une seule copie et un seul état pour le déploiement. Le conteneur monté et le poste partagent les fichiers ;
@@ -292,7 +292,7 @@ un autre clone ou codespace possède son propre état local. N'y redéployez pas
 ou configurez d'abord un backend distant approuvé et isolé. Ne publiez ni état, ni plan, ni paramètres, ni identifiants CLI.
 
 Après les étapes payantes, suivez le module 99. Examinez le plan de suppression avec le même état.
-Préservez les groupes et identités existants. Ne supprimez pas un groupe entier pour contourner un nettoyage incomplet.
+Conservez les groupes et identités existants. Ne supprimez pas un groupe entier pour contourner un nettoyage incomplet.
 
 </details>
 

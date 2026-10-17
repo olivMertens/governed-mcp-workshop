@@ -8,7 +8,7 @@ Les fichiers `NN.en.svg` / `NN.fr.svg` et PNG correspondants sont générés et 
 Les guides `STEPS.md` et `STEPS.fr.md` reprennent les mêmes composants, liens et périmètres en Mermaid.
 Pour suivre l'atelier, ouvrez les [schémas étape par étape](STEPS.fr.md).
 Tous montrent une **cible prévue**, pas une infrastructure déjà déployée.
-Les cadres en pointillés désignent le périmètre nommé : poste local, identité ou ressources Azure.
+Chaque cadre en pointillés délimite un périmètre nommé : poste local, identité ou ressources Azure.
 Les lignes numérotées sont des vues liées de la même étape, pas des ressources déployées en double.
 Requêtes, identité, observation et administration sont représentées séparément. Le module 05 représente Storage ;
 Graph exige un autre jeton pour sa propre audience.
@@ -26,7 +26,7 @@ Installez le paquet avec `python -m pip install playwright==1.62.0`. Aucun paque
 La génération SVG seule et `--check` utilisent uniquement la bibliothèque standard de Python.
 Le générateur local gère le sous-ensemble mxGraph utilisé : texte simple, rectangles carrés, périmètres pointillés,
 SVG incorporés, coordonnées des parents et routage orthogonal ancré. Un style non pris en charge provoque une erreur.
-Ce n'est pas un exporteur draw.io général. Draw.io Desktop n'était pas disponible ; Edge rastérise le SVG local hors ligne.
+Ce n'est pas un exporteur draw.io général. Draw.io Desktop n'était pas disponible ; Edge convertit le SVG local en PNG, hors ligne.
 
 ```powershell
 python .\scripts\render-architecture.py --browser 'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe'
@@ -62,7 +62,7 @@ Utilisez les alertes GitHub : `> [!NOTE]`, `> [!TIP]`, `> [!IMPORTANT]`, `> [!WA
 Séparez les paragraphes, listes et blocs de code par une ligne citée vide (`>`).
 GitHub et le moteur commun du tableau et du portail conservent ces blocs.
 L'application ajoute une icône décorative, un libellé traduit et une couleur distincte par type.
-Les citations restent des citations ; le HTML arbitraire reste du texte inerte.
+Les citations restent des citations ; le HTML arbitraire s'affiche comme du texte, sans être interprété.
 Le [guide de nettoyage](../../modules/99-cleanup/README.fr.md) sert d'exemple bilingue.
 La mise en forme ne prouve ni un déploiement ni la réussite du nettoyage.
 
@@ -93,7 +93,7 @@ Microsoft conserve les droits. Les icônes d'architecture Azure, Entra et Power 
 et la documentation selon leurs conditions, **pas sous la licence MIT du dépôt**.
 Les logos d'entreprise restent soumis aux règles de marques Microsoft ; ce dépôt n'accorde aucune autorisation générale.
 Avant toute publication ou action marketing, vérifiez l'autorisation applicable à votre diffusion.
-Conservez les couleurs, les proportions et les noms. Les marques identifient les technologies, pas l'atelier.
+Conservez les couleurs, les proportions et les noms. Les marques désignent les technologies utilisées, pas l'atelier.
 Cet atelier indépendant n'est ni approuvé ni sponsorisé par Microsoft.
 
 ## Sources

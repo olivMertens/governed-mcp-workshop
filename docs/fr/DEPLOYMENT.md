@@ -158,8 +158,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Resource inspection failed. Check the context 
 ```
 
 **Observez :** un tableau des noms, types et régions des ressources portant votre tag dans le groupe sélectionné.
-Azure CLI n'accepte pas `--tag` avec `--resource-group`. La requête reste limitée au groupe ;
-son expression de filtre sélectionne ensuite le tag validé.
+Azure CLI n'accepte pas `--tag` avec `--resource-group`. La requête porte donc sur le groupe,
+puis son filtre retient le tag validé.
 Si l'état local est absent ou l'accès refusé, arrêtez-vous : ce n'est pas un résultat vide valide.
 Un tableau vide signifie seulement que cette requête n'a rien trouvé : ce n'est ni une preuve de nettoyage complet
 ni un test des autorisations du serveur. Le module 01 ne crée aucune ressource Azure.
@@ -192,14 +192,14 @@ de vérification et de nettoyage. Ce tableau ne propose aucun bouton pour déplo
 
 > [!IMPORTANT]
 > Avant de créer une ressource payante, examinez le plan Terraform, les droits, les quotas et les coûts.
-> L'application du plan exige un accord explicite. Conservez les mêmes paramètres et le même état Terraform.
+> N'appliquez le plan qu'après un accord explicite. Conservez les mêmes paramètres et le même état Terraform.
 
 <details>
 <summary>Pour aller plus loin : ce qu'il faut examiner dans un plan Terraform</summary>
 
 Vérifiez les ressources créées et les périmètres des rôles. Les fournisseurs Terraform AzureRM et AzAPI
 doivent cibler l'abonnement approuvé ; AzureAD doit cibler l'annuaire approuvé.
-Un paramètre explicite ou un alias peut remplacer une variable d'environnement.
+Un paramètre explicite ou un alias peut prendre le pas sur une variable d'environnement.
 Revérifiez le contexte après tout changement de terminal, d'abonnement, de fournisseur ou de connexion.
 Ces fournisseurs et l'infrastructure Entra seront ajoutés dans les modules concernés.
 
@@ -207,7 +207,7 @@ L'administrateur d'identité examine séparément `infra/entra` lorsqu'il sera i
 Les objets fournis par l'organisation ne doivent être ni modifiés ni supprimés.
 Utilisez des identités managées et la fédération, jamais de secret client.
 
-Vérifiez aussi les régions disponibles, les quotas partagés, les règles Azure Policy et les étiquettes.
+Vérifiez aussi les régions disponibles, les quotas partagés, les règles Azure Policy et les tags.
 API Management Standard v2 facture une capacité réservée. Réseau privé, stockage, télémétrie,
 API Center et clients facultatifs peuvent ajouter des frais.
 Des noms aléatoires évitent certains conflits de noms, pas les limites de capacité.
@@ -237,7 +237,7 @@ Le module 07 est facultatif ; il ne doit pas retarder le nettoyage.
 <summary>Pour aller plus loin : vérifier qu'il ne reste rien de facturable</summary>
 
 Nettoyez les ressources avant les identités créées pour l'atelier.
-Vérifiez les étiquettes, le réseau privé, les attributions de rôles et l'inventaire.
+Vérifiez les tags, le réseau privé, les attributions de rôles et l'inventaire.
 Examinez aussi les durées de conservation et les suppressions récupérables.
 Arrêter un service ne met pas nécessairement fin à tous ses frais.
 
@@ -252,6 +252,6 @@ Arrêter un service ne met pas nécessairement fin à tous ses frais.
 - [Configuration et authentification AzureRM](https://registry.terraform.io/providers/hashicorp/azurerm/5.9.0/docs).
 - [Plan technique original en anglais](../BUILD-PLAN.md) et [guide de test](PRACTICE.md).
 
-Dernière vérification : 2026-10-14. Aucun abonnement consulté et aucune ressource déployée lors de la préparation.
+Dernière vérification : 2026-10-14. Pendant la préparation, aucun abonnement n'a été consulté et aucune ressource n'a été déployée.
 
 Commandes de lecture et boutons de copie vérifiés le 2026-10-16 : contrôles hors ligne uniquement, aucun tenant interrogé.

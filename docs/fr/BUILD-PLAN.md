@@ -7,8 +7,8 @@ Ce parcours présente ce que vous apprendrez à chaque étape. Suivez les module
 > Ne passez au module suivant qu'après la réussite du script de validation du module en cours.
 > Sauter une étape provoque des erreurs difficiles à diagnostiquer plus loin. La ligne **Dépend de** indique les prérequis de chaque module.
 
-Les modules 00 et 01 ont des guides exécutables ; les contrôles Azure du module 00 sont encore en attente.
-Le module 01 est local et indépendant d'Azure. Les modules 02 à 07 et 99 restent prévus.
+Les modules 00 et 01 ont des guides pas à pas ; les contrôles Azure du module 00 restent à faire.
+Le module 01 tourne en local, sans Azure. Les modules 02 à 07 et 99 sont encore prévus.
 N'utilisez pas ces résumés comme procédure de déploiement : suivez le guide du module lorsqu'il est publié.
 Le [plan technique en anglais](../BUILD-PLAN.md) s'adresse aux personnes qui construisent l'atelier.
 
@@ -31,16 +31,16 @@ Aucun serveur MCP ni code Terraform Entra n'est encore implémenté.
 </details>
 
 ## 01 - Découvrir MCP sans Azure
-**Dépend de :** outils du module 00. Sans Azure : possible même si les vérifications Azure du 00 sont en attente.
+**Dépend de :** outils du module 00. Ce module n'utilise pas Azure : vous pouvez le suivre même si les vérifications Azure du module 00 sont en attente.
 
 
 **Objectif :** afficher les outils d'un serveur local, puis en exécuter un avec des données fictives.
-**À vérifier :** une exécution réelle et une confirmation manuelle disponible dans le client.
-Aucun coût Azure ni modèle d'IA n'est nécessaire pour les tests de protocole avec Inspector.
-Le serveur C# utilise ses entrées et sorties standard (stdio), pas une adresse HTTPS.
-Le [guide exécutable](../../modules/01-discover-mcp/README.fr.md) fournit les commandes PowerShell et les résultats.
-Un outil de lecture, `get_service_health`, est disponible. Le script et Inspector 2.9.0 ont réussi en local.
-L'observation de l'approbation dans VS Code reste manuelle. Aucun portail présentateur n'est nécessaire.
+**À vérifier :** l'outil s'exécute réellement et le client propose une confirmation manuelle.
+Les tests de protocole avec Inspector ne coûtent rien sur Azure et ne demandent aucun modèle d'IA.
+Le serveur C# communique par ses entrées et sorties standard (stdio), sans adresse HTTPS.
+Le [guide pas à pas](../../modules/01-discover-mcp/README.fr.md) fournit les commandes PowerShell et les résultats.
+Un outil de lecture, `get_service_health`, est disponible. Le script et Inspector 2.9.0 ont fonctionné en local.
+Dans VS Code, l'approbation se vérifie encore à la main. Aucun portail présentateur n'est nécessaire.
 
 ## 02 - Serveur par clé, niveau 0
 **Dépend de :** module 00 validé pour votre abonnement et module 01 terminé.
@@ -48,7 +48,7 @@ L'observation de l'approbation dans VS Code reste manuelle. Aucun portail prése
 
 **Objectif :** comprendre qu'une clé partagée protège l'accès sans identifier chaque utilisateur.
 **À vérifier :** HTTP 401 sans clé ; HTTP 200 et réussite de l'outil avec la bonne clé.
-Cette étape payante reste courte et ne représente pas la protection finale.
+Cette étape est payante : elle reste courte. Ce n'est pas encore la protection finale.
 Le [guide du module 02](../../modules/02-open-server/README.fr.md) est rédigé et vérifié hors ligne ; rien n'est encore déployé.
 
 <details>
@@ -88,7 +88,7 @@ encore déployé dans Azure ni créé dans Microsoft Entra.
 
 **Objectif :** imposer le passage par la passerelle API Management.
 **À vérifier :** Bob ne peut pas créer de ticket, Alice le peut après approbation.
-Un nombre excessif d'appels est limité et l'accès direct à la Function est refusé.
+Les appels trop nombreux sont limités et l'accès direct à la Function est refusé.
 
 <details>
 <summary>Pour aller plus loin : réseau privé et contrôles de la passerelle</summary>
@@ -113,7 +113,7 @@ Rien n'est encore déployé dans Azure.
 
 **Objectif :** comparer les droits de l'utilisateur et ceux de l'application.
 **À vérifier :** la lecture au nom de l'utilisateur réussit pour Alice et échoue pour Bob ;
-la lecture avec les droits de l'application donne le même résultat aux deux.
+la lecture avec les droits de l'application donne le même résultat pour les deux.
 
 <details>
 <summary>Pour aller plus loin : délégation et identité managée</summary>
@@ -121,7 +121,7 @@ la lecture avec les droits de l'application donne le même résultat aux deux.
 `whoami` appellera Microsoft Graph et `read_report_as_user` appellera Azure Storage avec On-Behalf-Of (OBO).
 `read_report_as_app` utilisera une identité managée. Aucun jeton MCP ne sera transmis aux API cibles.
 Les identités managées et la fédération remplacent les secrets clients.
-Examinez le code HTTP et l'erreur MCP : un refus du stockage peut être contenu dans une réponse HTTP 200.
+Examinez le code HTTP et l'erreur MCP : une réponse HTTP 200 peut contenir un refus du stockage.
 
 </details>
 
@@ -134,7 +134,7 @@ avec `isError: true`. Rien n'est encore déployé dans Azure ni créé dans Micr
 
 
 **Objectif :** savoir qui a utilisé quel outil et avec quel résultat, sans enregistrer les données échangées.
-**À vérifier :** les journaux ne contiennent ni jetons, ni consignes, ni paramètres ou résultats d'outils.
+**À vérifier :** les journaux ne contiennent ni jetons, ni prompts, ni paramètres ou résultats d'outils.
 Azure API Center répertorie l'adresse de la passerelle ; il ne relaie pas les appels et ne donne aucun droit.
 
 <details>
@@ -146,7 +146,7 @@ L'inventaire Microsoft 365 est facultatif, en **Preview**, et réservé à l'ani
 L'intégration [Agent 365 et API Management (Preview)](https://learn.microsoft.com/azure/api-management/agent-365)
 reste une démonstration prévue, non implémentée. API Management v2 permet l'inventaire et le blocage du serveur ;
 le contrôle par outil exige AI Gateway (Preview) et une liste statique d'outils autorisés.
-Le consentement administrateur à l'échelle du tenant n'est jamais une étape participant.
+Le consentement administrateur pour tout le tenant n'est jamais une étape confiée aux participants.
 Les limites et les résultats attendus figurent dans la [fiche de gouvernance](LEARNING-GUIDE.md).
 
 </details>
@@ -157,11 +157,11 @@ Les limites et les résultats attendus figurent dans la [fiche de gouvernance](L
 
 **Objectif :** utiliser le même serveur depuis un client Foundry ou Copilot Studio officiellement pris en charge,
 sans secret. Vérifiez les licences, l'identité utilisée et les fonctions en **Preview**.
-L'authentification OAuth manuelle Copilot Studio exigeant un secret reste reportée.
+L'authentification OAuth manuelle de Copilot Studio exige un secret : elle reste reportée.
 Cette démonstration de l'animateur ne doit pas retarder le nettoyage.
 
 ## 99 - Nettoyage
-**Dépend de :** à lancer en dernier, avec les mêmes fichiers privés et le même état Terraform que les modules déployés. Ordre inverse.
+**Dépend de :** à lancer en dernier, avec les mêmes fichiers privés et le même état Terraform que les modules déployés. Supprimez dans l'ordre inverse.
 
 
 **Objectif :** supprimer les ressources créées pour l'atelier, puis les identités et rôles créés pour les tests.

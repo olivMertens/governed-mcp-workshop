@@ -5,9 +5,9 @@ Ce guide s'adresse aux personnes qui construisent l'atelier, pas aux participant
 La préparation du module 00 et l'exercice MCP local du module 01 sont implémentés.
 Aucun de ces modules n'est encore entièrement validé.
 
-Les participants peuvent travailler sans ce processus de construction :
-[choisir leur environnement](GETTING-STARTED.md), VS Code avec un conteneur de développement ou un terminal local,
-vérifier les outils puis préparer leurs paramètres privés et le groupe Terraform.
+Les participants n'ont pas besoin de ce processus. Ils [choisissent leur environnement](GETTING-STARTED.md)
+(VS Code avec un conteneur de développement, ou un terminal local), vérifient leurs outils,
+puis préparent leurs paramètres privés et le groupe Terraform.
 Le tableau s'ouvre par défaut sur `#/start`. Choisir un environnement ne valide aucun module.
 
 ## Avant de commencer
@@ -16,16 +16,16 @@ Installez l'application GitHub Copilot et connectez-vous selon la politique de v
 Les versions candidates de Git, GitHub CLI, Azure CLI, Terraform, PowerShell 7, Node.js, .NET et Functions Core Tools
 sont décrites dans les [références](REFERENCES.md). Le module 00 fixe leurs versions et prévoit les contrôles.
 Choisissez votre [tenant et abonnement de test](DEPLOYMENT.md). L'administrateur des identités approuve séparément
-les applications, les consentements et les comptes de test Alice, Bob et Eve. Aucun identifiant réel dans le dépôt.
+les applications, les consentements et les comptes de test Alice, Bob et Eve. Ne mettez aucun identifiant réel dans le dépôt.
 
-Le serveur MCP Microsoft Learn public est configuré dans `.mcp.json` et `.vscode/mcp.json` par souci de compatibilité :
+Le serveur MCP public de Microsoft Learn est déclaré dans `.mcp.json` et `.vscode/mcp.json`, pour des raisons de compatibilité :
 `https://learn.microsoft.com/api/mcp`, HTTP, sans authentification.
 Pour un autre client, ajoutez-le via Customize ou `/mcp add`, avec le nom `microsoft-learn`. Évitez les doublons.
 
 ## Démarrer depuis les bons fichiers
 
 Si vous avez déjà le dépôt, ouvrez ce dossier en session **locale**. N'y relancez pas le bootstrap.
-Uniquement pour un dossier de destination neuf et vide :
+Seulement pour un nouveau dossier de destination, vide :
 
 ```powershell
 pwsh -ExecutionPolicy Bypass -File .\setup-workshop-mcp.ps1
@@ -44,7 +44,7 @@ Il ne crée ni ne modifie de ressource Azure ou Entra. Toute nouvelle publicatio
 |---|---|
 | Plan | Lire les sources et faire des propositions avant de coder. |
 | Interactive, session locale | Tout accès ou toute modification Azure/Entra, avec votre contexte Azure CLI. |
-| Autopilot | Documentation seulement, éventuellement en parallèle. |
+| Autopilot | Documentation seulement, en parallèle si besoin. |
 
 `docs/BUILD-PLAN.md` est le plan technique canonique en anglais. `docs/PROGRESS.md` reste la seule source de statut.
 L'agent suit `.github/skills/workshop-module-builder/SKILL.md` et `.github/copilot-instructions.md`.
@@ -53,7 +53,7 @@ approbation explicite avant toute modification dans le cloud.
 
 ## Consignes à copier dans Copilot
 
-Les consignes ci-dessous sont à copier dans une session Copilot. Le tableau ne les exécute pas.
+Copiez les consignes ci-dessous dans une session Copilot. Le tableau ne les exécute pas.
 
 <details>
 <summary>Pour aller plus loin : consignes de construction P1 à P9 et documentation</summary>
@@ -151,18 +151,18 @@ L'URL conserve le choix de langue ; aucun compte ni suivi personnel n'est créé
 Les pages comprennent les schémas, la gouvernance, les références, le contexte Azure et un espace de test.
 
 Le tableau ne change aucun statut ni aucune ressource et n'exécute aucune commande. Il affiche le guide publié lorsqu'il existe ;
-sinon, une conception explicitement non exécutable. Si un futur README français manque, il le signale et permet de
+sinon, il affiche une conception, clairement signalée comme non exécutable. Si un futur README français manque, il le signale et permet de
 lire l'original anglais sans prétendre l'avoir traduit.
-Les décisions et preuves de construction conservent leur texte anglais d'origine, clairement signalé.
+Les décisions et preuves de construction gardent leur texte anglais d'origine, clairement signalé.
 
-Dans **Tester votre serveur MCP**, seule une adresse HTTPS sans clé ni paramètre est conservée, uniquement dans la mémoire de la page.
-La copie de commandes, de configurations et de prompts ne déclenche aucun appel réseau MCP.
+Dans **Tester votre serveur MCP**, la page ne conserve qu'une adresse HTTPS sans clé ni paramètre, et seulement en mémoire.
+Copier une commande, une configuration ou un prompt ne déclenche aucun appel réseau MCP.
 Codespaces ouvre la page de création pour la branche publiée ; il ne fournit ni machine prête ni modifications non poussées.
-Inspector reste privé, authentifié et sans stockage de jetons. Chaque client Entra nécessite sa propre approbation.
+Inspector reste privé et authentifié, et ne stocke aucun jeton. Chaque client Entra nécessite sa propre approbation.
 
-Les actions de l'agent restent `get_progress`, `set_module_status` et `list_open_decisions`.
-La mise à jour d'un statut exige la révision actuelle. `validated` exige une date et une preuve réelle du validateur.
-Le tableau ne certifie pas cette preuve. N'y mettez ni jetons, ni consignes, ni paramètres ou résultats d'outils,
+L'agent ne dispose que de trois actions : `get_progress`, `set_module_status` et `list_open_decisions`.
+Pour mettre à jour un statut, il faut fournir la révision actuelle. `validated` exige une date et une preuve réelle du validateur.
+Le tableau ne certifie pas cette preuve. N'y mettez ni jetons, ni prompts, ni paramètres ou résultats d'outils,
 ni données réelles de comptes.
 
 ## Sources
