@@ -30,7 +30,8 @@ Two traps to avoid:
 - **Trusting too much.** A log line or a catalog entry is evidence, not a control. HTTP 200 does not prove that the tool
   succeeded, and an inventory entry authorizes nobody.
 
-**Log rules for this module:** zero body bytes, no tokens, no prompts and no tool arguments or results in any log, query, workbook, ticket or slide. Log metadata only: operation, tool name, status, duration and error type.
+> [!WARNING]
+> **Log rules for this module:** zero body bytes, no tokens, no prompts and no tool arguments or results in any log, query, workbook, ticket or slide. Log metadata only: operation, tool name, status, duration and error type.
 
 ## What you deploy
 
@@ -61,8 +62,9 @@ No Terraform is used. The module has no `infra/` folder because it adds no infra
 
 ![Runtime requests go through API Management; metadata goes to Application Insights; API Center only inventories the gateway.](../../assets/architecture/06.en.svg)
 
-Application Insights is not an authorization gate. API Center is not a runtime hop.
-Neither registration nor a successful HTTP status proves that a tool completed.
+> [!NOTE]
+> Application Insights is not an authorization gate. API Center is not a runtime hop.
+> Neither registration nor a successful HTTP status proves that a tool completed.
 
 ### What can you actually trace?
 

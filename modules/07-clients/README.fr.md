@@ -18,10 +18,11 @@ La gouvernance doit s'appliquer quel que soit le client qui appelle le serveur. 
 
 Rien. Ce module ne crée aucune ressource Azure, Microsoft Entra ou Copilot Studio. Il décrit seulement les étapes et fournit une vérification hors ligne de ce dossier.
 
-Fonctionnalités en préversion utilisées dans cette démo (indiquez « Preview » quand vous les montrez) :
-
-- **Préversion :** passage d'identité OAuth pour les outils MCP dans Microsoft Foundry.
-- **Préversion :** configuration des outils MCP de Microsoft Foundry dans le constructeur d'agents.
+> [!NOTE]
+> Fonctionnalités en préversion utilisées dans cette démo (indiquez « Preview » quand vous les montrez) :
+>
+> - **Préversion :** passage d'identité OAuth pour les outils MCP dans Microsoft Foundry.
+> - **Préversion :** configuration des outils MCP de Microsoft Foundry dans le constructeur d'agents.
 
 ## Prérequis et rôles nécessaires
 
@@ -48,9 +49,10 @@ Le produit change ; les droits exigés par le serveur ne changent pas.
 
 ![Les outils utilisateur et applicatifs emploient des jetons en aval distincts, jamais le jeton MCP.](../../assets/architecture/05.fr.svg)
 
-**Point de compatibilité :** la passerelle actuelle exige un scope délégué et les outils OBO exigent un utilisateur.
-Une identité managée Foundry est applicative : lui attribuer un rôle ne suffit **pas**.
-Ne présentez pas ce chemin comme fonctionnel et ne retirez pas le contrôle de scope. Utilisez un flux utilisateur approuvé ou un enregistrement.
+> [!IMPORTANT]
+> **Point de compatibilité :** la passerelle actuelle exige un scope délégué et les outils OBO exigent un utilisateur.
+> Une identité managée Foundry est applicative : lui attribuer un rôle ne suffit **pas**.
+> Ne présentez pas ce chemin comme fonctionnel et ne retirez pas le contrôle de scope. Utilisez un flux utilisateur approuvé ou un enregistrement.
 
 **Question :** Foundry appelle avec son identité managée. `whoami` peut-il agir pour Alice ?
 
@@ -79,6 +81,10 @@ les outils OBO doivent aussi refuser les appelants applicatifs. L'identité du c
 3. Examinez **OAuth 2.0**, jamais **Aucune**. Le parcours **Manual** documenté demande un **Client secret**, interdit dans cet atelier. Arrêtez-vous avant de créer cette connexion ; utilisez le plan ou un enregistrement. La découverte ne prouve pas une compatibilité sans secret et l'atelier n'implémente pas l'inscription dynamique de clients. Ne passez pas à **Clé API** pour contourner ce blocage.
 4. Seul le transport **Streamable** est pris en charge. SSE n'est plus pris en charge.
 5. Ne testez un outil de lecture que si un administrateur a vérifié séparément un flux sans secret pris en charge, avec la bonne audience MCP, le scope délégué et les rôles. Ce guide ne prétend pas avoir configuré ou validé une telle connexion.
+
+> [!CAUTION]
+> Arrêtez-vous avant de créer une connexion Copilot Studio qui demande un **Client secret**. Ne passez jamais
+> à **Aucune** ni à **Clé API** pour la faire fonctionner : cela supprime le contrôle d'identité construit dans l'atelier.
 
 > Les libellés exacts des écrans peuvent changer. Vérifiez la page source ci-dessous avant la session.
 
