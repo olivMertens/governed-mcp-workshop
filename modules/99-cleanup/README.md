@@ -95,6 +95,36 @@ pwsh ./modules/99-cleanup/cleanup.ps1 -TenantId <tenant-guid> -SubscriptionId <s
 pwsh ./modules/99-cleanup/cleanup.ps1 -TenantId <tenant-guid> -SubscriptionId <subscription-guid> -Apply
 ```
 
+> **Real result** — report mode in the author's test subscription, 2026-10-17, where only module 02 (with private Storage
+> and the optional portal) was deployed. `...` hides 16 similar `PLAN delete` lines. Names and IDs withheld.
+>
+> ```text
+> Module 99 clean-up. Mode: REPORT ONLY (no change)
+> SKIP 05-delegated-and-app-only -Scope Workload (missing .workshop/module03.tfvars.json; if you deployed this stage, restore the file and run again)
+> SKIP 05-delegated-and-app-only -Scope Entra (missing .workshop/entra.tfvars.json; if you deployed this stage, restore the file and run again)
+> SKIP 04-governed-gateway (missing .workshop/module03.tfvars.json; if you deployed this stage, restore the file and run again)
+> --> 03-entra-authentication -Scope Workload
+> PASS explicit Azure context and private participant parameters (expected HTTP 200 from Azure Resource Manager).
+> PASS 'phase 2: remove built-in authentication': nothing to do in this state (idempotent, expected HTTP N/A).
+> SKIP 03-entra-authentication -Scope Entra (missing .workshop/entra.tfvars.json; if you deployed this stage, restore the file and run again)
+> --> 02-open-server
+> PASS explicit Azure context and private participant parameters (expected HTTP 200 from Azure Resource Manager).
+> PLAN delete azurerm_application_insights.mcp[0]
+> PLAN delete azurerm_function_app_flex_consumption.mcp[0]
+> ...
+> PLAN delete azurerm_storage_account.mcp[0]
+> ...
+> PLAN delete azurerm_virtual_network.gateway[0]
+> PLAN update azurerm_linux_web_app.portal[0]: remove only the WORKSHOP_MCP_ENDPOINT hint (portal may restart)
+> PASS cleanup plan deletes only 20 module 02 resource(s) and removes the portal endpoint hint. Review it, then rerun with -Apply.
+> DONE report only. Nothing was changed. Re-run with -Apply after reviewing each plan.
+> ```
+>
+> **What it means for you:** `SKIP` names the private file a stage's clean-up needs. It is normal for a stage you never
+> deployed. A stage with nothing left prints `nothing to do`. Every deployed stage prints its own `PLAN` lines: read them
+> all. After approval, `-Apply` runs the same steps and ends with `DONE module clean-ups applied. Next: delete test users and
+> role assignments, then run the tag check in README.md.` If a guard refuses a plan, the script prints `FAIL` and stops
+> without applying anything.
 ### Bash
 
 ```bash
@@ -104,6 +134,8 @@ pwsh ./modules/99-cleanup/cleanup.ps1 -TenantId <tenant-guid> -SubscriptionId <s
 # 2. Apply after review.
 ./modules/99-cleanup/cleanup.sh --tenant-id <tenant-guid> --subscription-id <subscription-guid> --apply
 ```
+
+> **Expected result** — the same `SKIP`, `-->`, `PLAN`, `PASS` and `DONE` lines as the PowerShell run above; the wrapper calls `cleanup.ps1`.
 
 Manual steps (the script does not touch these):
 
@@ -115,11 +147,39 @@ Manual steps (the script does not touch these):
 az resource list --tag workshop=mcp-<prefix>-<suffix> --query "[].{name:name, type:type}" -o table
 ```
 
+> **Expected result** — from the Azure CLI table format; not a capture after a complete clean-up.
+> After a complete clean-up, the command prints nothing (an empty result has no table).
+> Before clean-up, it lists one row per workshop resource, for example `func-mcp-p01-<suffix>` or `stp01<suffix>`.
+>
+> **What it means for you:** an empty output is your proof that no tagged workshop resource remains. Any row is a leftover.
+
 ## What you should see
 
-- Report mode prints one `-->` line per step, the plan summary, and `DONE report only. Nothing was changed.`
+- Report mode prints one `-->` line per deployed step, the plan summary, and `DONE report only. Nothing was changed.`
+  A stage whose required private file is absent prints `SKIP <stage> (missing .workshop/<file>; ...)`: normal if you never deployed it.
 - Apply mode prints `DONE module clean-ups applied.` followed by the manual steps.
 - The tag check returns an empty table. Any row is a leftover to remove.
+
+**Question:** why does module 99 run the module clean-ups in reverse order instead of one `terraform destroy`?
+
+<details>
+<summary>Show answer</summary>
+
+Later modules depend on earlier ones (the gateway and authentication sit on top of the Function App), and module 05's
+Entra objects must go before module 03's. Each module's guard checks that its plan deletes only what that module created,
+so administrator-provided identities and shared resources are never removed by accident.
+
+</details>
+
+**Question:** the report shows `SKIP 04-governed-gateway (missing .workshop/module03.tfvars.json; ...)`. Should you fix something before applying?
+
+<details>
+<summary>Show answer</summary>
+
+No, if you never deployed modules 03 and 04: there is nothing of theirs to remove. If you did deploy them, stop: without that
+private parameter file their clean-up cannot plan safely. Restore your private `.workshop` files, then run the report again.
+
+</details>
 
 ## Validate
 
@@ -129,9 +189,32 @@ Offline checks (no Azure access):
 pwsh ./modules/99-cleanup/validate.ps1 -Offline
 ```
 
+> **Real result** — offline run on the authoring host, 2026-10-17.
+>
+> ```text
+> PASS file: cleanup.ps1 exists
+> PASS file: cleanup.sh exists
+> PASS file: README.md exists
+> PASS file: README.fr.md exists
+> PASS README.md: all sections present missing:
+> PASS README.md: sections in contract order
+> PASS README.md: has source links
+> PASS README.fr.md: same section count as EN (EN 11, FR 11)
+> PASS safety: no blanket terraform destroy
+> PASS safety: no hard-coded GUIDs
+> PASS safety: no client secret literals
+> PASS safety: reports by default (-Apply switch)
+> RESULT: PASS (0 failure(s))
+> ```
+>
+> **What it means for you:** the guide and script keep their safety rules (report by default, no blanket destroy).
+> The empty text after `missing:` means no section is missing.
+
 ```bash
 ./modules/99-cleanup/validate.sh --offline
 ```
+
+> **Expected result** — the same PASS lines and `RESULT: PASS (0 failure(s))` as the PowerShell run above.
 
 Each check prints `PASS` or `FAIL`. The last line is `RESULT: PASS` when every check passes.
 

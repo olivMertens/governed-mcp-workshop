@@ -129,6 +129,23 @@ Exécutez les commandes depuis la racine du dépôt. Les étapes 2 à 5 modifien
 & .\modules\05-delegated-and-app-only\validate.ps1 -Offline
 ```
 
+> **Résultat attendu** — d'après les messages du validateur ; pas encore une capture d'une exécution participant. Le nombre de fichiers dépend de votre copie.
+>
+> ```text
+> PASS server: On-Behalf-Of with a managed-identity assertion, one token per downstream (Graph User.Read, Storage user_impersonation), app-only identity for read_report_as_app, app-only callers refused, no developer-credential fallback, no token parsing (expected HTTP N/A).
+> PASS infra/entra: federated credential (tenant v2.0 issuer, managed identity principal ID subject, api://AzureADTokenExchange), delegated Graph User.Read + Storage user_impersonation only, admin consent opt-in, no password or certificate (expected HTTP N/A).
+> PASS infra/workload: separate OBO assertion and app-only identities, every module 05 role on the one report container, no role for the OBO or host identity, Bob none, opt-in only (expected HTTP N/A).
+> PASS synthetic report and expected results are labelled synthetic and contain no address, ID or token (<n> files, expected HTTP N/A).
+> PASS no client secret, key, SAS or token in module 05, server, infra/entra or infra/workload files (<n> files, expected HTTP N/A).
+> PASS locked build and unit tests: Alice reads, Bob denied downstream, app-only identical for everyone, app-only callers refused, Graph gets only its own token (expected HTTP N/A).
+> PASS Terraform format, schema and mock-only plans for infra/entra and infra/workload (expected HTTP N/A; no live plan/apply).
+> NOT DEPLOYED CHECKS SKIPPED: supply -TenantId with -SubscriptionId (operator) or -Persona (test account) after an approved deployment.
+> PASS offline checks only. Module 05 is NOT deployed or validated by this result.
+> ```
+>
+> **Ce que cela signifie pour vous :** le code et le Terraform de votre copie conservent la conception On-Behalf-Of sans secret
+> et les rôles limités au conteneur. Rien n'a été déployé.
+
 **2. Fichier privé d'activation de la charge de travail (ignoré par Git).** Demandez les ID d'objet d'Alice et de Bob à
 l'administrateur des identités (sortie `workload_module05_tfvars` de `infra/entra`).
 
@@ -136,6 +153,9 @@ l'administrateur des identités (sortie `workload_module05_tfvars` de `infra/ent
 @{ enable_delegated_access = $true; delegated_persona_object_ids = @{ alice = '<alice-object-id>'; bob = '<bob-object-id>' } } |
     ConvertTo-Json | Set-Content -LiteralPath .\.workshop\module05.tfvars.json
 ```
+
+> **Résultat attendu** — aucune sortie : `Set-Content` rend la main en silence en cas de succès.
+> Vérifiez avec `Test-Path .\.workshop\module05.tfvars.json` (`True`). Le fichier ne contient que des ID d'objet, jamais de secret.
 
 **3. Planifier les modifications de la charge de travail.** Sélectionnez d'abord votre contexte approuvé (`& .\scripts\select-azure-context.ps1`).
 Passez tous les fichiers de variables déjà utilisés, ainsi que celui du module 05 (retirez `module04.tfvars.json` si vous n'avez pas
@@ -149,6 +169,25 @@ terraform '-chdir=infra\workload' plan @vars '-out=..\..\.workshop\module05.tfpl
 if ($LASTEXITCODE -ne 0) { throw 'Terraform plan failed.' }
 ```
 
+> **Résultat attendu** — forme de sortie Terraform pour cette configuration ; pas encore une capture d'une charge de travail déployée (extrait).
+>
+> ```text
+>   # azurerm_user_assigned_identity.delegated_obo[0] will be created
+>   # azurerm_user_assigned_identity.delegated_report[0] will be created
+>   # azurerm_storage_container.reports[0] will be created
+>   # azurerm_role_assignment.report_app_reader[0] will be created
+>   # azurerm_role_assignment.report_persona_reader["alice"] will be created
+>   # azurerm_role_assignment.report_publisher[0] will be created
+>   # azurerm_function_app_flex_consumption.mcp[0] will be updated in-place
+> ...
+> Plan: 6 to add, 1 to change, 0 to destroy.
+> ...
+> Saved the plan to: ..\..\.workshop\module05.tfplan
+> ```
+>
+> **Ce que cela signifie pour vous :** il y a un rôle de lecteur pour Alice, aucun pour Bob, et aucun rôle pour l'identité `-obo`.
+> Un `to destroy` signifie qu'il manque un fichier de variables : n'appliquez pas.
+
 **Observez :** deux identités, un conteneur, trois attributions limitées au conteneur et une mise à jour en place de la Function App.
 Rien n'est encore appliqué. Expliquez quelle identité porte les droits applicatifs.
 
@@ -161,6 +200,17 @@ terraform '-chdir=infra\workload' apply '..\..\.workshop\module05.tfplan'
 if ($LASTEXITCODE -ne 0) { throw 'Terraform apply failed.' }
 ```
 
+> **Résultat attendu** — forme de sortie Terraform ; pas encore une capture d'une charge de travail déployée (extrait).
+>
+> ```text
+> azurerm_user_assigned_identity.delegated_obo[0]: Creation complete after <n>s [id=<resource-id>]
+> ...
+> Apply complete! Resources: 6 added, 1 changed, 0 destroyed.
+> ```
+>
+> **Ce que cela signifie pour vous :** les identités, le conteneur et les rôles existent. Les attributions de rôle peuvent mettre
+> quelques minutes à prendre effet.
+
 **Observez :** les ressources approuvées existent. L'API attend encore que l'administrateur des identités configure la confiance.
 
 ### Lire uniquement la sortie requise par l'administrateur
@@ -171,6 +221,18 @@ if ($LASTEXITCODE -ne 0) { throw 'Terraform apply failed.' }
 terraform '-chdir=infra\workload' output -json entra_module05_tfvars   # à envoyer à l'administrateur des identités
 if ($LASTEXITCODE -ne 0) { throw 'Cannot read the administrator handoff.' }
 ```
+
+> **Résultat attendu** — forme de sortie Terraform ; la valeur est ici un espace réservé.
+>
+> ```text
+> {
+>   "enable_delegated_access": true,
+>   "obo_identity_principal_id": "<obo-principal-id>"
+> }
+> ```
+>
+> **Ce que cela signifie pour vous :** c'est un ID de principal, pas un secret, mais gardez-le dans des canaux privés.
+> L'administrateur n'a besoin de rien d'autre de votre part.
 
 Tant que l'étape 4 n'est pas terminée, `whoami` et `read_report_as_user` échouent sans risque (erreur d'outil) : l'API ne fait pas
 encore confiance à l'identité.
@@ -184,6 +246,21 @@ terraform '-chdir=infra\entra' plan '-var-file=..\..\.workshop\entra.tfvars.json
 if ($LASTEXITCODE -ne 0) { throw 'Entra plan failed.' }
 ```
 
+> **Résultat attendu** — forme de sortie Terraform pour l'exécution de l'administrateur des identités ; pas encore une capture d'un tenant (extrait).
+>
+> ```text
+>   # azuread_application_api_access.downstream["graph"] will be created
+>   # azuread_application_api_access.downstream["storage"] will be created
+>   # azuread_application_federated_identity_credential.obo[0] will be created
+>   # azuread_service_principal_delegated_permission_grant.downstream["graph"] will be created
+>   # azuread_service_principal_delegated_permission_grant.downstream["storage"] will be created
+> ...
+> Plan: 5 to add, 0 to change, 0 to destroy.
+> ```
+>
+> **Ce que cela signifie pour vous :** seuls des objets du module 05 apparaissent, sans mot de passe ni certificat. Toute
+> modification d'objets du module 03 signifie que les mauvais fichiers de variables ont été passés : n'appliquez pas.
+
 **Observez :** le plan propose deux accès d'API, un identifiant fédéré et deux consentements. Aucun consentement n'est encore accordé.
 
 ### Administrateur des identités : approuver la confiance et le consentement
@@ -195,11 +272,32 @@ terraform '-chdir=infra\entra' apply '..\..\.workshop\entra05.tfplan'
 if ($LASTEXITCODE -ne 0) { throw 'Entra apply failed.' }
 ```
 
+> **Résultat attendu** — forme de sortie Terraform ; pas encore une capture d'un tenant (extrait).
+>
+> ```text
+> azuread_application_federated_identity_credential.obo[0]: Creation complete after <n>s [id=<id>]
+> ...
+> Apply complete! Resources: 5 added, 0 changed, 0 destroyed.
+> ```
+>
+> **Ce que cela signifie pour vous :** l'API MCP fait désormais confiance à l'identité `-obo` et dispose du consentement pour
+> exactement deux étendues déléguées. `whoami` et `read_report_as_user` peuvent maintenant échanger des jetons.
+
 **5. Publier le rapport synthétique** (authentification Microsoft Entra, sans clé ; le script réessaie pendant la propagation du rôle) :
 
 ```powershell
 & .\modules\05-delegated-and-app-only\publish-report.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID
 ```
+
+> **Résultat attendu** — d'après les messages du script ; pas encore une capture. La ligne `INFO` n'apparaît que pendant la propagation de votre rôle.
+>
+> ```text
+> PASS explicit Azure context (expected HTTP 200 from Azure Resource Manager).
+> INFO upload attempt 1 refused; the Storage Blob Data Contributor role may still be propagating. Retrying in <n> s.
+> PASS synthetic report published as reports/monthly-usage.json with Microsoft Entra authentication, no key or SAS (expected HTTP 201).
+> ```
+>
+> **Ce que cela signifie pour vous :** le rapport synthétique est dans le conteneur privé, déposé avec votre identité Entra, sans clé.
 
 **6. Essayer dans VS Code.** Avec le serveur `workshop-governed` du module 04, connecté en tant qu'Alice, demandez à Copilot : « Qui suis-je ? »
 puis « Lis le rapport monthly-usage en tant que moi, puis en tant qu'application ». Recommencez en tant que Bob dans un autre profil
@@ -259,6 +357,8 @@ done
 unset AZURE_CONFIG_DIR
 ```
 
+> **Résultat attendu** — les mêmes résumés Terraform et lignes PASS/FAIL que les étapes PowerShell ci-dessus.
+
 ## Ce que vous devez voir
 
 Même question, deux personas. D'abord le statut HTTP externe, puis le résultat de l'outil MCP
@@ -276,6 +376,29 @@ Même question, deux personas. D'abord le statut HTTP externe, puis le résultat
 
 Les journaux du serveur contiennent une ligne par appel : nom de l'outil, ID d'objet de l'appelant, résultat (`success`,
 `denied-downstream:403`, `rejected-caller`), latence et ID d'invocation. Ils ne contiennent jamais les arguments, le rapport, un nom ni un jeton.
+
+**Question :** pourquoi `read_report_as_app` donne-t-il le même résultat à Alice et à Bob, alors que `read_report_as_user` non ?
+
+<details>
+<summary>Afficher la réponse</summary>
+
+`read_report_as_app` n'utilise jamais l'identité de l'appelant en aval. Il lit Storage avec l'identité managée `-report`, qui
+détient Storage Blob Data Reader sur le conteneur : tout appelant admis par la passerelle obtient les mêmes lignes.
+`read_report_as_user` utilise On-Behalf-Of : Storage vérifie alors le rôle propre de l'utilisateur. Alice en a un, Bob non. C'est
+pourquoi les outils en mode application exigent une autorisation soignée par outil (risque de « confused deputy »).
+
+</details>
+
+**Question :** `read_report_as_user` renvoie HTTP 200 à Bob. A-t-il lu le rapport ?
+
+<details>
+<summary>Afficher la réponse</summary>
+
+Non. HTTP 200 est la réponse MCP externe : la passerelle l'a autorisé à appeler l'outil et l'outil s'est exécuté. Le résultat de
+l'outil contient `isError: true`, car Storage a refusé le jeton OBO de Bob avec HTTP 403. Lisez toujours le résultat de l'outil,
+pas seulement le statut HTTP.
+
+</details>
 
 ### Lire la documentation au moment de la démonstration
 
@@ -359,11 +482,43 @@ Remove-Item -LiteralPath .\.workshop\module05.tfvars.json, .\.workshop\module05-
 Remove-Item -LiteralPath .\.workshop\entra-module05.tfvars.json -ErrorAction SilentlyContinue
 ```
 
+> **Résultat attendu** — d'après les messages du script de nettoyage ; non exécuté par l'auteur (extrait). Première exécution, charge de travail, sans `-Apply` :
+>
+> ```text
+> PASS explicit Azure context and private participant parameters (expected HTTP 200 from Azure Resource Manager).
+> PLAN delete azurerm_role_assignment.report_app_reader[0] (remove module 05 workload resources)
+> PLAN delete azurerm_role_assignment.report_persona_reader["alice"] (remove module 05 workload resources)
+> PLAN delete azurerm_storage_container.reports[0] (remove module 05 workload resources)
+> ...
+> PASS 'remove module 05 workload resources' plan changes only 6 module 05 object(s). Review it, then rerun with -Apply.
+> ```
+>
+> Avec `-Apply`, puis `-Scope Entra -Apply` par l'administrateur des identités :
+>
+> ```text
+> Apply complete! Resources: 0 added, 1 changed, 6 destroyed.
+> PASS 'remove module 05 workload resources' applied (expected HTTP 200).
+> PASS whoami and read_report_* are back to the module 02 demonstrations. Remove .workshop/module05.tfvars.json. The identity administrator runs -Scope Entra next.
+> PASS explicit tenant and interactive identity administrator sign-in (expected HTTP 200 from Microsoft Graph).
+> PLAN delete azuread_application_federated_identity_credential.obo[0] (remove module 05 Entra delegation)
+> ...
+> Apply complete! Resources: 0 added, 0 changed, 5 destroyed.
+> PASS 'remove module 05 Entra delegation' applied (expected HTTP 200).
+> PASS the MCP API no longer trusts the workload identity or requests downstream permissions. Module 03 objects stay; use modules/03-entra-authentication/cleanup.ps1 -Scope Entra next if you continue.
+> ```
+>
+> `Remove-Item` n'affiche rien.
+>
+> **Ce que cela signifie pour vous :** une nouvelle exécution affiche `nothing to do in this state`. Une ligne
+> `FAIL ... outside module 05` signifie que le plan toucherait d'autres modules : rien n'a été appliqué.
+
 ```bash
 bash ./modules/05-delegated-and-app-only/cleanup.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId "$ARM_SUBSCRIPTION_ID" -Apply
 bash ./modules/05-delegated-and-app-only/cleanup.sh -TenantId "$ARM_TENANT_ID" -Scope Entra -Apply
 rm -f .workshop/module05.tfvars.json .workshop/module05-as-app-*.sha256 .workshop/entra-module05.tfvars.json
 ```
+
+> **Résultat attendu** — les mêmes lignes PASS/PLAN que les exécutions PowerShell avec `-Apply` ci-dessus ; `rm` n'affiche rien.
 
 Lancez le nettoyage Entra **avant** celui du module 03, qui n'accepte que les objets du module 03. Les modules 02 à 04 restent en place.
 Si vous passez directement au module 06, conservez tout.

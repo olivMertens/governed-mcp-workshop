@@ -104,11 +104,41 @@ PowerShell :
 pwsh ./modules/06-observe-inventory/validate.ps1 -Offline
 ```
 
+> **Résultat réel** — validateur hors ligne, poste de l'auteur, 2026-10-17. Noms et identifiants masqués.
+>
+> ```text
+> PASS file exists: README.md (offline)
+> PASS file exists: README.fr.md (offline)
+> PASS file exists: validate.ps1 (offline)
+> PASS file exists: validate.sh (offline)
+> PASS file exists: cleanup.ps1 (offline)
+> PASS file exists: cleanup.sh (offline)
+> PASS file exists: queries/mcp-traffic.kql (offline)
+> PASS README sections present and in order (offline)
+> PASS README.fr.md has the same section count (offline)
+> PASS Steps give PowerShell before bash (offline)
+> PASS Preview label on API Center, BYO and Agent 365 (offline)
+> PASS KQL selects no body, argument, result or token fields (offline)
+> PASS KQL filters on api.type Mcp (offline)
+> PASS README does not instruct enabling payload logging (offline)
+> PASS no secrets or tokens in module files (offline)
+> PASS only placeholder GUIDs in module files (offline)
+> PASS PROGRESS row 06 is not claimed as validated before live run (offline)
+> PASS docs/sources.md has module 06 entries with last-verified dates (offline)
+> PASS no infra folder (no Azure resources added) (offline)
+> PASS README states the log rules (offline)
+> RESULT: all offline checks passed
+> ```
+>
+> **Ce que cela signifie pour vous :** les fichiers du module existent et la requête KQL ne lit que des métadonnées. Rien n'a encore été vérifié dans Azure ; le code de sortie 0 signifie que toutes les règles hors ligne sont respectées.
+
 bash :
 
 ```bash
 ./modules/06-observe-inventory/validate.sh --offline
 ```
+
+> **Résultat attendu** — les mêmes lignes PASS/FAIL que l'exécution PowerShell ci-dessus.
 
 ### Étape 2 - Confirmer que la journalisation des charges utiles est désactivée
 
@@ -117,24 +147,46 @@ Dans l'instance APIM, vérifiez que la journalisation des charges utiles pour l'
 ### Étape 3 - Interroger le trafic MCP dans Application Insights
 
 Ouvrez `modules/06-observe-inventory/queries/mcp-traffic.kql` et exécutez-le dans le volet **Logs** du composant Application Insights dans lequel écrit API Management.
+La requête utilise les noms de tables d'Application Insights (`requests`, `customDimensions`) : exécutez-la dans le
+périmètre de ce composant Application Insights, pas sur son espace Log Analytics, où les mêmes données sont dans `AppRequests`.
 
-PowerShell (Azure CLI, avec un GUID d'espace de travail fictif) :
+PowerShell, depuis le dossier du dépôt (extension Azure CLI `application-insights` : `az extension add --name application-insights`) :
 
 ```powershell
-$ws = '<log-analytics-workspace-guid>'
-$kql = Get-Content -Raw ./modules/06-observe-inventory/queries/mcp-traffic.kql
-az monitor log-analytics query --workspace $ws --analytics-query $kql --timespan PT24H -o table
+$ai = '<application-insights-name>'
+$group = '<resource-group>'
+# '@file' lets the Azure CLI read the query file itself: on Windows a multi-line argument is cut at its first line.
+az monitor app-insights query --app $ai --resource-group $group --offset 24h `
+  --analytics-query '@modules/06-observe-inventory/queries/mcp-traffic.kql' --query 'tables[0].rows' -o json
 ```
+
+> **Résultat réel** — abonnement de test de l'auteur, 2026-10-17, sur le composant Application Insights du module 02. Aucune passerelle API Management n'y envoie encore de trafic MCP : aucune ligne ne correspond. Noms masqués.
+>
+> ```text
+> []
+> ```
+>
+> **Résultat attendu** — avec du trafic MCP passant par la passerelle du module 04. Valeurs fictives ; les colonnes suivent la requête : timestamp, operation, toolName, resultCode, success, duration, errorType, clientApp.
+>
+> ```text
+> [
+>   [ "<timestamp>", "tools/call", "whoami", "200", true, <ms>, "", "<client-app>" ],
+>   [ "<timestamp>", "tools/list", "", "200", true, <ms>, "", "<client-app>" ],
+>   [ "<timestamp>", "tools/call", "create_ticket", "403", false, <ms>, "<error-type>", "<client-app>" ]
+> ]
+> ```
+>
+> **Ce que cela signifie pour vous :** chaque ligne ne contient que des métadonnées : aucun corps, jeton, prompt, argument ou résultat. Une liste vide est possible s'il n'y a pas eu de trafic MCP dans les dernières 24 heures ou si l'ingestion est encore en retard ; elle ne prouve ni réussite ni absence d'activité.
 
 bash :
 
 ```bash
-ws='<log-analytics-workspace-guid>'
-az monitor log-analytics query --workspace "$ws" \
-  --analytics-query "$(cat modules/06-observe-inventory/queries/mcp-traffic.kql)" \
-  --timespan PT24H -o table
+ai='<application-insights-name>'; group='<resource-group>'
+az monitor app-insights query --app "$ai" --resource-group "$group" --offset 24h \
+  --analytics-query '@modules/06-observe-inventory/queries/mcp-traffic.kql' --query 'tables[0].rows' -o json
 ```
 
+> **Résultat attendu** — la même liste que l'exécution PowerShell ci-dessus.
 La requête ne lit que des métadonnées : nom d'opération, nom d'outil, statut, durée et type d'erreur. Elle ne lit jamais les corps de requête ou de réponse.
 
 ### Étape 4 - Enregistrer le serveur MCP dans API Center (Préversion)
@@ -149,6 +201,17 @@ L'inventaire API Center est en **Préversion**. Dans le portail Azure :
 6. Choisissez **Create**. API Center génère les définitions SSE et Streamable.
 
 Contrôle : l'asset apparaît dans **Assets** avec l'environnement choisi.
+
+**Question :** le serveur a maintenant un asset dans API Center. Eve peut-elle l'appeler parce qu'elle le voit dans le catalogue ?
+
+<details>
+<summary>Afficher la réponse</summary>
+
+Non. Une entrée d'inventaire n'autorise personne. API Center ne relaie pas les appels. Chaque appel passe toujours par
+API Management, qui valide le jeton Microsoft Entra (émetteur, tenant, audience, expiration, scope), et la passerelle vérifie le rôle d'application (`Tools.Read` ou `Tools.Write`).
+Sans jeton valide ni le bon rôle, Eve est refusée.
+
+</details>
 
 ### Étape 5 - Confirmer l'entrée BYO (Préversion)
 
@@ -171,9 +234,39 @@ Hors ligne (sans accès Azure) :
 pwsh ./modules/06-observe-inventory/validate.ps1 -Offline
 ```
 
+> **Résultat réel** — validateur hors ligne, poste de l'auteur, 2026-10-17. Noms et identifiants masqués.
+>
+> ```text
+> PASS file exists: README.md (offline)
+> PASS file exists: README.fr.md (offline)
+> PASS file exists: validate.ps1 (offline)
+> PASS file exists: validate.sh (offline)
+> PASS file exists: cleanup.ps1 (offline)
+> PASS file exists: cleanup.sh (offline)
+> PASS file exists: queries/mcp-traffic.kql (offline)
+> PASS README sections present and in order (offline)
+> PASS README.fr.md has the same section count (offline)
+> PASS Steps give PowerShell before bash (offline)
+> PASS Preview label on API Center, BYO and Agent 365 (offline)
+> PASS KQL selects no body, argument, result or token fields (offline)
+> PASS KQL filters on api.type Mcp (offline)
+> PASS README does not instruct enabling payload logging (offline)
+> PASS no secrets or tokens in module files (offline)
+> PASS only placeholder GUIDs in module files (offline)
+> PASS PROGRESS row 06 is not claimed as validated before live run (offline)
+> PASS docs/sources.md has module 06 entries with last-verified dates (offline)
+> PASS no infra folder (no Azure resources added) (offline)
+> PASS README states the log rules (offline)
+> RESULT: all offline checks passed
+> ```
+>
+> **Ce que cela signifie pour vous :** toutes les règles hors ligne sont respectées. Les résultats KQL, l'asset API Center et l'entrée BYO restent à vérifier à la main.
+
 ```bash
 ./modules/06-observe-inventory/validate.sh --offline
 ```
+
+> **Résultat attendu** — les mêmes lignes PASS/FAIL que l'exécution PowerShell ci-dessus.
 
 Chaque vérification affiche `PASS` ou `FAIL` sur une ligne. Une ligne `FAIL` indique le fichier ou la règle en cause. Les vérifications en direct (résultats KQL, asset API Center, entrée BYO) sont manuelles dans cette version et ne sont pas exécutées par le script.
 
@@ -181,7 +274,7 @@ Chaque vérification affiche `PASS` ou `FAIL` sur une ligne. Une ligne `FAIL` in
 
 | Symptôme | Cause probable | Correction |
 |---|---|---|
-| La requête KQL ne renvoie aucune ligne | Le trafic est plus ancien que la période interrogée, ou les diagnostics ne sont pas activés sur l'API APIM | Élargissez `--timespan`, puis vérifiez le paramètre de diagnostic APIM pour l'API MCP. |
+| La requête KQL ne renvoie aucune ligne | Le trafic est plus ancien que la période interrogée, ou les diagnostics ne sont pas activés sur l'API APIM | Élargissez à la fois `--offset` et le filtre `ago(24h)` de `queries/mcp-traffic.kql`, puis vérifiez le paramètre de diagnostic APIM pour l'API MCP. |
 | Des lignes existent mais `tool.name` est vide | Seul `tools/list` a été appelé, ou l'opération MCP n'a pas été classée | Appelez un outil une fois depuis le client, puis relancez la requête. |
 | Des champs de charge utile apparaissent dans les journaux | La journalisation des charges utiles a été activée | Désactivez-la dans APIM, supprimez les lignes concernées selon votre politique de rétention, et consignez-le comme constat. |
 | L'asset API Center ne peut pas être créé | Le rôle n'est pas attribué, ou l'environnement n'existe pas | Vérifiez le rôle dans RBAC et créez d'abord l'environnement. |
@@ -198,12 +291,33 @@ pwsh ./modules/06-observe-inventory/cleanup.ps1
 pwsh ./modules/06-observe-inventory/cleanup.ps1 -Apply
 ```
 
+> **Résultat réel** — `cleanup.ps1`, puis `cleanup.ps1 -Apply`, poste de l'auteur, 2026-10-17. Noms et identifiants masqués.
+>
+> ```text
+> Module 06 creates no Azure resources. Nothing is deleted by this script.
+> Manual cleanup, if you created them:
+>   - API Center asset: delete in the Azure portal (API center > Assets).
+>   - BYO MCP listing: removed only by a Microsoft 365 administrator.
+>   - Agent 365 policy (demo): removed only by a tenant administrator.
+> Report only. Re-run with -Apply to confirm the guard passed (no deletions are performed).
+> Module 06 creates no Azure resources. Nothing is deleted by this script.
+> Manual cleanup, if you created them:
+>   - API Center asset: delete in the Azure portal (API center > Assets).
+>   - BYO MCP listing: removed only by a Microsoft 365 administrator.
+>   - Agent 365 policy (demo): removed only by a tenant administrator.
+> Guard passed. No module-owned resources to remove.
+> ```
+>
+> **Ce que cela signifie pour vous :** les deux exécutions ne suppriment rien, car ce module n'a rien créé. Supprimez vous-même l'asset API Center dans le portail ; laissez l'entrée BYO et toute stratégie Agent 365 aux administrateurs.
+
 bash :
 
 ```bash
 ./modules/06-observe-inventory/cleanup.sh
 ./modules/06-observe-inventory/cleanup.sh --apply
 ```
+
+> **Résultat attendu** — les mêmes lignes de rapport que l'exécution PowerShell ci-dessus.
 
 Sans `-Apply` (ou `--apply`), le script se contente d'un rapport. Avec l'option, il ne supprime que ce que ce module a créé, c'est-à-dire rien. Pour supprimer l'asset API Center, passez par le portail. Seul un administrateur peut retirer l'entrée BYO, et uniquement via le centre d'administration Microsoft 365.
 
