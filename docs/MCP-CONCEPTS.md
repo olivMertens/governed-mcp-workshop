@@ -31,7 +31,8 @@ No. Discovery describes a capability. Server authorization decides whether a cal
 | Downstream service | Performs the underlying operation | Storage queue or Microsoft Graph |
 
 One host can manage several clients and servers. An MCP server need not contain a language model.
-Do not send the whole conversation to a server when a narrow tool request is sufficient.
+> [!TIP]
+> Do not send the whole conversation to a server when a narrow tool request is sufficient.
 
 **Question:** which component displays the human approval, and which must enforce permissions?
 
@@ -173,8 +174,9 @@ No. Check client support, identity flow, permissions, approval and logging separ
 A shared key identifies no individual user. A sign-in does not grant every tool.
 Human confirmation cannot replace a missing server role check.
 
-For a downstream API, obtain a separate token for that audience. Delegated On-Behalf-Of (OBO) access
-uses user context; managed-identity app-only access uses application permissions. Never pass the client token through.
+> [!WARNING]
+> For a downstream API, obtain a separate token for that audience. Delegated On-Behalf-Of (OBO) access
+> uses user context; managed-identity app-only access uses application permissions. Never pass the client token through.
 
 **Question:** if Bob clicks Approve but lacks `Tools.Write`, should the write succeed?
 
