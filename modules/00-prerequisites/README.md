@@ -13,6 +13,10 @@ A working command line does not prove deployment rights or capacity. Random part
 accidental collisions; they do not increase shared subscription quotas. Your terminal, not the public
 portal, authenticates to Azure.
 
+> [!IMPORTANT]
+> Use only an approved **non-production** tenant and subscription. Never run the workshop in production
+> or in someone else's tenant.
+
 See the [step-by-step architecture](../../assets/architecture/STEPS.md) and
 [actual implementation status](../../docs/IMPLEMENTATION-STATUS.md).
 The diagram is a learning target, not proof that identities or resources have been deployed.
@@ -51,7 +55,11 @@ Provider registration and role grants are administrator actions, never side effe
 
 ### PowerShell
 
-Run from the repository root. Use the route you will actually use for the workshop.
+Run from the repository root.
+
+> [!TIP]
+> Run every check in the terminal you will actually use for the workshop. A check in another terminal
+> proves nothing about this one.
 
 ```powershell
 $ErrorActionPreference = 'Stop'
@@ -66,7 +74,9 @@ Use your approved region, labels and cleanup date. For an administrator-provided
 `-ExistingResourceGroupName` on the **first** preparation command. Keep the generated suffix and state.
 Read the context selector before running it: it asks for the approved target and `NONPROD`,
 then signs in interactively and changes the active CLI subscription. Preflight itself never signs in or switches.
-Do not paste account identifiers, tokens or account responses into the portal, a commit or chat.
+
+> [!WARNING]
+> Do not paste account identifiers, tokens or account responses into the portal, a commit or chat.
 
 Initialize the locked provider and run the separate local tests:
 

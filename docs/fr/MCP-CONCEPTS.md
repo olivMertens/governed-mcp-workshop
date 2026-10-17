@@ -31,7 +31,8 @@ Non. La découverte décrit une capacité. L'autorisation du serveur décide qui
 | Service en aval | Réaliser l'opération sous-jacente | File Storage ou Microsoft Graph |
 
 Un hôte peut gérer plusieurs clients et serveurs. Un serveur MCP ne contient pas forcément de modèle de langage.
-N'envoyez pas toute la conversation lorsqu'une requête d'outil ciblée suffit.
+> [!TIP]
+> N'envoyez pas toute la conversation lorsqu'une requête d'outil ciblée suffit.
 
 **Question :** qui affiche la confirmation humaine, et qui doit faire respecter les droits ?
 
@@ -174,9 +175,10 @@ Non. Vérifiez séparément le client, l'identité, les droits, les confirmation
 Une clé partagée n'identifie pas une personne. Se connecter ne donne pas accès à tous les outils.
 Une confirmation humaine ne remplace pas un contrôle de rôle manquant.
 
-Pour une API en aval, obtenez un jeton distinct pour son audience.
-L'accès délégué On-Behalf-Of (OBO) utilise le contexte utilisateur ; l'accès applicatif par identité managée
-utilise les droits de l'application. Ne transmettez jamais le jeton client tel quel.
+> [!WARNING]
+> Pour une API en aval, obtenez un jeton distinct pour son audience.
+> L'accès délégué On-Behalf-Of (OBO) utilise le contexte utilisateur ; l'accès applicatif par identité managée
+> utilise les droits de l'application. Ne transmettez jamais le jeton client tel quel.
 
 **Question :** Bob confirme, mais n'a pas `Tools.Write`. L'écriture doit-elle réussir ?
 

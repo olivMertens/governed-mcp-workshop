@@ -12,6 +12,10 @@ Vous préparerez aussi les informations à transmettre à l'administrateur Micro
 Un outil installé ne garantit pas que vous ayez les droits ou la capacité nécessaires dans Azure.
 Les noms propres à chaque participant limitent les conflits, mais n'augmentent pas les quotas disponibles.
 
+> [!IMPORTANT]
+> Utilisez uniquement un tenant et un abonnement **hors production** approuvés. N'exécutez jamais l'atelier
+> en production ni dans le tenant de quelqu'un d'autre.
+
 Consultez les [schémas étape par étape](../../assets/architecture/STEPS.fr.md) et
 [ce qui est réellement disponible](../../docs/fr/IMPLEMENTATION-STATUS.md).
 Un schéma explique l'objectif ; il ne prouve pas que des identités ou des ressources ont été déployées.
@@ -44,7 +48,11 @@ prépare les besoins du module 03.
 
 ### PowerShell
 
-Depuis le dossier principal du dépôt, dans le terminal que vous utiliserez pour l'atelier :
+Depuis le dossier principal du dépôt :
+
+> [!TIP]
+> Lancez chaque vérification dans le terminal que vous utiliserez pour l'atelier. Une vérification faite
+> dans un autre terminal ne prouve rien pour celui-ci.
 
 ```powershell
 $ErrorActionPreference = 'Stop'
@@ -62,7 +70,9 @@ Pour un groupe existant, ajoutez `-ExistingResourceGroupName` avec son nom dès 
 
 Le sélecteur vous demande les identifiants de l'annuaire et de l'abonnement, puis la confirmation `NONPROD`.
 Il lance la connexion à Azure et sélectionne l'abonnement. **Gardez le même terminal pour la suite.**
-Ne copiez aucune clé, aucun jeton ni aucune information de compte dans le tableau, le dépôt ou la conversation.
+
+> [!WARNING]
+> Ne copiez aucune clé, aucun jeton ni aucune information de compte dans le tableau, le dépôt ou la conversation.
 
 <details>
 <summary>Vous utilisez bash ?</summary>

@@ -32,7 +32,8 @@ Deux pièges à éviter :
 - **Trop faire confiance.** Une ligne de journal ou une entrée de catalogue est une preuve, pas un contrôle. HTTP 200 ne
   prouve pas que l'outil a réussi, et une entrée d'inventaire n'autorise personne.
 
-**Règles de journalisation de ce module :** zéro octet de corps, aucun jeton, aucun prompt et aucun argument ou résultat d'outil dans un journal, une requête, un classeur, un ticket ou une diapositive. Ne journalisez que les métadonnées : opération, nom de l'outil, statut, durée et type d'erreur.
+> [!WARNING]
+> **Règles de journalisation de ce module :** zéro octet de corps, aucun jeton, aucun prompt et aucun argument ou résultat d'outil dans un journal, une requête, un classeur, un ticket ou une diapositive. Ne journalisez que les métadonnées : opération, nom de l'outil, statut, durée et type d'erreur.
 
 ## Ce que vous déployez
 
@@ -63,8 +64,9 @@ Ce module n'utilise pas Terraform. Il n'a pas de dossier `infra/` car il n'ajout
 
 ![Les appels passent par API Management ; les métadonnées vont dans Application Insights ; API Center inventorie seulement la passerelle.](../../assets/architecture/06.fr.svg)
 
-Application Insights ne contrôle pas les droits. API Center ne relaie pas les appels.
-Ni une inscription ni un statut HTTP réussi ne prouvent la réussite d'un outil.
+> [!NOTE]
+> Application Insights ne contrôle pas les droits. API Center ne relaie pas les appels.
+> Ni une inscription ni un statut HTTP réussi ne prouvent la réussite d'un outil.
 
 ### Que peut-on réellement tracer ?
 

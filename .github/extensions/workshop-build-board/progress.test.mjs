@@ -81,6 +81,11 @@ test("guided reading splits authored actions, never code fences or nested disclo
     assert.doesNotMatch(html, /disclosure\([^)]*servicesList/);
     // Commands and terminal checks stay in the main lesson flow, not in optional reading.
     assert.match(html, /content\.append\(exercise\);/);
+    // Learning aids carry an icon: questions, answers and hints, and command results.
+    assert.match(html, /node\.classList\.add\("question"\);\s*node\.prepend\(symbol\("question"\)\);/);
+    assert.match(html, /section\.classList\.add\("answer"\);\s*title\.prepend\(symbol\("tip"\)\);/);
+    assert.match(html, /hintTitle\.prepend\(symbol\("tip"\)\);/);
+    assert.match(html, /if \(result\) contents\.firstElementChild\?\.prepend\(symbol\("terminal"\)\);/);
     // Author build status and evidence never appear on the published participant site.
     assert.match(html, /if \(!staticSite\) \{\s*const details = element\("details"\);\s*details\.append\(element\("summary", "Repository build status and evidence"\)\);/);
     assert.doesNotMatch(html, /disclosure\("Practice and validation"/);
@@ -98,6 +103,8 @@ test("guided reading splits authored actions, never code fences or nested disclo
         for (const [file, goal] of [["README.md", "Goal"], ["README.fr.md", "Objectif"]]) {
             const first = split(readFileSync(join(repository, "modules", folder, file), "utf8"))[0];
             assert.equal(first.title, goal, `${folder}/${file} must open on ${goal}, not "${first.title}"`);
+            assert.match(readFileSync(join(repository, "modules", folder, file), "utf8"), /^> \[!(?:TIP|NOTE|IMPORTANT|WARNING|CAUTION)\]$/m,
+                `${folder}/${file} needs at least one learning callout`);
         }
     }
     assert.deepEqual(split("# Concepts\n## 1. Discover\nOne idea.\n## 2. Execute\nAnother idea.").map((step) => step.title),

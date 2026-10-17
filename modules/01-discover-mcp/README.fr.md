@@ -154,8 +154,10 @@ Avec Agent Host, choisissez l'isolation Folder ; une session worktree peut impos
 Dans **Chat: Manage Tool Approval**, désactivez la préapprobation de cet outil.
 Si la confirmation est encore ignorée, utilisez le réglage documenté
 `chat.tools.eligibleForAutoApproval`, avec `false` pour l'identifiant réel de l'outil affiché par votre client.
-N'activez pas l'approbation globale et ne modifiez pas une règle de votre organisation.
-La confiance accordée au dossier et le démarrage du serveur ne valent pas approbation d'un appel.
+
+> [!WARNING]
+> N'activez pas l'approbation globale et ne modifiez pas une règle de votre organisation.
+> La confiance accordée au dossier et le démarrage du serveur ne valent pas approbation d'un appel.
 
 Sélectionnez uniquement `workshop-local` dans les outils du chat et envoyez :
 
@@ -164,8 +166,10 @@ Sélectionnez uniquement `workshop-local` dans les outils du chat et envoyez :
 
 Vérifiez le vrai nom et les paramètres, puis approuvez **une seule fois**.
 Dépliez l'appel et examinez son résultat, pas seulement la réponse de l'assistant.
-Si votre client ne permet pas d'imposer une approbation par appel, notez **non vérifié**.
-Le script automatique ne peut pas prouver qu'une personne a vu une confirmation.
+
+> [!IMPORTANT]
+> Si votre client ne permet pas d'imposer une approbation par appel, notez **non vérifié**.
+> Le script automatique ne peut pas prouver qu'une personne a vu une confirmation.
 
 ### Bash
 
