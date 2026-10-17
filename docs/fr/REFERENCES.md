@@ -9,7 +9,7 @@ Le [registre technique original](../sources.md) détaille aussi chaque fichier i
 
 Commencez par [le guide de démarrage](GETTING-STARTED.md), dans un dev container VS Code ou un terminal local.
 Les deux utilisent les mêmes contrôles, les mêmes paramètres privés et la même racine Terraform.
-Retenez le suffixe aléatoire par participant ; il réduit les collisions, mais ne change jamais les quotas.
+Chaque participant garde son suffixe aléatoire : il réduit les conflits de noms, mais ne change jamais les quotas.
 
 - [Dev Containers VS Code](https://code.visualstudio.com/docs/devcontainers/containers) : ouvrir la copie du dépôt, consulter le journal et vérifier le terminal réellement utilisé.
 - [Moteurs alternatifs](https://code.visualstudio.com/remote/advancedcontainers/docker-options) : sélection explicite de Podman 5+, pas de bascule automatique.
@@ -18,7 +18,7 @@ Retenez le suffixe aléatoire par participant ; il réduit les collisions, mais 
 - [Groupe AzureRM](https://registry.terraform.io/providers/hashicorp/azurerm/5.9.0/docs/resources/resource_group), [lecture d'un groupe existant](https://registry.terraform.io/providers/hashicorp/azurerm/5.9.0/docs/data-sources/resource_group) : ne gérer que les objets créés pour l'atelier.
 - [Tests simulés Terraform](https://developer.hashicorp.com/terraform/language/tests/mocking) : vérifier les plans sans appel Azure, sans prétendre valider un déploiement.
 
-Dernière vérification : 2026-10-14. Aucun moteur disponible sur le poste de l'auteur pour valider l'exécution du conteneur.
+Dernière vérification : 2026-10-14. Aucun moteur de conteneurs n'était disponible sur le poste de l'auteur pour tester l'exécution du conteneur.
 
 ## Pour aller plus loin : exemples et versions retenues
 
@@ -29,7 +29,7 @@ Dernière vérification : 2026-10-14. Aucun moteur disponible sur le poste de l'
 |---|---|---|
 | [Functions .NET](https://github.com/Azure-Samples/remote-mcp-functions-dotnet/tree/468c518c884ec318e3001b9573254c9e775409c9) | `468c518c884ec318e3001b9573254c9e775409c9` | Base serveur, MIT ; conserver les notices en cas d'adaptation. Le host.json amont, en mode Anonymous, ne convient pas au module 02. |
 | [SDK C#](https://github.com/modelcontextprotocol/csharp-sdk/tree/6fa3825973949a9c4f0cd8af344e15a8db09dc35) | 2.2.0, `6fa3825973949a9c4f0cd8af344e15a8db09dc35` | Introduction stdio ; transition de licences Apache-2.0/MIT à vérifier fichier par fichier. Documentation CC-BY-4.0. |
-| [AI Gateway labs](https://github.com/Azure-Samples/AI-Gateway/tree/1679e3137d2fe7592d2a668d77ff71550d35b69e) | `1679e3137d2fe7592d2a668d77ff71550d35b69e` | Modèles PRM, politiques et inventaire, MIT. Pas d'import de catalogues ni de notebooks complets. |
+| [AI Gateway labs](https://github.com/Azure-Samples/AI-Gateway/tree/1679e3137d2fe7592d2a668d77ff71550d35b69e) | `1679e3137d2fe7592d2a668d77ff71550d35b69e` | Modèles PRM, stratégies et inventaire, MIT. Pas d'import de catalogues ni de notebooks complets. |
 | [Inspector 2.9.0](https://github.com/modelcontextprotocol/inspector/tree/ae865a19178ddf6f375780a02e9c77c4cf4da184) | Installation vérifiée | Commandes du tableau, identifiants en mémoire uniquement et négociation du protocole. |
 | [Release Inspector 2.11.0](https://github.com/modelcontextprotocol/inspector/releases/tag/2.11.0) | Version candidate pour comparaison | Release GitHub disponible, mais paquet absent du registre configuré lors du test. Aucun changement silencieux de version ou de registre. |
 | [Spécification MCP](https://modelcontextprotocol.io/specification/2026-07-28) | 2026-07-28 | Référence de l'atelier ; vérifier le protocole réellement pris en charge par chaque client. |
@@ -69,14 +69,14 @@ Dernière vérification : 2026-10-14. Aucun moteur disponible sur le poste de l'
 
 - [Autorisation MCP App Service](https://learn.microsoft.com/azure/app-service/configure-authentication-mcp) : PRM en **Preview**.
 - [Parcours VS Code](https://learn.microsoft.com/azure/app-service/configure-authentication-mcp-server-vscode) : reprendre la préautorisation, pas la création de secret.
-- [Tutoriel Functions MCP](https://learn.microsoft.com/azure/azure-functions/functions-mcp-tutorial) : extension MCP retenue ; variante self-hosted **Preview** non retenue.
+- [Tutoriel Functions MCP](https://learn.microsoft.com/azure/azure-functions/functions-mcp-tutorial) : extension MCP retenue ; variante auto-hébergée (**Preview**) non retenue.
 - [Rôles applicatifs](https://learn.microsoft.com/entra/identity-platform/howto-add-app-roles-in-apps) : affectation utilisateur distincte du consentement délégué.
 
 ## 04 - Passerelle et réseau privé
 
 - [Exposer un serveur existant](https://learn.microsoft.com/azure/api-management/expose-existing-mcp-server), [sécuriser MCP](https://learn.microsoft.com/azure/api-management/secure-mcp-servers), [vue d'ensemble](https://learn.microsoft.com/azure/api-management/mcp-server-overview).
 - [Gestion programmatique](https://learn.microsoft.com/azure/api-management/manage-mcp-servers-rest-api) : API `2025-09-01-preview`, **Preview**.
-- [Politique de validation Entra](https://learn.microsoft.com/azure/api-management/validate-azure-ad-token-policy) : audience et tenant exacts.
+- [Stratégie de validation Entra](https://learn.microsoft.com/azure/api-management/validate-azure-ad-token-policy) : audience et tenant exacts.
 - [Intégration réseau sortante](https://learn.microsoft.com/azure/api-management/integrate-vnet-outbound), [réseau Functions](https://learn.microsoft.com/azure/azure-functions/functions-networking-options) : rendre le backend privé ; l'intégration sortante seule ne bloque pas son accès public.
 - [Limite par clé](https://learn.microsoft.com/azure/api-management/rate-limit-by-key-policy), [filtre IP](https://learn.microsoft.com/azure/api-management/ip-filter-policy), [Application Insights](https://learn.microsoft.com/azure/api-management/api-management-howto-app-insights), [points de terminaison privés App Service](https://learn.microsoft.com/azure/app-service/overview-private-endpoint) : utilisés par le [guide du module 04](../../modules/04-governed-gateway/README.fr.md), vérifiés le 2026-10-15.
 - [REST vers MCP, option 04b](https://learn.microsoft.com/azure/api-management/export-rest-mcp-server).
@@ -116,7 +116,7 @@ Dernière vérification : 2026-10-14. Aucune publication ni modification Azure/E
 ## Schémas et droits des icônes
 
 [Provenance des icônes et reproduction des schémas](../../assets/architecture/README.md).
-Les marques restent la propriété de leurs titulaires et ne représentent pas le logo de l'atelier.
+Les marques restent la propriété de leurs titulaires et ne servent pas de logo à l'atelier.
 Le SDK canvas Copilot est en **Preview**.
 
 Dernière vérification : 2026-10-14. Les statuts et les preuves restent dans le fichier canonique `docs/PROGRESS.md`.

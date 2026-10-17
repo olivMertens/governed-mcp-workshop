@@ -26,8 +26,8 @@ serveur ne devrait pas réimplémenter :
 
 | Contrôle | Où | Pourquoi |
 |---|---|---|
-| `validate-azure-ad-token` | Entrée de la passerelle | Validation par la plateforme de l'émetteur, du tenant, de l'expiration, de l'**audience = l'API MCP seulement**, du client autorisé et de l'étendue `user_impersonation`. Aucun code JWT écrit à la main. |
-| Contrôle de rôle par outil | Entrée de la passerelle, depuis le corps JSON-RPC | `tools/call` avec `create_ticket` exige le rôle d'application `Tools.Write` ; tout autre outil ou méthode MCP exige `Tools.Read`. Les corps mal formés, les lots, les outils inconnus et les méthodes non prises en charge sont refusés. |
+| `validate-azure-ad-token` | Entrée de la passerelle | La plateforme valide l'émetteur, le tenant, l'expiration, l'**audience = l'API MCP seulement**, le client autorisé et le scope `user_impersonation`. Aucun code JWT écrit à la main. |
+| Contrôle de rôle par outil | Entrée de la passerelle, depuis le corps JSON-RPC | `tools/call` avec `create_ticket` exige le rôle d'application `Tools.Write` ; tout autre outil ou méthode MCP exige `Tools.Read`. La passerelle refuse les corps mal formés, les lots, les outils inconnus et les méthodes non prises en charge. |
 | `rate-limit-by-key` | Entrée de la passerelle, clé = identifiant d'objet de l'appelant (`oid`) du jeton validé | Un utilisateur qui envoie trop d'appels reçoit HTTP 429 sans gêner les autres. |
 | `ip-filter` | Entrée de la passerelle, facultatif | Restreint les adresses sources si votre organisation l'exige (vide par défaut). |
 | Chemin privé | Réseau | La Function a l'**accès réseau public désactivé** et un **point de terminaison privé** ; seule la passerelle l'atteint grâce à l'intégration au réseau virtuel sortante de Standard v2. |
@@ -35,27 +35,27 @@ serveur ne devrait pas réimplémenter :
 
 ### Suivre le jeton et le chemin réseau privé
 
-**Étendues et rôles d'application.** La revendication `scp` (`user_impersonation`) indique ce que l'*application cliente* peut
+**Scopes et rôles d'application.** La revendication `scp` (`user_impersonation`) indique ce que l'*application cliente* peut
 faire pour l'utilisateur. La revendication `roles` (`Tools.Read`, `Tools.Write`) indique ce que *cet utilisateur* peut faire.
 L'autorisation par outil utilise les **rôles d'application** ([concept](../../docs/fr/concepts/scopes-and-app-roles.md)).
 
 **Frontière du jeton.** La passerelle et la Function protègent **une seule ressource MCP logique** avec **une seule audience**
 (`api://<client-id>`, du module 03). La passerelle valide le jeton puis transmet la **même** requête à la Function, dont
-l'authentification intégrée le valide à nouveau (défense en profondeur). Ce n'est pas un relais de jeton vers une API en aval :
-le jeton n'est jamais envoyé à Microsoft Graph, à Storage ni ailleurs, et aucune audience n'est ajoutée ou élargie. Le
+l'authentification intégrée le valide à nouveau (défense en profondeur). Ce n'est pas du token passthrough vers une API en aval :
+le jeton n'est jamais envoyé à Microsoft Graph, à Storage ni ailleurs, et la passerelle n'ajoute ni n'élargit aucune audience. Le
 module 05 obtient des jetons distincts pour les appels en aval via On-Behalf-Of ou une identité managée
 ([chaîne de jetons](../../docs/fr/concepts/token-chain.md)).
 
 **Choix réseau.** Standard v2 conserve une **passerelle publique** pour les clients et utilise l'**intégration au réseau virtuel
 sortante** pour appeler un **point de terminaison privé de la Function**, résolu par la zone DNS privée
-`privatelink.azurewebsites.net`. L'accès public de la Function est ensuite désactivé. Basic v2 n'a pas d'intégration sortante,
+`privatelink.azurewebsites.net`. L'étape 2 désactive ensuite l'accès public de la Function. Basic v2 n'a pas d'intégration sortante,
 et l'injection complète dans un réseau virtuel (Premium v2) dépasse les besoins de l'atelier. Les règles NSG entrantes ne
 s'appliquent pas à l'intégration sortante : ce sont les stratégies de la passerelle qui contrôlent l'entrée.
 
 ## Ce que vous déployez
 
 Toutes les ressources sont créées dans le groupe de ressources de l'atelier, avec les noms déterministes de vos paramètres
-privés. Les variables d'activation sont désactivées par défaut : les modules 00 à 03 sont inchangés tant que `enable_governed_gateway` vaut false.
+privés. Les variables d'activation valent false par défaut : tant que `enable_governed_gateway` vaut false, les modules 00 à 03 restent inchangés.
 
 | Ressource | Paramètres |
 |---|---|
@@ -67,18 +67,18 @@ privés. Les variables d'activation sont désactivées par défaut : les modules
 | API Management `apim-mcp-<prefix>-<suffix>` | **Standard v2** (`StandardV2_1`), passerelle publique, intégration sortante, identité managée attribuée par l'utilisateur |
 | API de serveur MCP `workshop-mcp` | **Preview** (`Microsoft.ApiManagement/service/apis@2025-09-01-preview`, `type: mcp`, `transportType: streamable`), backend `https://<hôte-function>/runtime/webhooks` + `/mcp`, **aucune clé d'abonnement** |
 | Stratégie du serveur MCP | [policies/mcp-server.xml](policies/mcp-server.xml) |
-| API de métadonnées `.well-known/oauth-protected-resource` | [Métadonnées RFC 9728](policies/protected-resource-metadata.xml) anonymes : ressource de la passerelle, votre tenant, étendue `api://<client-id>/user_impersonation` |
+| API de métadonnées `.well-known/oauth-protected-resource` | [Métadonnées RFC 9728](policies/protected-resource-metadata.xml) anonymes : ressource de la passerelle, votre tenant, scope `api://<client-id>/user_impersonation` |
 | Journaliseur + diagnostics | Application Insights (module 02) via une chaîne de connexion **et l'identité managée de la passerelle** (Monitoring Metrics Publisher sur ce seul composant), 0 octet de corps aux portées « toutes les API » et « API MCP » |
 | Function App (module 02) | Étape 2 seulement : `public_network_access_enabled = false` |
 
 ![Architecture du niveau 2](../../assets/architecture/04.fr.svg)
 
 L'URL client devient `https://apim-mcp-<prefix>-<suffix>.azure-api.net/workshop-mcp/mcp`. L'URL privée de la Function n'est
-jamais communiquée aux clients (le portail facultatif, lui aussi, ne préremplit que l'URL de la passerelle).
+jamais communiquée aux clients (le portail facultatif ne préremplit, lui aussi, que l'URL de la passerelle).
 
 **Preview :** le type de ressource serveur MCP d'API Management et la version d'API `2025-09-01-preview` sont en **Preview**,
 comme les métadonnées de ressource protégée de la Function (module 03). La prise en charge des serveurs MCP est documentée
-pour Standard v2 ; le niveau AI Gateway (Preview) n'est pas utilisé.
+pour Standard v2 ; l'atelier n'utilise pas le niveau AI Gateway (Preview).
 
 **Coût :** API Management **Standard v2 est une capacité provisionnée facturée à l'heure** tant qu'elle existe, que vous
 l'appeliez ou non. Le point de terminaison privé, la zone DNS privée et l'ingestion de télémétrie sont aussi facturés.
@@ -97,14 +97,14 @@ calculatrice de prix Azure pour votre région.
 
 **Participant :** Contributeur sur le groupe de ressources de l'atelier, plus le droit de créer une attribution de rôle limitée
 au composant Application Insights (par exemple Role Based Access Control Administrator, restreint à Monitoring Metrics
-Publisher, limité dans le temps). Le droit de rejoindre le sous-réseau (`Microsoft.Network/virtualNetworks/subnets/join/action`)
-est inclus dans Contributeur sur le groupe. **Aucune modification Microsoft Entra** dans ce module.
+Publisher, limité dans le temps). Le rôle Contributeur sur le groupe inclut déjà le droit de rejoindre le sous-réseau
+(`Microsoft.Network/virtualNetworks/subnets/join/action`). **Aucune modification Microsoft Entra** dans ce module.
 
 ## Étapes
 
 ### PowerShell
 
-Depuis la racine du dépôt. Les étapes 2 à 4 modifient Azure : ne les exécutez qu'après approbation du plan **et du coût**.
+Exécutez les commandes depuis la racine du dépôt. Les étapes 2 à 4 modifient Azure : ne les exécutez qu'après approbation du plan **et du coût**.
 
 **1. Vérifications hors ligne (sans Azure).**
 
@@ -112,7 +112,7 @@ Depuis la racine du dépôt. Les étapes 2 à 4 modifient Azure : ne les exécut
 & .\modules\04-governed-gateway\validate.ps1 -Offline
 ```
 
-> **Résultat attendu** — d'après les messages du validateur ; pas encore une capture d'une exécution participant.
+> **Résultat attendu** — d'après les messages du validateur ; pas encore une capture d'une exécution par un participant.
 >
 > ```text
 > PASS gateway policy: Entra token for the MCP audience only, create_ticket requires Tools.Write, other tools Tools.Read, malformed or unknown calls denied, per-oid rate limit, optional ip-filter, gateway PRM challenge (expected HTTP 401/403/429).
@@ -125,7 +125,7 @@ Depuis la racine du dépôt. Les étapes 2 à 4 modifient Azure : ne les exécut
 > PASS offline checks only. Module 04 is NOT deployed or validated by this result.
 > ```
 >
-> **Ce que cela signifie pour vous :** les stratégies et le Terraform de votre copie conservent les contrôles du module 04.
+> **Ce que cela signifie pour vous :** les stratégies et le code Terraform de votre copie conservent les contrôles du module 04.
 > Rien n'a été déployé ; une ligne `FAIL` indique le fichier ou la règle à corriger avant de payer Standard v2.
 
 **2. Fichier d'activation privé (ignoré par Git).** Facultatif : ajoutez `gateway_allowed_ip_ranges` (liste CIDR) ou modifiez
@@ -172,8 +172,8 @@ terraform '-chdir=infra\workload' apply '..\..\.workshop\module04.tfplan'
 > ```
 >
 > **Ce que cela signifie pour vous :** la passerelle, son chemin privé et sa journalisation sans contenu existent. Le nombre
-> d'ajouts est plus faible si le module 02 a déjà créé le réseau virtuel. Un `to destroy` dans le plan signifie qu'il manque
-> un fichier de variables : n'appliquez pas.
+> d'ajouts est plus faible si le module 02 a déjà créé le réseau virtuel. Si le plan affiche `to destroy`, un fichier de variables
+> manque : n'appliquez pas.
 
 La création d'une instance Standard v2 prend plusieurs minutes. La Function est encore publique mais exige toujours un jeton
 Entra (module 03) : rien n'est anonyme pendant l'étape 1. Testez l'URL de la passerelle
@@ -202,10 +202,10 @@ terraform '-chdir=infra\workload' apply '..\..\.workshop\module04.tfplan'
 > Apply complete! Resources: 0 added, 1 changed, 0 destroyed.
 > ```
 >
-> **Ce que cela signifie pour vous :** la Function ne répond plus depuis internet. Désormais, seule la passerelle l'atteint
+> **Ce que cela signifie pour vous :** la Function ne répond plus depuis Internet. Désormais, seule la passerelle l'atteint
 > par le point de terminaison privé.
 
-Publiez vos modifications de code **avant** l'étape 2 : une fois l'accès public désactivé, les points de déploiement sont aussi privés.
+Publiez vos modifications de code **avant** l'étape 2 : une fois l'accès public désactivé, les points de terminaison de déploiement deviennent eux aussi privés.
 
 **5. Connecter VS Code à la passerelle.** Dans votre configuration MCP **utilisateur**, remplacez le serveur `workshop-entra` par
 l'URL de la passerelle. Ni en-tête ni clé : VS Code lit les PRM de la passerelle et vous connecte.
@@ -233,7 +233,7 @@ jamais : la Function ne le voit pas. Approbation et rôle sont deux contrôles d
 
 </details>
 
-**6. Contrôles opérateur, puis contrôles par profil.**
+**6. Contrôles opérateur, puis contrôles par persona.**
 
 ```powershell
 & .\modules\04-governed-gateway\validate.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID
@@ -262,8 +262,8 @@ Start-Sleep -Seconds 300   # délai d'ingestion de la télémétrie
 > ```
 >
 > **Ce que cela signifie pour vous :** il n'y a plus qu'**une seule porte**, et la Function derrière elle est
-> injoignable depuis internet. Être connecté ne veut plus dire « tout faire » : Bob lit, seule Alice écrit, et
-> personne ne peut saturer le serveur. Les journaux disent **qui** a appelé **quel outil**, jamais ce qu'il a envoyé.
+> injoignable depuis Internet. Être connecté ne veut plus dire « tout faire » : Bob lit, seule Alice écrit, et
+> personne ne peut saturer le serveur. Les journaux indiquent **qui** a appelé **quel outil**, jamais ce qu'il a envoyé.
 
 ### Bash
 
@@ -295,7 +295,7 @@ bash ./modules/04-governed-gateway/validate.sh -TenantId "$ARM_TENANT_ID" -Subsc
 
 ## Ce que vous devez voir
 
-| Action (via la passerelle sauf mention) | Résultat attendu | Signification |
+| Action (via la passerelle, sauf mention contraire) | Résultat attendu | Signification |
 |---|---|---|
 | Requête MCP sans jeton | HTTP 401, `WWW-Authenticate: Bearer resource_metadata="https://apim-…/.well-known/oauth-protected-resource/workshop-mcp/mcp"` | La passerelle refuse en premier et renvoie vers ses propres métadonnées. |
 | `GET` sur cette URL de métadonnées | HTTP 200 : `resource` = URL de la passerelle, votre tenant, `api://…/user_impersonation` | L'hôte privé de la Function n'apparaît jamais. |
@@ -303,7 +303,7 @@ bash ./modules/04-governed-gateway/validate.sh -TenantId "$ARM_TENANT_ID" -Subsc
 | Bob : `tools/list`, `get_service_health` | HTTP 200 | `Tools.Read` suffit. |
 | Bob : `create_ticket` | **HTTP 403** | `Tools.Write` manque. La Function ne voit jamais l'appel. |
 | Alice : `create_ticket` | **HTTP 200**, un ticket synthétique | `Tools.Write` présent ; VS Code demande toujours d'approuver l'écriture. |
-| Outil inconnu / message sans `method` | HTTP 403 / HTTP 400 | Les formats non pris en charge sont refusés, sans tentative d'interprétation. |
+| Outil inconnu / message sans `method` | HTTP 403 / HTTP 400 | La passerelle refuse les formats non pris en charge sans chercher à les interpréter. |
 | Un utilisateur dépasse la limite d'appels | **HTTP 429** avec `Retry-After` | Limite par `oid` de l'appelant. Les limites sont approximatives. |
 | Appel direct à `https://func-…azurewebsites.net/runtime/webhooks/mcp` | **HTTP 403** (ou pas de connexion) | Accès réseau public désactivé. |
 | Application Insights | Requêtes avec statut et durée, traces `mcp-request` avec `mcp-tool` et `caller-oid` | Ni corps, ni argument, ni résultat, ni jeton. |
@@ -321,19 +321,19 @@ instances de la passerelle.)
 
 ### Lire la documentation au moment de la démonstration
 
-Ouvrez ces liens en regard du résultat de passerelle correspondant ci-dessus. API Management (APIM) applique ces contrôles ; la connexion du client ne suffit pas.
+Ouvrez chaque lien au moment du résultat correspondant ci-dessus. C'est API Management (APIM) qui applique ces contrôles : la connexion du client ne suffit pas.
 
 | Démonstration ou choix | Ce qu'il faut comprendre dans Microsoft Learn | Référence de stratégie ou d'API |
 |---|---|---|
 | Sans jeton ou avec une mauvaise audience : HTTP 401 | [Sécuriser les serveurs MCP](https://learn.microsoft.com/azure/api-management/secure-mcp-servers) : protéger le point d'entrée gouverné. | [validate-azure-ad-token](https://learn.microsoft.com/azure/api-management/validate-azure-ad-token-policy) : tenant, audience, client autorisé et revendications requises. |
 | Les métadonnées indiquent la passerelle, pas la Function privée | [Autorisation MCP App Service et métadonnées de ressource protégée (**Preview**)](https://learn.microsoft.com/azure/app-service/configure-authentication-mcp) explique la découverte de la ressource. | [Gérer les serveurs MCP par programme (**Preview**)](https://learn.microsoft.com/azure/api-management/manage-mcp-servers-rest-api) décrit l'API de gestion MCP utilisée par Terraform. Les métadonnées seules n'accordent aucun accès. |
-| Bob lit mais reçoit HTTP 403 pour `create_ticket` ; Alice peut écrire après approbation du client | Les [rôles applicatifs](https://learn.microsoft.com/entra/identity-platform/howto-add-app-roles-in-apps) fournissent `Tools.Read` / `Tools.Write`. L'atelier les vérifie explicitement par outil. | [choose](https://learn.microsoft.com/azure/api-management/choose-policy) et les [expressions de stratégie](https://learn.microsoft.com/azure/api-management/api-management-policy-expressions) appliquent la décision dans `policies/mcp-server.xml`. Un outil inconnu ou un message mal formé est aussi refusé. |
+| Bob lit mais reçoit HTTP 403 pour `create_ticket` ; Alice peut écrire après approbation du client | Les [rôles d'application](https://learn.microsoft.com/entra/identity-platform/howto-add-app-roles-in-apps) fournissent `Tools.Read` / `Tools.Write`. L'atelier les vérifie explicitement par outil. | [choose](https://learn.microsoft.com/azure/api-management/choose-policy) et les [expressions de stratégie](https://learn.microsoft.com/azure/api-management/api-management-policy-expressions) appliquent la décision dans `policies/mcp-server.xml`. Un outil inconnu ou un message mal formé est aussi refusé. |
 | Une rafale d'un appelant reçoit HTTP 429 | [rate-limit-by-key](https://learn.microsoft.com/azure/api-management/rate-limit-by-key-policy) : la clé est ici l'`oid` validé de l'appelant, pas une clé d'abonnement. Les limites distribuées sont approximatives. | La même référence décrit `calls`, `renewal-period` et `counter-key`. |
 | L'accès direct à la Function est bloqué | Les [options réseau Functions](https://learn.microsoft.com/azure/azure-functions/functions-networking-options) expliquent les points de terminaison privés et leur prise en charge par Flex Consumption. | [Exposer un serveur MCP existant](https://learn.microsoft.com/azure/api-management/expose-existing-mcp-server) décrit le proxy de passerelle. Conservez l'architecture réseau Standard v2 de ce guide. |
 | La télémétrie montre statuts et latence, jamais les contenus | [Télémétrie MCP par défaut](https://learn.microsoft.com/azure/api-management/monitor-mcp-servers) : lisez les sections sur la télémétrie par défaut et les requêtes. | La [stratégie trace](https://learn.microsoft.com/azure/api-management/trace-policy) ajoute le nom fixe de l'outil et l'ID de l'appelant. Conservez zéro octet de corps ; ne suivez pas les étapes facultatives d'activation des journaux de contenu de la page liée. |
 
 L'approbation d'une écriture par le client est distincte du contrôle de rôle par la passerelle. Aucun des deux ne remplace l'autre.
-Liens documentaires vérifiés le 2026-10-16 ; les résultats attendus ne s'observent qu'après un déploiement réel approuvé.
+Liens vérifiés le 2026-10-16. Les résultats attendus ne s'observent qu'après un vrai déploiement approuvé.
 
 ## Valider
 
@@ -343,7 +343,7 @@ les autres outils à `Tools.Read` à partir du corps lu avec `preserveContent: t
 limite le débit par `oid`, n'ajoute le filtre IP que s'il est configuré, répond avec le défi PRM de la passerelle et ne lit
 jamais le corps de la réponse ; Terraform conserve Standard v2, l'intégration sortante, le point de terminaison privé, le
 verrouillage en étape 2 et l'absence de clé d'abonnement ; les diagnostics conservent 0 octet de corps et aucun en-tête aux deux
-portées ; aucun motif de secret ; format, schéma et tests simulés Terraform pour les deux racines.
+portées ; aucun motif de secret ; format, schéma et tests Terraform simulés pour les deux modules racines.
 
 Sortie hors ligne (ce résultat ne prouve **pas** le déploiement) :
 
@@ -365,7 +365,7 @@ Modes en ligne, après un déploiement approuvé des deux étapes :
   HTTP 401 pour un jeton Graph, hôte direct de la Function HTTP 403, `publicNetworkAccess = Disabled` et diagnostics à 0 octet
   lus dans Azure Resource Manager. `-CheckTelemetry` interroge ensuite Log Analytics : les requêtes de la passerelle et les
   traces `mcp-request` existent, sans corps, argument ni valeur Authorization.
-- **Profil** (`-TenantId -Persona Alice|Bob|Eve`) : initialize et `tools/list` HTTP 200 ; `get_service_health` HTTP 200 ;
+- **Persona** (`-TenantId -Persona Alice|Bob|Eve`) : initialize et `tools/list` HTTP 200 ; `get_service_health` HTTP 200 ;
   `create_ticket` HTTP 403 pour Bob et HTTP 200 pour Alice ; outil inconnu HTTP 403 et méthode absente HTTP 400 ; Eve n'obtient
   pas de jeton (`AADSTS50105`). `-Burst` envoie 10 appels de plus que la limite et attend HTTP 429.
 
@@ -379,16 +379,16 @@ Le module n'est `validated` que lorsque tout cela réussit sur un abonnement neu
 | Le plan prévoit de détruire la passerelle ou l'authentification | Un fichier de variables manque. Passez toujours les quatre fichiers. |
 | HTTP 500/502 de la passerelle après l'étape 2 | DNS : le lien de zone DNS privée et le groupe de zones du point de terminaison privé doivent exister ; attendez quelques minutes. |
 | HTTP 401 pour Alice via la passerelle, alors que les PRM fonctionnent | Le jeton a été demandé pour une autre ressource. Utilisez la sortie `mcp_auth_audience` ; la passerelle n'accepte que l'audience de l'API MCP. |
-| HTTP 403 pour Alice sur chaque appel | Son application cliente n'est pas autorisée (`mcp_allowed_client_ids`), ou le jeton n'a pas l'étendue `user_impersonation`. |
+| HTTP 403 pour Alice sur chaque appel | Son application cliente n'est pas autorisée (`mcp_allowed_client_ids`), ou le jeton n'a pas le scope `user_impersonation`. |
 | Le streaming s'interrompt ou les outils se bloquent | Quelqu'un a activé la journalisation des corps ou une stratégie lit le corps de la réponse. Gardez 0 octet à chaque portée. |
 | Pas de HTTP 429 pendant la rafale | Les limites sont approximatives dans une passerelle distribuée ; relancez `-Burst` ou baissez `gateway_rate_limit_calls` pour l'exercice. |
-| La publication du code échoue après l'étape 2 | Normal : les points de déploiement sont désormais privés. Publiez avant l'étape 2, ou depuis le réseau virtuel. |
+| La publication du code échoue après l'étape 2 | Normal : les points de terminaison de déploiement sont désormais privés. Publiez avant l'étape 2, ou depuis le réseau virtuel. |
 | Nom déjà utilisé après un nettoyage | Suppression réversible d'API Management : purgez l'instance (voir Nettoyer). |
 
 ## Nettoyer
 
-Nettoyez dans l'ordre inverse. Le script commence par un plan et refuse toute modification hors du module 04 ; lancez-le une fois
-pour relire, puis avec `-Apply`. Il est idempotent. L'auteur ne l'a pas exécuté : aucun déploiement n'existe.
+Nettoyez dans l'ordre inverse. Le script commence par un plan et refuse toute modification hors du module 04.
+Lancez-le une première fois pour relire le plan, puis relancez-le avec `-Apply`. Il est idempotent. L'auteur ne l'a pas exécuté : aucun déploiement n'existe.
 
 ```powershell
 & .\modules\04-governed-gateway\cleanup.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID
@@ -424,8 +424,8 @@ az apim deletedservice purge --service-name apim-mcp-<prefix>-<suffix> --locatio
 >
 > `Remove-Item` et `az apim deletedservice purge` n'affichent rien en cas de succès.
 >
-> **Ce que cela signifie pour vous :** la première exécution ne fait que relire ; rien ne change. Une nouvelle exécution affiche
-> `nothing to do in this state` pour une phase déjà faite. Une ligne `FAIL ... outside module 04` signifie que le plan toucherait
+> **Ce que cela signifie pour vous :** la première exécution affiche seulement le plan : rien ne change. Une nouvelle exécution affiche
+> `nothing to do in this state` pour une phase déjà terminée. Une ligne `FAIL ... outside module 04` signifie que le plan toucherait
 > d'autres modules : rien n'a été appliqué.
 
 ```bash
@@ -436,7 +436,7 @@ rm -f .workshop/module04.tfvars.json
 > **Résultat attendu** — les mêmes lignes PASS/PLAN que l'exécution PowerShell avec `-Apply` ci-dessus ; `rm` n'affiche rien.
 
 La phase 1 remet la Function dans son état du module 03 (toujours protégée par Entra, jamais anonyme). La phase 2 supprime la
-passerelle, les API, stratégies, diagnostics, le journaliseur, l'identité et le rôle de la passerelle, le point de terminaison
+passerelle, les API, les stratégies, les diagnostics, le journaliseur, l'identité et le rôle de la passerelle, le point de terminaison
 privé, le DNS privé, les sous-réseaux, le NSG et le réseau virtuel. Poursuivez ensuite avec le nettoyage des modules 03 et 02 si
 vous avez terminé. Remplacez `workshop-governed` dans VS Code. Si vous enchaînez avec le module 05, conservez tout.
 
@@ -444,7 +444,7 @@ vous avez terminé. Remplacez `workshop-governed` dans VS Code. Si vous enchaîn
 
 - Lisez [policies/mcp-server.xml](policies/mcp-server.xml) : quelle ligne transforme le `create_ticket` de Bob en HTTP 403, et
   pourquoi faut-il lire le corps avec `preserveContent: true` ?
-- Pourquoi la passerelle transmet-elle le même jeton à la Function, et pourquoi n'est-ce pas un « relais de jeton » ? Comparez
+- Pourquoi la passerelle transmet-elle le même jeton à la Function, et pourquoi n'est-ce pas du « token passthrough » ? Comparez
   avec le module 05.
 - Renseignez `gateway_allowed_ip_ranges` avec votre plage de sortie et observez la réponse HTTP 403 depuis un autre réseau.
 - **04b facultatif (documentation seulement) :** API Management peut aussi exposer une **API REST gérée comme serveur MCP**, où
