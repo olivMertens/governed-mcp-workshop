@@ -24,8 +24,8 @@ Utilisez la validation intégrée à la plateforme et les stratégies ou framewo
 
 ## Résultat attendu
 
-À partir de revendications fictives, vous savez expliquer pourquoi Alice réussit, pourquoi Bob est refusé pour une écriture
-et pourquoi Eve ne peut pas accéder. Toute écriture exige un rôle explicite et l'approbation humaine. Les journaux conservent
+À partir de revendications fictives, vous savez expliquer pourquoi Alice réussit, pourquoi l'écriture de Bob est refusée
+et pourquoi Eve n'obtient aucun accès. Toute écriture exige un rôle explicite et l'approbation humaine. Les journaux conservent
 seulement l'identifiant d'objet, le nom fixe de l'outil, le statut, la durée et l'identifiant de corrélation.
 
 ## Sources

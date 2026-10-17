@@ -12,7 +12,7 @@ Poser **la même question** sous l'identité de deux utilisateurs différents et
   obtient le rapport, **Bob** obtient une **erreur d'outil MCP dans une réponse HTTP 200**, car Storage lui répond HTTP 403 ;
 - `read_report_as_app` lit le même rapport **en tant qu'application** (une identité managée) : **Alice et Bob obtiennent le même
   résultat** ;
-- **il n'existe aucun secret client, nulle part** : l'API MCP prouve son identité avec une identité managée via un identifiant fédéré.
+- **il n'existe aucun secret client, nulle part** : l'API MCP prouve son identité avec une identité managée via des informations d'identification fédérées.
 
 > [!WARNING]
 > Ne collez jamais un jeton réel dans un site web, une conversation, un fichier, une capture ou un journal. Le validateur ne
@@ -21,7 +21,7 @@ Poser **la même question** sous l'identité de deux utilisateurs différents et
 ## Pourquoi cette étape compte
 
 Jusqu'ici, les outils n'appelaient aucun service en aval (démonstrations synthétiques) ou utilisaient l'identité du serveur. Les
-outils réels appellent d'autres API, et la question de conception essentielle devient : **avec les droits de qui** l'appel est-il effectué ?
+outils réels appellent d'autres API. La question de conception devient alors : **avec les droits de qui** l'appel part-il ?
 
 | | Contexte utilisateur : **On-Behalf-Of** | Contexte application : **identité managée** |
 |---|---|---|
@@ -29,14 +29,14 @@ outils réels appellent d'autres API, et la question de conception essentielle d
 | Jeton en aval | Un **nouveau** jeton pour Graph (`User.Read`) ou Storage (`user_impersonation`), émis pour l'utilisateur connecté | Un jeton propre à l'application, émis pour l'identité managée affectée par l'utilisateur |
 | Qui décide de l'accès | Le rôle **de l'utilisateur** sur les données (Alice : Storage Blob Data Reader ; Bob : aucun) | Le rôle **de l'identité** (Storage Blob Data Reader sur un conteneur) |
 | Résultat | Différent selon l'utilisateur | **Identique pour tout appelant** que la passerelle laisse passer |
-| Risque en cas d'abus | Faible : le serveur ne peut pas dépasser les droits de l'utilisateur | Député confus (confused deputy) : quiconque peut appeler l'outil lit ce que l'application peut lire |
+| Risque en cas d'abus | Faible : le serveur ne peut pas dépasser les droits de l'utilisateur | « Confused deputy » (mandataire abusé) : quiconque peut appeler l'outil lit ce que l'application peut lire |
 
 ### Suivre l'identité en aval, pas seulement HTTP
 
-**Un jeton par saut, une audience par jeton.** Le jeton du client MCP a pour audience l'API MCP. Le serveur ne le transmet jamais
-à Graph ni à Storage (pas de relais du jeton, ou token passthrough). Pour les outils en contexte utilisateur, il envoie ce jeton **uniquement à
-Microsoft Entra ID** comme *assertion* OBO et reçoit un jeton distinct par ressource en aval. Pour l'outil application seule, le
-jeton de l'appelant n'est pas utilisé du tout.
+**Un jeton par appel, une audience par jeton.** Le jeton du client MCP a pour audience l'API MCP. Le serveur ne le transmet jamais
+à Graph ni à Storage (pas de token passthrough). Pour les outils en contexte utilisateur, il présente ce jeton **uniquement à
+Microsoft Entra ID**, comme *assertion* OBO, et reçoit en échange un jeton distinct par ressource en aval. L'outil en mode application
+seule, lui, n'utilise pas du tout le jeton de l'appelant.
 
 **OBO sans secret.** OBO exige que l'API MCP s'authentifie comme client confidentiel. Au lieu d'un secret client ou d'un
 certificat, l'inscription de l'API fait confiance à **une identité managée affectée par l'utilisateur** de la charge de travail,
@@ -44,8 +44,8 @@ via un **identifiant d'identité fédérée** (émetteur `https://login.microsof
 de l'identité, audience `api://AzureADTokenExchange`). Le serveur demande à cette identité un jeton dont l'audience est
 `api://AzureADTokenExchange` et l'utilise comme assertion client ([concept](../../docs/fr/concepts/obo-and-managed-identity.md)).
 
-**OBO est réservé aux utilisateurs.** Un jeton d'application (sans revendication `scp`, `idtyp=app`) est refusé par les outils en
-contexte utilisateur avant tout appel en aval : sinon OBO produirait un jeton qui ne représente pas l'appelant d'origine.
+**OBO est réservé aux utilisateurs.** Les outils en contexte utilisateur refusent un jeton d'application (sans revendication `scp`,
+`idtyp=app`) avant tout appel en aval. Sinon, OBO produirait un jeton qui ne représente pas l'appelant d'origine.
 
 **Statut HTTP externe ou résultat de l'outil.** MCP transporte les erreurs d'outil dans une réponse JSON-RPC réussie : l'appel de
 Bob renvoie **HTTP 200** avec `result.isError: true`. Le HTTP 403 de la passerelle (module 04) signifie « vous ne pouvez pas
@@ -54,8 +54,8 @@ qu'il a utilisée ».
 
 ## Ce que vous déployez
 
-Tout s'active par des variables explicites, désactivées par défaut : les modules 00 à 04 ne changent pas quand `enable_delegated_access`
-vaut false, et le serveur conserve les démonstrations du module 02 pour `whoami` et `read_report_*`.
+Tout s'active par des variables explicites, désactivées par défaut. Tant que `enable_delegated_access` vaut false, les modules 00 à 04
+ne changent pas et le serveur garde les démonstrations du module 02 pour `whoami` et `read_report_*`.
 
 ### Examiner les identités de la charge de travail
 
@@ -63,7 +63,7 @@ vaut false, et le serveur conserve les démonstrations du module 02 pour `whoami
 
 | Ressource | Paramètres |
 |---|---|
-| Identité affectée par l'utilisateur `id-mcp-<prefix>-<suffix>-obo` | Approuvée par l'identifiant fédéré de l'API MCP. **Aucun rôle Azure.** Sert uniquement à obtenir l'assertion client OBO. |
+| Identité affectée par l'utilisateur `id-mcp-<prefix>-<suffix>-obo` | Approuvée par les informations d'identification fédérées de l'API MCP. **Aucun rôle Azure.** Sert uniquement à obtenir l'assertion client OBO. |
 | Identité affectée par l'utilisateur `id-mcp-<prefix>-<suffix>-report` | Identité application seule de `read_report_as_app` |
 | Conteneur blob `reports` (compte de stockage du module 02, clés partagées désactivées) | Privé ; contient le fichier synthétique `monthly-usage.json` ([synthetic-data](synthetic-data/monthly-usage.json)) |
 | Attribution de rôle | **Storage Blob Data Reader** pour l'identité `-report`, portée limitée au seul conteneur `reports` |
@@ -71,10 +71,10 @@ vaut false, et le serveur conserve les démonstrations du module 02 pour `whoami
 | Attribution de rôle | Storage Blob Data Contributor sur le conteneur pour la personne qui publie le rapport (par défaut : l'utilisateur Terraform connecté) |
 | Function App (module 02) | Les deux identités attachées ; paramètres `WORKSHOP_*` non secrets : tenant, ID client de l'API MCP, ID client des deux identités, URL du conteneur, table des personas |
 
-**Pourquoi deux nouvelles identités ?** L'identité OBO peut agir en tant qu'inscription de l'API MCP ; elle n'a donc aucun rôle sur
-les données. Ainsi, un appel en contexte utilisateur ne peut utiliser que les droits délégués de l'utilisateur. Les droits application
-seule sont portés par une autre identité. L'identité d'hébergement du module 02 (Blob Data Owner sur tout le compte pour l'hôte Functions)
-n'est utilisée par aucun outil.
+**Pourquoi deux nouvelles identités ?** L'identité OBO peut agir au nom de l'inscription de l'API MCP. C'est pourquoi elle n'a aucun
+rôle sur les données : un appel en contexte utilisateur ne dispose que des droits délégués de l'utilisateur. Une autre identité porte
+les droits application seule. Aucun outil n'utilise l'identité d'hébergement du module 02 (Blob Data Owner sur tout le compte, pour
+l'hôte Functions).
 
 ### Examiner la confiance et le consentement Entra
 
@@ -82,9 +82,9 @@ n'est utilisée par aucun outil.
 
 | Variable | Ressource | Effet |
 |---|---|---|
-| `enable_delegated_access` | `azuread_application_api_access` | L'API MCP demande les autorisations déléguées Microsoft Graph `User.Read` et Azure Storage `user_impersonation`. Les ID d'étendue sont lus dans les principaux de service du tenant. Aucune autorisation d'application. |
+| `enable_delegated_access` | `azuread_application_api_access` | L'API MCP demande les autorisations déléguées Microsoft Graph `User.Read` et Azure Storage `user_impersonation`. Terraform lit les ID de scope dans les principaux de service du tenant. Aucune autorisation d'application. |
 | `obo_identity_principal_id` | `azuread_application_federated_identity_credential` | Fait confiance à l'identité `-obo` (sujet = son ID de principal). |
-| `grant_downstream_admin_consent` | `azuread_service_principal_delegated_permission_grant` | Consentement administrateur à l'échelle du tenant pour ces deux étendues exactement (décision de l'administrateur des identités). |
+| `grant_downstream_admin_consent` | `azuread_service_principal_delegated_permission_grant` | Consentement administrateur à l'échelle du tenant pour ces deux scopes exactement (décision de l'administrateur des identités). |
 
 ![Architecture du niveau 3](../../assets/architecture/05.fr.svg)
 
@@ -103,9 +103,9 @@ intégrée), seul l'ID d'objet Graph est demandé (`/me?$select=id`), et une sec
 ## Prérequis et rôles nécessaires
 
 - Modules 02 et 03 déployés (module 04 recommandé) avec les mêmes fichiers privés et le même état Terraform. Publiez le code du
-  serveur de cette version du dépôt (qui contient le module 05) **avant** que l'étape 2 du module 04 ne rende privés les points de
+  serveur issu de cette version du dépôt (elle contient le module 05) **avant** l'étape 2 du module 04, qui rend privés les points de
   déploiement.
-- Les comptes de test existants Alice et Bob du module 03 (ID d'objet uniquement) ; Eve reste non affectée.
+- Les comptes de test existants Alice et Bob du module 03 (ID d'objet uniquement) ; Eve reste sans affectation.
 - Terraform 1.16.6+, Azure CLI, PowerShell 7.4+. Exemple de région : `swedencentral`.
 
 **Participant :** rôle Contributeur sur le groupe de ressources de l'atelier, ainsi que le droit de créer trois attributions de rôle limitées
@@ -113,8 +113,8 @@ au conteneur `reports` (par exemple Role Based Access Control Administrator, res
 limité dans le temps).
 
 **Administrateur des identités :** Application Administrator ou Cloud Application Administrator (ou propriétaire de l'application
-de l'atelier) pour ajouter l'identifiant fédéré et les autorisations demandées. Accorder le consentement administrateur à
-l'échelle du tenant pour des autorisations déléguées nécessite le rôle Cloud Application Administrator ou Application Administrator. Voir la
+de l'atelier) pour ajouter les informations d'identification fédérées et les autorisations demandées. Pour accorder le consentement administrateur
+à l'échelle du tenant sur des autorisations déléguées, il faut le rôle Cloud Application Administrator ou Application Administrator. Voir la
 [demande d'identité](../../docs/requests/identity-request.md).
 
 ## Étapes
@@ -237,7 +237,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Cannot read the administrator handoff.' }
 Tant que l'étape 4 n'est pas terminée, `whoami` et `read_report_as_user` échouent sans risque (erreur d'outil) : l'API ne fait pas
 encore confiance à l'identité.
 
-**4. Administrateur des identités : identifiant fédéré, autorisations, consentement.** Dans son propre terminal, avec son propre état :
+**4. Administrateur des identités : informations d'identification fédérées, autorisations, consentement.** Dans son propre terminal, avec son propre état :
 
 ```powershell
 @{ enable_delegated_access = $true; obo_identity_principal_id = '<principal-id-from-step-3>'; grant_downstream_admin_consent = $true } |
@@ -261,7 +261,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Entra plan failed.' }
 > **Ce que cela signifie pour vous :** seuls des objets du module 05 apparaissent, sans mot de passe ni certificat. Toute
 > modification d'objets du module 03 signifie que les mauvais fichiers de variables ont été passés : n'appliquez pas.
 
-**Observez :** le plan propose deux accès d'API, un identifiant fédéré et deux consentements. Aucun consentement n'est encore accordé.
+**Observez :** le plan propose deux accès d'API, des informations d'identification fédérées et deux consentements. Aucun consentement n'est encore accordé.
 
 ### Administrateur des identités : approuver la confiance et le consentement
 
@@ -281,7 +281,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Entra apply failed.' }
 > ```
 >
 > **Ce que cela signifie pour vous :** l'API MCP fait désormais confiance à l'identité `-obo` et dispose du consentement pour
-> exactement deux étendues déléguées. `whoami` et `read_report_as_user` peuvent maintenant échanger des jetons.
+> exactement deux scopes délégués. `whoami` et `read_report_as_user` peuvent maintenant échanger des jetons.
 
 **5. Publier le rapport synthétique** (authentification Microsoft Entra, sans clé ; le script réessaie pendant la propagation du rôle) :
 
@@ -326,7 +326,7 @@ Remove-Item Env:\AZURE_CONFIG_DIR
 > ```
 >
 > **Ce que cela signifie pour vous :** même question, deux utilisateurs, deux réponses **avec On-Behalf-Of** : ce sont
-> les droits sur la donnée qui décident. Avec l'identité de l'application, tout le monde obtient la même réponse :
+> les droits de l'utilisateur sur la donnée qui décident. Avec l'identité de l'application, tout le monde obtient la même réponse :
 > ce sont les droits **de l'application** qui décident. L'« erreur dans un HTTP 200 » de Bob n'est pas un bug : la
 > passerelle l'a laissé appeler l'outil, c'est Storage qui **le** refuse. Choisissez par outil le comportement voulu
 > ([OBO expliqué simplement](../../docs/fr/MCP-CONCEPTS.md)).
@@ -408,9 +408,9 @@ après un refus en mode délégué, l'utilisateur ne peut pas se replier sur l'a
 | Démonstration ou choix | Ce qu'il faut comprendre dans Microsoft Learn | Référence API ou SDK |
 |---|---|---|
 | Alice et Bob appellent `whoami` | [On-Behalf-Of (OBO)](https://learn.microsoft.com/entra/identity-platform/v2-oauth2-on-behalf-of-flow) échange le jeton utilisateur MCP contre un jeton Graph distinct. | [Graph GET /me](https://learn.microsoft.com/graph/api/user-get?view=graph-rest-1.0) avec `User.Read` et `$select=id` ; [OnBehalfOfCredential](https://learn.microsoft.com/dotnet/api/azure.identity.onbehalfofcredential). Le serveur associe l'ID à un persona fictif, pas à un vrai profil. |
-| Alice lit en mode utilisateur ; Bob est refusé | [Autoriser Blob Storage avec Entra](https://learn.microsoft.com/azure/storage/blobs/authorize-access-azure-active-directory) : Storage contrôle le rôle de l'appelant sur la ressource, pas seulement l'étendue MCP. | [Autorisation de Get Blob](https://learn.microsoft.com/rest/api/storageservices/get-blob#authorization) et [DownloadContentAsync](https://learn.microsoft.com/dotnet/api/azure.storage.blobs.specialized.blobbaseclient.downloadcontentasync), hérité par `BlobClient`. Le HTTP 403 renvoyé en aval à Bob devient une erreur d'outil MCP dans une réponse HTTP 200 externe. |
+| Alice lit en mode utilisateur ; Bob est refusé | [Autoriser Blob Storage avec Entra](https://learn.microsoft.com/azure/storage/blobs/authorize-access-azure-active-directory) : Storage contrôle le rôle de l'appelant sur la ressource, pas seulement le scope MCP. | [Autorisation de Get Blob](https://learn.microsoft.com/rest/api/storageservices/get-blob#authorization) et [DownloadContentAsync](https://learn.microsoft.com/dotnet/api/azure.storage.blobs.specialized.blobbaseclient.downloadcontentasync), hérité par `BlobClient`. Le HTTP 403 renvoyé en aval à Bob devient une erreur d'outil MCP dans une réponse HTTP 200 externe. |
 | Alice et Bob lisent le même rapport en mode application | [Identités managées](https://learn.microsoft.com/entra/identity/managed-identities-azure-resources/overview) : les droits en aval appartiennent à l'identité de l'application. Le contrôle d'accès de l'appelant MCP reste appliqué. | [ManagedIdentityCredential](https://learn.microsoft.com/dotnet/api/azure.identity.managedidentitycredential), puis la même [API Get Blob](https://learn.microsoft.com/rest/api/storageservices/get-blob#authorization) avec le rôle de l'identité managée limité au conteneur. |
-| Aucun secret client, y compris pour OBO | [Faire approuver une identité managée par une application](https://learn.microsoft.com/entra/workload-id/workload-identity-federation-config-app-trust-managed-identity) : l'identifiant fédéré prouve l'identité de l'application API lors de l'échange de jeton. | La surcharge avec fonction de rappel d'[OnBehalfOfCredential](https://learn.microsoft.com/dotnet/api/azure.identity.onbehalfofcredential) fournit une assertion d'identité managée. Ne recopiez pas les exemples à secret client de la documentation OBO générale. |
+| Aucun secret client, y compris pour OBO | [Faire approuver une identité managée par une application](https://learn.microsoft.com/entra/workload-id/workload-identity-federation-config-app-trust-managed-identity) : les informations d'identification fédérées prouvent l'identité de l'application API lors de l'échange de jeton. | La surcharge avec fonction de rappel d'[OnBehalfOfCredential](https://learn.microsoft.com/dotnet/api/azure.identity.onbehalfofcredential) fournit une assertion d'identité managée. Ne recopiez pas les exemples à secret client de la documentation OBO générale. |
 | Un appelant applicatif tente `whoami` ou `read_report_as_user` | [Flux OBO](https://learn.microsoft.com/entra/identity-platform/v2-oauth2-on-behalf-of-flow) : la délégation nécessite une assertion utilisateur. | Le serveur refuse l'appel avant de contacter Graph ou Storage ; aucun basculement silencieux vers [ManagedIdentityCredential](https://learn.microsoft.com/dotnet/api/azure.identity.managedidentitycredential). |
 
 Les données du rapport sont fictives, mais l'autorisation déployée, elle, n'est pas simulée. À l'inverse, les clients simulés des
@@ -421,7 +421,7 @@ Liens documentaires vérifiés le 2026-10-16.
 
 `validate.ps1` (ou `validate.sh`) exécute toujours d'abord les vérifications hors ligne : On-Behalf-Of avec une assertion
 d'identité managée et un jeton par ressource en aval ; appelants application seule refusés ; pas de repli sur l'identité du
-développeur ni d'analyse de jeton dans le serveur ; identifiant fédéré Entra et étendues déléguées exactes, consentement
+développeur ni d'analyse de jeton dans le serveur ; informations d'identification fédérées Entra et scopes délégués exacts, consentement
 activé explicitement, sans mot de passe ; tous les rôles du module 05 sur le seul conteneur du rapport, aucun pour l'identité OBO
 ni pour Bob ; données synthétiques uniquement ; aucun motif de secret ; tests unitaires ; format, schéma et tests simulés Terraform
 pour les deux modules racines.
@@ -444,7 +444,7 @@ PASS offline checks only. Module 05 is NOT deployed or validated by this result.
 Modes réels, après un déploiement approuvé :
 
 - **Opérateur** (`-TenantId -SubscriptionId`) : les paramètres de la Function référencent les deux identités et ne contiennent aucun
-  paramètre secret ; l'inscription de l'API MCP n'a **aucun identifiant de mot de passe** et exactement un identifiant fédéré qui
+  paramètre secret ; l'inscription de l'API MCP n'a **aucun identifiant de mot de passe** et exactement un jeu d'informations d'identification fédérées qui
   fait confiance à l'identité OBO ; sur le conteneur `reports`, seuls l'identité application seule et Alice ont Storage Blob Data
   Reader ; l'identité OBO et Bob n'ont rien.
 - **Persona** (`-TenantId -Persona Alice|Bob`) : `whoami` renvoie l'étiquette du persona, sans nom ni adresse e-mail ;
@@ -458,14 +458,14 @@ Le module n'est `validated` que lorsque tout cela réussit sur un abonnement neu
 
 | Symptôme | Vérification |
 |---|---|
-| `whoami` / `read_report_as_user` renvoient `isError: true`, même pour Alice | Étape 4 non effectuée (pas d'identifiant fédéré ni de consentement), ou le sujet n'est pas l'ID de **principal** de l'identité `-obo`. Un émetteur, sujet ou audience erroné est accepté à la création et n'échoue qu'à l'échange de jeton. |
-| Idem, et le journal du serveur indique `failed:AuthenticationFailedException` | L'échange de jeton a échoué. Vérifiez dans l'ordre : les valeurs de l'identifiant fédéré, le consentement administrateur (`grant_downstream_admin_consent = true` ou le portail), et que l'identité `-obo` est attachée à la Function. Le serveur ne journalise jamais le texte d'erreur d'Entra. |
+| `whoami` / `read_report_as_user` renvoient `isError: true`, même pour Alice | Étape 4 non effectuée (ni informations d'identification fédérées ni consentement), ou le sujet n'est pas l'ID de **principal** de l'identité `-obo`. Entra accepte un émetteur, un sujet ou une audience erronés à la création ; l'erreur n'apparaît qu'à l'échange de jeton. |
+| Idem, et le journal du serveur indique `failed:AuthenticationFailedException` | L'échange de jeton a échoué. Vérifiez dans l'ordre : les valeurs des informations d'identification fédérées, le consentement administrateur (`grant_downstream_admin_consent = true` ou le portail), et que l'identité `-obo` est attachée à la Function. Le serveur ne journalise jamais le texte d'erreur d'Entra. |
 | Alice obtient `isError: true` seulement sur `read_report_as_user` | Son rôle Storage est encore en cours de propagation (quelques minutes), ou `delegated_persona_object_ids.alice` est faux. |
 | `read_report_as_app` renvoie `isError: true` | Rapport non publié (étape 5), ou rôle de l'identité `-report` encore en propagation. |
 | `publish-report.ps1` échoue systématiquement | Vous avez besoin du rôle Storage Blob Data Contributor sur `reports` ; renseignez `delegated_report_publisher_object_id` si Terraform a été exécuté par quelqu'un d'autre. |
 | `Invalid index` sur `oauth2_permission_scope_ids` dans `infra/entra` | Le principal de service Azure Storage est absent du tenant ; un administrateur doit le créer (`az ad sp create --id e406a681-f3d4-42a8-90b6-c2b029497af1`). |
 | Les outils renvoient encore des résultats de « démonstration » | Le code déployé est antérieur au module 05, ou `WORKSHOP_DELEGATED_ACCESS` ne vaut pas `enabled`. Publiez le code (avant l'étape 2 du module 04). |
-| HTTP 403 de la passerelle pour chaque appel | Le refus vient du module 04 (rôle ou étendue). Un refus en aval n'est jamais un HTTP 403 externe. |
+| HTTP 403 de la passerelle pour chaque appel | Le refus vient du module 04 (rôle ou scope). Un refus en aval n'est jamais un HTTP 403 externe. |
 
 ## Nettoyer
 
@@ -477,7 +477,7 @@ le plan, puis avec `-Apply`. L'auteur ne l'a pas exécuté, faute de déploiemen
 & .\modules\05-delegated-and-app-only\cleanup.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID
 & .\modules\05-delegated-and-app-only\cleanup.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID -Apply
 Remove-Item -LiteralPath .\.workshop\module05.tfvars.json, .\.workshop\module05-as-app-*.sha256 -ErrorAction SilentlyContinue
-# Administrateur des identités : identifiant fédéré, autorisations demandées, consentements
+# Administrateur des identités : informations d'identification fédérées, autorisations demandées, consentements
 & .\modules\05-delegated-and-app-only\cleanup.ps1 -TenantId $env:ARM_TENANT_ID -Scope Entra -Apply
 Remove-Item -LiteralPath .\.workshop\entra-module05.tfvars.json -ErrorAction SilentlyContinue
 ```
@@ -526,7 +526,7 @@ Si vous passez directement au module 06, conservez tout.
 ## Aller plus loin
 
 - Lisez [DelegatedTools.cs](../../src/FunctionsMcpServer/Logic/DelegatedTools.cs) : où se fait le choix de l'identité pour chaque
-  outil, et pourquoi ne peut-il jamais changer à l'exécution ?
+  outil, et pourquoi ce choix ne peut-il jamais changer à l'exécution ?
 - Pourquoi l'identité OBO n'a-t-elle aucun rôle Azure, et que se passerait-il si `read_report_as_app` l'utilisait ?
 - Attribuez à Bob le rôle Storage Blob Data Reader sur `reports` pendant quelques minutes : quel résultat change, et lequel ne change jamais ?
 - Microsoft.Identity.Web propose le même modèle sans secret pour les API ASP.NET Core (`SignedAssertionFromManagedIdentity`) ; ce

@@ -5,8 +5,8 @@ Utilisez ensuite le guide et le script de vérification du module lorsqu'ils son
 Les schémas décrivent l'architecture **prévue**, pas un service déjà déployé.
 
 > [!IMPORTANT]
-> Se connecter permet de savoir qui vous êtes. Vos droits déterminent ce que vous pouvez faire.
-> La confirmation manuelle permet d'accepter ou de refuser une action précise. Aucun de ces contrôles ne remplace les autres.
+> La connexion établit qui vous êtes. Vos droits déterminent ce que vous pouvez faire.
+> La confirmation manuelle accepte ou refuse une action précise. Aucun de ces contrôles ne remplace les autres.
 
 ## 00 - Prérequis et environnement
 
@@ -23,7 +23,7 @@ Ce ne sont pas des appels MCP. Un codespace est une machine de développement, p
 
 **Résultat attendu :** les vérifications du module 00 réussissent et la demande Entra est comprise.
 Choisir l'abonnement ne suffit pas.
-**Suite :** module 01, une fois le validateur publié du module 00 réussi. Aucune ressource cloud dans le module 01.
+**Suite :** module 01, une fois que le validateur publié du module 00 réussit. Aucune ressource cloud dans le module 01.
 
 **Approfondir :** [tenant et abonnement](https://learn.microsoft.com/cli/azure/manage-azure-subscriptions-azure-cli),
 [attribution des rôles Azure](https://learn.microsoft.com/azure/role-based-access-control/role-assignments-cli).
@@ -39,7 +39,7 @@ Les serveurs distants utilisent le transport Streamable HTTP. Ouvrir une adresse
 Les annotations d'outil aident le client, mais n'imposent pas les autorisations.
 
 > [!IMPORTANT]
-> Maintenez l'approbation humaine pour les écritures. Vérifiez la trace d'appel réelle, pas seulement la réponse de l'assistant.
+> Gardez l'approbation humaine pour les écritures. Vérifiez la trace d'appel réelle, pas seulement la réponse de l'assistant.
 
 **Résultat attendu :** les outils s'affichent, l'un d'eux s'exécute avec des données fictives et la confirmation manuelle reste disponible.
 **Suite :** module 02, uniquement après la validation et l'approbation du déploiement de test payant.
@@ -56,10 +56,10 @@ L'extension MCP d'Azure Functions utilise la clé système `mcp_extension`.
 Le point d'entrée conserve le niveau d'autorisation `System`. « Ouvert » ne signifie pas « sans protection ».
 
 **Schéma :** le client muni de la clé appelle Functions ; une écriture synthétique atteint une file Azure Storage.
-Les outils dépendant d'une identité restent explicitement simulés jusqu'au module 05.
+Les outils qui dépendent d'une identité restent simulés, et le signalent, jusqu'au module 05.
 
 > [!WARNING]
-> Limitez la durée de cette étape. Ne désactivez jamais la protection du webhook. Ne placez pas la clé dans une URL ni dans un en-tête enregistré.
+> Limitez la durée de cette étape. Ne désactivez jamais la protection du webhook. Ne placez pas la clé dans une URL ni dans un en-tête journalisé.
 > Toute personne possédant la clé peut utiliser les outils exposés : ce n'est pas une protection suffisante pour l'entreprise.
 
 **Résultat attendu :** HTTP 401 sans clé ; HTTP 200 et réussite de l'outil avec la bonne clé.
@@ -71,7 +71,7 @@ Les outils dépendant d'une identité restent explicitement simulés jusqu'au mo
 ## 03 - Connexion des utilisateurs et rôles applicatifs
 
 **Objectif :** n'accepter que les jetons d'accès destinés au serveur MCP.
-La plateforme vérifie qui a émis le jeton, l'annuaire, le service destinataire (audience) et la date d'expiration.
+La plateforme vérifie l'émetteur du jeton, le tenant, l'audience (le service destinataire) et la date d'expiration.
 Les autorisations déléguées (scopes) définissent ce que le client peut demander au nom de l'utilisateur.
 Les rôles applicatifs définissent les actions permises à cet utilisateur ou à une application.
 Utilisez les contrôles de la plateforme et les bibliothèques officielles, pas un validateur de jetons écrit à la main.
@@ -96,10 +96,10 @@ Eve ne peut pas obtenir ce jeton, qui exige une affectation. Les contrôles par 
 **Objectif :** tous les appels passent par API Management (APIM), qui vérifie les droits et limite le nombre d'appels.
 APIM et Functions protègent le même service MCP. Le jeton doit être destiné à ce service.
 N'ajoutez pas d'autre audience acceptée pour faire réussir un test.
-L'API de gestion MCP `2025-09-01-preview` est en **Preview**. Ce n'est pas l'offre AI Gateway en preview.
+L'API de gestion MCP `2025-09-01-preview` est en **Preview**. Ce n'est pas l'offre AI Gateway, elle aussi en Preview.
 
 **Schéma :** client, APIM Standard v2, Function privée. L'intégration réseau sortante et le DNS privé assurent
-la connectivité ; la désactivation de l'accès public empêche le contournement. Le réseau ne remplace pas la validation du jeton.
+la connectivité ; l'accès public désactivé empêche tout contournement. Le réseau ne remplace pas la validation du jeton.
 
 > [!WARNING]
 > Vérifiez aussi que l'accès direct à la Function est refusé. Une passerelle qui fonctionne ne suffit pas.
@@ -121,7 +121,7 @@ Les journaux ne contiennent aucun corps de requête ou de réponse.
 **Objectif :** comparer deux façons d'accéder aux données.
 L'accès délégué On-Behalf-Of (OBO) agit au nom de l'utilisateur, avec ses droits.
 L'accès applicatif utilise une identité managée, avec ses propres droits sur la ressource.
-Chaque accès obtient un **autre jeton**, destiné à l'API appelée ; le jeton MCP n'est jamais transmis.
+Chaque accès obtient son **propre jeton**, destiné à l'API appelée ; le jeton MCP n'est jamais transmis.
 
 **Schéma :** les deux parcours passent par API Management. Le premier utilise un jeton délégué pour Azure Storage ;
 le second utilise un jeton de l'identité managée pour le même stockage.
@@ -129,7 +129,7 @@ L'outil `whoami` appelle séparément Microsoft Graph avec un jeton destiné à 
 
 > [!WARNING]
 > Ne transmettez jamais le jeton MCP à Graph ou Storage. Une identité applicative ne se fait pas passer pour l'utilisateur.
-> Pas de repli sur l'identité du développeur lorsqu'une délégation échoue.
+> Si la délégation échoue, ne vous rabattez pas sur l'identité du développeur.
 
 | Outil | Alice | Bob | Droits utilisés |
 |---|---|---|---|
@@ -137,7 +137,7 @@ L'outil `whoami` appelle séparément Microsoft Graph avec un jeton destiné à 
 | `read_report_as_app` | Même rapport synthétique autorisé | Même rapport synthétique autorisé | Ceux de l'identité managée |
 
 **Résultat attendu :** les quatre cas du tableau. Notez le code HTTP et l'éventuelle erreur MCP :
-un refus HTTP 403 de Storage peut être encapsulé dans une réponse HTTP 200.
+un refus HTTP 403 de Storage peut arriver dans une réponse HTTP 200.
 **Suite :** module 06 pour observer les métadonnées sans capturer le contenu.
 
 **Approfondir :** [fonctionnement des jetons OBO](https://learn.microsoft.com/entra/identity-platform/v2-oauth2-on-behalf-of-flow),
@@ -155,7 +155,7 @@ il ne relaie pas les requêtes, n'authentifie pas les clients et ne donne aucun 
 
 > [!WARNING]
 > Aucun contenu de requête ou de réponse dans les journaux, y compris dans les configurations héritées.
-> Ne conservez ni jetons, ni consignes, ni paramètres, ni résultats d'outils et n'exportez pas les traces Inspector.
+> Ne conservez ni jetons, ni prompts, ni arguments, ni résultats d'outils et n'exportez pas les traces Inspector.
 > L'inventaire Microsoft 365 facultatif est en **Preview**, réservé à l'animateur.
 
 <details>
@@ -219,7 +219,7 @@ Les deux lignes du schéma représentent des opérations administratives, pas de
 > [!WARNING]
 > Examinez le plan de destruction réel et obtenez l'approbation explicite.
 > Nettoyez d'abord les ressources, puis seulement les objets Entra créés pour l'atelier.
-> Préservez les identifiants fournis, les comptes existants et l'infrastructure partagée.
+> Conservez les identifiants fournis, les comptes existants et l'infrastructure partagée.
 
 **Résultat attendu :** aucune ressource portant l'étiquette de l'atelier ne subsiste ; les identités créées et
 les rôles attribués sont tous pris en compte. Vérifiez l'inventaire, les durées de conservation et les suppressions récupérables.
