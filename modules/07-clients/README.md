@@ -88,6 +88,17 @@ OBO tools must also reject app-only callers. Application identity at the client 
 
 > The exact screen labels can change. Check the source page below before the session.
 
+**Question:** the Copilot Studio Manual OAuth setup asks for a client secret. Why not switch to **API key** to finish the demo?
+
+<details>
+<summary>Show answer</summary>
+
+An API key identifies no user. The gateway could no longer check a token for the MCP audience, a delegated scope or
+Alice's and Bob's app roles, so per-user authorization would be gone. A client secret is also outside this workshop's no-secret rule.
+Stop, and use the outline or a recording instead.
+
+</details>
+
 ### Part C — Checklist for every client
 
 - [ ] The token audience is the MCP server's own audience (not Microsoft Graph, not a downstream API).
@@ -109,9 +120,34 @@ Offline checks only. They confirm that this folder is complete and that the rule
 pwsh ./modules/07-clients/validate.ps1 -Offline
 ```
 
+> **Real result** — offline validator, author's workstation, 2026-10-17. Names and IDs withheld.
+>
+> ```text
+> PASS file exists: README.md (offline)
+> PASS file exists: README.fr.md (offline)
+> PASS file exists: validate.ps1 (offline)
+> PASS file exists: validate.sh (offline)
+> PASS file exists: cleanup.ps1 (offline)
+> PASS file exists: cleanup.sh (offline)
+> PASS README sections present in contract order (offline)
+> PASS French README has the same section count (offline)
+> PASS states that this module creates no resources (offline)
+> PASS marks Preview features (offline)
+> PASS never recommends the anonymous None option for Copilot Studio (offline)
+> PASS states SSE is no longer supported (offline)
+> PASS Sources link the Foundry and Copilot Studio pages (offline)
+> PASS no GUIDs or client secrets in module files (offline)
+>
+> RESULT: all offline checks passed
+> ```
+>
+> **What it means for you:** the folder is complete and the safety rules (no **None**, no secrets, Streamable only) are written down. It does not prove that any client was connected.
+
 ```bash
 bash ./modules/07-clients/validate.sh --offline
 ```
+
+> **Expected result** — the same PASS/FAIL lines as the PowerShell run above.
 
 Each check prints one `PASS` or `FAIL` line. No live check is scripted, because this demo depends on tenant settings.
 
@@ -130,9 +166,21 @@ Nothing was created, so there is nothing to delete. Remove any test agent or too
 pwsh ./modules/07-clients/cleanup.ps1
 ```
 
+> **Real result** — `cleanup.ps1`, author's workstation, 2026-10-17. Names and IDs withheld.
+>
+> ```text
+> INFO module 07 creates no Azure, Entra or Copilot Studio resources.
+> INFO remove any test agent or MCP tool you added to the Foundry project or Copilot Studio after the demo, by hand.
+> PASS nothing to delete (module 07)
+> ```
+>
+> **What it means for you:** the script deletes nothing. Remove any test agent or MCP tool from Foundry or Copilot Studio by hand.
+
 ```bash
 bash ./modules/07-clients/cleanup.sh
 ```
+
+> **Expected result** — the same INFO and PASS lines as the PowerShell run above.
 
 ## Go further
 

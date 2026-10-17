@@ -70,6 +70,34 @@ $expiry = [datetime]::UtcNow.AddDays(1).ToString('yyyy-MM-dd')
 & .\modules\00-prerequisites\validate.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID
 ```
 
+> **Real result** — `check-tools.ps1` and live `validate.ps1` in the author's test subscription, 2026-10-17.
+> The lines printed by the preparation and context scripts are described below the box. Names and IDs withheld.
+>
+> ```text
+> PASS git (Git 2+; expected HTTP N/A)
+> PASS az (Azure CLI >= 2.88.0; expected HTTP N/A)
+> PASS terraform (Terraform >= 1.16.6, < 2; expected HTTP N/A)
+> PASS dotnet (.NET SDK 10; expected HTTP N/A)
+> PASS node (Node.js >= 22.19.0; expected HTTP N/A)
+> PASS func (Functions Core Tools >= 4.5.0, < 5 (not the Preview v5 CLI); expected HTTP N/A)
+> PASS PowerShell 7.6.7 (expected HTTP N/A)
+> PASS local tools only; Azure context, permissions, quota and deployment remain separate checks.
+> ...
+> PASS explicit interactive context (expected HTTP N/A; no sign-in, token output or context change)
+> PASS subscription region (expected HTTP 200; availability is not a capacity reservation)
+> PASS provider Microsoft.Resources (expected HTTP 200; Registered)
+> PASS required ARM permission grants (expected HTTP 200; deny assignments, policy and deployment approval remain separate)
+> PASS resource group capacity (expected HTTP 200; below the documented 980-group limit)
+> PASS foundation preflight only. No resource, registration, permission, login or context was changed. A real plan and separate approval are still required.
+> PASS administrator request template present (expected HTTP N/A; approval and identity creation are separate)
+> PASS module 00 foundation environment checks. Record only the verified workspace route and stage; this is not MCP runtime validation.
+> ```
+>
+> **What it means for you:** your tools match the baseline, and your explicit test target can be read. Nothing was
+> created. Between the two groups, `prepare-workshop.ps1` prints `PASS private participant parameters created with a
+> stable random suffix.` (or `PASS existing participant parameters reused unchanged.` on a rerun), and the selector prints
+> `PASS context: tenant and subscription verified. ...`. The live validator repeats the tool lines first (elided here).
+
 Use your approved region, labels and cleanup date. For an administrator-provided group, supply
 `-ExistingResourceGroupName` on the **first** preparation command. Keep the generated suffix and state.
 Read the context selector before running it: it asks for the approved target and `NONPROD`,
@@ -86,6 +114,27 @@ if ($LASTEXITCODE -ne 0) { throw 'Provider initialization failed.' }
 & .\modules\00-prerequisites\validate.ps1 -Offline
 ```
 
+> **Real result** — offline run on the authoring host, 2026-10-17. Excerpt; your timings differ.
+>
+> ```text
+> ✔ preflight is read-only and fails closed for context, permission, provider, quota, runtime and evidence errors (2819.2349ms)
+> ...
+> ℹ tests 19
+> ℹ suites 0
+> ℹ pass 19
+> ℹ fail 0
+> ...
+> PASS local script/HTTP checks (expected HTTP N/A; no Azure access)
+> Success! The configuration is valid.
+> ...
+> Success! 49 passed, 0 failed.
+> PASS Terraform schema and mock-only plans (expected HTTP N/A; no live plan/apply)
+> PASS offline checks only. Module 00 is NOT Azure-validated by this result.
+> ```
+>
+> **What it means for you:** the scripts and Terraform code behave as designed against synthetic responses and mocks.
+> `terraform init` first prints `Terraform has been successfully initialized!`. The last line is honest: no Azure check ran.
+
 ### bash
 
 PowerShell is also installed inside the dev container. The wrappers run the same checks.
@@ -99,6 +148,9 @@ bash ./modules/00-prerequisites/validate.sh -TenantId "$ARM_TENANT_ID" -Subscrip
 terraform -chdir=infra/workload init -backend=false -lockfile=readonly &&
 bash ./modules/00-prerequisites/validate.sh -Offline
 ```
+
+> **Expected result** — the same PASS lines as the PowerShell runs above (the wrappers call the same PowerShell scripts).
+> The `read` prompt waits for your cleanup date; `source` keeps the `ARM_*` variables in this shell.
 
 For a later billable stage, use `-Stage portal` or `-Stage mcp` and `-CapacityReviewPath` pointing to
 private evidence described in [hosting](../../docs/HOSTING.md). The `mcp` checks are a future baseline,
@@ -116,6 +168,26 @@ An existing-group route does not require capacity for a new group.
 Offline checks use synthetic Azure responses and provider mocks. Their final line explicitly says that
 module 00 is **not Azure-validated**. A host tool check does not validate the container.
 Container/Codespaces execution remains unverified in the authoring environment until an approved engine is available.
+
+**Question:** every preflight line says `PASS`. Can you now deploy without asking anyone?
+
+<details>
+<summary>Show answer</summary>
+
+No. Preflight only reads grants, providers and capacity. Deny assignments, Azure Policy and shared quota can still block
+a deployment, and every real Terraform plan still needs separate review and approval.
+
+</details>
+
+**Question:** your first attempt failed. Why must you keep the same suffix and Terraform state instead of generating new names?
+
+<details>
+<summary>Show answer</summary>
+
+The suffix and state are how Terraform and the cleanup scripts find what you created. New names would orphan earlier
+resources and do not reset any quota.
+
+</details>
 
 ## Validate
 
@@ -141,9 +213,20 @@ Only after real module 00 validation may you begin module 01.
 & .\modules\00-prerequisites\cleanup.ps1
 ```
 
+> **Real result** — authoring host, 2026-10-17.
+>
+> ```text
+> PASS module 00 preflight cleanup (expected HTTP N/A): checks create no Azure or Entra resources.
+> PASS private parameters and state preserved (expected HTTP N/A). Optional paid portal cleanup requires the reviewed Terraform destroy flow in docs/HOSTING.md.
+> ```
+>
+> **What it means for you:** there is nothing to delete for module 00, and your private parameters stay in place for later modules.
+
 ```bash
 bash ./modules/00-prerequisites/cleanup.sh
 ```
+
+> **Expected result** — the same two PASS lines as the PowerShell run above.
 
 Preflight creates no resources. Cleanup preserves private parameters and state. If you separately applied
 the group/optional portal Terraform, use its [reviewed destroy flow](../../docs/HOSTING.md#clean-up).
