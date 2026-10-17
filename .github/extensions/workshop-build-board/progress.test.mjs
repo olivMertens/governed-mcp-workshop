@@ -81,6 +81,8 @@ test("guided reading splits authored actions, never code fences or nested disclo
     assert.doesNotMatch(html, /disclosure\([^)]*servicesList/);
     // Commands and terminal checks stay in the main lesson flow, not in optional reading.
     assert.match(html, /content\.append\(exercise\);/);
+    // Author build status and evidence never appear on the published participant site.
+    assert.match(html, /if \(!staticSite\) \{\s*const details = element\("details"\);\s*details\.append\(element\("summary", "Repository build status and evidence"\)\);/);
     assert.doesNotMatch(html, /disclosure\("Practice and validation"/);
     // "Read first" links open the exact numbered concept section that holds the explanation and its diagram.
     for (const [file, diagram] of [["MCP-CONCEPTS.md", "05.en.svg"], [join("fr", "MCP-CONCEPTS.md"), "05.fr.svg"]]) {
