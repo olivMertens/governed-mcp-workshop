@@ -169,23 +169,16 @@ terraform '-chdir=infra\workload' plan @vars '-out=..\..\.workshop\module05.tfpl
 if ($LASTEXITCODE -ne 0) { throw 'Terraform plan failed.' }
 ```
 
-> **Résultat attendu** — forme de sortie Terraform pour cette configuration ; pas encore une capture d'une charge de travail déployée (extrait).
+> **Résultat réel** — résumé du plan sauvegardé, 2026-10-18, tenant de test de l'auteur. Noms et ID masqués.
 >
 > ```text
->   # azurerm_user_assigned_identity.delegated_obo[0] will be created
->   # azurerm_user_assigned_identity.delegated_report[0] will be created
->   # azurerm_storage_container.reports[0] will be created
->   # azurerm_role_assignment.report_app_reader[0] will be created
->   # azurerm_role_assignment.report_persona_reader["alice"] will be created
->   # azurerm_role_assignment.report_publisher[0] will be created
->   # azurerm_function_app_flex_consumption.mcp[0] will be updated in-place
-> ...
-> Plan: 6 to add, 1 to change, 0 to destroy.
-> ...
-> Saved the plan to: ..\..\.workshop\module05.tfplan
+> Plan: 6 to add, 3 to change, 0 to destroy.
 > ```
 >
-> **Ce que cela signifie pour vous :** il y a un rôle de lecteur pour Alice, aucun pour Bob, et aucun rôle pour l'identité `-obo`.
+> **Ce que cela signifie pour vous :** six ajouts : deux identités, un conteneur et trois attributions de rôle (un rôle de
+> lecteur pour Alice, aucun pour Bob, et aucun rôle pour l'identité `-obo`). Le plan de l'auteur comptait **3**
+> modifications : la mise à jour de la Function App, plus les deux stratégies azapi du module 04, une normalisation connue
+> des espaces (aucun changement fonctionnel). Sans module 04, attendez-vous à 1 modification.
 > Un `to destroy` signifie qu'il manque un fichier de variables : n'appliquez pas.
 
 **Observez :** deux identités, un conteneur, trois attributions limitées au conteneur et une mise à jour en place de la Function App.
@@ -200,16 +193,23 @@ terraform '-chdir=infra\workload' apply '..\..\.workshop\module05.tfplan'
 if ($LASTEXITCODE -ne 0) { throw 'Terraform apply failed.' }
 ```
 
-> **Résultat attendu** — forme de sortie Terraform ; pas encore une capture d'une charge de travail déployée (extrait).
+> **Résultat réel** — extrait de l'apply, 2026-10-18, tenant de test de l'auteur. Noms et ID masqués.
 >
 > ```text
-> azurerm_user_assigned_identity.delegated_obo[0]: Creation complete after <n>s [id=<resource-id>]
-> ...
-> Apply complete! Resources: 6 added, 1 changed, 0 destroyed.
+> azapi_resource.prm_operation_policy[0]: Modifications complete after 2s [id=/subscriptions/<subscription-id>/resourceGroups/rg-mcp-p01-<suffix>/providers/Microsoft.ApiManagement/service/apim-mcp-p01-<suffix>/apis/workshop-mcp-prm/operations/get-mcp-metadata/policies/policy]
+> azurerm_storage_container.reports[0]: Creation complete after 19s [id=/subscriptions/<subscription-id>/resourceGroups/rg-mcp-p01-<suffix>/providers/Microsoft.Storage/storageAccounts/stp01<suffix>/blobServices/default/containers/reports]
+> azurerm_user_assigned_identity.delegated_obo[0]: Creation complete after 38s [id=/subscriptions/<subscription-id>/resourceGroups/rg-mcp-p01-<suffix>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-mcp-p01-<suffix>-obo]
+> azurerm_user_assigned_identity.delegated_report[0]: Creation complete after 41s [id=/subscriptions/<subscription-id>/resourceGroups/rg-mcp-p01-<suffix>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-mcp-p01-<suffix>-report]
+> azurerm_role_assignment.report_publisher[0]: Creation complete after 39s [id=/subscriptions/<subscription-id>/resourceGroups/rg-mcp-p01-<suffix>/providers/Microsoft.Storage/storageAccounts/stp01<suffix>/blobServices/default/containers/reports/providers/Microsoft.Authorization/roleAssignments/<guid>]
+> azurerm_role_assignment.report_persona_reader["alice"]: Creation complete after 39s [id=/subscriptions/<subscription-id>/resourceGroups/rg-mcp-p01-<suffix>/providers/Microsoft.Storage/storageAccounts/stp01<suffix>/blobServices/default/containers/reports/providers/Microsoft.Authorization/roleAssignments/<guid>]
+> azurerm_role_assignment.report_app_reader[0]: Creation complete after 42s [id=/subscriptions/<subscription-id>/resourceGroups/rg-mcp-p01-<suffix>/providers/Microsoft.Storage/storageAccounts/stp01<suffix>/blobServices/default/containers/reports/providers/Microsoft.Authorization/roleAssignments/<guid>]
+> azurerm_function_app_flex_consumption.mcp[0]: Modifications complete after 43s [id=/subscriptions/<subscription-id>/resourceGroups/rg-mcp-p01-<suffix>/providers/Microsoft.Web/sites/func-mcp-p01-<suffix>]
+> azapi_resource.mcp_api_policy[0]: Modifications complete after 0s [id=/subscriptions/<subscription-id>/resourceGroups/rg-mcp-p01-<suffix>/providers/Microsoft.ApiManagement/service/apim-mcp-p01-<suffix>/apis/workshop-mcp/policies/policy]
+> Apply complete! Resources: 6 added, 3 changed, 0 destroyed.
 > ```
 >
-> **Ce que cela signifie pour vous :** les identités, le conteneur et les rôles existent. Les attributions de rôle peuvent mettre
-> quelques minutes à prendre effet.
+> **Ce que cela signifie pour vous :** les identités, le conteneur et les rôles existent. Chaque attribution de rôle est
+> limitée au seul conteneur `reports`. Les attributions de rôle peuvent mettre quelques minutes à prendre effet.
 
 **Observez :** les ressources approuvées existent. L'API attend encore que l'administrateur des identités configure la confiance.
 
@@ -246,19 +246,13 @@ terraform '-chdir=infra\entra' plan '-var-file=..\..\.workshop\entra.tfvars.json
 if ($LASTEXITCODE -ne 0) { throw 'Entra plan failed.' }
 ```
 
-> **Résultat attendu** — forme de sortie Terraform pour l'exécution de l'administrateur des identités ; pas encore une capture d'un tenant (extrait).
+> **Résultat réel** — résumé du plan sauvegardé lors de l'exécution de l'administrateur des identités, 2026-10-18, tenant de test de l'auteur. Noms et ID masqués.
 >
 > ```text
->   # azuread_application_api_access.downstream["graph"] will be created
->   # azuread_application_api_access.downstream["storage"] will be created
->   # azuread_application_federated_identity_credential.obo[0] will be created
->   # azuread_service_principal_delegated_permission_grant.downstream["graph"] will be created
->   # azuread_service_principal_delegated_permission_grant.downstream["storage"] will be created
-> ...
 > Plan: 5 to add, 0 to change, 0 to destroy.
 > ```
 >
-> **Ce que cela signifie pour vous :** seuls des objets du module 05 apparaissent, sans mot de passe ni certificat. Toute
+> **Ce que cela signifie pour vous :** cinq ajouts, tous des objets du module 05, sans mot de passe ni certificat. Toute
 > modification d'objets du module 03 signifie que les mauvais fichiers de variables ont été passés : n'appliquez pas.
 
 **Observez :** le plan propose deux accès d'API, des informations d'identification fédérées et deux consentements. Aucun consentement n'est encore accordé.
@@ -272,11 +266,14 @@ terraform '-chdir=infra\entra' apply '..\..\.workshop\entra05.tfplan'
 if ($LASTEXITCODE -ne 0) { throw 'Entra apply failed.' }
 ```
 
-> **Résultat attendu** — forme de sortie Terraform ; pas encore une capture d'un tenant (extrait).
+> **Résultat réel** — extrait de l'apply, 2026-10-18, tenant de test de l'auteur. Noms et ID masqués.
 >
 > ```text
-> azuread_application_federated_identity_credential.obo[0]: Creation complete after <n>s [id=<id>]
-> ...
+> azuread_service_principal_delegated_permission_grant.downstream["graph"]: Creation complete after 3s [id=/oauth2PermissionGrants/<grant-id>]
+> azuread_service_principal_delegated_permission_grant.downstream["storage"]: Creation complete after 3s [id=/oauth2PermissionGrants/<grant-id>]
+> azuread_application_federated_identity_credential.obo[0]: Creation complete after 8s [id=<guid>/federatedIdentityCredential/<guid>]
+> azuread_application_api_access.downstream["storage"]: Creation complete after 11s [id=/applications/<guid>/apiAccess/<guid>]
+> azuread_application_api_access.downstream["graph"]: Creation complete after 12s [id=/applications/<guid>/apiAccess/<guid>]
 > Apply complete! Resources: 5 added, 0 changed, 0 destroyed.
 > ```
 >
@@ -299,6 +296,15 @@ if ($LASTEXITCODE -ne 0) { throw 'Entra apply failed.' }
 >
 > **Ce que cela signifie pour vous :** le rapport synthétique est dans le conteneur privé, déposé avec votre identité Entra, sans clé.
 
+> [!NOTE]
+> Si le module 02 a utilisé `mcp_private_storage = true`, l'accès réseau public du compte de stockage est désactivé et ce
+> dépôt échoue depuis l'extérieur du réseau virtuel. C'est ce qui s'est produit dans le tenant de test de l'auteur le
+> 2026-10-18. Lancez alors le même dépôt **depuis** le réseau virtuel, jamais en activant l'accès public ou les clés
+> partagées. L'auteur a utilisé une Azure Container Instance de courte durée dans un sous-réseau délégué, avec une identité
+> managée attribuée par l'utilisateur qui détenait le rôle Storage Blob Data Contributor sur le seul conteneur `reports`.
+> Le conteneur a affiché `UPLOADED`. Supprimez l'instance de conteneur, son identité temporaire et son attribution de rôle
+> juste après le dépôt.
+
 **6. Essayer dans VS Code.** Avec le serveur `workshop-governed` du module 04, connecté en tant qu'Alice, demandez à Copilot : « Qui suis-je ? »
 puis « Lis le rapport monthly-usage en tant que moi, puis en tant qu'application ». Recommencez en tant que Bob dans un autre profil
 VS Code.
@@ -316,7 +322,27 @@ foreach ($persona in 'Alice', 'Bob') {
 Remove-Item Env:\AZURE_CONFIG_DIR
 ```
 
-> **Résultat attendu** — messages du validateur ; pas encore une capture de votre tenant (extrait).
+> **Résultat réel** — vérifications opérateur (la première commande), 2026-10-18, tenant de test de l'auteur. Noms et ID masqués.
+>
+> ```text
+> PASS server: On-Behalf-Of with a managed-identity assertion, one token per downstream (Graph User.Read, Storage user_impersonation), app-only identity for read_report_as_app, app-only callers refused, no developer-credential fallback, no token parsing (expected HTTP N/A).
+> PASS infra/entra: federated credential (tenant v2.0 issuer, managed identity principal ID subject, api://AzureADTokenExchange), delegated Graph User.Read + Storage user_impersonation only, admin consent opt-in, no password or certificate (expected HTTP N/A).
+> PASS infra/workload: separate OBO assertion and app-only identities, every module 05 role on the one report container, no role for the OBO or host identity, Bob none, opt-in only (expected HTTP N/A).
+> PASS synthetic report and expected results are labelled synthetic and contain no address, ID or token (2 files, expected HTTP N/A).
+> PASS no client secret, key, SAS or token in module 05, server, infra/entra or infra/workload files (47 files, expected HTTP N/A).
+> PASS explicit Azure context matches the approved test target (expected HTTP 200 from Azure Resource Manager).
+> PASS Function App settings name both module 05 identities and hold no secret setting (expected HTTP 200 from Azure Resource Manager).
+> PASS MCP API registration: no client secret, exactly one federated credential trusting the OBO managed identity (expected HTTP 200 from Microsoft Graph).
+> PASS report container: 2 Storage Blob Data Reader assignment(s) (app-only identity, Alice), none for the OBO identity or Bob (expected HTTP 200 from Azure Resource Manager).
+> INFO persona checks skipped. Sign in as each test account in a separate AZURE_CONFIG_DIR and rerun with -Persona Alice, then -Persona Bob.
+> PASS module 05 operator checks complete. Persona checks are still required for validation.
+> ```
+>
+> **Ce que cela signifie pour vous :** la confiance est en place sans aucun secret : une seule information d'identification
+> fédérée, deux identités distinctes, et des rôles de lecteur sur l'unique conteneur pour l'identité applicative et pour
+> Alice seulement. Le nombre de fichiers dépend de votre copie.
+
+> **Résultat attendu** — messages du validateur par persona ; non capturé : le tenant de test exige l'enregistrement MFA des comptes de test (extrait).
 >
 > ```text
 > PASS Alice whoami: On-Behalf-Of to Microsoft Graph returns the synthetic persona 'alice' and no name or email (expected HTTP 200).
@@ -463,6 +489,7 @@ Le module n'est `validated` que lorsque tout cela réussit sur un abonnement neu
 | Alice obtient `isError: true` seulement sur `read_report_as_user` | Son rôle Storage est encore en cours de propagation (quelques minutes), ou `delegated_persona_object_ids.alice` est faux. |
 | `read_report_as_app` renvoie `isError: true` | Rapport non publié (étape 5), ou rôle de l'identité `-report` encore en propagation. |
 | `publish-report.ps1` échoue systématiquement | Vous avez besoin du rôle Storage Blob Data Contributor sur `reports` ; renseignez `delegated_report_publisher_object_id` si Terraform a été exécuté par quelqu'un d'autre. |
+| `publish-report.ps1` échoue alors que vous avez le rôle, et le module 02 a utilisé `mcp_private_storage = true` | L'accès réseau public du compte de stockage est désactivé : un dépôt depuis l'extérieur du réseau virtuel est refusé. Lancez le même dépôt depuis le réseau virtuel (par exemple une Azure Container Instance de courte durée dans un sous-réseau délégué, avec une identité managée attribuée par l'utilisateur qui détient Storage Blob Data Contributor sur le seul conteneur `reports`), puis supprimez-la. N'activez jamais l'accès public ni les clés partagées. L'auteur l'a fait le 2026-10-18 (le conteneur a affiché `UPLOADED`). |
 | `Invalid index` sur `oauth2_permission_scope_ids` dans `infra/entra` | Le principal de service Azure Storage est absent du tenant ; un administrateur doit le créer (`az ad sp create --id e406a681-f3d4-42a8-90b6-c2b029497af1`). |
 | Les outils renvoient encore des résultats de « démonstration » | Le code déployé est antérieur au module 05, ou `WORKSHOP_DELEGATED_ACCESS` ne vaut pas `enabled`. Publiez le code (avant l'étape 2 du module 04). |
 | HTTP 403 de la passerelle pour chaque appel | Le refus vient du module 04 (rôle ou scope). Un refus en aval n'est jamais un HTTP 403 externe. |
@@ -550,4 +577,4 @@ Si vous passez directement au module 06, conservez tout.
   `azuread_application_federated_identity_credential`, `azuread_service_principal_delegated_permission_grant`) et
   [AzureRM 5.9.0](https://registry.terraform.io/providers/hashicorp/azurerm/5.9.0/docs)
 
-Dernière vérification : 2026-10-15. Rédigé et vérifié hors ligne uniquement ; pas encore déployé ni validé dans Azure.
+Dernière vérification : 2026-10-18. Vérifications opérateur validées en ligne dans le tenant de test de l'auteur le 2026-10-18 ; vérifications par persona pas encore exécutées (enregistrement MFA requis).

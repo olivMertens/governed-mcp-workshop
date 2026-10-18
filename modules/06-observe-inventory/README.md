@@ -158,13 +158,34 @@ az monitor app-insights query --app $ai --resource-group $group --offset 24h `
   --analytics-query '@modules/06-observe-inventory/queries/mcp-traffic.kql' --query 'tables[0].rows' -o json
 ```
 
-> **Real result** — author's test subscription, 2026-10-17, on the module 02 Application Insights component. No API Management gateway sends MCP traffic there yet, so no row matches. Names withheld.
+> **Real result** — gateway traffic from the module 04 operator checks, 2026-10-18, author's test tenant. No persona traffic yet. Names and IDs withheld.
 >
 > ```text
-> []
+> [
+>   [
+>     "2026-10-18T14:38:02.4928994Z",
+>     "initialize",
+>     "",
+>     "401",
+>     "False",
+>     690.08,
+>     "",
+>     "workshop-validator"
+>   ],
+>   [
+>     "2026-10-18T14:37:54.7916733Z",
+>     "initialize",
+>     "",
+>     "401",
+>     "False",
+>     1221.7192,
+>     "",
+>     "workshop-validator"
+>   ]
+> ]
 > ```
 >
-> **Expected result** — with MCP traffic through the module 04 gateway. Values are placeholders; columns follow the query: timestamp, operation, toolName, resultCode, success, duration, errorType, clientApp.
+> **Expected result** — with persona traffic (Alice and Bob calling tools) through the module 04 gateway; not captured yet. Values are placeholders; columns follow the query: timestamp, operation, toolName, resultCode, success, duration, errorType, clientApp.
 >
 > ```text
 > [
@@ -174,7 +195,11 @@ az monitor app-insights query --app $ai --resource-group $group --offset 24h `
 > ]
 > ```
 >
-> **What it means for you:** each row is metadata only: no body, token, prompt, argument or result. An empty list is possible when there was no MCP traffic in the last 24 hours or ingestion is still delayed; it proves neither success nor absence of activity.
+> **What it means for you:** each row is metadata only: no body, token, prompt, argument or result. The two real rows are
+> the module 04 validator's `initialize` calls that the gateway refused with HTTP 401, so there is no tool name. They match
+> because the query keeps `api.type` `Mcp` or `mcp-backend`: Microsoft Learn lists
+> `Mcp`, but a passthrough MCP server such as this workshop's logs `mcp-backend`. An empty list is possible when there was no
+> MCP traffic in the last 24 hours or ingestion is still delayed; it proves neither success nor absence of activity.
 
 bash:
 
@@ -219,7 +244,7 @@ Check: the listing shows the server name and an approval state. An approval stat
 
 ## What you should see
 
-- With ingested MCP traffic, the KQL query returns available rows with `api.type` equal to `Mcp`, for `tools/list` and `tools/call`. It is not an exhaustive audit.
+- With ingested MCP traffic, the KQL query returns available rows with `api.type` equal to `Mcp` or `mcp-backend`, for `initialize`, `tools/list` and `tools/call`. It is not an exhaustive audit.
 - Columns contain tool names and status codes, and no request body, response body, token, prompt or tool argument.
 - The API Center asset exists, with a remote URL and an environment.
 - The offline validator prints one `PASS` line per check and exits with code 0.
@@ -335,4 +360,4 @@ Official Microsoft Learn pages used for this module are recorded with last-verif
 - [Bring your own MCP server](https://learn.microsoft.com/microsoft-365/admin/manage/manage-byo-mcp-server) (Preview).
 - [Agent 365 with API Management](https://learn.microsoft.com/azure/api-management/agent-365) (Preview; optional talk track, not revalidated here).
 
-Last verified: 2026-10-16 for the reader and telemetry clarification. Agent 365 talk track: 2026-10-14.
+Last verified: 2026-10-18. KQL run live on gateway traffic 2026-10-18; API Center and BYO steps manual, not run. Agent 365 talk track: 2026-10-14.
