@@ -242,13 +242,17 @@ function global:terraform {
             'apply/remove' { @($module02Diff) + $gateway }
             'foreign/reopen' { @(@{address='azurerm_storage_account.mcp[0]';change=@{actions=@('delete')}}) }
             'server-delete/remove' { @(@{address=$app;change=@{actions=@('delete')}}) + $gateway }
+            'normalised/reopen' { @($locked, @{address='azapi_resource.mcp_api_policy[0]';change=@{actions=@('update');before=@{body=@{properties=@{format='xml';value=('<policies>' + [char]10 + [char]9 + '<inbound>@(&quot;x&quot;)</inbound>' + [char]10 + '</policies>')}}};after=@{body=@{properties=@{format='rawxml';value=('<policies>' + [char]10 + '  <inbound>@("x")</inbound>' + [char]10 + '</policies>')}}}}},
+                @{address='azurerm_linux_web_app.portal[0]';change=@{actions=@('update');before=@{https_only=$true;app_settings=@{A='1';WORKSHOP_MCP_ENDPOINT='https://gateway.example.invalid/workshop-mcp/mcp'}};after=@{https_only=$true;app_settings=@{A='1';WORKSHOP_MCP_ENDPOINT='https://func.example.invalid/runtime/webhooks/mcp'}}}}) }
+            'policy-changed/reopen' { @($locked, @{address='azapi_resource.mcp_api_policy[0]';change=@{actions=@('update');before=@{body=@{properties=@{value='<policies><inbound>a</inbound></policies>'}}};after=@{body=@{properties=@{value='<policies><inbound>b</inbound></policies>'}}}}}) }
+            'portal-other/reopen' { @($locked, @{address='azurerm_linux_web_app.portal[0]';change=@{actions=@('update');before=@{https_only=$true;app_settings=@{A='1';WORKSHOP_MCP_ENDPOINT='https://g'}};after=@{https_only=$true;app_settings=@{A='2';WORKSHOP_MCP_ENDPOINT='https://f'}}}}) }
             default { @($module02Diff) }
         }
         return (@{resource_changes=$changes} | ConvertTo-Json -Depth 10)
     }
 }
 $cleanup='${quote(join(module04, "cleanup.ps1"))}'
-foreach ($global:scenario in @('report','apply','empty','foreign','server-delete')) {
+foreach ($global:scenario in @('report','apply','empty','foreign','server-delete','normalised','policy-changed','portal-other')) {
     $global:applied=@(); $failed=$false; $text=''
     $parameters = @{ TenantId=$tenant; SubscriptionId=$global:subscription; Apply=($global:scenario -ne 'report')
         ParametersPath='${quote(parameters)}'; Module02VarFile='${quote(module02)}'; Module03VarFile='${quote(module03)}'; Module04VarFile='${quote(module04Vars)}' }
@@ -257,11 +261,12 @@ foreach ($global:scenario in @('report','apply','empty','foreign','server-delete
         'report' { if ($failed -or $global:applied.Count -ne 0 -or $text -notmatch 'phase 1' -or $text -notmatch 'rerun with -Apply' -or $text -match 'phase 2') { throw "report: $text" } }
         'apply' { if ($failed -or ($global:applied -join ',') -ne 'reopen,remove' -or $text -notmatch 'deletedservice purge') { throw "apply order: $($global:applied -join ',') $text" } }
         'empty' { if ($failed -or $global:applied.Count -ne 0 -or ([regex]::Matches($text, 'nothing to do')).Count -ne 2) { throw "empty: $text" } }
+        'normalised' { if ($failed -or $global:applied -notcontains 'reopen') { throw "normalised: whitespace-only policy and portal hint updates must be accepted: $text" } }
         default { if (-not $failed -or $global:applied.Count -ne 0) { throw "$global:scenario must refuse: $text" } }
     }
     Write-Output "PASS synthetic cleanup $global:scenario"
 }
 `);
     assert.equal(result.status, 0, result.stderr + result.stdout);
-    assert.equal((result.stdout.match(/PASS synthetic cleanup /g) ?? []).length, 5);
+    assert.equal((result.stdout.match(/PASS synthetic cleanup /g) ?? []).length, 8);
 });

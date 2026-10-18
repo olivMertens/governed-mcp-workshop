@@ -257,6 +257,8 @@ function global:terraform {
             'apply/workload' { @($app) + $workloadDeletes }
             'empty/workload' { @($app) }
             'foreign/workload' { @($app) + $workloadDeletes + @(@{address='azurerm_storage_account.mcp[0]';change=@{actions=@('delete')}}) }
+            'normalised/workload' { @($app) + $workloadDeletes + @(@{address='azapi_resource.prm_operation_policy[0]';change=@{actions=@('update');before=@{body=@{properties=@{format='xml';value=('<policies>' + [char]10 + [char]9 + '<set-body>@(&quot;x&quot;)</set-body>' + [char]10 + '</policies>')}}};after=@{body=@{properties=@{format='rawxml';value=('<policies>' + [char]10 + '  <set-body>@("x")</set-body>' + [char]10 + '</policies>')}}}}}) }
+            'policy-changed/workload' { @($app) + $workloadDeletes + @(@{address='azapi_resource.mcp_api_policy[0]';change=@{actions=@('update');before=@{body=@{properties=@{value='<policies><inbound>a</inbound></policies>'}}};after=@{body=@{properties=@{value='<policies><inbound>b</inbound></policies>'}}}}}) }
             'entra-apply/entra' { $entraDeletes }
             'entra-foreign/entra' { $entraDeletes + @(@{address='azuread_application.mcp[0]';change=@{actions=@('delete')}}) }
             'entra-empty/entra' { @() }
@@ -266,7 +268,7 @@ function global:terraform {
     }
 }
 $cleanup='${quote(join(module05, "cleanup.ps1"))}'
-foreach ($global:scenario in @('report','apply','empty','foreign','entra-apply','entra-foreign','entra-empty')) {
+foreach ($global:scenario in @('report','apply','empty','foreign','normalised','policy-changed','entra-apply','entra-foreign','entra-empty')) {
     $global:applied=@(); $failed=$false; $text=''
     $common = @{ TenantId=$tenant; Apply=($global:scenario -ne 'report') }
     if ($global:scenario -like 'entra-*') {
@@ -280,6 +282,7 @@ foreach ($global:scenario in @('report','apply','empty','foreign','entra-apply',
         'report' { if ($failed -or $global:applied.Count -ne 0 -or ([regex]::Matches($text, 'PLAN delete')).Count -ne 6 -or $text -notmatch 'rerun with -Apply') { throw "report: $text" } }
         'apply' { if ($failed -or ($global:applied -join ',') -ne 'workload' -or $text -notmatch 'back to the module 02 demonstrations') { throw "apply: $text" } }
         'empty' { if ($failed -or $global:applied.Count -ne 0 -or $text -notmatch 'nothing to do') { throw "empty: $text" } }
+        'normalised' { if ($failed -or ($global:applied -join ',') -ne 'workload') { throw "normalised: a whitespace-only policy update must be accepted: $text" } }
         'entra-apply' { if ($failed -or ($global:applied -join ',') -ne 'entra' -or ([regex]::Matches($text, 'PLAN delete')).Count -ne 5 -or $text -notmatch 'Module 03 objects stay') { throw "entra-apply: $text" } }
         'entra-empty' { if ($failed -or $global:applied.Count -ne 0 -or $text -notmatch 'nothing to do') { throw "entra-empty: $text" } }
         default { if (-not $failed -or $global:applied.Count -ne 0 -or $text -notmatch 'outside module 05') { throw "$global:scenario must refuse: $text" } }
@@ -289,7 +292,7 @@ foreach ($global:scenario in @('report','apply','empty','foreign','entra-apply',
 if (Get-ChildItem -LiteralPath (Join-Path '${quote(root)}' '.workshop') -Filter 'module05-entra-off-*' -ErrorAction SilentlyContinue) { throw 'The temporary Entra var file was not removed.' }
 `);
     assert.equal(result.status, 0, result.stderr + result.stdout);
-    assert.equal((result.stdout.match(/PASS synthetic cleanup /g) ?? []).length, 7);
+    assert.equal((result.stdout.match(/PASS synthetic cleanup /g) ?? []).length, 9);
 });
 
 test("module 05 publish step uploads only the synthetic report with Entra auth, retries role propagation, refuses when not deployed (synthetic)", () => {
