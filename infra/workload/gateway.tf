@@ -105,6 +105,8 @@ resource "azapi_resource" "mcp_api" {
   type      = "Microsoft.ApiManagement/service/apis@2025-09-01-preview" # Preview
   name      = local.gateway_api_name
   parent_id = azurerm_api_management.gateway[0].id
+  # The provider's embedded schema follows the published spec (endpoints as an array); the live service rejects it.
+  schema_validation_enabled = false
 
   body = {
     properties = {
@@ -117,9 +119,11 @@ resource "azapi_resource" "mcp_api" {
       subscriptionRequired = false # access is decided by Entra tokens and app roles, never by subscription keys
       mcpProperties = {
         transportType = "streamable"
-        endpoints = [
-          { name = "message", uriTemplate = "/mcp" }
-        ]
+        # The 2025-09-01-preview service expects a map keyed by endpoint name. The published REST reference and
+        # samples still show an array, which the service rejects (verified live 2026-10-18).
+        endpoints = {
+          message = { uriTemplate = "/mcp" }
+        }
       }
     }
   }

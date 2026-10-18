@@ -147,26 +147,44 @@ if ($LASTEXITCODE -ne 0) { throw 'Terraform plan failed.' }
 terraform '-chdir=infra\workload' apply '..\..\.workshop\module04.tfplan'
 ```
 
-> **Expected result** — Terraform output shape for this configuration; not yet a capture from a deployed gateway (excerpt).
+> **Real result** — stage 1 plan and apply excerpts, 2026-10-18, author's test tenant. Names and IDs withheld.
+> The first apply stopped on a Preview API error; the second run is after the Terraform fix.
 >
 > ```text
-> Terraform has been successfully initialized!
+> Plan: 17 to add, 3 to change, 0 to destroy.
 > ...
->   # azurerm_api_management.gateway[0] will be created
->   # azapi_resource.mcp_api[0] will be created
->   # azurerm_private_endpoint.function[0] will be created
->   # azurerm_private_dns_zone.functions[0] will be created
->   # azurerm_function_app_flex_consumption.mcp[0] will be updated in-place
+> azurerm_service_plan.portal[0]: Modifications complete after 25s [id=/subscriptions/<subscription-id>/resourceGroups/rg-mcp-p01-<suffix>/providers/Microsoft.Web/serverFarms/plan-mcp-p01-<suffix>-portal]
 > ...
-> Plan: 19 to add, 1 to change, 0 to destroy.
+> azurerm_function_app_flex_consumption.mcp[0]: Modifications complete after 46s [id=/subscriptions/<subscription-id>/resourceGroups/rg-mcp-p01-<suffix>/providers/Microsoft.Web/sites/func-mcp-p01-<suffix>]
 > ...
-> azurerm_api_management.gateway[0]: Still creating... [10m0s elapsed]
+> azurerm_api_management.gateway[0]: Creation complete after 2m25s [id=/subscriptions/<subscription-id>/resourceGroups/rg-mcp-p01-<suffix>/providers/Microsoft.ApiManagement/service/apim-mcp-p01-<suffix>]
 > ...
-> Apply complete! Resources: 19 added, 1 changed, 0 destroyed.
+> azurerm_private_endpoint.function[0]: Creation complete after 2m6s [id=/subscriptions/<subscription-id>/resourceGroups/rg-mcp-p01-<suffix>/providers/Microsoft.Network/privateEndpoints/pe-mcp-p01-<suffix>-func]
+> Error: Failed to create/update resource
+> ERROR CODE: ValidationError
+> ...
+>         "message": "Parsing error(s): An error occured while parsing the input. Message: Cannot deserialize the current JSON array (e.g. [1,2,3]) into type 'System.Collections.Generic.Dictionary`2[System.String,Microsoft.Azure.ApiManagement.Management.Contracts.McpEndpointContract]' because the type requires a JSON object (e.g. {\"name\":\"value\"}) to deserialize correctly. ... Path 'mcpProperties.endpoints', line 5, position 18."
 > ```
 >
-> **What it means for you:** the gateway, its private path and its payload-free logging exist. The add count is lower if
-> module 02 already created the virtual network. Any `to destroy` in the plan means a var file is missing: do not apply.
+> ```text
+> Plan: 3 to add, 2 to change, 0 to destroy.
+> azapi_resource.prm_operation_policy[0]: Modifications complete after 2s [id=/subscriptions/<subscription-id>/resourceGroups/rg-mcp-p01-<suffix>/providers/Microsoft.ApiManagement/service/apim-mcp-p01-<suffix>/apis/workshop-mcp-prm/operations/get-mcp-metadata/policies/policy]
+> azurerm_function_app_flex_consumption.mcp[0]: Modifications complete after 47s [id=/subscriptions/<subscription-id>/resourceGroups/rg-mcp-p01-<suffix>/providers/Microsoft.Web/sites/func-mcp-p01-<suffix>]
+> azapi_resource.mcp_api[0]: Creation complete after 3s [id=/subscriptions/<subscription-id>/resourceGroups/rg-mcp-p01-<suffix>/providers/Microsoft.ApiManagement/service/apim-mcp-p01-<suffix>/apis/workshop-mcp]
+> azapi_resource.mcp_api_policy[0]: Creation complete after 2s [id=/subscriptions/<subscription-id>/resourceGroups/rg-mcp-p01-<suffix>/providers/Microsoft.ApiManagement/service/apim-mcp-p01-<suffix>/apis/workshop-mcp/policies/policy]
+> azapi_resource.mcp_api_diagnostic[0]: Creation complete after 2s [id=/subscriptions/<subscription-id>/resourceGroups/rg-mcp-p01-<suffix>/providers/Microsoft.ApiManagement/service/apim-mcp-p01-<suffix>/apis/workshop-mcp/diagnostics/applicationinsights]
+> Apply complete! Resources: 3 added, 2 changed, 0 destroyed.
+> ```
+>
+> **What it means for you:** the gateway, its private path and its payload-free logging exist. The Standard v2 instance
+> took about 2.5 minutes. The author's first apply failed on `mcpProperties.endpoints`: the Preview service expects a map,
+> not the array shown in the published reference. Your copy of `infra/workload/gateway.tf` already sends the map, so one
+> apply should finish; if you see this error, see Troubleshooting. The author's plan had 17 additions because module 02
+> already created the virtual network, and **3** changes: the Function App settings, plus two on the optional portal
+> (its plan was restored to B1 and its `WORKSHOP_MCP_ENDPOINT` hint now points to the gateway). Without a portal, expect 1 change. If your plan
+> also shows the portal plan, see Troubleshooting. The repeated in-place update of `prm_operation_policy` is a known
+> whitespace normalisation of the azapi policy (no functional change). Any `to destroy` in the plan means a var file is
+> missing: do not apply.
 
 Creating a Standard v2 instance takes several minutes. The Function is still public but still requires an Entra token
 (module 03), so nothing is anonymous during stage 1. Try the gateway URL (`terraform -chdir=infra/workload output gateway_mcp_endpoint`)
@@ -183,20 +201,20 @@ terraform '-chdir=infra\workload' plan @vars '-out=..\..\.workshop\module04.tfpl
 terraform '-chdir=infra\workload' apply '..\..\.workshop\module04.tfplan'
 ```
 
-> **Expected result** — Terraform output shape; not yet a capture from a deployed gateway (excerpt).
+> **Real result** — stage 2 plan and apply excerpt, 2026-10-18, author's test tenant. Names and IDs withheld.
 >
 > ```text
->   # azurerm_function_app_flex_consumption.mcp[0] will be updated in-place
->   ~ resource "azurerm_function_app_flex_consumption" "mcp" {
->       ~ public_network_access_enabled = true -> false
+> Plan: 0 to add, 3 to change, 0 to destroy.
 > ...
-> Plan: 0 to add, 1 to change, 0 to destroy.
-> ...
-> Apply complete! Resources: 0 added, 1 changed, 0 destroyed.
+> azapi_resource.prm_operation_policy[0]: Modifications complete after 1s [id=/subscriptions/<subscription-id>/resourceGroups/rg-mcp-p01-<suffix>/providers/Microsoft.ApiManagement/service/apim-mcp-p01-<suffix>/apis/workshop-mcp-prm/operations/get-mcp-metadata/policies/policy]
+> azurerm_function_app_flex_consumption.mcp[0]: Modifications complete after 48s [id=/subscriptions/<subscription-id>/resourceGroups/rg-mcp-p01-<suffix>/providers/Microsoft.Web/sites/func-mcp-p01-<suffix>]
+> azapi_resource.mcp_api_policy[0]: Modifications complete after 1s [id=/subscriptions/<subscription-id>/resourceGroups/rg-mcp-p01-<suffix>/providers/Microsoft.ApiManagement/service/apim-mcp-p01-<suffix>/apis/workshop-mcp/policies/policy]
+> Apply complete! Resources: 0 added, 3 changed, 0 destroyed.
 > ```
 >
 > **What it means for you:** the Function no longer answers from the internet. From now on, only the gateway reaches it
-> through the private endpoint.
+> through the private endpoint. The only functional change is on the Function App (`public_network_access_enabled = false`).
+> The two azapi policy updates are a known whitespace normalisation (no functional change), so your plan may show 1 or 3 changes.
 
 Publish code changes **before** stage 2: once public access is disabled, deployment endpoints are private too.
 
@@ -241,11 +259,33 @@ Start-Sleep -Seconds 300   # telemetry ingestion delay
 & .\modules\04-governed-gateway\validate.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID -CheckTelemetry
 ```
 
-> **Expected result** — validator messages; not yet a capture from your tenant (excerpt).
+> **Real result** — operator checks (the first command), 2026-10-18, author's test tenant. Names and IDs withheld.
 >
 > ```text
+> PASS gateway policy: Entra token for the MCP audience only, create_ticket requires Tools.Write, other tools Tools.Read, malformed or unknown calls denied, per-oid rate limit, optional ip-filter, gateway PRM challenge (expected HTTP 401/403/429).
+> PASS Protected Resource Metadata is answered by the gateway itself and never names the private Function host (expected HTTP 200).
+> PASS Terraform: Standard v2 public gateway, outbound integration, Function private endpoint and private DNS, public access disabled only in stage 2, MCP API Preview with no subscription key (expected HTTP 403 on the direct host).
+> PASS diagnostics: 0 body bytes for frontend/backend requests/responses at both scopes, no header logged (no Authorization), no client IP (expected HTTP N/A).
+> PASS no access token, subscription key, function key, SAS or client secret in module 04 or workload files (expected HTTP N/A).
 > PASS gateway request without a token is refused with a challenge naming the gateway metadata (expected HTTP 401).
+> PASS gateway Protected Resource Metadata names the gateway resource, the tenant and the user_impersonation scope (expected HTTP 200).
 > PASS direct call to the Function host is refused from the internet: HTTP 403 (expected HTTP 403).
+> PASS a valid token for another audience (Microsoft Graph) is refused by the gateway (expected HTTP 401).
+> PASS explicit Azure context matches the approved test target (expected HTTP 200 from Azure Resource Manager).
+> PASS Function App publicNetworkAccess is Disabled; only its private endpoint remains (expected HTTP 200 from Azure Resource Manager).
+> PASS deployed diagnostics log 0 body bytes and no header at the all-APIs and MCP API scopes (expected HTTP 200 from Azure Resource Manager).
+> INFO telemetry check skipped. After the persona runs, wait about 5 minutes and rerun with -CheckTelemetry.
+> INFO persona checks skipped. Sign in as each test account in a separate AZURE_CONFIG_DIR and rerun with -Persona Alice, Bob (add -Burst once), then Eve.
+> PASS module 04 operator checks complete. Persona checks are still required for validation.
+> ```
+>
+> **What it means for you:** there is now **one door**, and the Function behind it is unreachable from the internet.
+> A token for another audience is refused at the gateway, and the logs keep zero body bytes and no header.
+
+> **Expected result** — persona, `-Burst` and `-CheckTelemetry` messages; not captured: the test tenant requires MFA
+> registration for the test accounts (excerpt).
+>
+> ```text
 > PASS Alice get_service_health is allowed with Tools.Read (expected HTTP 200).
 > PASS Bob create_ticket is denied by the gateway: Tools.Write is missing (expected HTTP 403).
 > PASS Alice create_ticket is allowed with Tools.Write and queues one synthetic ticket (expected HTTP 200).
@@ -254,9 +294,8 @@ Start-Sleep -Seconds 300   # telemetry ingestion delay
 > PASS Application Insights: <n> gateway requests and <n> tool traces with tool label and caller oid, no body, argument or token (expected HTTP 200 from Log Analytics).
 > ```
 >
-> **What it means for you:** there is now **one door**, and the Function behind it is unreachable from the internet.
-> Being signed in no longer means "can do everything": Bob reads, only Alice writes, and nobody can flood the server.
-> The logs say **who** called **which tool**, never what they sent.
+> **What it means for you:** being signed in no longer means "can do everything": Bob reads, only Alice writes, and
+> nobody can flood the server. The logs say **who** called **which tool**, never what they sent.
 
 ### Bash
 
@@ -375,6 +414,8 @@ The module is `validated` only when all of these pass on a fresh subscription ri
 | No HTTP 429 in the burst | Rate limits are approximate in distributed gateways; rerun `-Burst`, or lower `gateway_rate_limit_calls` for the exercise. |
 | Code publish fails after stage 2 | Expected: deployment endpoints are private now. Publish before stage 2, or from inside the virtual network. |
 | Name already in use after a clean-up | API Management soft-delete: purge it (see Clean up). |
+| `ValidationError` ... `mcpProperties.endpoints` ... `JSON array` | Your copy predates the fix: the 2025-09-01-preview service expects `endpoints` as a map keyed by name; `infra/workload/gateway.tf` now sends `{ message = { uriTemplate = "/mcp" } }` (Preview API; the published REST reference still shows an array). |
+| Plan shows the portal service plan `F1` -> `B1` | Something outside Terraform changed the optional portal plan (in the author's tenant a cost automation does this nightly). Approve only if you want B1 back; otherwise keep the change out of scope. |
 
 ## Clean up
 
@@ -458,4 +499,4 @@ to module 05 now, keep everything.
 - [RFC 9728 OAuth 2.0 Protected Resource Metadata](https://www.rfc-editor.org/rfc/rfc9728)
 - [AzAPI provider 2.13.0](https://registry.terraform.io/providers/Azure/azapi/2.13.0/docs) and [AzureRM 5.9.0 API Management](https://github.com/hashicorp/terraform-provider-azurerm/blob/v5.9.0/website/docs/r/api_management.html.markdown)
 
-Last verified: 2026-10-15. Authored and checked offline only; not yet deployed or validated in Azure.
+Last verified: 2026-10-18. Operator checks validated live in the author's test tenant on 2026-10-18; persona checks not yet run (MFA registration required).
