@@ -110,6 +110,13 @@ result from its command (20 boxes checked in Edge, 0 orphans). Offline validator
   group; accept an approved existing group without managing it. Shared quotas still require cohort capacity checks.
 
 ## Deviations from the build plan
+- Clean-up guards (2026-10-18, found while removing APIM live): API Management returns policies as normalised XML
+  (tabs, XML entities, format `xml`) while Terraform sends `rawxml`, so every plan re-sends both azapi policies unchanged
+  and the module 04/05 guards refused to run. They now accept those two policy updates only when the text is identical
+  apart from whitespace and entity encoding. Module 04 also accepts the update that points the optional portal's
+  `WORKSHOP_MCP_ENDPOINT` hint back at the Function, and nothing else on the portal. Synthetic tests cover acceptance and
+  refusal. Live: module 05 workload (6 destroyed) and module 04 (17 destroyed, APIM gone) cleaned up on 2026-10-18;
+  modules 02 and 03 and the module 05 Entra delegation remain deployed in the author's test tenant.
 - Module 99 (2026-10-17): the orchestrator now skips a stage whose own clean-up lacks its required private file
   (`SKIP <stage> (missing .workshop/<file>; ...)`) instead of stopping at module 05 when only module 02 was deployed.
   Module 02 runs whenever `participant.tfvars.json` exists, since its clean-up needs nothing else. `cleanup.sh` now
