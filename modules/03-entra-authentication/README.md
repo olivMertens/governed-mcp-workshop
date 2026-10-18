@@ -176,27 +176,33 @@ if ($LASTEXITCODE -ne 0) { throw 'Terraform plan failed.' }
 terraform '-chdir=infra\entra' apply '..\..\.workshop\entra.tfplan'
 ```
 
-> **Expected result** — Terraform output shape for the created path; not yet a capture from a deployed tenant.
+> **Real result** — apply excerpt for the created path, 2026-10-17, author's test tenant. Names and IDs withheld.
 >
 > ```text
-> Terraform has been successfully initialized!
+> azuread_application.mcp[0]: Creation complete after 6s [id=/applications/<guid>]
 > ...
->   # azuread_app_role_assignment.personas["alice-read"] will be created
->   # azuread_application.mcp[0] will be created
->   # azuread_service_principal.mcp[0] will be created
-> ...
-> Plan: 8 to add, 0 to change, 0 to destroy.
+> azuread_application_pre_authorized.clients["<guid>"]: Creation complete after 1s [id=<guid>/preAuthorizedApplication/<guid>]
+> azuread_service_principal.mcp[0]: Creation complete after 3s [id=/servicePrincipals/<guid>]
 > ...
 > Apply complete! Resources: 8 added, 0 changed, 0 destroyed.
 >
 > Outputs:
 > ...
+> identifier_uri = "api://<guid>"
+> ...
+> persona_assignments = {
+>   "alice-read" = "Tools.Read"
+>   "alice-write" = "Tools.Write"
+>   "bob-read" = "Tools.Read"
+> }
+> ...
+> user_impersonation_scope = "api://<guid>/user_impersonation"
 > ```
 >
 > With `create_application = false`, Terraform only reads the existing application: expect the three assignments only.
 >
-> **What it means for you:** eight Entra objects, no password and no certificate. Any `to destroy` or `to change`
-> on a first run is a stop signal.
+> **What it means for you:** eight Entra objects, no password and no certificate: Eve has no assignment. Your plan
+> should say `Plan: 8 to add, 0 to change, 0 to destroy.` Any `to destroy` or `to change` on a first run is a stop signal.
 
 **5. Hand-off to the participant (non-secret IDs only).**
 
@@ -218,17 +224,20 @@ if ($LASTEXITCODE -ne 0) { throw 'Terraform plan failed.' }
 terraform '-chdir=infra\workload' apply '..\..\.workshop\module03.tfplan'
 ```
 
-> **Expected result** — Terraform output shape; not yet a capture from a deployed server.
+> **Real result** — stage 1 plan and apply excerpt, 2026-10-17, author's test tenant. Names and IDs withheld.
 >
 > ```text
->   # azurerm_function_app_flex_consumption.mcp[0] will be updated in-place
+> Plan: 0 to add, 2 to change, 0 to destroy.
 > ...
-> Plan: 0 to add, 1 to change, 0 to destroy.
+> azurerm_function_app_flex_consumption.mcp[0]: Modifications complete after 53s [id=/subscriptions/<subscription-id>/resourceGroups/rg-mcp-p01-<suffix>/providers/Microsoft.Web/sites/func-mcp-p01-<suffix>]
 > ...
-> Apply complete! Resources: 0 added, 1 changed, 0 destroyed.
+> azurerm_linux_web_app.portal[0]: Modifications complete after 1m3s [id=/subscriptions/<subscription-id>/resourceGroups/rg-mcp-p01-<suffix>/providers/Microsoft.Web/sites/web-mcp-p01-<suffix>-portal]
+> Apply complete! Resources: 0 added, 2 changed, 0 destroyed.
 > ```
 >
-> **What it means for you:** the server is updated in place, not replaced. The app restarts once.
+> **What it means for you:** the server is updated in place, not replaced. The app restarts once. The author's run
+> changed **2** resources because the optional portal also received the `WORKSHOP_MCP_SCOPE` sign-in hint. Without a
+> portal, expect `Plan: 0 to add, 1 to change, 0 to destroy.` (the Function App only).
 
 Now a caller needs a token **and** the key: nothing is anonymous.
 
@@ -243,13 +252,12 @@ terraform '-chdir=infra\workload' plan '-var-file=..\..\.workshop\participant.tf
 terraform '-chdir=infra\workload' apply '..\..\.workshop\module03.tfplan'
 ```
 
-> **Expected result** — Terraform output shape; not yet a capture from a deployed server.
+> **Real result** — stage 2 plan and apply excerpt, 2026-10-17, author's test tenant. Names and IDs withheld.
 >
 > ```text
->   # azurerm_function_app_flex_consumption.mcp[0] will be updated in-place
-> ...
 > Plan: 0 to add, 1 to change, 0 to destroy.
 > ...
+> azurerm_function_app_flex_consumption.mcp[0]: Modifications complete after 49s [id=/subscriptions/<subscription-id>/resourceGroups/rg-mcp-p01-<suffix>/providers/Microsoft.Web/sites/func-mcp-p01-<suffix>]
 > Apply complete! Resources: 0 added, 1 changed, 0 destroyed.
 > ```
 >
@@ -264,14 +272,22 @@ No code is republished: `host.json` is unchanged.
 & .\modules\03-entra-authentication\validate.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID
 ```
 
-> **Expected result** — validator messages; not yet a capture from your tenant.
+> **Real result** — operator checks, 2026-10-17, author's test tenant. Names and IDs withheld.
 >
 > ```text
+> PASS host.json keeps the level 0 System webhook level; the published package is never anonymous on its own (expected HTTP N/A).
+> PASS the key gate is removed only together with enforced built-in authentication and Return401 (expected HTTP 401 without a token).
+> PASS infra/entra: single tenant, user_impersonation, Tools.Read/Tools.Write/Tools.Execute.All, assignment required, no secret or user (expected HTTP N/A).
+> PASS no access token, key, SAS or client secret in module 03, infra/entra or workload files (expected HTTP N/A).
+> PASS synthetic claim examples use synthetic IDs only and contain no token (4 files, expected HTTP N/A).
 > PASS MCP request without a token is refused by built-in authentication (expected HTTP 401).
 > PASS Protected Resource Metadata (Preview) names the tenant authorization server and the user_impersonation scope (expected HTTP 200).
 > PASS a valid token for another audience (Microsoft Graph) is refused (expected HTTP 401).
+> PASS explicit Azure context matches the approved test target (expected HTTP 200 from Azure Resource Manager).
 > PASS deployed authsettingsV2: required, Return401, tenant issuer, MCP audience only, no secret setting (expected HTTP 200 from Azure Resource Manager).
+> PASS app settings: webhook key gate replaced by Entra, PRM scope set (Preview) (expected HTTP 200 from Azure Resource Manager).
 > PASS the level 0 system key alone no longer opens the server (expected HTTP 401).
+> INFO persona checks skipped. Sign in as each test account in a separate AZURE_CONFIG_DIR and rerun with -Persona Alice, Bob, then Eve.
 > PASS module 03 operator checks complete. Persona checks are still required for validation.
 > ```
 >
@@ -315,7 +331,7 @@ foreach ($persona in 'Alice', 'Bob', 'Eve') {
 Remove-Item Env:\AZURE_CONFIG_DIR
 ```
 
-> **Expected result** — validator messages per persona; not yet a capture from your tenant.
+> **Expected result** — validator messages per persona; not captured: the test tenant requires MFA registration for the test accounts.
 >
 > ```text
 > PASS Alice initialize with a token for the MCP audience succeeds; negotiated protocol <version> (expected HTTP 200).
@@ -383,6 +399,16 @@ unset AZURE_CONFIG_DIR
 | Alice, then Bob, with a token for `api://<client-id>` | HTTP 200, five tools | Assigned users reach the server. |
 | Eve asks for a token | `AADSTS50105`, no token | Assignment required: Eve never reaches the server. |
 | Bob calls `create_ticket` in VS Code | Still works at level 1 | Server-level access only; module 04 adds per-tool roles. |
+
+> **Real result** — MCP request without a token, 2026-10-17, author's test tenant. Names and IDs withheld.
+>
+> ```text
+> HTTP 401
+> WWW-Authenticate: Bearer ... resource_metadata="https://func-mcp-p01-<suffix>.azurewebsites.net/.well-known/oauth-protected-resource/runtime/webhooks/mcp", scope="api://<guid>/user_impersonation"
+> ```
+>
+> **What it means for you:** the 401 is not a dead end. The challenge tells the client where to read the Protected
+> Resource Metadata (**Preview**) and which scope to request, so VS Code can start the Microsoft sign-in by itself.
 
 ### Read alongside the demonstration
 
@@ -519,4 +545,4 @@ keep everything.
 - [AzureAD provider 3.10.0](https://registry.terraform.io/providers/hashicorp/azuread/3.10.0/docs) and [AzureRM 5.9.0 Flex Consumption `auth_settings_v2`](https://github.com/hashicorp/terraform-provider-azurerm/blob/v5.9.0/website/docs/r/function_app_flex_consumption.html.markdown)
 - [RFC 9728 OAuth 2.0 Protected Resource Metadata](https://www.rfc-editor.org/rfc/rfc9728)
 
-Last verified: 2026-10-14. Authored and checked offline only; not yet deployed or validated in Azure or Microsoft Entra.
+Last verified: 2026-10-18. Operator checks validated live in the author's test tenant on 2026-10-17; persona checks not yet run (MFA registration required).

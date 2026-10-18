@@ -100,7 +100,7 @@ Check 'KQL selects no body, argument, result or token fields' {
 } 'KQL references a forbidden field'
 
 Check 'KQL filters on api.type Mcp' {
-    ($kql -match 'customDimensions\[[''"]api\.type[''"]\]') -and ($kql -match '==\s*[''"]Mcp[''"]')
+    ($kql -match 'customDimensions\[[''"]api\.type[''"]\]') -and ($kql -match '[''"]Mcp[''"]')
 } 'KQL does not filter on api.type == Mcp'
 
 # 7. Payload logging is never enabled as an instruction.

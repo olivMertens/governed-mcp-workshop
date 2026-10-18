@@ -161,24 +161,16 @@ terraform '-chdir=infra\workload' plan @vars '-out=..\..\.workshop\module05.tfpl
 if ($LASTEXITCODE -ne 0) { throw 'Terraform plan failed.' }
 ```
 
-> **Expected result** — Terraform output shape for this configuration; not yet a capture from a deployed workload (excerpt).
+> **Real result** — saved plan summary, 2026-10-18, author's test tenant. Names and IDs withheld.
 >
 > ```text
->   # azurerm_user_assigned_identity.delegated_obo[0] will be created
->   # azurerm_user_assigned_identity.delegated_report[0] will be created
->   # azurerm_storage_container.reports[0] will be created
->   # azurerm_role_assignment.report_app_reader[0] will be created
->   # azurerm_role_assignment.report_persona_reader["alice"] will be created
->   # azurerm_role_assignment.report_publisher[0] will be created
->   # azurerm_function_app_flex_consumption.mcp[0] will be updated in-place
-> ...
-> Plan: 6 to add, 1 to change, 0 to destroy.
-> ...
-> Saved the plan to: ..\..\.workshop\module05.tfplan
+> Plan: 6 to add, 3 to change, 0 to destroy.
 > ```
 >
-> **What it means for you:** there is a reader role for Alice and none for Bob, and no role for the `-obo` identity.
-> Any `to destroy` means a var file is missing: do not apply.
+> **What it means for you:** six additions: two identities, one container and three role assignments (a reader role for
+> Alice and none for Bob, and no role for the `-obo` identity). The author's plan had **3** changes: the Function App update,
+> plus the two module 04 azapi policies, a known whitespace normalisation (no functional change). Without module 04, expect
+> 1 change. Any `to destroy` means a var file is missing: do not apply.
 
 **Observe:** two identities, one container, three role assignments on that container and an in-place Function App update.
 Nothing has been applied. Explain which identity carries the app-only rights.
@@ -192,15 +184,23 @@ terraform '-chdir=infra\workload' apply '..\..\.workshop\module05.tfplan'
 if ($LASTEXITCODE -ne 0) { throw 'Terraform apply failed.' }
 ```
 
-> **Expected result** — Terraform output shape; not yet a capture from a deployed workload (excerpt).
+> **Real result** — apply excerpt, 2026-10-18, author's test tenant. Names and IDs withheld.
 >
 > ```text
-> azurerm_user_assigned_identity.delegated_obo[0]: Creation complete after <n>s [id=<resource-id>]
-> ...
-> Apply complete! Resources: 6 added, 1 changed, 0 destroyed.
+> azapi_resource.prm_operation_policy[0]: Modifications complete after 2s [id=/subscriptions/<subscription-id>/resourceGroups/rg-mcp-p01-<suffix>/providers/Microsoft.ApiManagement/service/apim-mcp-p01-<suffix>/apis/workshop-mcp-prm/operations/get-mcp-metadata/policies/policy]
+> azurerm_storage_container.reports[0]: Creation complete after 19s [id=/subscriptions/<subscription-id>/resourceGroups/rg-mcp-p01-<suffix>/providers/Microsoft.Storage/storageAccounts/stp01<suffix>/blobServices/default/containers/reports]
+> azurerm_user_assigned_identity.delegated_obo[0]: Creation complete after 38s [id=/subscriptions/<subscription-id>/resourceGroups/rg-mcp-p01-<suffix>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-mcp-p01-<suffix>-obo]
+> azurerm_user_assigned_identity.delegated_report[0]: Creation complete after 41s [id=/subscriptions/<subscription-id>/resourceGroups/rg-mcp-p01-<suffix>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-mcp-p01-<suffix>-report]
+> azurerm_role_assignment.report_publisher[0]: Creation complete after 39s [id=/subscriptions/<subscription-id>/resourceGroups/rg-mcp-p01-<suffix>/providers/Microsoft.Storage/storageAccounts/stp01<suffix>/blobServices/default/containers/reports/providers/Microsoft.Authorization/roleAssignments/<guid>]
+> azurerm_role_assignment.report_persona_reader["alice"]: Creation complete after 39s [id=/subscriptions/<subscription-id>/resourceGroups/rg-mcp-p01-<suffix>/providers/Microsoft.Storage/storageAccounts/stp01<suffix>/blobServices/default/containers/reports/providers/Microsoft.Authorization/roleAssignments/<guid>]
+> azurerm_role_assignment.report_app_reader[0]: Creation complete after 42s [id=/subscriptions/<subscription-id>/resourceGroups/rg-mcp-p01-<suffix>/providers/Microsoft.Storage/storageAccounts/stp01<suffix>/blobServices/default/containers/reports/providers/Microsoft.Authorization/roleAssignments/<guid>]
+> azurerm_function_app_flex_consumption.mcp[0]: Modifications complete after 43s [id=/subscriptions/<subscription-id>/resourceGroups/rg-mcp-p01-<suffix>/providers/Microsoft.Web/sites/func-mcp-p01-<suffix>]
+> azapi_resource.mcp_api_policy[0]: Modifications complete after 0s [id=/subscriptions/<subscription-id>/resourceGroups/rg-mcp-p01-<suffix>/providers/Microsoft.ApiManagement/service/apim-mcp-p01-<suffix>/apis/workshop-mcp/policies/policy]
+> Apply complete! Resources: 6 added, 3 changed, 0 destroyed.
 > ```
 >
-> **What it means for you:** the identities, container and roles exist. Role assignments can take a few minutes to take effect.
+> **What it means for you:** the identities, container and roles exist. Every role assignment is scoped to the `reports`
+> container only. Role assignments can take a few minutes to take effect.
 
 **Observe:** the approved resources exist. The API still needs the identity administrator's trust configuration.
 
@@ -236,19 +236,13 @@ terraform '-chdir=infra\entra' plan '-var-file=..\..\.workshop\entra.tfvars.json
 if ($LASTEXITCODE -ne 0) { throw 'Entra plan failed.' }
 ```
 
-> **Expected result** — Terraform output shape for the identity administrator's run; not yet a capture from a tenant (excerpt).
+> **Real result** — saved plan summary from the identity administrator's run, 2026-10-18, author's test tenant. Names and IDs withheld.
 >
 > ```text
->   # azuread_application_api_access.downstream["graph"] will be created
->   # azuread_application_api_access.downstream["storage"] will be created
->   # azuread_application_federated_identity_credential.obo[0] will be created
->   # azuread_service_principal_delegated_permission_grant.downstream["graph"] will be created
->   # azuread_service_principal_delegated_permission_grant.downstream["storage"] will be created
-> ...
 > Plan: 5 to add, 0 to change, 0 to destroy.
 > ```
 >
-> **What it means for you:** only module 05 objects appear, with no password or certificate. Any change to module 03 objects
+> **What it means for you:** five additions, all module 05 objects, with no password or certificate. Any change to module 03 objects
 > means the wrong var files were passed: do not apply.
 
 **Observe:** two API access entries, one federated credential and two consent grants are proposed. No consent has been granted.
@@ -262,11 +256,14 @@ terraform '-chdir=infra\entra' apply '..\..\.workshop\entra05.tfplan'
 if ($LASTEXITCODE -ne 0) { throw 'Entra apply failed.' }
 ```
 
-> **Expected result** — Terraform output shape; not yet a capture from a tenant (excerpt).
+> **Real result** — apply excerpt, 2026-10-18, author's test tenant. Names and IDs withheld.
 >
 > ```text
-> azuread_application_federated_identity_credential.obo[0]: Creation complete after <n>s [id=<id>]
-> ...
+> azuread_service_principal_delegated_permission_grant.downstream["graph"]: Creation complete after 3s [id=/oauth2PermissionGrants/<grant-id>]
+> azuread_service_principal_delegated_permission_grant.downstream["storage"]: Creation complete after 3s [id=/oauth2PermissionGrants/<grant-id>]
+> azuread_application_federated_identity_credential.obo[0]: Creation complete after 8s [id=<guid>/federatedIdentityCredential/<guid>]
+> azuread_application_api_access.downstream["storage"]: Creation complete after 11s [id=/applications/<guid>/apiAccess/<guid>]
+> azuread_application_api_access.downstream["graph"]: Creation complete after 12s [id=/applications/<guid>/apiAccess/<guid>]
 > Apply complete! Resources: 5 added, 0 changed, 0 destroyed.
 > ```
 >
@@ -289,6 +286,14 @@ if ($LASTEXITCODE -ne 0) { throw 'Entra apply failed.' }
 >
 > **What it means for you:** the synthetic report is in the private container, uploaded with your Entra identity, not a key.
 
+> [!NOTE]
+> If module 02 used `mcp_private_storage = true`, Storage public network access is disabled and this upload fails from
+> outside the virtual network. That is what happened in the author's test tenant on 2026-10-18. Run the same upload from
+> **inside** the virtual network instead, never by enabling public access or shared keys. The author used a short-lived
+> Azure Container Instance in a delegated subnet, with a user-assigned managed identity that held Storage Blob Data
+> Contributor on the `reports` container only. The container printed `UPLOADED`. Delete the container instance, its
+> temporary identity and its role assignment right after the upload.
+
 **6. Try it in VS Code.** With the module 04 `workshop-governed` server, ask Copilot as Alice: "Who am I?" and "Read the
 monthly-usage report as me, then as the app". Repeat as Bob in another VS Code profile.
 
@@ -305,7 +310,26 @@ foreach ($persona in 'Alice', 'Bob') {
 Remove-Item Env:\AZURE_CONFIG_DIR
 ```
 
-> **Expected result** — validator messages; not yet a capture from your tenant (excerpt).
+> **Real result** — operator checks (the first command), 2026-10-18, author's test tenant. Names and IDs withheld.
+>
+> ```text
+> PASS server: On-Behalf-Of with a managed-identity assertion, one token per downstream (Graph User.Read, Storage user_impersonation), app-only identity for read_report_as_app, app-only callers refused, no developer-credential fallback, no token parsing (expected HTTP N/A).
+> PASS infra/entra: federated credential (tenant v2.0 issuer, managed identity principal ID subject, api://AzureADTokenExchange), delegated Graph User.Read + Storage user_impersonation only, admin consent opt-in, no password or certificate (expected HTTP N/A).
+> PASS infra/workload: separate OBO assertion and app-only identities, every module 05 role on the one report container, no role for the OBO or host identity, Bob none, opt-in only (expected HTTP N/A).
+> PASS synthetic report and expected results are labelled synthetic and contain no address, ID or token (2 files, expected HTTP N/A).
+> PASS no client secret, key, SAS or token in module 05, server, infra/entra or infra/workload files (47 files, expected HTTP N/A).
+> PASS explicit Azure context matches the approved test target (expected HTTP 200 from Azure Resource Manager).
+> PASS Function App settings name both module 05 identities and hold no secret setting (expected HTTP 200 from Azure Resource Manager).
+> PASS MCP API registration: no client secret, exactly one federated credential trusting the OBO managed identity (expected HTTP 200 from Microsoft Graph).
+> PASS report container: 2 Storage Blob Data Reader assignment(s) (app-only identity, Alice), none for the OBO identity or Bob (expected HTTP 200 from Azure Resource Manager).
+> INFO persona checks skipped. Sign in as each test account in a separate AZURE_CONFIG_DIR and rerun with -Persona Alice, then -Persona Bob.
+> PASS module 05 operator checks complete. Persona checks are still required for validation.
+> ```
+>
+> **What it means for you:** the trust is in place with no secret: one federated credential, two separate identities, and
+> reader roles on the one container for the app-only identity and Alice only. File counts depend on your copy.
+
+> **Expected result** — persona validator messages; not captured: the test tenant requires MFA registration for the test accounts (excerpt).
 >
 > ```text
 > PASS Alice whoami: On-Behalf-Of to Microsoft Graph returns the synthetic persona 'alice' and no name or email (expected HTTP 200).
@@ -447,6 +471,7 @@ The module is `validated` only when all of these pass on a fresh subscription ri
 | Alice gets `isError: true` on `read_report_as_user` only | Her Storage role is still propagating (a few minutes), or `delegated_persona_object_ids.alice` is wrong. |
 | `read_report_as_app` gives `isError: true` | Report not published (run step 5), or the `-report` identity's role is still propagating. |
 | `publish-report.ps1` keeps failing | You need Storage Blob Data Contributor on `reports`; set `delegated_report_publisher_object_id` if Terraform ran as someone else. |
+| `publish-report.ps1` fails although you hold the role, and module 02 used `mcp_private_storage = true` | Storage public network access is disabled, so an upload from outside the virtual network is refused. Run the same upload from inside the virtual network (for example a short-lived Azure Container Instance in a delegated subnet, with a user-assigned managed identity holding Storage Blob Data Contributor on the `reports` container only), then delete it. Never enable public access or shared keys. The author did this on 2026-10-18 (the container printed `UPLOADED`). |
 | `Invalid index` on `oauth2_permission_scope_ids` in `infra/entra` | The Azure Storage service principal is missing in the tenant; an administrator creates it (`az ad sp create --id e406a681-f3d4-42a8-90b6-c2b029497af1`). |
 | Tools still return "demonstration" results | The deployed code predates module 05, or `WORKSHOP_DELEGATED_ACCESS` is not `enabled`. Publish the code (before module 04 stage 2). |
 | Gateway HTTP 403 for every call | That is module 04 (role or scope). A downstream refusal is never an outer HTTP 403. |
@@ -534,4 +559,4 @@ you continue to module 06 now, keep everything.
   `azuread_application_federated_identity_credential`, `azuread_service_principal_delegated_permission_grant`) and
   [AzureRM 5.9.0](https://registry.terraform.io/providers/hashicorp/azurerm/5.9.0/docs)
 
-Last verified: 2026-10-15. Authored and checked offline only; not yet deployed or validated in Azure.
+Last verified: 2026-10-18. Operator checks validated live in the author's test tenant on 2026-10-18; persona checks not yet run (MFA registration required).

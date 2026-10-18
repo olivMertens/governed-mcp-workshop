@@ -143,7 +143,7 @@ run "gateway_stage_1_standard_v2_private_path" {
       azapi_resource.mcp_api[0].type == "Microsoft.ApiManagement/service/apis@2025-09-01-preview",
       azapi_resource.mcp_api[0].body.properties.type == "mcp",
       azapi_resource.mcp_api[0].body.properties.mcpProperties.transportType == "streamable",
-      azapi_resource.mcp_api[0].body.properties.mcpProperties.endpoints[0].uriTemplate == "/mcp",
+      azapi_resource.mcp_api[0].body.properties.mcpProperties.endpoints.message.uriTemplate == "/mcp",
       azapi_resource.mcp_api[0].body.properties.serviceUrl == "https://func-mcp-p01-0123456789.azurewebsites.net/runtime/webhooks",
       azapi_resource.mcp_api[0].body.properties.subscriptionRequired == false,
       azapi_resource.mcp_api[0].body.properties.path == "workshop-mcp",
