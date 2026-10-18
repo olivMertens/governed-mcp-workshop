@@ -160,13 +160,34 @@ az monitor app-insights query --app $ai --resource-group $group --offset 24h `
   --analytics-query '@modules/06-observe-inventory/queries/mcp-traffic.kql' --query 'tables[0].rows' -o json
 ```
 
-> **Résultat réel** — abonnement de test de l'auteur, 2026-10-17, sur le composant Application Insights du module 02. Aucune passerelle API Management n'y envoie encore de trafic MCP : aucune ligne ne correspond. Noms masqués.
+> **Résultat réel** — trafic de la passerelle issu des vérifications opérateur du module 04, 2026-10-18, tenant de test de l'auteur. Pas encore de trafic des personas. Noms et ID masqués.
 >
 > ```text
-> []
+> [
+>   [
+>     "2026-10-18T14:38:02.4928994Z",
+>     "initialize",
+>     "",
+>     "401",
+>     "False",
+>     690.08,
+>     "",
+>     "workshop-validator"
+>   ],
+>   [
+>     "2026-10-18T14:37:54.7916733Z",
+>     "initialize",
+>     "",
+>     "401",
+>     "False",
+>     1221.7192,
+>     "",
+>     "workshop-validator"
+>   ]
+> ]
 > ```
 >
-> **Résultat attendu** — avec du trafic MCP passant par la passerelle du module 04. Valeurs fictives ; les colonnes suivent la requête : timestamp, operation, toolName, resultCode, success, duration, errorType, clientApp.
+> **Résultat attendu** — avec du trafic des personas (Alice et Bob qui appellent des outils) passant par la passerelle du module 04 ; pas encore capturé. Valeurs fictives ; les colonnes suivent la requête : timestamp, operation, toolName, resultCode, success, duration, errorType, clientApp.
 >
 > ```text
 > [
@@ -176,7 +197,7 @@ az monitor app-insights query --app $ai --resource-group $group --offset 24h `
 > ]
 > ```
 >
-> **Ce que cela signifie pour vous :** chaque ligne ne contient que des métadonnées : aucun corps, jeton, prompt, argument ou résultat. Une liste vide est possible s'il n'y a pas eu de trafic MCP dans les dernières 24 heures ou si l'ingestion est encore en retard ; elle ne prouve ni réussite ni absence d'activité.
+> **Ce que cela signifie pour vous :** chaque ligne ne contient que des métadonnées : aucun corps, jeton, prompt, argument ou résultat. Les deux lignes réelles sont les appels `initialize` du validateur du module 04, refusés par la passerelle avec HTTP 401 : elles n'ont donc pas de nom d'outil. Elles apparaissent parce que la requête retient `api.type` `Mcp` ou `mcp-backend` : Microsoft Learn cite `Mcp`, mais un serveur MCP en passthrough comme celui de l'atelier journalise `mcp-backend`. Une liste vide est possible s'il n'y a pas eu de trafic MCP dans les dernières 24 heures ou si l'ingestion est encore en retard ; elle ne prouve ni réussite ni absence d'activité.
 
 bash :
 
@@ -221,7 +242,7 @@ Contrôle : l'entrée affiche le nom du serveur et un état d'approbation. Cet �
 
 ## Ce que vous devriez voir
 
-- Si du trafic MCP a été ingéré, la requête KQL renvoie les lignes disponibles avec `api.type` égal à `Mcp`, pour `tools/list` et `tools/call`. Ce n'est pas un audit exhaustif.
+- Si du trafic MCP a été ingéré, la requête KQL renvoie les lignes disponibles avec `api.type` égal à `Mcp` ou `mcp-backend`, pour `initialize`, `tools/list` et `tools/call`. Ce n'est pas un audit exhaustif.
 - Les colonnes contiennent des noms d'outils et des codes de statut, mais aucun corps de requête, corps de réponse, jeton, prompt ou argument d'outil.
 - L'asset API Center existe, avec une URL d'exécution et un environnement.
 - Le validateur hors ligne affiche une ligne `PASS` par vérification et se termine avec le code de sortie 0.
@@ -337,4 +358,4 @@ Les pages officielles Microsoft Learn utilisées pour ce module sont consignées
 - [Apporter son serveur MCP](https://learn.microsoft.com/microsoft-365/admin/manage/manage-byo-mcp-server) (Préversion).
 - [Agent 365 avec API Management](https://learn.microsoft.com/azure/api-management/agent-365) (Préversion ; argumentaire facultatif, non revérifié ici).
 
-Dernière vérification : 2026-10-16 pour le lecteur et les précisions de traçabilité. Argumentaire Agent 365 : 2026-10-14.
+Dernière vérification : 2026-10-18. Requête KQL exécutée en ligne sur le trafic de la passerelle le 2026-10-18 ; étapes API Center et BYO manuelles, non exécutées. Argumentaire Agent 365 : 2026-10-14.
