@@ -48,7 +48,26 @@ function Invoke-GuardedPhase([string]$Directory, [string[]]$Arguments, [hashtabl
             Where-Object { $_.change.actions -notcontains 'no-op' -and $_.change.actions -notcontains 'read' })
         $foreign = @($changes | Where-Object {
             $address = $_.address -replace '\[[^\]]+\]$', ''
-            -not $Allowed.ContainsKey($address) -or ($_.change.actions -join ',') -ne $Allowed[$address] })
+            # API Management stores policies as normalised XML (tabs, entities, format 'xml'), so every plan re-sends the
+            # policies unchanged. Accept that update only when the text is identical apart from whitespace and entities.
+            $whitespaceOnly = $address -in @('azapi_resource.mcp_api_policy', 'azapi_resource.prm_operation_policy') -and
+                ($_.change.actions -join ',') -eq 'update' -and
+                ([Net.WebUtility]::HtmlDecode([string]$_.change.before.body.properties.value) -replace '\s', '') -ceq
+                ([Net.WebUtility]::HtmlDecode([string]$_.change.after.body.properties.value) -replace '\s', '')
+            # Module 04 pointed the optional portal's non-secret WORKSHOP_MCP_ENDPOINT hint at the gateway; removing the
+            # gateway points it back. Accept that update only when nothing else on the portal changes.
+            $portalHint = $address -eq 'azurerm_linux_web_app.portal' -and ($_.change.actions -join ',') -eq 'update' -and $(
+                $before = $_.change.before; $after = $_.change.after; $only = $true
+                foreach ($name in $before.Keys) {
+                    if ($name -eq 'app_settings') {
+                        foreach ($key in @(@($before.app_settings.Keys) + @($after.app_settings.Keys) | Sort-Object -Unique)) {
+                            if ($key -ne 'WORKSHOP_MCP_ENDPOINT' -and $before.app_settings[$key] -cne $after.app_settings[$key]) { $only = $false }
+                        }
+                    }
+                    elseif (($before[$name] | ConvertTo-Json -Depth 50 -Compress) -ne ($after[$name] | ConvertTo-Json -Depth 50 -Compress)) { $only = $false }
+                }
+                $only)
+            -not $whitespaceOnly -and -not $portalHint -and (-not $Allowed.ContainsKey($address) -or ($_.change.actions -join ',') -ne $Allowed[$address]) })
         if ($foreign.Count -gt 0) {
             throw "FAIL '$Label' plan contains $($foreign.Count) change(s) outside module 04; nothing was applied. Review 'terraform plan' privately (expected HTTP N/A)."
         }

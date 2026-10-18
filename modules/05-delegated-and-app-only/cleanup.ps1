@@ -47,7 +47,14 @@ function Invoke-GuardedPhase([string]$Directory, [string[]]$Arguments, [hashtabl
         $changes = @($all | Where-Object { $null -ne $_ -and $_.change.actions -notcontains 'no-op' -and $_.change.actions -notcontains 'read' })
         $foreign = @($changes | Where-Object {
             $address = $_.address -replace '\[[^\]]+\]$', ''
-            -not $Allowed.ContainsKey($address) -or ($_.change.actions -join ',') -ne $Allowed[$address] })
+            # API Management stores policies as normalised XML (tabs, entities, format 'xml'), so every plan re-sends the
+            # module 04 policies unchanged. Accept that update only when the policy text is identical apart from
+            # whitespace and XML entity encoding.
+            $whitespaceOnly = $address -in @('azapi_resource.mcp_api_policy', 'azapi_resource.prm_operation_policy') -and
+                ($_.change.actions -join ',') -eq 'update' -and
+                ([Net.WebUtility]::HtmlDecode([string]$_.change.before.body.properties.value) -replace '\s', '') -ceq
+                ([Net.WebUtility]::HtmlDecode([string]$_.change.after.body.properties.value) -replace '\s', '')
+            -not $whitespaceOnly -and (-not $Allowed.ContainsKey($address) -or ($_.change.actions -join ',') -ne $Allowed[$address]) })
         if ($foreign.Count -gt 0) {
             throw "FAIL '$Label' plan contains $($foreign.Count) change(s) outside module 05; nothing was applied. Review 'terraform plan' privately (expected HTTP N/A)."
         }
