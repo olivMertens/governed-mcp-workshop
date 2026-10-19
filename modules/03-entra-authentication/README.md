@@ -410,6 +410,41 @@ unset AZURE_CONFIG_DIR
 > **What it means for you:** the 401 is not a dead end. The challenge tells the client where to read the Protected
 > Resource Metadata (**Preview**) and which scope to request, so VS Code can start the Microsoft sign-in by itself.
 
+### Check the same result in the Azure portal
+
+Real portal captures, 2026-10-19, author's test tenant. Names are pseudonymised and every ID is replaced by zeros.
+Open the same blades in your own tenant to confirm what Terraform did. Select an image to open it full size.
+
+**1. Function App → Settings → Authentication.** App Service authentication is enabled, unauthenticated requests get
+HTTP 401, and the token store is off: the platform checks the token, the server never keeps it.
+
+![Real capture: Function App Authentication blade showing Require authentication, HTTP 401 for unauthenticated requests and the token store disabled](../../assets/screenshots/azure-03-function-authentication.png)
+
+**2. App registrations → Workshop MCP API → Overview.** One organisation only, and "Add a certificate or secret":
+the application has no password at all.
+
+![Real capture: App registration overview showing My organization only and no client credentials](../../assets/screenshots/azure-03-app-registration-overview.png)
+
+**3. Same app → App roles.** `Tools.Read` and `Tools.Write` are for users, `Tools.Execute.All` for applications.
+Module 04 enforces them per tool.
+
+![Real capture: App roles blade listing Tools.Read and Tools.Write for users and Tools.Execute.All for applications](../../assets/screenshots/azure-03-app-roles.png)
+
+**4. Enterprise applications → Workshop MCP API → Properties.** "Assignment required?" is **Yes**: only assigned
+users (Alice and Bob) can get a token. That is why Eve receives `AADSTS50105`.
+
+![Real capture: Enterprise application properties with Assignment required set to Yes](../../assets/screenshots/azure-03-enterprise-app-properties.png)
+
+**Question:** Eve is a member of the tenant. Which setting in capture 4 stops her before the MCP server is reached?
+
+<details>
+<summary>Show answer</summary>
+
+"Assignment required?" = Yes. Microsoft Entra ID refuses to issue a token for this API to a user who has no assignment,
+so Eve gets `AADSTS50105` at sign-in. The MCP server never sees her request.
+
+</details>
+
 ### Read alongside the demonstration
 
 Use these links when you run the matching check above. Authentication, consent and authorization are different decisions.
