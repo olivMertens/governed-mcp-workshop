@@ -122,7 +122,9 @@
     .lesson-page h2 { margin-top: 0; }
     .lesson-page .command pre { max-height: 22rem; overflow-y: auto; }
     .lesson-nav { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
-    .lesson-nav button { border: 0; font: inherit; max-width: 100%; text-align: left; }
+    .lesson-nav button { border: 0; font: inherit; max-width: 100%; text-align: left; display: inline-flex; align-items: center; gap: 8px; }
+    .lesson-nav .symbol, .pager .symbol, .next-step .primary .symbol { width: 17px; height: 17px; }
+    .pager a, .next-step .primary { display: inline-flex; align-items: center; gap: 8px; }
     .lesson-nav .secondary { border: 1px solid var(--line); }
     .lesson-nav .primary { margin-left: auto; }
     .lesson-nav button:disabled { opacity: .55; cursor: default; }
@@ -448,6 +450,9 @@
         collapse: "M2 3h16v14H2zM7 3v14M14 7l-3 3 3 3",
         expand: "M2 3h16v14H2zM7 3v14M11 7l3 3-3 3",
         pdf: "M5 1h7l4 4v14H5zM12 1v4h4M10.5 8v7M7.5 12l3 3 3-3",
+        arrowLeft: "M17 10H3m5-5-5 5 5 5",
+        arrowRight: "M3 10h14m-5-5 5 5-5 5",
+        finish: "M10 1a9 9 0 1 0 0 18 9 9 0 1 0 0-18M6 10l3 3 5-6",
       };
       const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
       svg.setAttribute("viewBox", "0 0 20 20");
@@ -861,11 +866,12 @@
         }
         previous.disabled = index === 0;
         next.disabled = index === steps.length - 1;
-        previous.textContent = `\u2190 ${t("Previous step")}`;
+        previous.replaceChildren(symbol("arrowLeft"), element("span", t("Previous step")));
         const following = steps[index + 1];
-        next.textContent = index === steps.length - 1 ? t("End of this guide") :
-          following.part > 1 && following.title === step.title ? `${t("Next:")} ${t("continued")} (${partLabel(following)}) \u2192` :
-          `${t("Next:")} ${t(following.title)} \u2192`;
+        const nextLabel = index === steps.length - 1 ? t("End of this guide") :
+          following.part > 1 && following.title === step.title ? `${t("Next:")} ${t("continued")} (${partLabel(following)})` :
+          `${t("Next:")} ${t(following.title)}`;
+        next.replaceChildren(element("span", nextLabel), symbol(index === steps.length - 1 ? "finish" : "arrowRight"));
         const heading = element("h2", step.title);
         if (step.part) heading.append(element("span", partLabel(step), "part-badge"));
         heading.tabIndex = -1;
@@ -1133,6 +1139,7 @@
           const next = state.modules.find((item) => item.module === "99" && module.module === "06") || state.modules[index + 1];
           const anchor = moduleLink(next, "primary");
           anchor.prepend(document.createTextNode(`${next.module} / `));
+          anchor.append(symbol("arrowRight"));
           section.append(anchor);
           if (module.module === "06") section.append(element("p", "Core path: clean up"),
             link("Optional: explore other clients first", "#/module/07", "secondary"));
@@ -1356,7 +1363,7 @@
       if (index > 0) {
         const target = module.module === "99" ? state.modules.find((item) => item.module === "06") : state.modules[index - 1];
         const previous = moduleLink(target);
-        previous.textContent = `${language === "fr" ? "Précédent" : "Previous"}: ${target.module} / ${target.title}`;
+        previous.replaceChildren(symbol("arrowLeft"), document.createTextNode(`${language === "fr" ? "Précédent" : "Previous"}${language === "fr" ? " :" : ":"} ${target.module} / ${target.title}`));
         pager.append(previous);
       } else pager.append(link("Workshop overview", "#/overview"));
       content.append(pager, nextStep(module));
