@@ -102,6 +102,18 @@
     .copy { font-size: 12px; background: var(--surface); color: var(--blue); border: 1px solid var(--line); border-radius: 5px; padding: 5px 10px; flex-shrink: 0; }
     .exercise { border-top: 2px solid var(--blue); padding-top: 4px; margin: 28px 0; }
     .quiz { border-top-color: #7650b3; }
+    .page-map { margin: 22px 0 10px; }
+    .page-map > p { margin: 0 0 10px; font-size: 14px; font-weight: 650; color: var(--muted); }
+    .page-map ol { list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: 0; padding: 0; }
+    .page-map button { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+    .page-map button:hover, .page-map button:focus-visible { border-color: var(--blue); }
+    .page-map button > strong { font-size: 15px; }
+    .page-map button > small { color: var(--muted); font-size: 13px; line-height: 1.4; }
+    .page-map .optional > .step-num, .further-title > .step-num { background: var(--line); color: var(--ink); }
+    .step-num { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--blue); color: #fff; font-size: 14px; font-weight: 650; flex-shrink: 0; }
+    .quiz .step-num { background: #7650b3; }
+    .section-title { display: flex; align-items: center; gap: 10px; scroll-margin-top: 16px; }
+    .useful-links { font-size: 14px; color: var(--muted); }
     .exchange { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; margin: 16px 0; }
     .exchange > div > .exchange-label { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; font-weight: 650; }
     .exchange-label > span { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--blue); color: #fff; font-size: .85em; }
@@ -159,7 +171,7 @@
     p.question { position: relative; border-left: 3px solid #7650b3; padding: 8px 12px 8px 40px; background: var(--wash); }
     p.question > svg { position: absolute; left: 12px; top: 10px; color: #7650b3; }
     details.answer > summary > svg { color: var(--tip); vertical-align: -3px; margin-right: 6px; }
-    details.answer.reveal > summary > svg { color: #7650b3; }
+    details.answer.reveal > summary > svg { color: var(--success); }
     .result-box .result-body > p:first-child > svg { vertical-align: -3px; margin-right: 6px; }
     .notice.read-first .secondary { margin-top: 12px; }
     .exercise > h2 { display: flex; align-items: center; gap: 10px; }
@@ -202,7 +214,7 @@
       :root:not([data-theme="light"]) .notice.warning > strong { color: #f5cd68; }
       :root:not([data-theme="light"]) .notice.important { border-left-color: #c9a9ff; }
       :root:not([data-theme="light"]) .notice.important > strong { color: #c9a9ff; }
-      :root:not([data-theme="light"]) p.question { border-left-color: #c9a9ff; } :root:not([data-theme="light"]) p.question > svg, :root:not([data-theme="light"]) details.reveal > summary > svg { color: #c9a9ff; }
+      :root:not([data-theme="light"]) p.question { border-left-color: #c9a9ff; } :root:not([data-theme="light"]) p.question > svg { color: #c9a9ff; }
     }
     :root[data-theme="dark"] { color-scheme: dark; --paper: #172339; --surface: #1e2d45; --ink: #eef3ff; --muted: #b1c1db; --line: #405474; --blue: #8fbaff; --wash: #273f64; --success: #7cddb0; --tip: #f5c84c; --error: #ff9fa8; }
     :root[data-theme="dark"] .primary { background: #245ed2; color: #fff; }
@@ -210,7 +222,7 @@
     :root[data-theme="dark"] .notice.warning > strong { color: #f5cd68; }
     :root[data-theme="dark"] .notice.important { border-left-color: #c9a9ff; }
     :root[data-theme="dark"] .notice.important > strong { color: #c9a9ff; }
-    :root[data-theme="dark"] p.question { border-left-color: #c9a9ff; } :root[data-theme="dark"] p.question > svg, :root[data-theme="dark"] details.reveal > summary > svg { color: #c9a9ff; }
+    :root[data-theme="dark"] p.question { border-left-color: #c9a9ff; } :root[data-theme="dark"] p.question > svg { color: #c9a9ff; }
     :root[data-theme="light"] { --paper: #fafafa; --surface: #fff; --ink: #242424; --muted: #595959; --line: #dedede; --wash: #edf6fc; --indigo: #17476b; }
     :root[data-theme="dark"] { --paper: #181818; --surface: #222; --ink: #f5f5f5; --muted: #bdbdbd; --line: #454545; --blue: #75c7ff; --wash: #183347; --indigo: #17476b; }
     :root[data-theme="dark"] .primary { background: #0067b8; }
@@ -462,6 +474,7 @@
         answer: "M3 3h14v10H9l-4 4v-4H3zM7 8l2 2 4-4",
         arrowLeft: "M17 10H3m5-5-5 5 5 5",
         arrowRight: "M3 10h14m-5-5 5 5-5 5",
+        arrowDown: "M10 3v14m-5-5 5 5 5-5",
         finish: "M10 1a9 9 0 1 0 0 18 9 9 0 1 0 0-18M6 10l3 3 5-6",
       };
       const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -825,7 +838,7 @@
       if (!steps.length) throw new Error("A guided document needs at least one step.");
       return steps;
     }
-    function guidedDocument(text, path, startSection = null) {
+    function guidedDocument(text, path, startSection = null, finish = null) {
       const steps = lessonSteps(text);
       const section = element("section", undefined, "lesson");
       section.setAttribute("aria-label", t("One step at a time"));
@@ -876,13 +889,14 @@
           else jump.removeAttribute("aria-current");
         }
         previous.disabled = index === 0;
-        next.disabled = index === steps.length - 1;
+        const last = index === steps.length - 1;
+        next.disabled = last && !finish;
         previous.replaceChildren(symbol("arrowLeft"), element("span", t("Previous step")));
         const following = steps[index + 1];
-        const nextLabel = index === steps.length - 1 ? t("End of this guide") :
+        const nextLabel = last ? (finish ? t(finish.label) : t("End of this guide")) :
           following.part > 1 && following.title === step.title ? `${t("Next:")} ${t("continued")} (${partLabel(following)})` :
           `${t("Next:")} ${t(following.title)}`;
-        next.replaceChildren(element("span", nextLabel), symbol(index === steps.length - 1 ? "finish" : "arrowRight"));
+        next.replaceChildren(element("span", nextLabel), symbol(last ? (finish ? "arrowDown" : "finish") : "arrowRight"));
         const heading = element("h2", step.title);
         if (step.part) heading.append(element("span", partLabel(step), "part-badge"));
         heading.tabIndex = -1;
@@ -903,7 +917,8 @@
         }
       }
       previous.addEventListener("click", () => { if (index > 0) { index--; show(true); } });
-      next.addEventListener("click", () => { if (index < steps.length - 1) { index++; show(true); } });
+      // On the last step, a module page sends the reader on to the next section instead of a dead end.
+      next.addEventListener("click", () => { if (index < steps.length - 1) { index++; show(true); } else if (finish) finish.action(); });
       navigation.append(previous, next);
       section.append(header, page, navigation, outline);
       section.goTo = (stepIndex) => { index = stepIndex; outline.open = false; show(true); };
@@ -912,7 +927,7 @@
     }
     function hasQuestion(text) { return /^\*\*Question\s?:\*\*/m.test(text.replace(/```[\s\S]*?```/g, "")); }
     // Gathers every "Question:" with its hidden answer, so the module ends with one self-check panel.
-    function questionsPanel(text, path, lesson) {
+    function questionsPanel(text, path, lesson, number = null) {
       const items = [];
       lessonSteps(text).forEach((step, stepIndex) => {
         const lines = step.content.split("\n");
@@ -938,8 +953,8 @@
       });
       if (!items.length) return null;
       const panel = element("section", undefined, "exercise quiz");
-      const heading = element("h2", "Check your understanding");
-      heading.prepend(symbol("question"));
+      const heading = element("h2", "Review questions", "section-title");
+      heading.prepend(number ? element("span", String(number), "step-num") : symbol("question"));
       heading.append(element("span", String(items.length), "count"));
       panel.append(heading, element("p", "Think of your answer before you open it. Each question links back to its step.", "field-message"));
       // A flat list: one question per row, a thin separator, no numbering or nested cards.
@@ -1326,15 +1341,29 @@
           body);
         content.append(original);
       }
+      const sectionTitle = (number, text, className = "section-title") => {
+        const heading = element("h2", text, className);
+        heading.prepend(element("span", String(number), "step-num"));
+        heading.tabIndex = -1;
+        return heading;
+      };
+      const goTo = (target) => { target.scrollIntoView({ behavior: "smooth", block: "start" }); target.focus({ preventScroll: true }); };
+      // 1. The guide, one step at a time.
+      const guideTitle = sectionTitle(1, "Follow the guide");
+      // 2. Check the work with the module validator.
       const exercise = element("section", undefined, "exercise");
-      const exerciseTitle = element("h2", "Try this stage");
-      exerciseTitle.prepend(symbol("terminal"));
-      exercise.append(exerciseTitle,
-        element("p", "Run these commands in your own VS Code terminal. The guide steps above show the output you should see.", "field-message"));
-      if (module.module === "00") exercise.append(link("Your Azure context", "#/deployment", "secondary"));
-      else exercise.append(link("Open the call workspace", "#/practice", "secondary"), validationCommands(module));
-      if (!["00", "01"].includes(module.module)) {
-        exercise.append(link("See your Azure results", "#/deployment", "secondary"));
+      const exerciseTitle = sectionTitle(2, "Check your work");
+      exercise.append(exerciseTitle);
+      if (module.module === "00") {
+        exercise.append(element("p", "The module 00 checks are the commands in the guide above. When they all print PASS, review your Azure context, then open module 01.", "field-message"),
+          link("Your Azure context", "#/deployment", "secondary"));
+      } else {
+        exercise.append(element("p", "When you reach the end of the guide, run the module validator in your own terminal. It checks the whole module and prints one PASS or FAIL line per check, with the expected HTTP status.", "field-message"),
+          validationCommands(module));
+        const useful = element("p", undefined, "useful-links");
+        useful.append(document.createTextNode(`${t("Useful links:")} `), link("Prepare a server test", "#/practice"));
+        if (module.module !== "01") useful.append(document.createTextNode(" \u00b7 "), link("See your Azure results", "#/deployment"));
+        exercise.append(useful);
       }
       const hints = element("details", undefined, "answer");
       const hintTitle = element("summary", "Need a hint? Understand what this stage proves.");
@@ -1342,15 +1371,40 @@
       hints.append(hintTitle,
         markdown(module.hints, module.hintsSourcePath));
       exercise.append(hints);
-      const lesson = guidedDocument(module.guide ?? module.outline, module.sourcePath);
-      content.append(lesson);
-      // Module 00 checks the environment: no self-check questionnaire there.
-      const questions = module.guide !== null && module.module !== "00" ? questionsPanel(module.guide, module.sourcePath, lesson) : null;
-      if (questions) content.append(questions);
+      const lesson = guidedDocument(module.guide ?? module.outline, module.sourcePath, null,
+        { label: "Next: check your work", action: () => goTo(exerciseTitle) });
+      // 3. Review questions. Module 00 checks the environment: no questionnaire there.
+      const questions = module.guide !== null && module.module !== "00" ? questionsPanel(module.guide, module.sourcePath, lesson, 3) : null;
+      const furtherTitle = sectionTitle(questions ? 4 : 3, "Go further (optional)", "section-title further-title");
+      // A short map tells a first-time reader what to do on this page, in which order.
+      const map = element("nav", undefined, "page-map");
+      map.setAttribute("aria-label", t("How this page works"));
+      map.append(element("p", "How this page works"));
+      const stops = element("ol");
+      const stepCount = lessonSteps(module.guide ?? module.outline).length;
+      const questionCount = questions ? questions.querySelectorAll(".quiz-list > li").length : 0;
+      for (const [number, title, detail, target, optional] of [
+        [1, "Follow the guide", `${stepCount} ${t("steps, one at a time")}`, guideTitle],
+        [2, "Check your work", module.module === "00" ? t("Review your Azure context") : t("Run the validator: PASS or FAIL"), exerciseTitle],
+        ...(questions ? [[3, "Review questions", `${questionCount} ${t("questions, answers hidden")}`, questions.querySelector("h2")]] : []),
+        [questions ? 4 : 3, "Go further", t("Optional: architecture, prerequisites, why it matters"), furtherTitle, true],
+      ]) {
+        const stop = element("li");
+        const button = element("button", undefined, optional ? "optional" : undefined);
+        button.type = "button";
+        button.append(element("span", String(number), "step-num"), element("strong", title), element("small", detail));
+        button.addEventListener("click", () => goTo(target));
+        stop.append(button);
+        stops.append(stop);
+      }
+      map.append(stops);
+      content.insertBefore(map, content.children[2] || null);
+      content.append(guideTitle, lesson);
       // Commands and terminal checks are part of the lesson, not optional reading.
       content.append(exercise);
+      if (questions) content.append(questions);
       // Optional material comes after the lesson, so the main path reads strictly top to bottom.
-      content.append(element("h2", "Go further (optional)", "further-title"),
+      content.append(furtherTitle,
         disclosure("Architecture and security flow", architecture(module)));
       if (dependency) content.append(disclosure("Prerequisites", dependency));
       const concepts = element("details");
