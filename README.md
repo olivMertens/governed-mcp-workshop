@@ -125,10 +125,20 @@ Module 02 deploys real Azure resources: start it only after module 00 validation
 These are real captures from the author's test tenant. Names are pseudonymised and IDs are replaced by zeros.
 Pink frames mark what to check. Each module shows its own captures at the step where they appear.
 
+![Real capture: storage account Networking, Public access tab, with Public network access set to Disabled](assets/screenshots/azure-02-storage-public-access.png)
+
+*Module 02, optional private storage: public network access is disabled; the server reaches Storage only through private endpoints.*
+See [module 02, steps](modules/02-open-server/README.md#steps).
+
 ![Real terminal output: module 03 operator checks with numbered Step headers, Why lines and PASS lines with the expected HTTP status](assets/screenshots/terminal-03-operator.png)
 
 *Module 03 validator: each `== Step N ==` header says what is checked, `Why:` says what it proves, then one `PASS` line per check with the expected HTTP status.*
 See [module 03, steps](modules/03-entra-authentication/README.md#steps).
+
+![Real terminal output: module 03 persona check signed in as Alice; the token for the MCP audience is accepted and the five tools are listed](assets/screenshots/terminal-03-alice.png)
+
+*Module 03, signed in as Alice (after her MFA registration): her token for the MCP server is accepted and she sees the five tools.*
+See [module 03, persona checks](modules/03-entra-authentication/README.md#steps).
 
 ![Real capture: App roles blade listing Tools.Read and Tools.Write for users and Tools.Execute.All for applications](assets/screenshots/azure-03-app-roles.png)
 
@@ -139,6 +149,11 @@ See [module 03, check the same result in the Azure portal](modules/03-entra-auth
 
 *Module 05: no client secret, one federated credential for the On-Behalf-Of exchange.*
 See [module 05, identity administrator step](modules/05-delegated-and-app-only/README.md#identity-administrator-approve-trust-and-consent-before-applying).
+
+![On-Behalf-Of across three hops: the user is kept, but each hop issues a new token for the next audience and the client changes](assets/screenshots/diagram-05-obo-hops-en.png)
+
+*Module 05, good to know: what On-Behalf-Of keeps and loses on each hop.*
+See [module 05, go further](modules/05-delegated-and-app-only/README.md#good-to-know-obo-across-several-hops-and-rbac).
 
 ![Real capture: Application Insights Logs in KQL mode with the MCP filter and metadata-only rows](assets/screenshots/azure-06-kql-logs.png)
 
