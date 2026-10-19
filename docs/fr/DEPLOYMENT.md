@@ -250,7 +250,7 @@ Arrêter un service ne met pas nécessairement fin à tous ses frais.
 - [Attribution des rôles Azure](https://learn.microsoft.com/azure/role-based-access-control/role-assignments-cli).
 - [Lister les ressources avec Azure CLI](https://learn.microsoft.com/cli/azure/resource#az-resource-list).
 - [Configuration et authentification AzureRM](https://registry.terraform.io/providers/hashicorp/azurerm/5.9.0/docs).
-- [Plan technique original en anglais](../BUILD-PLAN.md) et [guide de test](PRACTICE.md).
+- [Guide de test](PRACTICE.md).
 
 Dernière vérification : 2026-10-14. Pendant la préparation, aucun abonnement n'a été consulté et aucune ressource n'a été déployée.
 

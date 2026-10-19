@@ -9,6 +9,7 @@ import { screenshots } from "./portal-server.mjs";
 const repository = fileURLToPath(new URL("../", import.meta.url));
 const icons = ["azure", "microsoft", "entra", "apim", "functions", "storage", "insights", "api-center", "subscription", "foundry-agent-service", "copilot-studio"];
 const modules = ["00", "01", "02", "03", "04", "05", "06", "07", "99"];
+export const authorOnlyDocuments = ["runbook", "implementation", "buildProgress", "plan", "originalPlan", "architectureAuthoring", "originalArchitecture"];
 
 function readSource(root, parts) {
     for (let index = 0; index <= parts.length; index++) {
@@ -25,6 +26,12 @@ export function buildSite(root = repository, destination = join(root, "site-dist
     const progress = parseProgress(read(["docs", "PROGRESS.md"]).toString("utf8"));
     const journey = readJourney(root, progress);
     delete journey.revision;
+    // Author-only pages (build runbook, open decisions, build status and plan, diagram authoring) stay in the repository
+    // and the local authoring board; the published participant site never carries them.
+    delete journey.openDecisions;
+    for (const language of [journey, journey.translations.fr]) {
+        for (const key of authorOnlyDocuments) delete language.documents[key];
+    }
     for (const language of [journey, journey.translations.fr]) {
         for (const module of language.modules) {
             for (const kind of ["svg", "png", "editable"]) module.diagram[kind] = module.diagram[kind].replace(/^\//, "");

@@ -297,8 +297,7 @@ Conservez les paramètres et l'état privés du module 00. Aucun nettoyage Azure
 ## Aller plus loin
 
 Essayez `ticket-queue` après avoir prédit le résultat. Expliquez pourquoi une indication de lecture seule n'est pas un contrôle d'accès.
-Lisez ensuite le [plan du module 02](../../docs/fr/BUILD-PLAN.md#02---serveur-par-clé-niveau-0).
-Son serveur cloud reste à construire ; le serveur local ne le déploie pas.
+Suite : le [module 02](../02-open-server/README.fr.md) déploie le même serveur dans Azure, protégé seulement par une clé.
 Le portail facultatif du présentateur ne fait que diffuser ces instructions.
 
 ## Sources

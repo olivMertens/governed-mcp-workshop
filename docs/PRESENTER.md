@@ -6,7 +6,7 @@
 Publishing the portal does not deploy the Model Context Protocol (MCP) server.
 Modules 00 and 02 are validated live. Modules 03 to 06 passed their live operator checks in a test tenant,
 but stay authored until the Alice, Bob and Eve persona checks pass. Modules 01, 07 and 99 are authored (offline checks pass).
-See [PROGRESS.md](PROGRESS.md) for the evidence. Follow the run order in the [root README](../README.md).
+Follow the run order in the [root README](../README.md).
 Students can run [module 01](../modules/01-discover-mcp/README.md) without waiting for your portal or Azure deployment.
 
 ## Before the session

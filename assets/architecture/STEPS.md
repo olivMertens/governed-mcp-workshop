@@ -1,10 +1,8 @@
 # Architecture, step by step
 
-These diagrams show learning targets, not deployed resources. See build progress for validation evidence.
+These diagrams show learning targets, not deployed resources.
 
 The Model Context Protocol (MCP) connects a client to tools. Each step adds a control or explains an ownership boundary.
-
-[What is actually available](../../docs/IMPLEMENTATION-STATUS.md). [Edit diagrams and verify icon provenance](README.md).
 
 Generated from `workshop.drawio`; do not edit separately. Frames are ownership boundaries; repeated views refer to the same environment. GitHub renders Mermaid; the application displays the equivalent SVG with verified icons and routing.
 
