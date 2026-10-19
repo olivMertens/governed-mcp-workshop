@@ -71,7 +71,12 @@ les outils OBO doivent aussi refuser les appelants applicatifs. L'identité du c
 3. Choisissez l'authentification :
    - **Identité managée du projet :** option documentée de Foundry, mais incompatible avec le contrôle de scope délégué actuel de l'atelier. Expliquez la différence ; ne la présentez pas comme une démonstration réussie.
    - **Passage d'identité OAuth (préversion) :** l'appel utilise l'identité de chaque utilisateur connecté. Le serveur doit accepter un jeton dont l'audience est sa propre audience. Les jetons Microsoft ne sont pas transmis à des points de terminaison MCP non approuvés.
-4. Posez une question en lecture seule qui appelle un outil de lecture. Montrez le résultat.
+4. Posez une question en lecture seule qui appelle un outil de lecture. Collez ce prompt dans le terrain de jeu de l'agent, puis montrez le résultat :
+
+   ```prompt
+   Utilise l'outil MCP de l'atelier pour appeler get_service_health avec service "workshop-api". Résume le résultat. N'appelle aucun outil d'écriture.
+   ```
+
 5. Avant toute écriture, vérifiez que ce client peut exiger une confirmation humaine pour cet appel précis. Sinon, ne montrez pas l'écriture. La confirmation ne donne jamais le rôle manquant : Bob doit toujours être refusé.
 
 ### Partie B — Microsoft Copilot Studio (plan)

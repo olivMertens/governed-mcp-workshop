@@ -71,7 +71,12 @@ OBO tools must also reject app-only callers. Application identity at the client 
 3. Choose the authentication option:
    - **Project managed identity:** a documented Foundry option, but not compatible with this workshop's current delegated-scope gateway. Explain the distinction; do not run it as a successful workshop path.
    - **OAuth identity passthrough (Preview):** each signed-in user's identity is used. The server must accept a token whose audience is the server's own audience. Microsoft tokens are not forwarded to untrusted MCP endpoints.
-4. Ask the agent a read-only question that calls a read tool. Show the result.
+4. Ask the agent a read-only question that calls a read tool. Paste this prompt in the agent playground, then show the result:
+
+   ```prompt
+   Use the workshop MCP tool to call get_service_health with service "workshop-api". Summarise the result. Do not call any write tool.
+   ```
+
 5. Before any write demonstration, verify that this client can require human approval for this individual call. If not, omit the write. Approval never supplies a missing role: Bob must still be refused.
 
 ### Part B — Microsoft Copilot Studio (outline)
