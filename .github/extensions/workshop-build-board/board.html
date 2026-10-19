@@ -250,16 +250,36 @@
     @media (max-width: 570px) { .launch-panel { padding: 18px; } .command-head { flex-direction: column; align-items: flex-start; gap: 8px; } }
     @media (max-width: 570px) { .toolbar { flex-wrap: wrap; } .toolbar-actions { flex-wrap: wrap; } .next-step { padding: 18px; } }
     .pdf-action { margin: 28px 0 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+    .pdf-button { align-items: center; gap: 8px; font-weight: 600; cursor: pointer; }
+    .pdf-button .symbol { color: #e5484d; }
     #print-root { display: none; }
     @media print {
       @page { margin: 16mm 14mm; }
+      html:has(body.printing), body.printing { background: #fff !important; color-scheme: light !important; }
       body.printing .shell, body.printing .skip { display: none !important; }
-      body.printing #print-root { display: block; color: #111; background: #fff; font-size: 11pt; }
+      body.printing #print-root { display: block; color: #111; background: #fff; font-size: 11pt;
+        color-scheme: light; --paper: #fff; --surface: #fff; --ink: #172c48; --muted: #526783; --line: #c9d4e3; --blue: #0067b8;
+        --indigo: #383ba4; --wash: #f2f6fb; --success: #14704b; --error: #b32336; }
+      body.printing #print-root .notice.warning { border-left-color: #b7791f; }
+      body.printing #print-root .notice.warning > strong { color: #8a5a00; }
+      body.printing #print-root .notice.important { border-left-color: #6b3fc4; }
+      body.printing #print-root .notice.important > strong { color: #5a2fae; }
+      body.printing #print-root p.question { border-left-color: #6b3fc4; }
+      body.printing #print-root p.question > svg { color: #6b3fc4; }
+      body.printing #print-root .services { margin: 0 0 16pt; }
+      body.printing #print-root .services li { border: 1px solid #c9d4e3; background: #fff; color: #172c48; }
+      body.printing #print-root summary { font-weight: 600; list-style: none; }
+      body.printing #print-root summary::-webkit-details-marker { display: none; }
+      body.printing #print-root .screenshot img, body.printing #print-root figure img { max-width: 100%; max-height: 230mm; object-fit: contain; }
       body.printing #print-root h1 { font-size: 20pt; margin: 0 0 4pt; }
       body.printing #print-root .print-meta { color: #555; font-size: 9pt; margin: 0 0 14pt; }
       body.printing #print-root h2, body.printing #print-root h3 { break-after: avoid; }
-      body.printing #print-root pre, body.printing #print-root table, body.printing #print-root figure,
-      body.printing #print-root .result-box, body.printing #print-root .notice { break-inside: avoid; }
+      body.printing #print-root figure, body.printing #print-root .notice, body.printing #print-root tr,
+      body.printing #print-root p.question { break-inside: avoid; }
+      body.printing #print-root .diagram-scroll { overflow: visible; border: 0; }
+      body.printing #print-root .diagram-scroll img { min-width: 0; width: 100%; }
+      body.printing #print-root .architecture details, body.printing #print-root .architecture .action-row,
+      body.printing #print-root .architecture figcaption { display: none; }
       body.printing #print-root pre { white-space: pre-wrap; word-break: break-word; border: 1px solid #ccc; background: #f6f6f6; color: #111; }
       body.printing #print-root img { max-width: 100%; height: auto; }
       body.printing #print-root .copy, body.printing #print-root .field-message { display: none; }
@@ -414,6 +434,7 @@
         moon: "M16 13A7 7 0 0 1 7 4a7 7 0 1 0 9 9",
         collapse: "M2 3h16v14H2zM7 3v14M14 7l-3 3 3 3",
         expand: "M2 3h16v14H2zM7 3v14M11 7l3 3-3 3",
+        pdf: "M5 1h7l4 4v14H5zM12 1v4h4M10.5 8v7M7.5 12l3 3 3-3",
       };
       const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
       svg.setAttribute("viewBox", "0 0 20 20");
@@ -646,9 +667,10 @@
     }
     // Builds the whole guide in a print-only container, opens every disclosure and hands it to the browser's
     // print dialog, where the reader picks "Save as PDF". Nothing is generated or stored on the server.
-    function pdfAction(title, text, path) {
+    function pdfAction(title, text, path, header = null) {
       const row = element("div", undefined, "pdf-action");
-      const button = element("button", "Download as PDF", "secondary");
+      const button = element("button", "Download as PDF", "secondary pdf-button");
+      button.prepend(symbol("pdf"));
       button.type = "button";
       button.addEventListener("click", () => {
         const root = document.getElementById("print-root");
@@ -657,7 +679,7 @@
         body.querySelectorAll("img").forEach((image) => { image.loading = "eager"; });
         const meta = element("p", undefined, "print-meta");
         meta.textContent = `Governed MCP on Azure · ${location.href.split("#")[0]}#${location.hash.slice(1)}`;
-        root.replaceChildren(element("h1", title), meta, body);
+        root.replaceChildren(element("h1", title), meta, ...(header ? [header()] : []), body);
         root.setAttribute("aria-hidden", "false");
         document.body.classList.add("printing");
         const done = () => { document.body.classList.remove("printing"); root.replaceChildren(); root.setAttribute("aria-hidden", "true"); };
@@ -1228,7 +1250,7 @@
       concepts.append(element("summary", "Why this boundary matters"), markdown(module.learning, module.learningSourcePath),
         link("Read the full governance guide", "#/governance", "secondary"));
       content.append(concepts);
-      if (module.guide !== null) content.append(pdfAction(`${module.module} / ${module.title}`, module.guide, module.sourcePath));
+      if (module.guide !== null) content.append(pdfAction(`${module.module} / ${module.title}`, module.guide, module.sourcePath, () => servicesList(module)));
       const source = element("p", undefined, "source");
       source.append(document.createTextNode(language === "fr" ? "Fichier source : " : "Source: "), element("code", module.sourcePath));
       content.append(source);
