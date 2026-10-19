@@ -102,6 +102,12 @@
     .copy { font-size: 12px; background: var(--surface); color: var(--blue); border: 1px solid var(--line); border-radius: 5px; padding: 5px 10px; flex-shrink: 0; }
     .exercise { border-top: 2px solid var(--blue); padding-top: 4px; margin: 28px 0; }
     .quiz { border-top-color: #7650b3; }
+    .exchange { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; margin: 16px 0; }
+    .exchange > div > .exchange-label { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; font-weight: 650; }
+    .exchange-label > span { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--blue); color: #fff; font-size: .85em; }
+    .exchange .command, .exchange .result-box { margin-top: 0; }
+    .lesson-page, .document { container-type: inline-size; }
+    @container (max-width: 760px) { .exchange { grid-template-columns: minmax(0, 1fr); } }
     .quiz-list { padding-left: 22px; } .quiz-list > li { margin: 14px 0; } .quiz-list .lesson-jump { font-size: .92em; }
     .lesson-jump > svg { width: 1em; height: 1em; margin-left: 6px; vertical-align: -2px; color: #7650b3; }
     .exercise details { color: var(--ink); margin: 16px 0; }
@@ -280,6 +286,7 @@
       body.printing #print-root h2, body.printing #print-root h3 { break-after: avoid; }
       body.printing #print-root figure, body.printing #print-root .notice, body.printing #print-root tr,
       body.printing #print-root p.question { break-inside: avoid; }
+      body.printing #print-root .exchange { grid-template-columns: minmax(0, 1fr); }
       body.printing #print-root .diagram-scroll { overflow: visible; border: 0; }
       body.printing #print-root .diagram-scroll img { min-width: 0; width: 100%; }
       body.printing #print-root .architecture details, body.printing #print-root .architecture .action-row,
@@ -581,6 +588,21 @@
           }
           box.append(contents);
           if (result) contents.firstElementChild?.prepend(symbol("terminal"));
+          const request = body.lastElementChild;
+          if (result && request?.dataset.exchange === "request") {
+            const pair = element("div", undefined, "exchange");
+            const column = (number, label, node) => {
+              const side = element("div");
+              const title = element("p", undefined, "exchange-label");
+              title.append(element("span", number), document.createTextNode(t(label)));
+              side.append(title, node);
+              return side;
+            };
+            request.replaceWith(pair);
+            pair.append(column("1", "Send this request", request),
+              column("2", box.classList.contains("real") ? "Read the real answer" : "Read the expected answer", box));
+            continue;
+          }
           body.append(box);
           continue;
         }
@@ -595,7 +617,8 @@
             body.append(architecture(module));
             continue;
           }
-          const language = line.trim().slice(3).trim();
+          // "```powershell exchange" pairs this request with the result box below it, side by side.
+          const [language = "", ...flags] = line.trim().slice(3).trim().split(/\s+/);
           const titles = { powershell: "PowerShell", bash: "Bash", sh: "Shell", json: "JSON", text: "Text",
             prompt: "Prompt to paste in the chat", kql: "KQL query" };
           const block = commandBlock(titles[language] || language || "Code", code.join("\n"), "Copy code", false);
@@ -608,6 +631,7 @@
           if (language === "kql") {
             block.append(element("p", "Paste into the Logs query editor (KQL mode), then select Run. It reads metadata only.", "field-message"));
           }
+          if (flags.includes("exchange")) block.dataset.exchange = "request";
           body.append(block);
           continue;
         }
