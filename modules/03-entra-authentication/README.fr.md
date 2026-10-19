@@ -544,6 +544,18 @@ Modes en ligne, après un déploiement approuvé :
 Les jetons et les clés restent en mémoire et ne sont jamais affichés. Le module n'est terminé que lorsque la vérification
 opérateur et les trois vérifications par persona réussissent sur un abonnement neuf, juste après les modules 00 à 02.
 
+**Question :** tous les contrôles hors ligne passent. Pouvez-vous considérer le module 03 comme terminé ?
+
+<details>
+<summary>Afficher la réponse</summary>
+
+Non, et la dernière ligne le dit : `NOT deployed or Entra-validated`. Les contrôles hors ligne prouvent que **vos fichiers**
+respectent les règles (aucun secret, affectation obligatoire, trois rôles d'application). Seuls les contrôles en conditions
+réelles, opérateur puis persona, prouvent qu'Azure et Microsoft Entra se comportent comme prévu.
+
+</details>
+
+
 ## Dépannage
 
 | Symptôme | À vérifier |

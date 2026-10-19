@@ -362,6 +362,17 @@ pwsh ./modules/06-observe-inventory/validate.ps1 -Offline
 
 Each check prints `PASS` or `FAIL` on one line. A `FAIL` line names the file or rule that failed. Live checks (KQL results, API Center asset, BYO listing) are manual in this version and are not run by the script.
 
+**Question:** the check `KQL selects no body, argument, result or token fields` passes. Why test the query itself, not only the logs?
+
+<details>
+<summary>Show answer</summary>
+
+Because people copy the query. If it selected a body or a token column, it would expose data as soon as someone turned
+payload logging on, and it would suggest doing so. Testing the query keeps the "metadata only" rule in the material itself.
+
+</details>
+
+
 ## Troubleshooting
 
 | Symptom | Likely cause | Fix |

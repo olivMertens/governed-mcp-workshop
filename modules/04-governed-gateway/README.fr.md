@@ -613,6 +613,17 @@ Modes en ligne, après un déploiement approuvé des deux étapes :
 
 Le module n'est `validated` que lorsque tout cela réussit sur un abonnement neuf, juste après les modules 00 à 03.
 
+**Question :** dans les contrôles persona, Bob reçoit HTTP 403 sur `create_ticket`. Le validateur affiche-t-il `PASS` ou `FAIL` ?
+
+<details>
+<summary>Afficher la réponse</summary>
+
+`PASS`. Le contrôle attend 403 pour Bob, qui n'a que `Tools.Read`, et 200 pour Alice, qui a `Tools.Write`. Un validateur
+compare chaque réponse au statut attendu : un refus prévu est une réussite. C'est un 200 pour Bob qui serait l'échec.
+
+</details>
+
+
 ## Dépannage
 
 | Symptôme | Vérification |

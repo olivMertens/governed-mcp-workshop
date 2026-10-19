@@ -408,6 +408,17 @@ depuis Azure CLI **en mémoire seulement**, puis lance les vérifications HTTP c
 ligne PASS ou FAIL. Le module n'est terminé que lorsque ces vérifications réussissent sur un abonnement neuf,
 juste après les modules 00 et 01.
 
+**Question :** le validateur affiche `PASS MCP request without the mcp_extension key is refused (expected HTTP 401)`. Ici, HTTP 401 est-il un bon ou un mauvais résultat ?
+
+<details>
+<summary>Afficher la réponse</summary>
+
+Un bon résultat. Chaque ligne indique le statut attendu. Un 401 sans clé prouve que le point de terminaison n'est pas
+anonyme. Si le serveur répondait 200, ce même contrôle afficherait `FAIL`.
+
+</details>
+
+
 ## Dépannage
 
 | Symptôme | Vérification |

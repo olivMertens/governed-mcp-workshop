@@ -363,6 +363,18 @@ pwsh ./modules/06-observe-inventory/validate.ps1 -Offline
 
 Chaque vérification affiche `PASS` ou `FAIL` sur une ligne. Une ligne `FAIL` indique le fichier ou la règle en cause. Dans cette version, vous faites à la main les vérifications réelles (résultats KQL, asset API Center, entrée BYO) : le script ne les exécute pas.
 
+**Question :** le contrôle `KQL selects no body, argument, result or token fields` passe. Pourquoi tester la requête elle-même, et pas seulement les journaux ?
+
+<details>
+<summary>Afficher la réponse</summary>
+
+Parce que la requête est copiée telle quelle. Si elle sélectionnait une colonne de corps ou de jeton, elle exposerait des
+données dès que quelqu'un activerait la journalisation du contenu, et elle inciterait à le faire. Tester la requête garde
+la règle « métadonnées uniquement » dans le support lui-même.
+
+</details>
+
+
 ## Dépannage
 
 | Symptôme | Cause probable | Correction |
