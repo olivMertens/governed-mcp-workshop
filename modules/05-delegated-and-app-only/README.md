@@ -577,14 +577,10 @@ you continue to module 06 now, keep everything.
 user's identity "through the request chain". But each hop changes what the next service sees, so long chains are harder to
 run and to audit.
 
-```text
-VS Code ---token A--> MCP API ---OBO--> token B ---> API B ---OBO--> token C ---> API C
-         aud: MCP API                   aud: API B                   aud: API C
-         user: Alice                    user: Alice                  user: Alice
-         client: VS Code                client: MCP API              client: API B
-```
+![On-Behalf-Of across three hops: the user Alice is kept, but each hop issues a new token for the next audience and the client becomes the previous API; rules on every hop: no passthrough, consent in advance, MFA relayed back, users only](../../assets/screenshots/diagram-05-obo-hops-en.png)
 
-What each hop keeps, and what it loses:
+<details>
+<summary>Text version: what each hop keeps, and what it loses</summary>
 
 | | Kept | Changed or lost |
 |---|---|---|
@@ -596,9 +592,15 @@ What each hop keeps, and what it loses:
 | MFA and Conditional Access | — | If a downstream API requires MFA, the token endpoint returns a claims challenge. **Every** middle tier must pass it back to the client (HTTP 401 with `WWW-Authenticate`). One missing relay breaks the chain. |
 | App-only caller | — | OBO works only for **users**. An app-only token can't be exchanged; use the app's own identity (client credentials or a managed identity) instead. |
 
+</details>
+
 In this workshop the chain stays short on purpose: one OBO hop, from the MCP server to Graph or Storage.
 
 **Azure RBAC is a separate decision from scopes and app roles.**
+
+![Three different checks: scope (in the token, scp), app role (in the token, roles, enforced by the gateway) and Azure role (not in the token, enforced by Storage at each call)](../../assets/screenshots/diagram-05-rbac-checks-en.png)
+
+In detail:
 
 - `user_impersonation` (a scope) says the MCP API **may act for** Alice. Storage Blob Data Reader (an Azure role) says Alice
   **may read** this container. Storage checks the role on the user, so Bob is refused even with a valid token.
