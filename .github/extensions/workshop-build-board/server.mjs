@@ -13,7 +13,8 @@ function publicAsset(url, root) {
     let type;
     if (/^\/assets\/icons\/(?:azure|microsoft|entra|apim|functions|storage|insights|api-center|subscription|foundry-agent-service|copilot-studio)\.svg$/.test(url) ||
         /^\/assets\/architecture\/(?:00|01|02|03|04|05|06|07|99)\.(?:en|fr)\.svg$/.test(url)) type = "image/svg+xml";
-    else if (/^\/assets\/architecture\/(?:00|01|02|03|04|05|06|07|99)\.(?:en|fr)\.png$/.test(url)) type = "image/png";
+    else if (/^\/assets\/architecture\/(?:00|01|02|03|04|05|06|07|99)\.(?:en|fr)\.png$/.test(url) ||
+        /^\/assets\/screenshots\/azure-0[35]-(?:function-authentication|app-registration-overview|app-roles|enterprise-app-properties|api-permissions|federated-credentials)\.png$/.test(url)) type = "image/png";
     else if (url === "/assets/architecture/workshop.drawio") type = "application/xml";
     else throw new BoardError("not_found", "Unknown public asset.", 404);
     const parts = url.slice("/assets/".length).split("/");

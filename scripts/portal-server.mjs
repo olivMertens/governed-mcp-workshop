@@ -6,8 +6,11 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const entry = fileURLToPath(import.meta.url);
 const icons = ["azure", "microsoft", "entra", "apim", "functions", "storage", "insights", "api-center", "subscription", "foundry-agent-service", "copilot-studio"];
+export const screenshots = ["azure-03-function-authentication", "azure-03-app-registration-overview", "azure-03-app-roles",
+    "azure-03-enterprise-app-properties", "azure-05-api-permissions", "azure-05-federated-credentials"];
 export const publicPaths = ["index.html", "locale-fr.js", "journey.json", ".nojekyll",
-    ...icons.map((icon) => `assets/icons/${icon}.svg`), "assets/architecture/workshop.drawio"];
+    ...icons.map((icon) => `assets/icons/${icon}.svg`), "assets/architecture/workshop.drawio",
+    ...screenshots.map((name) => `assets/screenshots/${name}.png`)];
 for (const module of ["00", "01", "02", "03", "04", "05", "06", "07", "99"]) {
     for (const language of ["en", "fr"]) {
         for (const format of ["svg", "png"]) publicPaths.push(`assets/architecture/${module}.${language}.${format}`);

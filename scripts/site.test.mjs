@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { buildSite } from "./build-site.mjs";
+import { screenshots } from "./portal-server.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 
@@ -20,7 +21,7 @@ test("public site exports only the allowlist, with no capability, root URLs, pri
     t.after(() => rmSync(temporary, { recursive: true, force: true }));
     const output = join(temporary, "public");
     const result = buildSite(root, output);
-    assert.equal(result.files, 52);
+    assert.equal(result.files, 58);
     assert.deepEqual(readdirSync(output).sort(), [".nojekyll", "assets", "index.html", "journey.json", "locale-fr.js"]);
     const html = readFileSync(join(output, "index.html"), "utf8");
     assert.match(html, /const staticSite = "true" === "true"/);
@@ -108,7 +109,8 @@ test("public site exports only the allowlist, with no capability, root URLs, pri
             assert.match(language.documents.implementation.sourcePath, /IMPLEMENTATION-STATUS\.md$/);
         }
     }
-    assert.deepEqual(readdirSync(join(output, "assets")).sort(), ["architecture", "icons"]);
+    assert.deepEqual(readdirSync(join(output, "assets")).sort(), ["architecture", "icons", "screenshots"]);
+    assert.deepEqual(readdirSync(join(output, "assets", "screenshots")).sort(), screenshots.map((name) => `${name}.png`).sort());
     assert.throws(() => buildSite(root, output), { code: "EEXIST" });
 });
 

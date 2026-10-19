@@ -352,6 +352,31 @@ test("Markdown diagram images reuse only published diagrams in the current langu
     }
 });
 
+test("Markdown screenshots render only allowlisted, published portal captures", async () => {
+    const html = readFileSync(new URL("./board.html", import.meta.url), "utf8");
+    const start = html.indexOf("function markdown(");
+    const end = html.indexOf("function disclosure(", start);
+    const list = JSON.parse(/const PORTAL_SCREENSHOTS = (\[[^\]]+\]);/.exec(html)[1].replace(/\s+/g, " "));
+    const { screenshots } = await import("../../../scripts/portal-server.mjs");
+    assert.deepEqual(list, screenshots);
+    for (const name of list) assert.ok(existsSync(new URL(`../../../assets/screenshots/${name}.png`, import.meta.url)));
+    const element = (tag, text) => ({ tag, text, children: [], append(...children) { this.children.push(...children); } });
+    const render = (staticSite) => new Function("element", "state", "language", "architecture", "PORTAL_SCREENSHOTS", "staticSite",
+        `${html.slice(start, end)}; return markdown;`)(element, { modules: [] }, "en", () => assert.fail(), list, staticSite);
+    const body = render(true)("![Real capture](../../assets/screenshots/azure-03-app-roles.png)", "modules/03/README.md");
+    const [link, caption] = body.children[0].children;
+    assert.equal(link.href, "assets/screenshots/azure-03-app-roles.png");
+    assert.equal(link.rel, "noopener noreferrer");
+    assert.equal(link.children[0].alt, "Real capture");
+    assert.equal(caption.text, "Real capture");
+    assert.equal(render(false)("![x](../../assets/screenshots/azure-05-api-permissions.png)", "m.md").children[0].children[0].href,
+        "/assets/screenshots/azure-05-api-permissions.png");
+    for (const path of ["../../assets/screenshots/azure-09-private.png", "../../assets/screenshots/start.en.png",
+        "../../assets/screenshots/azure-03-app-roles.png?x"]) {
+        assert.throws(() => render(true)(`![Not published](${path})`, "m.md"), /published (?:workshop captures|workshop diagram)/);
+    }
+});
+
 test("Markdown alerts preserve blocks, stop adjacent paragraphs, and keep quoted HTML inert", () => {
     const html = readFileSync(new URL("./board.html", import.meta.url), "utf8");
     assert.doesNotMatch(html, /\.notice(?:\.[\w-]+)? strong\s*\{/);
