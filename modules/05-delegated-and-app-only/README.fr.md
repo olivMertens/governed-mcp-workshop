@@ -582,9 +582,61 @@ Si vous passez directement au module 06, conservez tout.
 - Microsoft.Identity.Web propose le même modèle sans secret pour les API ASP.NET Core (`SignedAssertionFromManagedIdentity`) ; ce
   module utilise Azure.Identity, car l'authentification intégrée valide déjà le jeton.
 
+### Bon à savoir : OBO sur plusieurs sauts, et RBAC
+
+**On-Behalf-Of (OBO) peut-il traverser trois sauts ?** Oui. Microsoft Entra ID n'impose pas de limite fixe : OBO est conçu
+pour transmettre l'identité de l'utilisateur « tout au long de la chaîne de requêtes ». Mais chaque saut change ce que voit
+le service suivant : plus la chaîne est longue, plus elle est difficile à exploiter et à auditer.
+
+```text
+VS Code ---jeton A--> API MCP ---OBO--> jeton B ---> API B ---OBO--> jeton C ---> API C
+         aud : API MCP                  aud : API B                  aud : API C
+         utilisateur : Alice            utilisateur : Alice          utilisateur : Alice
+         client : VS Code               client : API MCP             client : API B
+```
+
+Ce que chaque saut conserve, et ce qu'il perd :
+
+| | Conservé | Modifié ou perdu |
+|---|---|---|
+| Jeton | — | Un **nouveau** jeton à chaque saut. Un service ne peut échanger qu'un jeton émis **pour lui-même** (`aud`) ; il ne réutilise ni ne transmet jamais celui qu'il a reçu. |
+| Utilisateur | L'utilisateur (`oid`) et ses scopes délégués | — |
+| Application appelante | — | `azp` (`appid` dans les jetons v1.0) désigne l'application qui a fait le dernier échange. Au 3ᵉ saut, l'API C voit l'API B, **pas** VS Code. Journalisez le client d'origine dès le premier saut si vous en avez besoin. |
+| Droits | Les scopes délégués qui ont été consentis | Les rôles d'application restent attachés à l'utilisateur, **jamais** à l'application qui agit pour lui : un service intermédiaire ne peut pas ajouter ses propres droits à ceux de l'utilisateur. |
+| Consentement | — | Les services intermédiaires ne peuvent pas afficher d'écran de consentement. Le consentement doit exister **à l'avance** pour chaque saut (ici, consentement administrateur). |
+| MFA et accès conditionnel | — | Si une API en aval exige la MFA, le point de terminaison de jeton renvoie un challenge de revendications. **Chaque** service intermédiaire doit le renvoyer au client (HTTP 401 avec `WWW-Authenticate`). Un seul relais manquant casse la chaîne. |
+| Appelant applicatif | — | OBO ne fonctionne que pour des **utilisateurs**. Un jeton applicatif ne peut pas être échangé : utilisez alors l'identité propre de l'application (client credentials ou identité managée). |
+
+Dans cet atelier, la chaîne reste volontairement courte : un seul saut OBO, du serveur MCP vers Graph ou Storage.
+
+**Le RBAC Azure est une décision distincte des scopes et des rôles d'application.**
+
+- `user_impersonation` (un scope) indique que l'API MCP **peut agir pour** Alice. Storage Blob Data Reader (un rôle Azure)
+  indique qu'Alice **peut lire** ce conteneur. Storage vérifie le rôle de l'utilisateur : Bob est donc refusé, même avec un
+  jeton valide.
+- Les rôles d'application (`Tools.Read`, `Tools.Write`) sont définis dans Microsoft Entra ID et figurent dans la revendication
+  `roles` du jeton. Les rôles Azure sont vérifiés par la ressource Azure elle-même et n'apparaissent jamais dans le jeton.
+- L'ajout ou le retrait d'une attribution de rôle Azure peut prendre **jusqu'à 10 minutes**. Pour une identité managée, un
+  changement d'appartenance à un groupe ou à un rôle peut prendre **plusieurs heures**. C'est pourquoi `publish-report.ps1`
+  réessaie, et pourquoi le test avec Bob de cette section peut prendre du retard.
+- Attribuez les rôles au périmètre le plus étroit (ici, le conteneur `reports`) et limitez-les dans le temps quand c'est possible.
+
+**Question :** au 3ᵉ saut, l'API C journalise l'appelant. Quel utilisateur et quel client voit-elle ?
+
+<details>
+<summary>Voir la réponse</summary>
+
+Utilisateur : Alice, avec le même identifiant d'objet (`oid`) qu'au départ. Client : l'API B, car `azp` désigne l'application
+qui a fait le dernier échange. VS Code n'est plus visible au 3ᵉ saut. Pour suivre toute la chaîne, journalisez le client dès
+le premier saut et transmettez un identifiant de corrélation, jamais le jeton.
+
+</details>
+
 ## Sources
 
 - [Plateforme d'identités Microsoft et flux On-Behalf-Of OAuth 2.0](https://learn.microsoft.com/entra/identity-platform/v2-oauth2-on-behalf-of-flow)
+- [Référence des revendications des jetons d'accès (`azp`, `appid`, `roles`)](https://learn.microsoft.com/entra/identity-platform/access-token-claims-reference) et
+  [Résoudre les problèmes de RBAC Azure (délais de propagation)](https://learn.microsoft.com/azure/role-based-access-control/troubleshooting)
 - [Configurer une application pour faire confiance à une identité managée](https://learn.microsoft.com/entra/workload-id/workload-identity-federation-config-app-trust-managed-identity)
 - [Authentification sans certificat avec Microsoft.Identity.Web](https://learn.microsoft.com/entra/msidweb/authentication/certificateless)
 - [Accorder un consentement administrateur à l'échelle du tenant](https://learn.microsoft.com/entra/identity/enterprise-apps/grant-admin-consent)
