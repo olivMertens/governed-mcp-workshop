@@ -2,7 +2,7 @@
 
 > ⚠️ **Work in progress.** Modules 00 and 02 are validated live (2026-10-14 and 2026-10-16).
 > Modules 03 to 06 passed their live operator checks in a test tenant (2026-10-17 and 2026-10-18).
-> They stay *authored* until the Alice, Bob and Eve persona checks pass; in module 03, Alice already passes (2026-10-19).
+> They stay *authored* until the Alice, Bob and Eve persona checks pass; Alice already passes module 03 and module 04 part B (2026-10-19).
 > Modules 01, 07 and 99 are authored and pass their offline checks. Module 01's client-approval observation is still manual.
 > Details: [what is available](docs/IMPLEMENTATION-STATUS.md).
 
@@ -110,7 +110,7 @@ Module 02 deploys real Azure resources: start it only after module 00 validation
 | 01 | 🔍 Discover MCP (no Azure) | ✅ Required | 🟡 Local SDK + Inspector checks pass; manual approval pending | [Open](modules/01-discover-mcp/README.md) · [FR](modules/01-discover-mcp/README.fr.md) |
 | 02 | 🔑 Server protected by a key (level 0) | ✅ Required | 🟢 Validated (live, 2026-10-16) | [Open](modules/02-open-server/README.md) · [FR](modules/02-open-server/README.fr.md) |
 | 03 | 🪪 Microsoft Entra identity (level 1) | ✅ Required | 🟡 Authored; live operator checks pass, persona checks pending (Alice passes) | [Open](modules/03-entra-authentication/README.md) · [FR](modules/03-entra-authentication/README.fr.md) |
-| 04 | 🚪 API Management as the only entry (level 2) | ✅ Required | 🟡 Authored; live operator checks pass, persona checks pending | [Open](modules/04-governed-gateway/README.md) · [FR](modules/04-governed-gateway/README.fr.md) |
+| 04 | 🚪 API Management as the only entry (level 2), optional part B: a REST API exposed as MCP | ✅ Required (part B optional) | 🟡 Authored; live operator checks pass, persona checks pending (Alice passes part B) | [Open](modules/04-governed-gateway/README.md) · [FR](modules/04-governed-gateway/README.fr.md) |
 | 05 | 👤 On-Behalf-Of vs app-only (level 3) | ✅ Required | 🟡 Authored; live operator checks pass, persona checks pending | [Open](modules/05-delegated-and-app-only/README.md) · [FR](modules/05-delegated-and-app-only/README.fr.md) |
 | 06 | 📊 Observe and inventory (level 4) | ✅ Required | 🟡 Authored; live operator checks pass, persona checks pending | [Open](modules/06-observe-inventory/README.md) · [FR](modules/06-observe-inventory/README.fr.md) |
 | 07 | 🤖 Other clients (Foundry, Copilot Studio) | ➕ Optional | 🟡 Authored; offline checks pass, not deployed | [Open](modules/07-clients/README.md) · [FR](modules/07-clients/README.fr.md) |
@@ -145,6 +145,11 @@ See [module 03, persona checks](modules/03-entra-authentication/README.md#steps)
 *Module 03 app roles: what a user or an application may do on the MCP server.*
 See [module 03, check the same result in the Azure portal](modules/03-entra-authentication/README.md#check-the-same-result-in-the-azure-portal).
 
+![Real capture: API Management MCP Servers list with contoso-tickets-mcp (REST API exposed as MCP) and workshop-mcp (existing server)](assets/screenshots/azure-04-mcp-servers.png)
+
+*Module 04: API Management is the only entry. Two MCP servers on one gateway: the Azure Functions server (part A) and a REST API exposed as tools (optional part B).*
+See [module 04, steps](modules/04-governed-gateway/README.md#steps).
+
 ![Real capture: Certificates and secrets blade with zero client secrets and one federated credential](assets/screenshots/azure-05-federated-credentials.png)
 
 *Module 05: no client secret, one federated credential for the On-Behalf-Of exchange.*
@@ -176,6 +181,7 @@ Run the modules in this order. Each row ends with a checkpoint you can show the 
 | 3 | 02 Open server (level 0) | Yes (paid stage, function key only) | Attendee | Anonymous call is refused (401); keyed call works, which shows the risk |
 | 4 | 03 Entra identity (level 1) | Yes, and identity administrator approval | Identity admin, then attendee | Alice and Bob get HTTP 200; a token for another audience is refused |
 | 5 | 04 Governed gateway (level 2) | Yes (billed per hour: deploy and clean up the same day) | Attendee | Bob's `create_ticket` returns HTTP 403; Alice's returns HTTP 200 |
+| 5b | 04 part B, optional: REST API exposed as MCP | Yes, on the same gateway (no new billed resource) | Attendee | Alice lists the two tools built from REST operations; a call without a token returns HTTP 401 |
 | 6 | 05 On-Behalf-Of vs app-only (level 3) | Yes, and identity administrator consent | Identity admin, then attendee | Bob's user-context report read returns `isError: true`; the app-only read gives the same result for Alice and Bob |
 | 7 | 06 Observe and inventory (level 4) | Yes | Attendee | Logs show tool, caller, status and latency (no bodies) |
 | 8 | 07 Other clients (optional) | Optional | Attendee | Foundry or Copilot Studio calls the governed endpoint |
@@ -192,7 +198,7 @@ Run the modules in this order. Each row ends with a checkpoint you can show the 
 
 The board has three parts: **Start** (environment, concepts, overview) · **Main route** (modules in order,
 optional ones are marked) · **Resources** (practice, Azure context, governance, architecture, sources). A
-**Facilitators and authors** menu holds the presenter guide and the hosting guide. Switch **EN / FR** at the top.
+**Facilitators and authors** menu holds the presenter guide, the Session 2 page on integration options and the hosting guide. Switch **EN / FR** at the top.
 
 Each module page reads **one step at a time**: use **Next** and **Previous**, or **Outline** to jump to a step.
 Below the steps:
