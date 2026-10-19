@@ -9,7 +9,7 @@ Prouver qu'une requête sans clé reçoit HTTP 401 et qu'une requête avec la cl
 Constater ensuite le risque : **toute personne qui détient la clé peut appeler l'outil d'écriture `create_ticket`.**
 
 > [!WARNING]
-> Le niveau 0 sert uniquement à montrer ce risque. Gardez-le peu de temps, ne rendez jamais le point de terminaison
+> Le niveau 0 sert uniquement à montrer ce risque. Ne le laissez en place que peu de temps, ne rendez jamais le point de terminaison
 > anonyme, et passez au module 03 (Microsoft Entra ID) puis au module 04 (API Management) pour le corriger.
 
 ## Pourquoi c'est important
@@ -26,7 +26,7 @@ il conserve `System`. Ne copiez jamais `Anonymous` dans un serveur protégé seu
 
 ## Ce que vous déployez
 
-Tout est créé dans votre groupe de ressources d'atelier, depuis `infra/workload` avec `enable_mcp_server = true` :
+Terraform crée tout dans le groupe de ressources de votre atelier, depuis `infra/workload` avec `enable_mcp_server = true` :
 
 | Ressource | Rôle | Réglage de sécurité |
 |---|---|---|
@@ -51,8 +51,8 @@ Les cinq outils (toutes les données sont synthétiques) :
 | `get_service_health` | lecture | État fixe pour `workshop-api` ou `ticket-queue` |
 | `create_ticket` | **écriture** | Vérifie `service`, `severity` et un court `summary`, puis place un ticket synthétique dans la file |
 | `whoami` | démonstration | Indique que l'appelant est inconnu : une clé n'identifie personne |
-| `read_report_as_user` | démonstration | Rapport synthétique étiqueté ; l'appel On-Behalf-Of réel est ajouté au module 05 |
-| `read_report_as_app` | démonstration | Rapport synthétique étiqueté ; l'appel réel par identité managée est ajouté au module 05 |
+| `read_report_as_user` | démonstration | Rapport synthétique étiqueté ; le vrai appel On-Behalf-Of arrive au module 05 |
+| `read_report_as_app` | démonstration | Rapport synthétique étiqueté ; le vrai appel par identité managée arrive au module 05 |
 
 Chaque outil refuse les arguments inconnus. `create_ticket` n'écrit rien si les arguments n'ont pas exactement la forme attendue.
 Les journaux contiennent seulement le nom de l'outil, le résultat, la durée et l'identifiant d'invocation :
@@ -60,12 +60,12 @@ jamais les arguments, les résultats, les clés ni les jetons.
 
 ![Architecture du niveau 0](../../assets/architecture/02.fr.svg)
 
-Aucune fonctionnalité en **Preview** n'est utilisée. Le code et l'infrastructure adaptent
+Aucune fonctionnalité en **Preview** n'est utilisée. Le code et l'infrastructure sont adaptés de
 [Azure-Samples/remote-mcp-functions-dotnet](https://github.com/Azure-Samples/remote-mcp-functions-dotnet/tree/468c518c884ec318e3001b9573254c9e775409c9)
 (MIT) ; voir [THIRD-PARTY-NOTICES.md](../../THIRD-PARTY-NOTICES.md).
 
 **Coût :** Flex Consumption facture les exécutions et le temps de mémoire utilisé, plus les transactions de stockage et
-l'ingestion de télémétrie. Le plan peut descendre à zéro instance et monte au plus à 10 instances, sans instance toujours prête.
+l'ingestion de télémétrie. Le plan peut descendre à zéro instance et monter jusqu'à 10 instances, sans instance toujours prête.
 Vérifiez les prix actuels dans votre région avant de demander l'accord. Nettoyez le jour même. Le stockage privé
 facultatif ajoute deux points de terminaison privés (facturés à l'heure et au Go traité) et deux zones DNS privées.
 
@@ -80,7 +80,7 @@ Rôles Azure sur le groupe de ressources de l'atelier (demandez-les à votre adm
 
 - **Contributor** pour créer les ressources, lire la clé système et publier le code.
 - **Role Based Access Control Administrator**, idéalement avec une condition qui n'autorise que les trois rôles
-  ci-dessus, pour créer les trois attributions. Contributor seul ne peut pas attribuer de rôle.
+  ci-dessus, pour créer les trois attributions. Le rôle Contributor seul ne permet pas d'attribuer des rôles.
 
 Aucune modification Microsoft Entra n'est nécessaire dans ce module.
 
@@ -128,7 +128,7 @@ Les étapes 3 à 6 modifient Azure : faites-les uniquement après accord.
 > PASS contexte : tenant et abonnement vérifiés. Variables ARM définies dans ce processus uniquement. Aucune ressource créée ; ce contrôle ne valide pas le module 00.
 > ```
 >
-> **Ce que cela signifie pour vous :** une connexion dans le navigateur s'ouvre après la saisie de `NONPROD`. Les commandes
+> **Ce que cela signifie pour vous :** après la saisie de `NONPROD`, une fenêtre de connexion s'ouvre dans le navigateur. Les commandes
 > suivantes lisent `$env:ARM_TENANT_ID` et `$env:ARM_SUBSCRIPTION_ID` dans ce terminal : gardez-le ouvert pendant tout le module.
 
 **3. Activez le module en privé, puis lancez le plan.** Le fichier d'activation est ignoré par Git. Ajoutez votre plage
@@ -192,8 +192,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Terraform apply failed.' }
 
 Si vous avez activé `mcp_private_storage = true`, vérifiez-le dans le portail Azure : ouvrez le compte de stockage, puis
 **Security + networking → Networking** (captures réelles, 2026-10-19, tenant de test de l'auteur ; noms pseudonymisés,
-ID remplacés par des zéros ; portail en anglais ; les cadres roses montrent quoi vérifier). Sélectionnez une image pour
-l'ouvrir en grand.
+ID remplacés par des zéros ; portail en anglais ; les cadres roses indiquent ce qu'il faut vérifier). Cliquez sur une image pour
+l'agrandir.
 
 ![Capture réelle : page Networking du compte de stockage, onglet Public access, accès réseau public à Disabled](../../assets/screenshots/azure-02-storage-public-access.png)
 
@@ -201,7 +201,7 @@ l'ouvrir en grand.
 
 L'accès réseau public est **désactivé** (*Disabled*) : la Function App n'atteint les blobs et les files d'attente que par
 les deux points de terminaison privés approuvés. Cela protège le stockage derrière le serveur ; le point de terminaison MCP
-reste, lui, ouvert avec une clé.
+reste, lui, accessible avec une simple clé.
 
 **5. Publiez le code du serveur.** Azure CLI utilise votre connexion Microsoft Entra ; il n'existe aucun mot de passe de publication.
 
@@ -319,7 +319,7 @@ az functionapp keys set --resource-group $group --name $app --key-type systemKey
 > **Résultat réel** — renouvellement de la clé dans l'abonnement de test de l'auteur, 2026-10-16.
 > Aucune sortie (`--output none`) ; `$LASTEXITCODE` valait 0. La nouvelle valeur n'est jamais affichée.
 >
-> **Ce que cela signifie pour vous :** toute ancienne copie de la clé reçoit désormais HTTP 401, y compris votre session VS Code.
+> **Ce que cela signifie pour vous :** tout appel avec l'ancienne clé reçoit désormais HTTP 401, y compris depuis votre session VS Code.
 
 **Question :** après le renouvellement, un collègue a encore l'ancienne clé dans une configuration enregistrée. Que se passe-t-il
 quand il appelle le serveur, et qu'est-ce que cela vous apprend sur les clés ?
@@ -367,7 +367,7 @@ Utilisez la même configuration VS Code qu'à l'étape 6.
 | `initialize`, puis `tools/list` avec la clé | HTTP 200, cinq outils | Le serveur fonctionne en Streamable HTTP. |
 | `create_ticket` avec la clé | HTTP 200, `status: queued`, un `warning` | **Le risque :** ni utilisateur, ni rôle, ni approbation côté serveur. |
 | `whoami` | `caller: unknown` | Une clé ne porte aucune identité. |
-| `read_report_as_*` | `source: synthetic-demonstration` | L'accès réel en aval est ajouté au module 05. |
+| `read_report_as_*` | `source: synthetic-demonstration` | Le vrai accès en aval arrive au module 05. |
 
 Le validateur en ligne affiche notamment :
 
@@ -390,7 +390,7 @@ Ouvrez ces liens au moment du contrôle correspondant ci-dessus. Ils expliquent 
 | `create_ticket` renvoie `status: queued` | Le ticket est fictif, mais l'envoi du message est un effet réel après déploiement. [Autoriser Queue Storage avec Entra](https://learn.microsoft.com/azure/storage/queues/authorize-access-azure-active-directory) explique l'identité distincte utilisée en aval. | [QueueClient.SendMessageAsync](https://learn.microsoft.com/dotnet/api/azure.storage.queues.queueclient.sendmessageasync), appelé par l'adaptateur de file de tickets. |
 | `whoami` est inconnu ; `read_report_as_*` reste une démonstration | [Autorisation MCP dans App Service](https://learn.microsoft.com/azure/app-service/configure-authentication-mcp) explique la protection du serveur ajoutée au module 03. Les métadonnées de ressource protégée sont en **Preview**. | Aucun appel à Graph ni à l'API Blob du rapport à cette étape. Le module 05 ajoute ces appels réels ; une clé Functions ne prouve pas un accès utilisateur. |
 
-Lire ces références n'approuve aucun déploiement, n'exige de divulguer aucune clé et n'active aucun accès anonyme.
+Lire ces références n'approuve aucun déploiement, ne vous demande de divulguer aucune clé et n'active aucun accès anonyme.
 Liens documentaires vérifiés le 2026-10-16.
 
 ## Valider
@@ -414,14 +414,14 @@ juste après les modules 00 et 01.
 | Clé vide | Le code n'est pas encore publié ou l'hôte n'a pas démarré. Publiez (étape 5), attendez une minute, puis réessayez. |
 | HTTP 403 | Votre adresse IP n'est pas dans `mcp_allowed_ip_ranges`. Modifiez le fichier privé et relancez le plan. |
 | HTTP 404 sur `/runtime/webhooks/mcp` | La publication a échoué ou a utilisé le mauvais dossier. Vérifiez l'état du déploiement dans le portail. |
-| L'hôte ne démarre pas / erreurs de stockage | Les attributions de rôle peuvent prendre quelques minutes. Vérifiez les trois attributions ; n'activez jamais les clés partagées. |
+| L'hôte ne démarre pas / erreurs de stockage | Les attributions de rôle peuvent mettre quelques minutes à s'appliquer. Vérifiez les trois attributions ; n'activez jamais les clés partagées. |
 | Échec de publication : `BlobUploadFailedException ... 403 (This request is not authorized)` | L'accès réseau public du stockage est `Disabled`, souvent imposé par une Azure Policy. Définissez `mcp_private_storage = true`, relancez le plan, appliquez-le, puis republiez le code. |
 | Le plan propose de supprimer le serveur | Vous avez oublié `-var-file=..\..\.workshop\module02.tfvars.json`. |
 | Erreur d'outil `Unexpected argument` | Les outils n'acceptent que leurs arguments documentés. C'est voulu. |
 
 ## Nettoyer
 
-Lancez le nettoyage après l'exercice. Il génère un plan avec le module désactivé. Il refuse de continuer si ce plan contient autre chose
+Lancez le nettoyage après l'exercice. Il établit un plan avec le module désactivé. Il refuse de continuer si ce plan contient autre chose
 que la suppression de ressources du module 02 (réseau de stockage privé facultatif compris) ou le seul retrait
 de l'indication `WORKSHOP_MCP_ENDPOINT` du portail. Lancez-le une première fois pour relire le plan, puis relancez-le avec `-Apply`.
 Il est idempotent : s'il ne reste rien, il le dit et ne change rien.
@@ -486,7 +486,7 @@ vous pouvez garder le serveur et sauter le nettoyage ; le module 03 remplace la 
 
 - Limitez les appelants avec `mcp_allowed_ip_ranges` et observez HTTP 403 depuis un autre réseau.
 - Renouvelez la clé et constatez que l'ancienne session VS Code reçoit HTTP 401.
-- Lisez le [modèle de menaces](../../docs/fr/concepts/mcp-threat-model.md) : quelles menaces une clé ne traite-t-elle pas ?
+- Lisez le [modèle de menaces](../../docs/fr/concepts/mcp-threat-model.md) : contre quelles menaces une clé ne protège-t-elle pas ?
 - Suite : [module 03](../03-entra-authentication/README.fr.md).
 
 ## Sources

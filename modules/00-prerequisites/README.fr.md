@@ -33,7 +33,7 @@ Commencez par [choisir votre environnement de travail](../../docs/fr/GETTING-STA
 **Raccourci facultatif :** le [Microsoft Foundry Dev Pack](https://devblogs.microsoft.com/foundry/foundry-devpack-announcement/),
 en anglais, peut installer en une seule fois Azure CLI, Azure Developer CLI (`azd`) et l'extension Foundry
 (Windows : `winget install Microsoft.FoundryDevPack`). Il n'installe **pas** Terraform, le SDK .NET, Node.js,
-PowerShell ni Functions Core Tools : gardez donc les outils de la liste de référence. Lancez ensuite `scripts/check-tools.ps1` : il doit toujours indiquer Azure CLI 2.88.0 ou plus récent. Sinon, installez Azure CLI par la méthode habituelle.
+PowerShell ni Functions Core Tools : gardez donc les outils de la liste de référence. Lancez ensuite `scripts/check-tools.ps1` : il doit indiquer Azure CLI 2.88.0 ou plus récent. Sinon, installez Azure CLI par la méthode habituelle.
 Utilisez uniquement un annuaire Microsoft Entra et un abonnement Azure autorisés pour des tests hors production.
 L'annuaire contient les identités ; l'abonnement contient les ressources facturées.
 
@@ -41,7 +41,7 @@ Si votre administrateur vous fournit un groupe de ressources, utilisez-le. Ne de
 Propriétaire (Owner) sur tout l'abonnement pour simplifier l'exercice.
 Aucun droit d'administration Entra n'est nécessaire à cette étape. La
 [demande destinée à l'administrateur](../../docs/requests/identity-request.md), en anglais,
-prépare les besoins du module 03.
+liste ce dont le module 03 aura besoin.
 
 ## Étapes
 
@@ -96,7 +96,7 @@ Pour un groupe existant, ajoutez `-ExistingResourceGroupName` avec son nom dès 
 `prepare-workshop.ps1`. Conservez le fichier de paramètres privé et l'état Terraform jusqu'au nettoyage.
 
 Le sélecteur vous demande les identifiants de l'annuaire et de l'abonnement, puis la confirmation `NONPROD`.
-Il ouvre la connexion à Azure, puis sélectionne l'abonnement. **Gardez le même terminal pour la suite.**
+Il vous connecte à Azure, puis sélectionne l'abonnement. **Gardez le même terminal pour la suite.**
 
 > [!WARNING]
 > Ne copiez aucune clé, aucun jeton ni aucune information de compte dans le tableau, le dépôt ou la conversation.
@@ -133,7 +133,7 @@ Si vous travaillez dans l'un d'eux, lancez les contrôles à l'intérieur : un t
 <summary>Afficher la réponse</summary>
 
 Non. Le contrôle préalable lit seulement les droits, les fournisseurs et la capacité. Des refus explicites, Azure Policy et
-les quotas partagés peuvent encore bloquer un déploiement. Chaque plan Terraform réel doit aussi être relu et approuvé à part.
+les quotas partagés peuvent encore bloquer un déploiement. Il faut aussi relire et faire approuver, à part, chaque plan Terraform réel.
 
 </details>
 
@@ -150,7 +150,7 @@ laisseraient des ressources orphelines et ne remettraient aucun quota à zéro.
 ## Vérifier avant de poursuivre
 
 Exécutez `validate.ps1` ou `validate.sh` dans l'abonnement de test approuvé.
-Vérifiez aussi que la demande Entra est comprise et pourra être transmise en privé à l'administrateur.
+Vérifiez aussi que vous comprenez la demande Entra et que vous pourrez la transmettre en privé à l'administrateur.
 Passez au module 01 seulement quand chaque contrôle affiche `PASS`.
 
 ## En cas de problème
@@ -250,10 +250,10 @@ Leur réussite ne valide **ni votre abonnement Azure ni le conteneur**.
 <details>
 <summary>Préparer une étape payante ultérieure</summary>
 
-Les options `-Stage portal` et `-Stage mcp` demandent une vérification privée de capacité et de coût,
-fournie avec `-CapacityReviewPath`. Consultez le [guide d'hébergement](../../docs/fr/HOSTING.md).
+Les options `-Stage portal` et `-Stage mcp` exigent une revue privée de la capacité et du coût,
+à fournir avec `-CapacityReviewPath`. Consultez le [guide d'hébergement](../../docs/fr/HOSTING.md).
 Le mode `mcp` prépare les besoins futurs : il ne valide pas les services qui restent à construire.
-Il vérifie aussi la possibilité d'attribuer des rôles. Confiez ces attributions à l'administrateur,
+Il vérifie aussi que des rôles peuvent être attribués. Confiez ces attributions à l'administrateur,
 dans une étape séparée, plutôt que d'élargir les droits de tous les participants.
 
 </details>
@@ -263,9 +263,9 @@ Consultez aussi les [explications sur la sécurité](../../docs/fr/LEARNING-GUID
 
 ## Sources
 
-- [Installation Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli).
+- [Installer Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli).
 - [Terraform sur Azure](https://learn.microsoft.com/azure/developer/terraform/overview).
-- [Installation PowerShell](https://learn.microsoft.com/powershell/scripting/install/installing-powershell).
+- [Installer PowerShell](https://learn.microsoft.com/powershell/scripting/install/installing-powershell).
 - [.NET 10](https://dotnet.microsoft.com/download/dotnet/10.0).
 - [Outils Functions](https://learn.microsoft.com/azure/azure-functions/functions-run-local).
 - [API des autorisations](https://learn.microsoft.com/rest/api/authorization/permissions/list-for-resource-group).

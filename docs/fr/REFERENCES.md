@@ -3,7 +3,7 @@
 Ces liens officiels permettent d'approfondir les sujets abordés. Vous n'avez pas besoin de tout lire pour commencer :
 suivez d'abord le guide du module. Les synthèses françaises sont originales ;
 les pages externes peuvent rester en anglais. La vérification des sources ne prouve pas qu'un déploiement fonctionne.
-Le [registre technique original](../sources.md) détaille aussi chaque fichier inspecté et les limites de réutilisation.
+Le [registre technique](../sources.md), en anglais, détaille aussi chaque fichier inspecté et les limites de réutilisation.
 
 ## Choisir son poste et isoler ses ressources
 
@@ -27,12 +27,12 @@ Dernière vérification : 2026-10-14. Aucun moteur de conteneurs n'était dispon
 
 | Source | Version / instantané | Usage et limite |
 |---|---|---|
-| [Functions .NET](https://github.com/Azure-Samples/remote-mcp-functions-dotnet/tree/468c518c884ec318e3001b9573254c9e775409c9) | `468c518c884ec318e3001b9573254c9e775409c9` | Base serveur, MIT ; conserver les notices en cas d'adaptation. Le host.json amont, en mode Anonymous, ne convient pas au module 02. |
-| [SDK C#](https://github.com/modelcontextprotocol/csharp-sdk/tree/6fa3825973949a9c4f0cd8af344e15a8db09dc35) | 2.2.0, `6fa3825973949a9c4f0cd8af344e15a8db09dc35` | Introduction stdio ; transition de licences Apache-2.0/MIT à vérifier fichier par fichier. Documentation CC-BY-4.0. |
+| [Functions .NET](https://github.com/Azure-Samples/remote-mcp-functions-dotnet/tree/468c518c884ec318e3001b9573254c9e775409c9) | `468c518c884ec318e3001b9573254c9e775409c9` | Base du serveur, MIT ; conserver les notices en cas d'adaptation. Le host.json amont, en mode Anonymous, ne convient pas au module 02. |
+| [SDK C#](https://github.com/modelcontextprotocol/csharp-sdk/tree/6fa3825973949a9c4f0cd8af344e15a8db09dc35) | 2.2.0, `6fa3825973949a9c4f0cd8af344e15a8db09dc35` | Initiation à stdio ; transition de licences Apache-2.0/MIT à vérifier fichier par fichier. Documentation CC-BY-4.0. |
 | [AI Gateway labs](https://github.com/Azure-Samples/AI-Gateway/tree/1679e3137d2fe7592d2a668d77ff71550d35b69e) | `1679e3137d2fe7592d2a668d77ff71550d35b69e` | Modèles PRM, stratégies et inventaire, MIT. Pas d'import de catalogues ni de notebooks complets. |
 | [Inspector 2.9.0](https://github.com/modelcontextprotocol/inspector/tree/ae865a19178ddf6f375780a02e9c77c4cf4da184) | Installation vérifiée | Commandes du tableau, identifiants en mémoire uniquement et négociation du protocole. |
 | [Release Inspector 2.11.0](https://github.com/modelcontextprotocol/inspector/releases/tag/2.11.0) | Version candidate pour comparaison | Release GitHub disponible, mais paquet absent du registre configuré lors du test. Aucun changement silencieux de version ou de registre. |
-| [Spécification MCP](https://modelcontextprotocol.io/specification/2026-07-28) | 2026-07-28 | Référence de l'atelier ; vérifier le protocole réellement pris en charge par chaque client. |
+| [Spécification MCP](https://modelcontextprotocol.io/specification/2026-07-28) | 2026-07-28 | Référence de l'atelier ; vérifier la version du protocole que chaque client prend réellement en charge. |
 
 </details>
 
@@ -40,11 +40,11 @@ Dernière vérification : 2026-10-14. Aucun moteur de conteneurs n'était dispon
 
 - [Module 00 publié](../../modules/00-prerequisites/README.fr.md), [hébergement public facultatif](HOSTING.md) et [demande administrateur](../requests/identity-request.md).
 - [Terraform 1.16.6](https://releases.hashicorp.com/terraform/1.16.6/) : binaire de test vérifié avec l'empreinte officielle ; conteneur toujours à construire.
-- [Autorisations effectives ARM](https://learn.microsoft.com/rest/api/authorization/permissions/list-for-resource-group) : actions moins exclusions par enregistrement, pagination limitée au même périmètre.
-- [Node App Service](https://learn.microsoft.com/azure/app-service/configure-language-nodejs), [déploiement Entra](https://learn.microsoft.com/azure/app-service/deploy-authentication-types), [paquet en lecture seule](https://learn.microsoft.com/azure/app-service/deploy-run-package) : B1 facultatif, publication par authentification de base désactivée, aucune clé.
+- [Autorisations effectives ARM](https://learn.microsoft.com/rest/api/authorization/permissions/list-for-resource-group) : actions moins exclusions, entrée par entrée ; pagination limitée au même périmètre.
+- [Node App Service](https://learn.microsoft.com/azure/app-service/configure-language-nodejs), [déploiement Entra](https://learn.microsoft.com/azure/app-service/deploy-authentication-types), [paquet en lecture seule](https://learn.microsoft.com/azure/app-service/deploy-run-package) : plan B1 facultatif, publication par authentification de base désactivée, aucune clé.
 - [Choisir tenant et abonnement](https://learn.microsoft.com/cli/azure/manage-azure-subscriptions-azure-cli) : contexte Azure CLI.
 - [Connexion interactive](https://learn.microsoft.com/cli/azure/authenticate-azure-cli-interactively) : navigateur et authentification multifacteur, jamais de mot de passe dans une commande.
-- [Attribution de rôles Azure](https://learn.microsoft.com/azure/role-based-access-control/role-assignments-cli) : autorité distincte et portée minimale.
+- [Attribution de rôles Azure](https://learn.microsoft.com/azure/role-based-access-control/role-assignments-cli) : autorisation distincte et périmètre minimal.
 - [AzureRM 5.9.0](https://registry.terraform.io/providers/hashicorp/azurerm/5.9.0/docs), [AzureAD 3.10.0](https://registry.terraform.io/providers/hashicorp/azuread/3.10.0), [AzAPI 2.13.0](https://registry.terraform.io/providers/Azure/azapi/2.13.0) : versions candidates, combinaison non validée.
 - [Création Codespaces](https://docs.github.com/en/codespaces/developing-in-a-codespace/creating-a-codespace-for-a-repository) et [ports privés](https://docs.github.com/en/codespaces/developing-in-a-codespace/forwarding-ports-in-your-codespace) : budget et origine de la redirection OAuth.
 
@@ -70,7 +70,7 @@ Dernière vérification : 2026-10-14. Aucun moteur de conteneurs n'était dispon
 - [Autorisation MCP App Service](https://learn.microsoft.com/azure/app-service/configure-authentication-mcp) : PRM en **Preview**.
 - [Parcours VS Code](https://learn.microsoft.com/azure/app-service/configure-authentication-mcp-server-vscode) : reprendre la préautorisation, pas la création de secret.
 - [Tutoriel Functions MCP](https://learn.microsoft.com/azure/azure-functions/functions-mcp-tutorial) : extension MCP retenue ; variante auto-hébergée (**Preview**) non retenue.
-- [Rôles applicatifs](https://learn.microsoft.com/entra/identity-platform/howto-add-app-roles-in-apps) : affectation utilisateur distincte du consentement délégué.
+- [Rôles applicatifs](https://learn.microsoft.com/entra/identity-platform/howto-add-app-roles-in-apps) : l'affectation d'un utilisateur est distincte du consentement délégué.
 
 ## 04 - Passerelle et réseau privé
 
@@ -88,28 +88,28 @@ Dernière vérification : 2026-10-14. Aucun moteur de conteneurs n'était dispon
 
 ## 06 - Télémétrie et inventaire
 
-- [APIM et Application Insights](https://learn.microsoft.com/azure/api-management/api-management-howto-app-insights) : diagnostics sans corps.
-- [Enregistrement API Center](https://learn.microsoft.com/azure/api-center/register-discover-mcp-server) : URL gouvernée uniquement.
+- [APIM et Application Insights](https://learn.microsoft.com/azure/api-management/api-management-howto-app-insights) : diagnostics sans corps de message.
+- [Enregistrement API Center](https://learn.microsoft.com/azure/api-center/register-discover-mcp-server) : uniquement l'URL de la passerelle.
 - [BYO MCP Microsoft 365, option 06b](https://learn.microsoft.com/microsoft-365/admin/manage/manage-byo-mcp-server) : **Preview**, licences et éligibilité à revérifier, démonstration seulement.
 
 ## 07 - Clients facultatifs
 
 - [Authentification Foundry](https://learn.microsoft.com/azure/foundry/agents/how-to/mcp-authentication) : contexte utilisateur ou application ; certains flux en **Preview**.
-- [Copilot Studio MCP](https://learn.microsoft.com/microsoft-copilot-studio/mcp-add-existing-server-to-agent) : reporter le flux manuel exigeant un secret client.
+- [Copilot Studio MCP](https://learn.microsoft.com/microsoft-copilot-studio/mcp-add-existing-server-to-agent) : reporter le flux manuel s'il exige un secret client.
 
 ## 99 - Nettoyage
 
-- [Terraform destroy](https://developer.hashicorp.com/terraform/cli/commands/destroy) : vérifier la portée et le plan avant approbation.
+- [Terraform destroy](https://developer.hashicorp.com/terraform/cli/commands/destroy) : vérifier le périmètre et le plan avant approbation.
 - [Rôles Azure](https://learn.microsoft.com/azure/role-based-access-control/role-assignments-cli) : distinguer les affectations créées des objets fournis.
 
 ## Publier le portail sans accès aux tenants
 
-[Guide de publication et d'hébergement](HOSTING.md) : Pages pour les guides, Terraform privé pour les ressources.
+[Guide de publication et d'hébergement](HOSTING.md) : GitHub Pages pour les guides, Terraform privé pour les ressources.
 Le portail ne collecte pas les clés Azure et n'exécute aucun déploiement pour le visiteur.
 
-- [Workflow Pages officiel](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages), [source de publication](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site) : uniquement un artefact statique autorisé, lancé manuellement.
-- [OIDC GitHub vers Azure](https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/configuring-openid-connect-in-azure) : fédération éventuelle dans un pipeline de participant, pas de secret partagé.
-- [Authentification App Service](https://learn.microsoft.com/azure/app-service/overview-authentication-authorization), [authentification ACA](https://learn.microsoft.com/azure/container-apps/authentication) : services et cibles distincts, approbation préalable.
+- [Workflow Pages officiel](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages), [source de publication](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site) : workflow lancé manuellement, qui publie uniquement un artefact statique autorisé.
+- [OIDC GitHub vers Azure](https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/configuring-openid-connect-in-azure) : fédération facultative dans le pipeline d'un participant, sans secret partagé.
+- [Authentification App Service](https://learn.microsoft.com/azure/app-service/overview-authentication-authorization), [authentification ACA](https://learn.microsoft.com/azure/container-apps/authentication) : services et cibles distincts, à faire approuver au préalable.
 
 Dernière vérification : 2026-10-14. Aucune publication ni modification Azure/Entra effectuée.
 

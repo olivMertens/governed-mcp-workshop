@@ -2,8 +2,8 @@
 
 [English](../../concepts/obo-and-managed-identity.md)
 
-Utilisez le [schéma du module 05](../../../assets/architecture/05.fr.svg). Les deux parcours entrent par API
-Management (APIM). Seule l'identité utilisée pour l'appel en aval change.
+Utilisez le [schéma du module 05](../../../assets/architecture/05.fr.svg). Les deux parcours passent par API
+Management (APIM). Seule change l'identité utilisée pour l'appel en aval.
 
 | Propriété | On-Behalf-Of (OBO) | Identité managée |
 |---|---|---|
@@ -18,7 +18,7 @@ Management (APIM). Seule l'identité utilisée pour l'appel en aval change.
 
 Choisissez OBO si le service en aval doit appliquer les droits de l'utilisateur ou conserver son contexte d'audit.
 Choisissez l'identité managée si tous les appelants autorisés doivent recevoir le même résultat applicatif.
-Documentez ce choix pour chaque outil. L'accès applicatif ne doit jamais contourner un droit utilisateur manquant.
+Documentez ce choix pour chaque outil. L'accès applicatif ne doit jamais servir à compenser un droit que l'utilisateur n'a pas.
 
 Alice a le rôle Storage Blob Data Reader, pas Bob. `read_report_as_user` réussit donc pour Alice et échoue pour Bob.
 L'identité managée dispose de ce rôle sur un seul conteneur, qui contient le rapport synthétique ; `read_report_as_app` renvoie le
@@ -26,7 +26,7 @@ même rapport aux deux utilisateurs.
 
 ## Résultat attendu
 
-Vous savez prédire les quatre résultats Alice/Bob et dire quels droits Storage applique. Chaque appel en
+Vous savez prédire les quatre résultats pour Alice et Bob et dire quels droits Storage applique. Chaque appel en
 aval utilise un nouveau jeton pour sa propre audience. Aucun secret client, aucun rôle attribué sur tout l'abonnement, aucun
 repli sur l'identité du développeur.
 

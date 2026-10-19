@@ -3,14 +3,14 @@
 [English](../../concepts/scopes-and-app-roles.md)
 
 L'authentification identifie l'appelant. Un scope délégué indique ce qu'un client peut demander pour un utilisateur
-connecté. Un rôle applicatif indique quelle opération un utilisateur ou une application affectés peuvent exécuter.
+connecté. Un rôle applicatif, affecté à un utilisateur ou à une application, indique quelle opération celui-ci peut exécuter.
 L'approbation humaine autorise un appel précis. Ces contrôles sont complémentaires.
 
 | Contrôle | Revendication | Exemple | Question |
 |---|---|---|---|
 | Scope délégué | `scp` | `user_impersonation` | Ce client peut-il appeler MCP pour Alice ? |
 | Rôle applicatif | `roles` | `Tools.Read`, `Tools.Write` | Alice peut-elle exécuter cette opération ? |
-| Approbation client | Trace du client | Approuver `create_ticket` | L'humain approuve-t-il cette écriture maintenant ? |
+| Approbation client | Trace du client | Approuver `create_ticket` | La personne approuve-t-elle cette écriture, ici et maintenant ? |
 
 ## Alice, Bob et Eve
 
