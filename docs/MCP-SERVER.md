@@ -17,8 +17,9 @@ responses**, captured on 2026-10-19 in the author's test tenant. Names are pseud
 | Data | Synthetic only: two services (`workshop-api`, `ticket-queue`) and one report (`monthly-usage`) |
 | Tools | Five: four read tools and one write tool |
 
-On 2026-10-19, the author's test tenant runs the **module 03** state: the module 02 server, protected by Microsoft Entra
-built-in authentication. The module 04 gateway was cleaned up, and the module 05 mode is off.
+The real answers on this page were captured at the **module 03** level: Microsoft Entra sign-in in front of the server,
+no gateway yet, module 05 not enabled. Your own answers depend on the module you have reached; the next section shows what
+changes at each level.
 
 ### What sits behind the server
 
