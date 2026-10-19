@@ -199,8 +199,8 @@ Below the steps:
 
 - **Try this stage**: the validator command to copy, and a hint.
 - **Go further (optional)**: the architecture diagram, prerequisites and why the boundary matters.
-- **Whole guide on one page**: the same content as the steps, all at once, to search with Ctrl+F or print.
-  It adds nothing new; skip it if you follow the steps.
+- **Download as PDF**: opens the print dialog with the whole module (answers and captures included).
+  Choose **Save as PDF** to keep it offline, annotate it or share it. Nothing is generated on the server.
 
 ## 🧪 Try your MCP
 
