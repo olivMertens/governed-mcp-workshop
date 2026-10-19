@@ -357,6 +357,10 @@ Utilise le serveur MCP workshop-entra. Liste ses outils, puis appelle get_servic
 <details>
 <summary>Comment faire dans VS Code, clic par clic</summary>
 
+![Capture réelle : VS Code, MCP: Open User Configuration dans la palette de commandes ; le serveur workshop-entra dans mcp.json avec Running au-dessus ; MCP: List Servers affiche workshop-entra Running et la sortie indique Discovered 5 tools](../../assets/screenshots/client-03-vscode.png)
+
+*Capture réelle, 2026-10-19, un VS Code vierge connecté en tant qu'Alice. A : ouvrir la configuration utilisateur (cadre 1). B : l'entrée du serveur et son état **Running** (cadres 2 et 3). C : **MCP: List Servers** et la sortie du serveur, qui se termine par **Discovered 5 tools**.*
+
 1. Récupérez l'URL dans votre terminal : `terraform -chdir=infra/workload output -raw mcp_endpoint`.
 2. Appuyez sur **Ctrl+Maj+P** (macOS : **Cmd+Maj+P**) et lancez **MCP: Open User Configuration**. Collez le JSON
    ci-dessus, remplacez l'espace réservé par votre URL, puis enregistrez le fichier.

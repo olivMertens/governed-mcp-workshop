@@ -307,11 +307,32 @@ Dans le portail Azure, cherchez **API Center**, ouvrez le centre API que vous av
 1. Ouvrez votre centre API et sélectionnez **Assets**.
 2. Choisissez **+ Register an asset**, puis **MCP server**.
 3. Saisissez un titre, un résumé et une description. Utilisez un texte fictif, par exemple « Contoso governed MCP demo ».
-4. Sous **Remotes**, ajoutez l'URL d'exécution du point de terminaison MCP d'API Management et choisissez un environnement.
-5. Ajoutez une version, une étape de cycle de vie et une licence.
-6. Choisissez **Create**. API Center génère les définitions SSE et Streamable.
+4. Sous **Remotes**, choisissez **Add remote**. Collez l'URL de la passerelle affichée par la dernière commande ci-dessus,
+   choisissez l'environnement **API Management gateway**, puis **Save**.
+5. Sous **Version title**, saisissez `v1` et choisissez le cycle de vie **Development**. La licence est facultative.
+6. Choisissez **Create**. API Center génère les définitions MCP (SSE, et Streamable d'après la documentation).
 
 Contrôle : l'asset apparaît dans **Assets** avec l'environnement choisi.
+
+![Capture réelle : API Center, Assets, Register an asset, MCP server ; puis le panneau MCP Remote avec l'URL de la passerelle et l'environnement API Management gateway ; puis le nouvel asset MCP dans la liste](../../assets/screenshots/azure-06-apic-register.png)
+
+*Capture réelle, 2026-10-19, tenant de test de l'auteur (noms pseudonymisés). Cadres 1 à 3 : ouvrir le formulaire.
+Cadres 4 à 6 : ajouter l'URL d'exécution. Cadre 7 : l'asset apparaît comme **MCP**, cycle de vie **Development**.*
+
+Vérifiez aussi que l'URL d'exécution a bien été enregistrée. Dans le tenant de test de l'auteur, **Create** a créé l'asset
+mais a renvoyé une erreur pour l'URL d'exécution (HTTP 400), et seule une définition SSE a été générée. Si l'asset n'a
+aucun déploiement, ajoutez-le depuis votre terminal, avec les mêmes noms que ci-dessus :
+
+```powershell
+$server = Join-Path $env:TEMP 'apic-server.json'
+@{ runtimeUri = @((terraform -chdir=infra/workload output -raw gateway_mcp_endpoint)) } | ConvertTo-Json -Compress | Set-Content $server
+az apic api deployment list --resource-group $group --service-name $apic --api-id contoso-governed-mcp-demo --query "[].name" --output tsv
+az apic api deployment create --resource-group $group --service-name $apic --api-id contoso-governed-mcp-demo --deployment-id gateway --title "API Management gateway" --environment-id /workspaces/default/environments/gateway --definition-id /workspaces/default/apis/contoso-governed-mcp-demo/versions/v1/definitions/default-sse --server "@$server"
+Remove-Item $server
+```
+
+> **Résultat attendu** — la première commande n'affiche rien (pas encore de déploiement). La seconde affiche le nouveau
+> déploiement `gateway` en JSON. Utilisez l'identifiant (`contoso-governed-mcp-demo`) et la version (`v1`) de votre formulaire.
 
 **Question :** le serveur a maintenant sa fiche (asset) dans API Center. Eve peut-elle l'appeler parce qu'elle le voit dans le catalogue ?
 
