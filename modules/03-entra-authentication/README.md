@@ -137,6 +137,9 @@ Run from the repository root. Steps 2 to 7 change Microsoft Entra or Azure: do t
 
 **2. Identity administrator: sign in to the tenant only.** Use a separate terminal. `--allow-no-subscriptions` is enough.
 
+Your tenant ID is the one you entered in module 00 (`$env:ARM_TENANT_ID` in that terminal). You can also read it in
+**Microsoft Entra admin center → Overview → Tenant ID**, or with `az account show --query tenantId -o tsv`.
+
 ```powershell
 az login --tenant <tenant-id> --allow-no-subscriptions
 ```
@@ -148,6 +151,15 @@ az login --tenant <tenant-id> --allow-no-subscriptions
 
 **3. Identity administrator: private parameters.** Use the participant's prefix, suffix, owner and expiry (received
 privately) and the three test account object IDs. The file is ignored by Git.
+
+Get the three object IDs first. Replace `<your-domain>` with your tenant's domain (for example `contoso.onmicrosoft.com`),
+or read each **Object ID** in **Microsoft Entra admin center → Users → (user) → Overview**:
+
+```powershell
+foreach ($name in 'alice', 'bob', 'eve') { az ad user show --id "$name@<your-domain>" --query "{user:userPrincipalName, id:id}" -o tsv }
+```
+
+> **Expected result** — three lines: the user principal name, then its object ID (a GUID). Paste each GUID below.
 
 ```powershell
 $p = Get-Content -LiteralPath .\.workshop\participant.tfvars.json -Raw | ConvertFrom-Json
@@ -589,8 +601,8 @@ Clean up in reverse order. Each script plans first and refuses any change outsid
 Remove-Item -LiteralPath .\.workshop\module03.tfvars.json, .\.workshop\module03-personas.json -ErrorAction SilentlyContinue
 Remove-Item -LiteralPath .\.workshop\az-alice, .\.workshop\az-bob, .\.workshop\az-eve -Recurse -ErrorAction SilentlyContinue
 # Identity administrator: delete only workshop-created Entra objects (never provided apps or users).
-& .\modules\03-entra-authentication\cleanup.ps1 -TenantId <tenant-id> -Scope Entra
-& .\modules\03-entra-authentication\cleanup.ps1 -TenantId <tenant-id> -Scope Entra -Apply
+& .\modules\03-entra-authentication\cleanup.ps1 -TenantId $env:ARM_TENANT_ID -Scope Entra
+& .\modules\03-entra-authentication\cleanup.ps1 -TenantId $env:ARM_TENANT_ID -Scope Entra -Apply
 ```
 
 > **Expected result** — from the clean-up script messages; not yet a capture. Terraform's own apply lines are elided.
@@ -624,7 +636,7 @@ Remove-Item -LiteralPath .\.workshop\az-alice, .\.workshop\az-bob, .\.workshop\a
 
 ```bash
 bash ./modules/03-entra-authentication/cleanup.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId "$ARM_SUBSCRIPTION_ID" -Apply
-bash ./modules/03-entra-authentication/cleanup.sh -TenantId "<tenant-id>" -Scope Entra -Apply
+bash ./modules/03-entra-authentication/cleanup.sh -TenantId "$ARM_TENANT_ID" -Scope Entra -Apply
 ```
 
 > **Expected result** — the same PASS and PLAN lines as the PowerShell `-Apply` runs above.

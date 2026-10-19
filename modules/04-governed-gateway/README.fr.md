@@ -717,7 +717,8 @@ Remove-Item -LiteralPath .\.workshop\module04b.tfvars.json -ErrorAction Silently
 Remove-Item -LiteralPath .\.workshop\module04.tfvars.json -ErrorAction SilentlyContinue
 Remove-Item -LiteralPath .\.workshop\module04b.tfvars.json -ErrorAction SilentlyContinue
 # Facultatif, pour réutiliser le nom sous 48 heures (suppression réversible d'API Management) :
-az apim deletedservice purge --service-name apim-mcp-<prefix>-<suffix> --location <region>
+$p = Get-Content -LiteralPath .\.workshop\participant.tfvars.json -Raw | ConvertFrom-Json
+az apim deletedservice purge --service-name "apim-mcp-$($p.participant_prefix)-$($p.resource_suffix)" --location $p.location
 ```
 
 > **Résultat attendu** — d'après les messages du script de nettoyage et la forme de sortie Terraform ; non exécuté par l'auteur (extrait).

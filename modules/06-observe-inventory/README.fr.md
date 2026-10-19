@@ -173,11 +173,15 @@ requests
 La requête utilise les noms de tables d'Application Insights (`requests`, `customDimensions`) : exécutez-la dans le
 périmètre de ce composant Application Insights, pas sur son espace de travail Log Analytics, où les mêmes données se trouvent dans la table `AppRequests`.
 
-PowerShell, depuis le dossier du dépôt (extension Azure CLI `application-insights` : `az extension add --name application-insights`) :
+**Dans le portail Azure :** cherchez `appi-mcp-<prefix>-<suffix>` (votre ressource Application Insights, affichée par la
+première ligne de la commande ci-dessous), ouvrez-la, sélectionnez **Surveillance → Journaux** (**Monitoring → Logs**),
+passez l'éditeur en **mode KQL**, collez la requête puis sélectionnez **Exécuter** (**Run**).
+
+**Ou depuis votre terminal.** PowerShell, depuis le dossier du dépôt (extension Azure CLI `application-insights` : `az extension add --name application-insights`) :
 
 ```powershell
-$ai = '<application-insights-name>'
-$group = '<resource-group>'
+$ai = (terraform -chdir=infra/workload output -json resource_names | ConvertFrom-Json).application_insights
+$group = terraform -chdir=infra/workload output -raw resource_group_name
 # '@file' lets the Azure CLI read the query file itself: on Windows a multi-line argument is cut at its first line.
 az monitor app-insights query --app $ai --resource-group $group --offset 24h `
   --analytics-query '@modules/06-observe-inventory/queries/mcp-traffic.kql' --query 'tables[0].rows' -o json
@@ -232,7 +236,7 @@ nom du client, rien d'autre.
 bash :
 
 ```bash
-ai='<application-insights-name>'; group='<resource-group>'
+ai=$(terraform -chdir=infra/workload output -json resource_names | jq -r .application_insights); group=$(terraform -chdir=infra/workload output -raw resource_group_name)
 az monitor app-insights query --app "$ai" --resource-group "$group" --offset 24h \
   --analytics-query '@modules/06-observe-inventory/queries/mcp-traffic.kql' --query 'tables[0].rows' -o json
 ```
@@ -348,6 +352,11 @@ Sans jeton valide ni le bon rôle, la passerelle refuse Eve.
 ### Étape 5 - Confirmer l'entrée BYO (Préversion)
 
 L'entrée BYO MCP est en **Préversion** et n'est pas destinée à la production. Un administrateur informatique du tenant l'examine et l'approuve dans le centre d'administration Microsoft 365. En tant que participant, vous vérifiez seulement que l'entrée existe et que son statut est celui défini par l'administrateur. Vous ne l'approuvez pas vous-même.
+
+Où regarder : connectez-vous au [centre d'administration Microsoft 365](https://admin.microsoft.com/), puis sélectionnez
+**Agents → Outils** (**Agents → Tools**) et l'onglet **Registre** (**Registry**) ; les demandes en attente sont dans l'onglet
+**Demandes** (**Requests**). Il faut un rôle d'administrateur pour le consulter : sinon, demandez à l'administrateur de vous
+montrer l'entrée.
 
 Contrôle : l'entrée affiche le nom du serveur et un état d'approbation. Cet état ne prouve pas que le serveur est sûr : ce sont toujours les modules 04 et 05 qui appliquent les contrôles.
 
