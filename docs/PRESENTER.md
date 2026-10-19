@@ -9,17 +9,17 @@ but stay authored until the Alice, Bob and Eve persona checks pass. Modules 01, 
 See [PROGRESS.md](PROGRESS.md) for the evidence. Follow the run order in the [root README](../README.md).
 Students can run [module 01](../modules/01-discover-mcp/README.md) without waiting for your portal or Azure deployment.
 
-## Before the session: checklist
+## Before the session
 
-- [ ] **Register MFA for Alice, Bob and Eve.** Test tenants may require multifactor authentication (MFA).
-  Sign in once with each test account and register a method (for example an authenticator app).
-  Never weaken Conditional Access to skip it. Without this step, persona checks stop at the sign-in prompt.
-- [ ] **Renew the capacity review before deploying the portal.** The portal preflight accepts a capacity review less than
-  24 hours old only ([review capacity privately](HOSTING.md#review-capacity-privately)). Do it on the deployment day.
-- [ ] **Plan API Management (module 04) for one day.** Standard v2 is billed per hour while it exists
-  (roughly USD 1 per hour at the time of writing; check the pricing calculator for your region).
-  Deploy it the same day you teach module 04 and clean it up that day.
-- [ ] Open the real captures listed below, so you can fall back on them if a live step cannot run.
+1. **Register MFA for Alice, Bob and Eve.** Test tenants may require multifactor authentication (MFA).
+   Sign in once with each test account and register a method (for example an authenticator app).
+   Never weaken Conditional Access to skip it. Without this step, persona checks stop at the sign-in prompt.
+2. **Renew the capacity review before deploying the portal.** The portal preflight accepts a capacity review less than
+   24 hours old only ([review capacity privately](HOSTING.md#review-capacity-privately)). Do it on the deployment day.
+3. **Plan API Management (module 04) for one day.** Standard v2 is billed per hour while it exists
+   (roughly USD 1 per hour at the time of writing; check the pricing calculator for your region).
+   Deploy it the same day you teach module 04 and clean it up that day.
+4. Open the real captures listed below, so you can fall back on them if a live step cannot run.
 
 ## Real captures to use as a fallback
 
