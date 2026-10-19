@@ -142,6 +142,10 @@ Run from the repository root. Steps 2 to 5 change Azure or Microsoft Entra: do t
 **2. Private workload opt-in file (ignored by Git).** Take Alice's and Bob's object IDs from the identity administrator
 (`infra/entra` output `workload_module05_tfvars`).
 
+If you run `infra/entra` yourself, write the file directly from its output instead:
+`terraform -chdir=infra/entra output -json workload_module05_tfvars | Set-Content -LiteralPath .\.workshop\module05.tfvars.json`.
+Otherwise, use the commands below with the two object IDs the administrator sent you.
+
 ```powershell
 @{ enable_delegated_access = $true; delegated_persona_object_ids = @{ alice = '<alice-object-id>'; bob = '<bob-object-id>' } } |
     ConvertTo-Json | Set-Content -LiteralPath .\.workshop\module05.tfvars.json
@@ -228,6 +232,9 @@ if ($LASTEXITCODE -ne 0) { throw 'Cannot read the administrator handoff.' }
 Until step 4 is done, `whoami` and `read_report_as_user` fail closed (tool error): the API does not trust the identity yet.
 
 **4. Identity administrator: federated credential, permissions, consent.** In the administrator's own terminal and state:
+
+The principal ID is printed at the end of step 3. You can read it again with
+`terraform -chdir=infra/workload output -raw delegated_obo_identity_principal_id` (participant terminal); send it to the administrator.
 
 ```powershell
 @{ enable_delegated_access = $true; obo_identity_principal_id = '<principal-id-from-step-3>'; grant_downstream_admin_consent = $true } |

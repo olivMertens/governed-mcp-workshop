@@ -91,10 +91,10 @@ flowchart LR
 
 ```powershell
 # 1. Rapport seul (par défaut). Lisez chaque plan. Rien ne change.
-pwsh ./modules/99-cleanup/cleanup.ps1 -TenantId <guid-tenant> -SubscriptionId <guid-abonnement>
+pwsh ./modules/99-cleanup/cleanup.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID
 
 # 2. Appliquer après avoir relu chaque rapport.
-pwsh ./modules/99-cleanup/cleanup.ps1 -TenantId <guid-tenant> -SubscriptionId <guid-abonnement> -Apply
+pwsh ./modules/99-cleanup/cleanup.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID -Apply
 ```
 
 > **Résultat réel** — mode rapport, 2026-10-19, tenant de test de l'auteur avec les modules 02 et 03 déployés, la
@@ -145,10 +145,10 @@ pwsh ./modules/99-cleanup/cleanup.ps1 -TenantId <guid-tenant> -SubscriptionId <g
 
 ```bash
 # 1. Rapport seul (par défaut).
-./modules/99-cleanup/cleanup.sh --tenant-id <guid-tenant> --subscription-id <guid-abonnement>
+./modules/99-cleanup/cleanup.sh --tenant-id "$ARM_TENANT_ID" --subscription-id "$ARM_SUBSCRIPTION_ID"
 
 # 2. Appliquer après relecture.
-./modules/99-cleanup/cleanup.sh --tenant-id <guid-tenant> --subscription-id <guid-abonnement> --apply
+./modules/99-cleanup/cleanup.sh --tenant-id "$ARM_TENANT_ID" --subscription-id "$ARM_SUBSCRIPTION_ID" --apply
 ```
 
 > **Résultat attendu** — les mêmes lignes `SKIP`, `-->`, `PLAN`, `PASS` et `DONE` que l'exécution PowerShell ci-dessus ; le script bash appelle `cleanup.ps1`.
@@ -161,7 +161,8 @@ pwsh ./modules/99-cleanup/cleanup.ps1 -TenantId <guid-tenant> -SubscriptionId <g
 4. Lancez la vérification des tags ci-dessous.
 
 ```powershell
-az resource list --tag workshop=mcp-<prefix>-<suffix> --query "[].{name:name, type:type}" -o table
+$p = Get-Content -LiteralPath ./.workshop/participant.tfvars.json -Raw | ConvertFrom-Json
+az resource list --tag "workshop=mcp-$($p.participant_prefix)-$($p.resource_suffix)" --query "[].{name:name, type:type}" -o table
 ```
 
 > **Résultat attendu** — établi d'après le format tableau d'Azure CLI ; ce n'est pas une capture faite après un nettoyage complet.
