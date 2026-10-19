@@ -1,0 +1,107 @@
+<!--
+  Module 04 optional part B - policy at MCP server scope for "contoso-tickets-mcp" (a REST API exposed as MCP tools).
+  Rendered by infra/workload/rest-mcp.tf with Terraform templatefile() (non-secret values only).
+  Microsoft Learn: policies at MCP server scope apply to every tool of the server, and must never access the response
+  body (it buffers the stream). This policy reads neither the request body nor the response body:
+  both tools (list_tickets, get_ticket) are read-only, so any MCP call requires Tools.Read or Tools.Write.
+
+  Token validation and 401 challenge adapted from Azure-Samples/AI-Gateway, lab mcp-prm-oauth
+  (src/bicep/apim-mcp/mcp-api.policy.xml) at commit 1679e3137d2fe7592d2a668d77ff71550d35b69e,
+  MIT License, Copyright (c) Microsoft Corporation. See THIRD-PARTY-NOTICES.md.
+  Workshop changes: one audience only (the module 03 MCP API), allowed client applications, required user_impersonation
+  scope, app-role check, rate limit per caller object ID, optional IP filter and a payload-free trace.
+-->
+<policies>
+  <inbound>
+    <base />
+%{ if length(ip_ranges) > 0 ~}
+    <!-- Optional network filter, the same ranges as part A. Non-matching sources get HTTP 403. -->
+    <ip-filter action="allow">
+%{ for range in ip_ranges ~}
+      <address-range from="${range.from}" to="${range.to}" />
+%{ endfor ~}
+    </ip-filter>
+%{ endif ~}
+    <!-- Platform token validation (invariant 3): tenant, signature, expiry, audience = the MCP API only,
+         an allowed client application and the delegated scope. No hand-written JWT parsing. -->
+    <validate-azure-ad-token tenant-id="${tenant_id}" header-name="Authorization" failed-validation-httpcode="401" failed-validation-error-message="Unauthorized. A Microsoft Entra access token for the MCP API is required." output-token-variable-name="mcp-jwt">
+      <client-application-ids>
+%{ for client_id in client_ids ~}
+        <application-id>${client_id}</application-id>
+%{ endfor ~}
+      </client-application-ids>
+      <audiences>
+%{ for audience in audiences ~}
+        <audience>${audience}</audience>
+%{ endfor ~}
+      </audiences>
+      <required-claims>
+        <claim name="scp" match="any" separator=" ">
+          <value>user_impersonation</value>
+        </claim>
+      </required-claims>
+    </validate-azure-ad-token>
+    <!-- Caller identity comes only from the validated token, never from a header the caller can set. -->
+    <set-variable name="mcp-caller-oid" value="@{
+        var claims = ((Jwt)context.Variables["mcp-jwt"]).Claims;
+        return claims.ContainsKey("oid") ? claims["oid"][0] : string.Empty;
+    }" />
+    <choose>
+      <when condition="@(string.IsNullOrEmpty((string)context.Variables["mcp-caller-oid"]))">
+        <return-response>
+          <set-status code="403" reason="Forbidden" />
+          <set-header name="Content-Type" exists-action="override">
+            <value>application/json</value>
+          </set-header>
+          <set-body>{"error":"forbidden","error_description":"A user token with an object ID is required."}</set-body>
+        </return-response>
+      </when>
+    </choose>
+    <!-- One counter per caller object ID, the same limit as part A, in a separate counter. -->
+    <rate-limit-by-key calls="${rate_limit_calls}" renewal-period="${rate_limit_period}" counter-key="@("workshop-rest-mcp-oid-" + (string)context.Variables["mcp-caller-oid"])" />
+    <!-- Payload-free trace (invariant 7): caller object ID only. Never arguments, results, prompts or tokens. -->
+    <trace source="workshop-rest-mcp" severity="information">
+      <message>rest-mcp-request</message>
+      <metadata name="caller-oid" value="@((string)context.Variables["mcp-caller-oid"])" />
+    </trace>
+    <!-- App roles say what this user may do (invariant 4). Both tools are read-only: Tools.Read or Tools.Write. -->
+    <choose>
+      <when condition="@{
+          var claims = ((Jwt)context.Variables["mcp-jwt"]).Claims;
+          string[] roles = claims.ContainsKey("roles") ? claims["roles"] : new string[0];
+          return !(Array.IndexOf(roles, "Tools.Read") >= 0 || Array.IndexOf(roles, "Tools.Write") >= 0);
+      }">
+        <return-response>
+          <set-status code="403" reason="Forbidden" />
+          <set-header name="Content-Type" exists-action="override">
+            <value>application/json</value>
+          </set-header>
+          <set-body>{"error":"forbidden","error_description":"The Contoso Tickets tools require the app role Tools.Read or Tools.Write."}</set-body>
+        </return-response>
+      </when>
+    </choose>
+  </inbound>
+  <backend>
+    <base />
+  </backend>
+  <outbound>
+    <base />
+  </outbound>
+  <on-error>
+    <base />
+    <choose>
+      <when condition="@(context.LastError != null ? context.LastError.Source == "validate-azure-ad-token" : false)">
+        <return-response>
+          <set-status code="401" reason="Unauthorized" />
+          <set-header name="WWW-Authenticate" exists-action="override">
+            <value>Bearer resource_metadata="${resource_metadata_url}"</value>
+          </set-header>
+          <set-header name="Content-Type" exists-action="override">
+            <value>application/json</value>
+          </set-header>
+          <set-body>{"error":"invalid_token","error_description":"A Microsoft Entra access token for the MCP API is required."}</set-body>
+        </return-response>
+      </when>
+    </choose>
+  </on-error>
+</policies>

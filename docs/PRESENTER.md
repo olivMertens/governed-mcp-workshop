@@ -21,6 +21,8 @@ Students can run [module 01](../modules/01-discover-mcp/README.md) without waiti
    Deploy it the same day you teach module 04 and clean it up that day.
 4. Open the real captures listed below, so you can fall back on them if a live step cannot run.
 
+Talk track for the architecture session: [Session 2 - integrate and expose MCP](INTEGRATION-OPTIONS.md) (hosting options, the two API Management patterns, demo 3, registry, Global Administrator checks).
+
 ## Real captures to use as a fallback
 
 Each module shows real captures from the author's test tenant at the step where they apply.
