@@ -306,11 +306,32 @@ In the Azure portal, search for **API Center**, open the API center you created,
 1. Open your API center and choose **Assets**.
 2. Choose **+ Register an asset**, then **MCP server**.
 3. Enter a title, a summary and a description. Use synthetic text, for example "Contoso governed MCP demo".
-4. Under **Remotes**, add the runtime URL of the API Management MCP endpoint and choose an environment.
-5. Add a version, a lifecycle stage and a license.
-6. Choose **Create**. API Center generates SSE and Streamable definitions.
+4. Under **Remotes**, choose **Add remote**. Paste the gateway URL printed by the last command above, choose the
+   environment **API Management gateway**, then **Save**.
+5. Under **Version title**, enter `v1` and choose the lifecycle **Development**. The license is optional.
+6. Choose **Create**. API Center generates the MCP definitions (SSE, and Streamable according to the documentation).
 
 Check: the asset appears in **Assets** with the environment you selected.
+
+![Real capture: API Center Assets, Register an asset, MCP server; then the MCP Remote panel with the gateway URL and the API Management gateway environment; then the new MCP asset in the list](../../assets/screenshots/azure-06-apic-register.png)
+
+*Real capture, 2026-10-19, author's test tenant (names pseudonymised). Frames 1 to 3: open the form. Frames 4 to 6: add
+the remote. Frame 7: the asset is listed as **MCP**, lifecycle **Development**.*
+
+Check that the remote was saved too. In the author's test tenant, **Create** registered the asset but returned an error
+for the remote (HTTP 400), and only an SSE definition was generated. If the asset has no deployment, add it from your
+terminal. It uses the same names as above:
+
+```powershell
+$server = Join-Path $env:TEMP 'apic-server.json'
+@{ runtimeUri = @((terraform -chdir=infra/workload output -raw gateway_mcp_endpoint)) } | ConvertTo-Json -Compress | Set-Content $server
+az apic api deployment list --resource-group $group --service-name $apic --api-id contoso-governed-mcp-demo --query "[].name" --output tsv
+az apic api deployment create --resource-group $group --service-name $apic --api-id contoso-governed-mcp-demo --deployment-id gateway --title "API Management gateway" --environment-id /workspaces/default/environments/gateway --definition-id /workspaces/default/apis/contoso-governed-mcp-demo/versions/v1/definitions/default-sse --server "@$server"
+Remove-Item $server
+```
+
+> **Expected result** — the first command prints nothing (no deployment yet). The second one prints the new `gateway`
+> deployment as JSON. Use the identification (`contoso-governed-mcp-demo`) and version (`v1`) shown in your form.
 
 **Question:** the server now has an API Center asset. Can Eve call it because she can see it in the catalog?
 
