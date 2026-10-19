@@ -5,7 +5,7 @@
 This guide supports a 4-hour core workshop. Modules 00 and 02 are validated live. Modules 03 to 06 passed their live
 operator checks in a test tenant but stay authored until the Alice, Bob and Eve persona checks pass.
 Modules 01, 07 and 99 are authored (offline checks pass). Timings describe the planned delivery and must not be presented
-as validation evidence. Use [PROGRESS.md](PROGRESS.md) for status.
+as validation evidence.
 
 ## Before participants arrive - 30 minutes
 

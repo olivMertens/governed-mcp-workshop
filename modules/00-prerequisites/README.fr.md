@@ -16,8 +16,7 @@ Les noms propres à chaque participant limitent les conflits, mais n'augmentent 
 > Utilisez uniquement un tenant et un abonnement **hors production** approuvés. N'exécutez jamais l'atelier
 > en production ni dans le tenant de quelqu'un d'autre.
 
-Consultez les [schémas étape par étape](../../assets/architecture/STEPS.fr.md) et
-[ce qui est réellement disponible](../../docs/fr/IMPLEMENTATION-STATUS.md).
+Consultez les [schémas étape par étape](../../assets/architecture/STEPS.fr.md).
 Un schéma explique l'objectif ; il ne prouve pas que des identités ou des ressources ont été déployées.
 
 ## Ce que vous déployez
@@ -151,9 +150,8 @@ laisseraient des ressources orphelines et ne remettraient aucun quota à zéro.
 ## Vérifier avant de poursuivre
 
 Exécutez `validate.ps1` ou `validate.sh` dans l'abonnement de test approuvé.
-Notez la date, le type d'environnement et les lignes `PASS` non sensibles dans `docs/PROGRESS.md`.
 Vérifiez aussi que la demande Entra est comprise et pourra être transmise en privé à l'administrateur.
-Ne passez au module 01 qu'après la réussite de cette validation réelle.
+Passez au module 01 seulement quand chaque contrôle affiche `PASS`.
 
 ## En cas de problème
 

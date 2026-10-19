@@ -602,7 +602,7 @@ keep everything.
   layer uses it?
 - As Bob, call `create_ticket` in VS Code. It works: why is that a problem, and which module fixes it?
 - Read the [scopes and app roles](../../docs/concepts/scopes-and-app-roles.md) and [token chain](../../docs/concepts/token-chain.md) concepts.
-- Next: [module 04 plan](../../docs/BUILD-PLAN.md#04--api-management-as-the-only-entry-point-level-2).
+- Next: [module 04](../04-governed-gateway/README.md).
 
 ## Sources
 

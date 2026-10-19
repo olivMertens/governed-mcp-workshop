@@ -479,7 +479,7 @@ workshop explanations, not copies of external documentation. The latter records 
 
 Last verified: 2026-10-14. [English diagrams](../assets/architecture/STEPS.md) and
 [French diagrams](../assets/architecture/STEPS.fr.md) are generated from the same Draw.io source as the SVG/PNG.
-The [implementation status](IMPLEMENTATION-STATUS.md) distinguishes code from real Azure validation.
+
 
 - [GitHub Mermaid blocks](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/creating-diagrams):
   native Markdown rendering; use ordinary flowcharts, not plugins, remote images or diagrams sent to external services.

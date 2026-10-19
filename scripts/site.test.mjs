@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
-import { buildSite } from "./build-site.mjs";
+import { buildSite, authorOnlyDocuments } from "./build-site.mjs";
 import { screenshots } from "./portal-server.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
@@ -106,9 +106,10 @@ test("public site exports only the allowlist, with no capability, root URLs, pri
                 assert.match(path, /^assets\/architecture\//);
                 assert.ok(existsSync(join(output, path)));
             }
-            assert.match(language.documents.implementation.sourcePath, /IMPLEMENTATION-STATUS\.md$/);
+            for (const key of authorOnlyDocuments) assert.ok(!Object.hasOwn(language.documents, key), `${key} must not be published`);
         }
     }
+    assert.ok(!Object.hasOwn(journey, "openDecisions"));
     assert.deepEqual(readdirSync(join(output, "assets")).sort(), ["architecture", "icons", "screenshots"]);
     assert.deepEqual(readdirSync(join(output, "assets", "screenshots")).sort(), screenshots.map((name) => `${name}.png`).sort());
     assert.throws(() => buildSite(root, output), { code: "EEXIST" });
