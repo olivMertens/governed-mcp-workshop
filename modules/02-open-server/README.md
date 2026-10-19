@@ -397,6 +397,17 @@ With `-TenantId` and `-SubscriptionId`, it checks the context, reads the endpoin
 from Azure CLI **in memory only**, and runs the HTTP checks above. Every check prints one PASS or FAIL line.
 The module is done only when the live checks pass on a fresh subscription right after modules 00 and 01.
 
+**Question:** the validator prints `PASS MCP request without the mcp_extension key is refused (expected HTTP 401)`. Is HTTP 401 a good or a bad result here?
+
+<details>
+<summary>Show answer</summary>
+
+A good one. Each line states the status it expects. A 401 without the key proves the endpoint is not anonymous. If the
+server answered 200 here, the same check would print `FAIL`.
+
+</details>
+
+
 ## Troubleshooting
 
 | Symptom | Check |

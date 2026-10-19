@@ -6,7 +6,7 @@
   <meta name="color-scheme" content="light dark">
   <title>Workshop build board</title>
   <style>
-    :root { color-scheme: light; --paper: #f5f8fd; --surface: #fff; --ink: #172c48; --muted: #526783; --line: #d5dfed; --blue: #0067b8; --indigo: #383ba4; --wash: #edf6fc; --gold: #ffe38c; --success: #14704b; --error: #b32336; font-family: "Segoe UI", "Helvetica Neue", sans-serif; }
+    :root { color-scheme: light; --paper: #f5f8fd; --surface: #fff; --ink: #172c48; --muted: #526783; --line: #d5dfed; --blue: #0067b8; --indigo: #383ba4; --wash: #edf6fc; --gold: #ffe38c; --success: #14704b; --tip: #8a5d00; --error: #b32336; font-family: "Segoe UI", "Helvetica Neue", sans-serif; }
     * { box-sizing: border-box; }
     body { margin: 0; background: var(--paper); color: var(--ink); font-size: 15px; line-height: 1.65; }
     a { color: var(--blue); text-underline-offset: 3px; }
@@ -143,14 +143,15 @@
     .notice.warning > strong { color: #896300; }
     .notice.caution { border-left-color: var(--error); }
     .notice.caution > strong { color: var(--error); }
-    .notice.tip { border-left-color: var(--success); }
-    .notice.tip > strong { color: var(--success); }
+    .notice.tip { border-left-color: var(--tip); }
+    .notice.tip > strong { color: var(--tip); }
     .notice.important { border-left-color: #7650b3; }
     .notice.important > strong { color: #7650b3; }
     .notice.read-first > strong { color: var(--blue); }
     p.question { position: relative; border-left: 3px solid #7650b3; padding: 8px 12px 8px 40px; background: var(--wash); }
     p.question > svg { position: absolute; left: 12px; top: 10px; color: #7650b3; }
-    details.answer > summary > svg { color: var(--success); vertical-align: -3px; margin-right: 6px; }
+    details.answer > summary > svg { color: var(--tip); vertical-align: -3px; margin-right: 6px; }
+    details.answer.reveal > summary > svg { color: #7650b3; }
     .result-box .result-body > p:first-child > svg { vertical-align: -3px; margin-right: 6px; }
     .notice.read-first .secondary { margin-top: 12px; }
     .exercise > h2 { display: flex; align-items: center; gap: 10px; }
@@ -187,21 +188,21 @@
     details .document, .document details { font-size: 15px; }
     details p { white-space: pre-wrap; overflow-wrap: anywhere; }
     @media (prefers-color-scheme: dark) {
-      :root:not([data-theme="light"]) { color-scheme: dark; --paper: #172339; --surface: #1e2d45; --ink: #eef3ff; --muted: #b1c1db; --line: #405474; --blue: #8fbaff; --wash: #273f64; --success: #7cddb0; --error: #ff9fa8; }
+      :root:not([data-theme="light"]) { color-scheme: dark; --paper: #172339; --surface: #1e2d45; --ink: #eef3ff; --muted: #b1c1db; --line: #405474; --blue: #8fbaff; --wash: #273f64; --success: #7cddb0; --tip: #f5c84c; --error: #ff9fa8; }
       :root:not([data-theme="light"]) .primary { background: #245ed2; color: #fff; }
       :root:not([data-theme="light"]) .notice.warning { border-left-color: #f5cd68; }
       :root:not([data-theme="light"]) .notice.warning > strong { color: #f5cd68; }
       :root:not([data-theme="light"]) .notice.important { border-left-color: #c9a9ff; }
       :root:not([data-theme="light"]) .notice.important > strong { color: #c9a9ff; }
-      :root:not([data-theme="light"]) p.question { border-left-color: #c9a9ff; } :root:not([data-theme="light"]) p.question > svg { color: #c9a9ff; }
+      :root:not([data-theme="light"]) p.question { border-left-color: #c9a9ff; } :root:not([data-theme="light"]) p.question > svg, :root:not([data-theme="light"]) details.reveal > summary > svg { color: #c9a9ff; }
     }
-    :root[data-theme="dark"] { color-scheme: dark; --paper: #172339; --surface: #1e2d45; --ink: #eef3ff; --muted: #b1c1db; --line: #405474; --blue: #8fbaff; --wash: #273f64; --success: #7cddb0; --error: #ff9fa8; }
+    :root[data-theme="dark"] { color-scheme: dark; --paper: #172339; --surface: #1e2d45; --ink: #eef3ff; --muted: #b1c1db; --line: #405474; --blue: #8fbaff; --wash: #273f64; --success: #7cddb0; --tip: #f5c84c; --error: #ff9fa8; }
     :root[data-theme="dark"] .primary { background: #245ed2; color: #fff; }
     :root[data-theme="dark"] .notice.warning { border-left-color: #f5cd68; }
     :root[data-theme="dark"] .notice.warning > strong { color: #f5cd68; }
     :root[data-theme="dark"] .notice.important { border-left-color: #c9a9ff; }
     :root[data-theme="dark"] .notice.important > strong { color: #c9a9ff; }
-    :root[data-theme="dark"] p.question { border-left-color: #c9a9ff; } :root[data-theme="dark"] p.question > svg { color: #c9a9ff; }
+    :root[data-theme="dark"] p.question { border-left-color: #c9a9ff; } :root[data-theme="dark"] p.question > svg, :root[data-theme="dark"] details.reveal > summary > svg { color: #c9a9ff; }
     :root[data-theme="light"] { --paper: #fafafa; --surface: #fff; --ink: #242424; --muted: #595959; --line: #dedede; --wash: #edf6fc; --indigo: #17476b; }
     :root[data-theme="dark"] { --paper: #181818; --surface: #222; --ink: #f5f5f5; --muted: #bdbdbd; --line: #454545; --blue: #75c7ff; --wash: #183347; --indigo: #17476b; }
     :root[data-theme="dark"] .primary { background: #0067b8; }
@@ -271,7 +272,7 @@
       body.printing .shell, body.printing .skip { display: none !important; }
       body.printing #print-root { display: block; color: #111; background: #fff; font-size: 11pt;
         color-scheme: light; --paper: #fff; --surface: #fff; --ink: #172c48; --muted: #526783; --line: #c9d4e3; --blue: #0067b8;
-        --indigo: #383ba4; --wash: #f2f6fb; --success: #14704b; --error: #b32336; }
+        --indigo: #383ba4; --wash: #f2f6fb; --success: #14704b; --tip: #8a5d00; --error: #b32336; }
       body.printing #print-root .notice.warning { border-left-color: #b7791f; }
       body.printing #print-root .notice.warning > strong { color: #8a5a00; }
       body.printing #print-root .notice.important { border-left-color: #6b3fc4; }
@@ -450,6 +451,7 @@
         collapse: "M2 3h16v14H2zM7 3v14M14 7l-3 3 3 3",
         expand: "M2 3h16v14H2zM7 3v14M11 7l3 3-3 3",
         pdf: "M5 1h7l4 4v14H5zM12 1v4h4M10.5 8v7M7.5 12l3 3 3-3",
+        answer: "M3 3h14v10H9l-4 4v-4H3zM7 8l2 2 4-4",
         arrowLeft: "M17 10H3m5-5-5 5 5 5",
         arrowRight: "M3 10h14m-5-5 5 5-5 5",
         finish: "M10 1a9 9 0 1 0 0 18 9 9 0 1 0 0-18M6 10l3 3 5-6",
@@ -562,8 +564,9 @@
           const title = element("summary");
           inline(title, summary[1], path);
           if (/^(?:Show answer|Afficher la réponse)$/.test(summary[1])) {
-            section.classList.add("answer");
-            title.prepend(symbol("tip"));
+            // Answers pair with their question (purple speech bubble); the yellow bulb stays for tips and hints.
+            section.classList.add("answer", "reveal");
+            title.prepend(symbol("answer"));
           }
           section.append(title, markdown(lines.slice(i + 2, end).join("\n"), path));
           body.append(section);

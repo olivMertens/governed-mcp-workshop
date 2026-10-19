@@ -596,6 +596,17 @@ Live modes, after an approved deployment of both stages:
 
 The module is `validated` only when all of these pass on a fresh subscription right after modules 00 to 03.
 
+**Question:** in the persona checks, Bob gets HTTP 403 on `create_ticket`. Does the validator print `PASS` or `FAIL`?
+
+<details>
+<summary>Show answer</summary>
+
+`PASS`. The check expects 403 for Bob, who only has `Tools.Read`, and 200 for Alice, who has `Tools.Write`. A validator
+compares each answer with the expected status: a refusal you predicted is a success. A 200 for Bob would be the failure.
+
+</details>
+
+
 ## Troubleshooting
 
 | Symptom | Check |

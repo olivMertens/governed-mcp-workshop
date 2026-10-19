@@ -42,7 +42,57 @@ l'authentification intégrée Microsoft Entra. La passerelle du module 04 a ét�
 | `read_report_as_user` | Lecture | `report` : `monthly-usage` | Démonstration étiquetée, aucun appel en aval | Lit Storage **au nom de l'utilisateur** : c'est son propre rôle qui décide |
 | `read_report_as_app` | Lecture | `report` : `monthly-usage` | Démonstration étiquetée, aucun appel en aval | Lit Storage **au nom de l'application** : même résultat pour tout le monde |
 
-## Six requêtes, une à la fois
+## Chemin simple : VS Code, sans commande
+
+VS Code a déjà le droit de demander des jetons pour ce serveur (il est pré-autorisé dans l'inscription d'application du
+module 03). Il lit les métadonnées de la requête 1 ci-dessous et vous connecte tout seul. Ajoutez le serveur à votre
+configuration MCP **utilisateur** (**MCP: Open User Configuration**). Il n'y a ni en-tête, ni clé, ni jeton à coller :
+
+```json
+{
+  "servers": {
+    "workshop-entra": { "type": "http", "url": "https://<function-app-host>/runtime/webhooks/mcp" }
+  }
+}
+```
+
+Démarrez le serveur et connectez-vous avec votre compte de test. Ensuite, dans Copilot Chat (mode **Agent**, approbations
+**manuelles**), envoyez un prompt par requête. Approuvez vous-même chaque appel, puis dépliez l'appel d'outil pour lire
+son **entrée** et sa **sortie** : ce sont la requête et la réponse du chemin « protocole brut » ci-dessous.
+
+```prompt
+Use only the workshop-entra MCP server. List its tools with their descriptions. Do not call any tool.
+```
+
+```prompt
+Call get_service_health once with service "workshop-api". Show the raw tool result.
+```
+
+```prompt
+Call get_service_health once with service "ticket-queue". Show the raw tool result.
+```
+
+```prompt
+Call get_service_health once with service "payroll". Show the raw tool result and say whether it is an error. Do not retry.
+```
+
+```prompt
+Call whoami once. Show the raw tool result.
+```
+
+> **Résultat attendu** — les mêmes réponses que les requêtes 2 à 6 ci-dessous. La requête 1 (sans jeton) se fait en
+> coulisses : c'est ainsi que VS Code découvre où vous connecter.
+
+D'autres outils, si vous préférez un client graphique :
+
+| Outil | Module 01 (local) et 02 (clé) | Modules 03 et suivants (Microsoft Entra) |
+|---|---|---|
+| VS Code (ci-dessus) | Oui | **Oui** : pré-autorisé, il vous connecte tout seul |
+| MCP Inspector (`npx @modelcontextprotocol/inspector`) | Oui : requête et réponse côte à côte | Non : il s'enregistre lui-même comme nouveau client, ce que Microsoft Entra ne permet pas |
+| Postman (**New** → **MCP**) | Oui : commande stdio, ou URL avec la clé dans une variable secrète | Seulement si un administrateur des identités enregistre Postman comme client ; ne collez jamais de jeton dans une requête |
+| Visual Studio 2022 17.14+ ou 2026 (`.mcp.json`) | Oui | Seulement si un administrateur des identités pré-autorise Visual Studio ; non testé dans cet atelier |
+
+## Chemin « protocole brut » : six requêtes, une à la fois
 
 Il vous faut l'état du module 03 (ou plus loin) et un compte de test, par exemple Alice. Chaque requête ci-dessous donne
 la commande à lancer et la **réponse réelle**, relevée le 2026-10-19 avec Alice (pseudonymisée). Lisez la réponse avant
@@ -234,11 +284,11 @@ résultats complets : [module 05, ce que vous devez voir](../../modules/05-deleg
 | `read_report_as_user` | `mode: as-user`, les lignes **si le rôle Storage de l'utilisateur le permet** ; Bob obtient `isError: true` |
 | `read_report_as_app` | `mode: as-app`, les mêmes lignes pour Alice et Bob : c'est le rôle de l'identité managée qui décide |
 
-## Ensuite : utiliser un vrai client
+## Ensuite
 
-Les requêtes ci-dessus montrent le protocole brut. Au quotidien, passez par un client MCP : VS Code ou l'Inspector vous
-connectent grâce aux métadonnées de la requête 1. Voir [Tester votre serveur MCP](PRACTICE.md). Le script de validation
-de chaque module fait aussi ces appels pour vous.
+Au quotidien, prenez le chemin simple : un client MCP vous connecte et montre chaque appel. Voir
+[Tester votre serveur MCP](PRACTICE.md). Le script de validation de chaque module fait aussi ces appels pour vous et
+affiche une ligne `PASS` par contrôle.
 
 ## Sources
 
@@ -246,5 +296,7 @@ de chaque module fait aussi ces appels pour vous.
 - [Model Context Protocol : outils, résultats et `isError`](https://modelcontextprotocol.io/specification/2025-06-18/server/tools)
 - [Extension MCP d'Azure Functions](https://learn.microsoft.com/azure/azure-functions/functions-bindings-mcp)
 - [Protected Resource Metadata pour App Service et Functions (Preview)](https://learn.microsoft.com/azure/app-service/configure-authentication-mcp)
+- [Utiliser des serveurs MCP dans Visual Studio](https://learn.microsoft.com/visualstudio/ide/mcp-servers)
+- [Postman : requêtes MCP](https://learning.postman.com/docs/use/send-requests/protocols/mcp-requests/overview/)
 
 Dernière vérification : 2026-10-19.

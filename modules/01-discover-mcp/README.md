@@ -252,6 +252,17 @@ Separately observe the client approval and result in VS Code. Do not mark that m
 because the automated validator succeeded.
 The module remains `in-progress` until the manual check and the preceding environment gate are recorded.
 
+**Question:** the validator prints `PASS unknown service returns a tool error`. Why does a refused input count as a success?
+
+<details>
+<summary>Show answer</summary>
+
+Because the check **expects** the refusal. A good test proves a rule, not only the happy path: the server must reject an
+unknown service with `isError: true` instead of guessing. `PASS` means the rule held.
+
+</details>
+
+
 ## Troubleshooting
 
 | Symptom | Check |

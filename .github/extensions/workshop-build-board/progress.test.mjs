@@ -83,7 +83,8 @@ test("guided reading splits authored actions, never code fences or nested disclo
     assert.match(html, /content\.append\(exercise\);/);
     // Learning aids carry an icon: questions, answers and hints, and command results.
     assert.match(html, /node\.classList\.add\("question"\);\s*node\.prepend\(symbol\("question"\)\);/);
-    assert.match(html, /section\.classList\.add\("answer"\);\s*title\.prepend\(symbol\("tip"\)\);/);
+    // Answers get their own icon; the yellow tip bulb stays for tips and hints.
+    assert.match(html, /section\.classList\.add\("answer", "reveal"\);\s*title\.prepend\(symbol\("answer"\)\);/);
     assert.match(html, /hintTitle\.prepend\(symbol\("tip"\)\);/);
     assert.match(html, /if \(result\) contents\.firstElementChild\?\.prepend\(symbol\("terminal"\)\);/);
     // Author build status and evidence never appear on the published participant site.
