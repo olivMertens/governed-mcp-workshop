@@ -7,7 +7,7 @@
 Afficher un outil du protocole de contexte de modèle (MCP), lire ses paramètres, puis l'appeler réellement.
 **Ce module est exécutable maintenant. Aucun déploiement Azure, portail présentateur ou connexion n'est nécessaire.**
 
-## Pourquoi cette étape compte
+## Pourquoi c'est important
 
 Découvrir un outil ne l'exécute pas. Une réponse du modèle ne prouve pas qu'un appel a eu lieu.
 L'approbation du client ne remplace pas l'autorisation du serveur. Ce module ne teste ni identité ni rôle.

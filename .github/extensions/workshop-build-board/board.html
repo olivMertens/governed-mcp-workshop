@@ -249,6 +249,7 @@
     @media (max-width: 570px) { .shell { display: block; } .rail { position: static; height: auto; padding: 20px; border-right: 0; border-bottom: 1px solid var(--line); } .brand small, .rail-footer, .nav-label { display: none; } #module-nav { display: flex; overflow-x: auto; margin: 16px -4px 0; padding: 4px; } #module-nav a { flex-shrink: 0; padding: 10px; margin: 0 4px 0 0; } #module-nav .nav-title { display: none; } #resource-nav { display: flex; flex-wrap: wrap; margin-top: 12px; } #resource-nav a { font-size: 12px; padding: 6px 10px; } main { padding: 28px 20px; } .toolbar { padding: 12px 20px; } .toolbar span { max-width: 200px; } .intro { gap: 16px; } .document { padding: 8px 18px 22px; } .route-item { grid-template-columns: 32px 1fr; gap: 12px; } .availability { grid-column: 2; } }
     @media (max-width: 570px) { .launch-panel { padding: 18px; } .command-head { flex-direction: column; align-items: flex-start; gap: 8px; } }
     @media (max-width: 570px) { .toolbar { flex-wrap: wrap; } .toolbar-actions { flex-wrap: wrap; } .next-step { padding: 18px; } }
+    .part-badge { display: inline-block; margin-left: 12px; padding: 2px 10px; border: 1px solid var(--line); border-radius: 999px; font-size: 13px; font-weight: 500; color: var(--muted); vertical-align: middle; white-space: nowrap; }
     .pdf-action { margin: 28px 0 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
     .pdf-button { align-items: center; gap: 8px; font-weight: 600; cursor: pointer; }
     .pdf-button .symbol { color: #e5484d; }
@@ -792,7 +793,9 @@
       const fill = element("span");
       meter.append(fill);
       header.append(position, meter);
-      const stepTitle = (step) => `${t(step.title)}${step.part ? ` / ${t("Part")} ${step.part} / ${step.parts}` : ""}`;
+      const partLabel = (step) => `${t("part")} ${step.part} ${t("of")} ${step.parts}`;
+      // Long sections are split into parts: the title stays clean and the part number is a small badge.
+      const stepTitle = (step) => `${t(step.title)}${step.part ? ` (${partLabel(step)})` : ""}`;
       const page = element("article", undefined, "lesson-page");
       const navigation = element("nav", undefined, "lesson-nav");
       navigation.setAttribute("aria-label", t("Reading steps"));
@@ -825,9 +828,12 @@
         previous.disabled = index === 0;
         next.disabled = index === steps.length - 1;
         previous.textContent = `\u2190 ${t("Previous step")}`;
+        const following = steps[index + 1];
         next.textContent = index === steps.length - 1 ? t("End of this guide") :
-          `${t("Next:")} ${stepTitle(steps[index + 1])} \u2192`;
-        const heading = element("h2", stepTitle(step));
+          following.part > 1 && following.title === step.title ? `${t("Next:")} ${t("continued")} (${partLabel(following)}) \u2192` :
+          `${t("Next:")} ${t(following.title)} \u2192`;
+        const heading = element("h2", step.title);
+        if (step.part) heading.append(element("span", partLabel(step), "part-badge"));
         heading.tabIndex = -1;
         const body = markdown(step.content, path);
         for (const command of body.querySelectorAll(".command")) {

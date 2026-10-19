@@ -16,7 +16,7 @@ Function App contrôle chaque requête avant qu'elle n'atteigne le serveur MCP. 
 > Ne collez jamais un vrai jeton dans un site web, une conversation, un fichier, une capture d'écran ou un journal.
 > Utilisez les [exemples de revendications synthétiques](synthetic-claims/) pour apprendre ce que contient un jeton.
 
-## Pourquoi cette étape compte
+## Pourquoi c'est important
 
 Une clé n'identifie personne. Un jeton d'accès Microsoft Entra indique **qui** appelle (`oid`), **depuis quel tenant**
 (`tid`, `iss`), **avec quelle application** (`azp`), **pour quelle API** (`aud`), **ce que l'application peut faire pour
