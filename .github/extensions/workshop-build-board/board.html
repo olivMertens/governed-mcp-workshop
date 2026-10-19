@@ -101,6 +101,9 @@
     .command pre { margin: 0; padding: 16px; background: var(--paper); border: 1px solid var(--line); border-radius: 6px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; line-height: 1.7; }
     .copy { font-size: 12px; background: var(--surface); color: var(--blue); border: 1px solid var(--line); border-radius: 5px; padding: 5px 10px; flex-shrink: 0; }
     .exercise { border-top: 2px solid var(--blue); padding-top: 4px; margin: 28px 0; }
+    .quiz { border-top-color: #7650b3; }
+    .quiz-list { padding-left: 22px; } .quiz-list > li { margin: 14px 0; } .quiz-list .lesson-jump { font-size: .92em; }
+    .lesson-jump > svg { width: 1em; height: 1em; margin-left: 6px; vertical-align: -2px; color: #7650b3; }
     .exercise details { color: var(--ink); margin: 16px 0; }
     .exercise summary { font-weight: 600; font-size: 15px; }
     .exercise details .document { margin-top: 16px; }
@@ -329,6 +332,7 @@
       "azure-05-api-permissions", "azure-05-federated-credentials", "azure-06-kql-logs",
       "azure-06-observability-agent-answer", "azure-06-observability-agent-query",
       "diagram-05-obo-hops-en", "diagram-05-obo-hops-fr", "diagram-05-rbac-checks-en", "diagram-05-rbac-checks-fr",
+      "diagram-02-server-levels-en", "diagram-02-server-levels-fr",
       "azure-04-mcp-servers", "azure-04b-mcp-tools", "azure-04b-mcp-policy", "terminal-04b-operator", "terminal-04b-alice"];
     let state;
     let rawState;
@@ -811,6 +815,11 @@
         const item = element("li");
         const jump = element("button", stepTitle(step), "lesson-jump");
         jump.type = "button";
+        // A question icon in the outline shows where the module's self-check questions are.
+        if (hasQuestion(step.content)) {
+          jump.append(symbol("question"));
+          jump.title = t("This step has a question");
+        }
         jump.addEventListener("click", () => { index = stepIndex; outline.open = false; show(true); });
         item.append(jump);
         list.append(item);
@@ -856,8 +865,52 @@
       next.addEventListener("click", () => { if (index < steps.length - 1) { index++; show(true); } });
       navigation.append(previous, next);
       section.append(header, page, navigation, outline);
+      section.goTo = (stepIndex) => { index = stepIndex; outline.open = false; show(true); };
       show();
       return section;
+    }
+    function hasQuestion(text) { return /^\*\*Question\s?:\*\*/m.test(text.replace(/```[\s\S]*?```/g, "")); }
+    // Gathers every "Question:" with its hidden answer, so the module ends with one self-check panel.
+    function questionsPanel(text, path, lesson) {
+      const items = [];
+      lessonSteps(text).forEach((step, stepIndex) => {
+        const lines = step.content.split("\n");
+        let fenced = false;
+        for (let i = 0; i < lines.length; i++) {
+          if (/^\s*```/.test(lines[i])) fenced = !fenced;
+          if (fenced || !/^\*\*Question\s?:\*\*/.test(lines[i])) continue;
+          const block = [];
+          let j = i;
+          while (j < lines.length && lines[j].trim()) block.push(lines[j++]);
+          while (j < lines.length && !lines[j].trim()) j++;
+          if (lines[j] === "<details>") {
+            block.push("");
+            for (let depth = 0; j < lines.length; j++) {
+              block.push(lines[j]);
+              if (lines[j] === "<details>") depth++;
+              if (lines[j] === "</details>" && --depth === 0) break;
+            }
+          }
+          items.push({ stepIndex, title: step.title, text: block.join("\n") });
+          i = j;
+        }
+      });
+      if (!items.length) return null;
+      const panel = element("section", undefined, "exercise quiz");
+      const heading = element("h2", `${t("Check your understanding")} (${items.length})`);
+      heading.prepend(symbol("question"));
+      panel.append(heading, element("p", "Answer in your head first, then open the answer. Each question comes from a step of this module.", "field-message"));
+      const list = element("ol", undefined, "quiz-list");
+      for (const item of items) {
+        const entry = element("li");
+        const jump = element("button", `${t("Read step")} ${item.stepIndex + 1}${language === "fr" ? " :" : ":"} ${t(item.title)} \u2191`, "lesson-jump");
+        jump.type = "button";
+        jump.addEventListener("click", () => lesson.goTo(item.stepIndex));
+        entry.append(markdown(item.text, path), jump);
+        list.append(entry);
+      }
+      panel.append(list);
+      return panel;
     }
     function notice(title, description, type = "important") {
       const node = element("div", undefined, `notice ${type}`);
@@ -1245,8 +1298,10 @@
       hints.append(hintTitle,
         markdown(module.hints, module.hintsSourcePath));
       exercise.append(hints);
-      if (module.guide !== null) content.append(guidedDocument(module.guide, module.sourcePath));
-      else content.append(guidedDocument(module.outline, module.sourcePath));
+      const lesson = guidedDocument(module.guide ?? module.outline, module.sourcePath);
+      content.append(lesson);
+      const questions = module.guide !== null ? questionsPanel(module.guide, module.sourcePath, lesson) : null;
+      if (questions) content.append(questions);
       // Commands and terminal checks are part of the lesson, not optional reading.
       content.append(exercise);
       // Optional material comes after the lesson, so the main path reads strictly top to bottom.
@@ -1300,7 +1355,7 @@
         if (language === "fr") content.prepend(notice("Note", "Original repository decisions and evidence remain in English."));
       } else if (Object.hasOwn(state.documents, documentKey)) {
         const doc = state.documents[documentKey];
-        const guided = ["deployment", "presenter", "integration", "hosting", "gettingStarted", "concepts", "governance"].includes(documentKey);
+        const guided = ["deployment", "presenter", "integration", "mcpServer", "hosting", "gettingStarted", "concepts", "governance"].includes(documentKey);
         const body = guided ? guidedDocument(doc.content, doc.sourcePath, deep ? Number(deep[2]) : null) : markdown(doc.content, doc.sourcePath);
         if (language === "fr" && route.startsWith("#/original")) body.lang = "en";
         content.append(element("h1", doc.title), body);
@@ -1355,7 +1410,9 @@
       for (const code of ["en", "fr"]) document.getElementById(`language-${code}`).setAttribute("aria-pressed", String(language === code));
       for (const [group, nav, title, icon, entries] of [
         ["resource-group", "resource-nav", "Resources", "book", [
-          ["practice", "Try your MCP", "terminal"], ["deployment", "Your Azure context", "shield"],
+          ["practice", "Try your MCP", "terminal"],
+          ...(state?.documents.mcpServer ? [["mcpServer", "The MCP server and its answers", "layers"]] : []),
+          ["deployment", "Your Azure context", "shield"],
           ["governance", "Understand governance", "important"], ["architecture", "Architecture, step by step", "layers"],
           ["sources", "Verified sources", "link"],
         ]],

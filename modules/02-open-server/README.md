@@ -360,6 +360,8 @@ Use the same VS Code configuration as in step 6.
 | `whoami` | `caller: unknown` | A key carries no identity. |
 | `read_report_as_*` | `source: synthetic-demonstration` | Real downstream access is module 05. |
 
+The full requests and real responses of all five tools are in [The MCP server and its answers](../../docs/MCP-SERVER.md).
+
 The live validator prints, among others:
 
 ```text

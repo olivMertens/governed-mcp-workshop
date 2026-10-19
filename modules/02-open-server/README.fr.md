@@ -369,6 +369,8 @@ Utilisez la même configuration VS Code qu'à l'étape 6.
 | `whoami` | `caller: unknown` | Une clé ne porte aucune identité. |
 | `read_report_as_*` | `source: synthetic-demonstration` | Le vrai accès en aval arrive au module 05. |
 
+Les requêtes complètes et les réponses réelles des cinq outils sont dans [Le serveur MCP et ses réponses](../../docs/fr/MCP-SERVER.md).
+
 Le validateur en ligne affiche notamment :
 
 ```text

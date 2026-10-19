@@ -214,6 +214,8 @@ Below the steps:
 ## 🧪 Try your MCP
 
 Calls run in **your** MCP client (VS Code, Inspector…), never in the board. See the [practice guide](docs/PRACTICE.md).
+What does the server answer? [The MCP server and its answers](docs/MCP-SERVER.md) shows its five tools and their real
+responses at each level ([en français](docs/fr/MCP-SERVER.md)).
 
 ### Agent 365 integration — Preview, optional
 
