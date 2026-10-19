@@ -18,8 +18,9 @@ identifiants remplacés par des zéros.
 | Données | Fictives uniquement : deux services (`workshop-api`, `ticket-queue`) et un rapport (`monthly-usage`) |
 | Outils | Cinq : quatre en lecture, un en écriture |
 
-Le 2026-10-19, le tenant de test de l'auteur est dans l'état du **module 03** : le serveur du module 02, protégé par
-l'authentification intégrée Microsoft Entra. La passerelle du module 04 a été supprimée et le mode du module 05 est désactivé.
+Les réponses réelles de cette page ont été relevées au niveau du **module 03** : connexion Microsoft Entra devant le serveur,
+pas encore de passerelle, module 05 non activé. Vos propres réponses dépendent du module où vous en êtes ; la section
+suivante montre ce qui change à chaque niveau.
 
 ### Ce qu'il y a derrière le serveur
 
