@@ -249,6 +249,24 @@
     @media (max-width: 570px) { .shell { display: block; } .rail { position: static; height: auto; padding: 20px; border-right: 0; border-bottom: 1px solid var(--line); } .brand small, .rail-footer, .nav-label { display: none; } #module-nav { display: flex; overflow-x: auto; margin: 16px -4px 0; padding: 4px; } #module-nav a { flex-shrink: 0; padding: 10px; margin: 0 4px 0 0; } #module-nav .nav-title { display: none; } #resource-nav { display: flex; flex-wrap: wrap; margin-top: 12px; } #resource-nav a { font-size: 12px; padding: 6px 10px; } main { padding: 28px 20px; } .toolbar { padding: 12px 20px; } .toolbar span { max-width: 200px; } .intro { gap: 16px; } .document { padding: 8px 18px 22px; } .route-item { grid-template-columns: 32px 1fr; gap: 12px; } .availability { grid-column: 2; } }
     @media (max-width: 570px) { .launch-panel { padding: 18px; } .command-head { flex-direction: column; align-items: flex-start; gap: 8px; } }
     @media (max-width: 570px) { .toolbar { flex-wrap: wrap; } .toolbar-actions { flex-wrap: wrap; } .next-step { padding: 18px; } }
+    .pdf-action { margin: 28px 0 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+    #print-root { display: none; }
+    @media print {
+      @page { margin: 16mm 14mm; }
+      body.printing .shell, body.printing .skip { display: none !important; }
+      body.printing #print-root { display: block; color: #111; background: #fff; font-size: 11pt; }
+      body.printing #print-root h1 { font-size: 20pt; margin: 0 0 4pt; }
+      body.printing #print-root .print-meta { color: #555; font-size: 9pt; margin: 0 0 14pt; }
+      body.printing #print-root h2, body.printing #print-root h3 { break-after: avoid; }
+      body.printing #print-root pre, body.printing #print-root table, body.printing #print-root figure,
+      body.printing #print-root .result-box, body.printing #print-root .notice { break-inside: avoid; }
+      body.printing #print-root pre { white-space: pre-wrap; word-break: break-word; border: 1px solid #ccc; background: #f6f6f6; color: #111; }
+      body.printing #print-root img { max-width: 100%; height: auto; }
+      body.printing #print-root .copy, body.printing #print-root .field-message { display: none; }
+      body.printing #print-root a { color: #0b4ea2; }
+      body.printing #print-root .document, body.printing #print-root .result-box, body.printing #print-root .notice,
+      body.printing #print-root .command, body.printing #print-root details { background: #fff; color: #111; border-color: #bbb; }
+    }
   </style>
 </head>
 <body>
@@ -279,6 +297,7 @@
       <main id="content" tabindex="-1" aria-label="Workshop content"><h1>Loading the workshop.</h1></main>
     </div>
   </div>
+  <div id="print-root" aria-hidden="true"></div>
   <script src="locale-fr.js"></script>
   <script>
     const key = "__BOARD_KEY__";
@@ -624,6 +643,31 @@
       const section = element("details");
       section.append(element("summary", title), ...children);
       return section;
+    }
+    // Builds the whole guide in a print-only container, opens every disclosure and hands it to the browser's
+    // print dialog, where the reader picks "Save as PDF". Nothing is generated or stored on the server.
+    function pdfAction(title, text, path) {
+      const row = element("div", undefined, "pdf-action");
+      const button = element("button", "Download as PDF", "secondary");
+      button.type = "button";
+      button.addEventListener("click", () => {
+        const root = document.getElementById("print-root");
+        const body = markdown(text, path);
+        body.querySelectorAll("details").forEach((item) => { item.open = true; });
+        body.querySelectorAll("img").forEach((image) => { image.loading = "eager"; });
+        const meta = element("p", undefined, "print-meta");
+        meta.textContent = `Governed MCP on Azure · ${location.href.split("#")[0]}#${location.hash.slice(1)}`;
+        root.replaceChildren(element("h1", title), meta, body);
+        root.setAttribute("aria-hidden", "false");
+        document.body.classList.add("printing");
+        const done = () => { document.body.classList.remove("printing"); root.replaceChildren(); root.setAttribute("aria-hidden", "true"); };
+        window.addEventListener("afterprint", done, { once: true });
+        const images = [...root.querySelectorAll("img")].filter((image) => !image.complete);
+        Promise.all(images.map((image) => new Promise((resolve) => { image.onload = image.onerror = resolve; })))
+          .then(() => window.print());
+      });
+      row.append(button, element("span", "Opens the print dialog: choose \"Save as PDF\". The PDF holds the whole guide, answers and captures included.", "field-message"));
+      return row;
     }
     function lessonSteps(text) {
       const steps = [];
@@ -1184,7 +1228,7 @@
       concepts.append(element("summary", "Why this boundary matters"), markdown(module.learning, module.learningSourcePath),
         link("Read the full governance guide", "#/governance", "secondary"));
       content.append(concepts);
-      if (module.guide !== null) content.append(disclosure("Whole guide on one page (to search or print)", element("p", "Same content as the steps above, all at once. Use it to search with Ctrl+F, print, or read without clicking Next.", "field-message"), markdown(module.guide, module.sourcePath)));
+      if (module.guide !== null) content.append(pdfAction(`${module.module} / ${module.title}`, module.guide, module.sourcePath));
       const source = element("p", undefined, "source");
       source.append(document.createTextNode(language === "fr" ? "Fichier source : " : "Source: "), element("code", module.sourcePath));
       content.append(source);
@@ -1231,7 +1275,7 @@
         const body = guided ? guidedDocument(doc.content, doc.sourcePath, deep ? Number(deep[2]) : null) : markdown(doc.content, doc.sourcePath);
         if (language === "fr" && route.startsWith("#/original")) body.lang = "en";
         content.append(element("h1", doc.title), body);
-        if (guided) content.append(disclosure("Whole guide on one page (to search or print)", element("p", "Same content as the steps above, all at once. Use it to search with Ctrl+F, print, or read without clicking Next.", "field-message"), markdown(doc.content, doc.sourcePath)));
+        if (guided) content.append(pdfAction(doc.title, doc.content, doc.sourcePath));
       } else if (route === "#/overview" || route === "#content") overview();
       else {
         content.append(element("h1", "Page not found."),
