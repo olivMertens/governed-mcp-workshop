@@ -345,6 +345,10 @@ Use the workshop-entra MCP server. List its tools, then call get_service_health 
 <details>
 <summary>How to do it in VS Code, click by click</summary>
 
+![Real capture: VS Code, MCP: Open User Configuration in the Command Palette; the workshop-entra server in mcp.json with Running above it; MCP: List Servers shows workshop-entra Running and the output says Discovered 5 tools](../../assets/screenshots/client-03-vscode.png)
+
+*Real capture, 2026-10-19, a clean VS Code signed in as Alice. A: open the user configuration (frame 1). B: the server entry and its **Running** status (frames 2 and 3). C: **MCP: List Servers** and the server output, which ends with **Discovered 5 tools**.*
+
 1. Get the URL in your terminal: `terraform -chdir=infra/workload output -raw mcp_endpoint`.
 2. Press **Ctrl+Shift+P** (macOS: **Cmd+Shift+P**) and run **MCP: Open User Configuration**. Paste the JSON above,
    replace the placeholder with your URL, then save the file.
