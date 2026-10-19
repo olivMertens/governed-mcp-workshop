@@ -564,9 +564,60 @@ you continue to module 06 now, keep everything.
 - Microsoft.Identity.Web offers the same secretless pattern for ASP.NET Core APIs (`SignedAssertionFromManagedIdentity`); this
   module uses Azure.Identity because built-in authentication already validates the token.
 
+### Good to know: OBO across several hops, and RBAC
+
+**Can On-Behalf-Of (OBO) go through three hops?** Yes. Microsoft Entra ID has no fixed limit: OBO is designed to pass the
+user's identity "through the request chain". But each hop changes what the next service sees, so long chains are harder to
+run and to audit.
+
+```text
+VS Code ---token A--> MCP API ---OBO--> token B ---> API B ---OBO--> token C ---> API C
+         aud: MCP API                   aud: API B                   aud: API C
+         user: Alice                    user: Alice                  user: Alice
+         client: VS Code                client: MCP API              client: API B
+```
+
+What each hop keeps, and what it loses:
+
+| | Kept | Changed or lost |
+|---|---|---|
+| Token | — | A **new** token per hop. A service can only exchange a token issued **for itself** (`aud`); it can never reuse or forward the one it received. |
+| User | The user (`oid`) and their delegated scopes | — |
+| Calling app | — | `azp` (`appid` in v1.0 tokens) is the app that did the last exchange. At hop 3, API C sees API B, **not** VS Code. Log the original client at the first hop if you need it. |
+| Rights | Delegated scopes that were consented | App roles stay with the user, **never** with the app acting for them: a middle tier can't add its own rights to the user's. |
+| Consent | — | The middle tiers can't show a consent screen. Consent must exist **in advance** for every hop (admin consent here). |
+| MFA and Conditional Access | — | If a downstream API requires MFA, the token endpoint returns a claims challenge. **Every** middle tier must pass it back to the client (HTTP 401 with `WWW-Authenticate`). One missing relay breaks the chain. |
+| App-only caller | — | OBO works only for **users**. An app-only token can't be exchanged; use the app's own identity (client credentials or a managed identity) instead. |
+
+In this workshop the chain stays short on purpose: one OBO hop, from the MCP server to Graph or Storage.
+
+**Azure RBAC is a separate decision from scopes and app roles.**
+
+- `user_impersonation` (a scope) says the MCP API **may act for** Alice. Storage Blob Data Reader (an Azure role) says Alice
+  **may read** this container. Storage checks the role on the user, so Bob is refused even with a valid token.
+- App roles (`Tools.Read`, `Tools.Write`) live in Microsoft Entra ID and appear in the token's `roles` claim. Azure roles are
+  checked by the Azure resource itself and never appear in the token.
+- A new or removed Azure role assignment can take **up to 10 minutes** to apply. For a managed identity, a group or role
+  membership change can take **several hours**. That is why `publish-report.ps1` retries, and why Bob's test in this section
+  may lag.
+- Assign roles at the narrowest scope (here the `reports` container), and make them time-bound where you can.
+
+**Question:** at hop 3, API C writes the caller to its log. Which user and which client does it see?
+
+<details>
+<summary>Show answer</summary>
+
+User: Alice, with the same object ID (`oid`) as at the start. Client: API B, because `azp` names the app that made the last
+exchange. VS Code is no longer visible at hop 3. To trace the whole chain, log the client at the first hop and pass a
+correlation ID along, never the token.
+
+</details>
+
 ## Sources
 
 - [Microsoft identity platform and OAuth 2.0 On-Behalf-Of flow](https://learn.microsoft.com/entra/identity-platform/v2-oauth2-on-behalf-of-flow)
+- [Access token claims reference (`azp`, `appid`, `roles`)](https://learn.microsoft.com/entra/identity-platform/access-token-claims-reference) and
+  [Troubleshoot Azure RBAC (propagation delays)](https://learn.microsoft.com/azure/role-based-access-control/troubleshooting)
 - [Configure an application to trust a managed identity](https://learn.microsoft.com/entra/workload-id/workload-identity-federation-config-app-trust-managed-identity)
 - [Certificateless authentication with Microsoft.Identity.Web](https://learn.microsoft.com/entra/msidweb/authentication/certificateless)
 - [Grant tenant-wide admin consent to an application](https://learn.microsoft.com/entra/identity/enterprise-apps/grant-admin-consent)
