@@ -283,8 +283,10 @@
   <script>
     const key = "__BOARD_KEY__";
     const staticSite = "__STATIC_SITE__" === "true";
-    const PORTAL_SCREENSHOTS = ["azure-03-function-authentication", "azure-03-app-registration-overview", "azure-03-app-roles",
-      "azure-03-enterprise-app-properties", "azure-05-api-permissions", "azure-05-federated-credentials"];
+    const PORTAL_SCREENSHOTS = ["azure-02-storage-public-access", "azure-02-storage-private-endpoints",
+      "azure-03-function-authentication", "azure-03-app-registration-overview", "azure-03-app-roles",
+      "azure-03-enterprise-app-properties", "terminal-03-operator", "terminal-03-alice",
+      "azure-05-api-permissions", "azure-05-federated-credentials", "azure-06-kql-logs"];
     let state;
     let rawState;
     let participant = null;
@@ -455,7 +457,7 @@
         const line = lines[i];
         if (!line.trim()) { i++; continue; }
         const diagramImage = /^!\[([^\]]+)\]\(([^)]+)\)$/.exec(line);
-        const screenshot = diagramImage && /^(?:\.\.\/)+assets\/screenshots\/(azure-\d{2}-[a-z0-9-]+)\.png$/.exec(diagramImage[2]);
+        const screenshot = diagramImage && /^(?:\.\.\/)+assets\/screenshots\/((?:azure|terminal)-\d{2}-[a-z0-9-]+)\.png$/.exec(diagramImage[2]);
         if (screenshot) {
           if (!PORTAL_SCREENSHOTS.includes(screenshot[1])) throw new Error("Document screenshots must be published workshop captures.");
           const figure = element("figure", undefined, "screenshot");

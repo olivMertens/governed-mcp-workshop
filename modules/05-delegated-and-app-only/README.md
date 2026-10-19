@@ -271,7 +271,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Entra apply failed.' }
 > `whoami` and `read_report_as_user` can now exchange tokens.
 
 Check it in the Microsoft Entra admin center (real captures, 2026-10-19, author's test tenant; names pseudonymised,
-IDs replaced by zeros). Select an image to open it full size.
+IDs replaced by zeros). Pink frames mark what to check. Select an image to open it full size.
 
 **App registrations → Workshop MCP API → API permissions.** Exactly two delegated permissions: Azure Storage
 `user_impersonation` (for `read_report_as_user`) and Microsoft Graph `User.Read` (for `whoami`). No application permission.

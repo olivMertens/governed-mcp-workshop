@@ -50,9 +50,16 @@ function Test-All([string]$Text, [string[]]$Patterns) {
     foreach ($pattern in $Patterns) { if ($Text -notmatch $pattern) { return $false } }
     return $true
 }
+$script:StepNumber = 0
+function Step([string]$Title, [string]$Why) {
+    $script:StepNumber++
+    Write-Output ''; Write-Output "== Step $($script:StepNumber): $Title =="; Write-Output "   Why: $Why"
+}
+Write-Output 'Module 04 validator - Azure API Management is the only way in, and it checks every tool call against your role.'
 
 # ---------------------------------------------------------------- offline checks (always run)
 
+Step 'Offline - your copy keeps every gate closed (no Azure call)' 'Proves policies, network and logging settings enforce token, role, rate limit and zero body bytes.'
 $policyText = Get-Content -LiteralPath (Join-Path $policies 'mcp-server.xml') -Raw
 $prmText = Get-Content -LiteralPath (Join-Path $policies 'protected-resource-metadata.xml') -Raw
 $required = @(
@@ -119,6 +126,7 @@ foreach ($pattern in $secretPatterns) {
 Pass 'no access token, subscription key, function key, SAS or client secret in module 04 or workload files (expected HTTP N/A).'
 
 if (-not $SkipBuild) {
+    Step 'Offline - Terraform format, schema and mock plans' 'Proves both Terraform roots are valid without creating anything in Azure or Entra.'
     foreach ($terraformRoot in @($entra, $workload)) {
         if (-not (Test-Path -LiteralPath (Join-Path $terraformRoot '.terraform'))) {
             & terraform "-chdir=$terraformRoot" init -lockfile=readonly -input=false -no-color | Out-Null
@@ -184,6 +192,7 @@ function Get-Token([string]$Resource) {
 $initialize = @{ jsonrpc = '2.0'; id = 1; method = 'initialize'; params = @{
     protocolVersion = '2025-06-18'; capabilities = @{}; clientInfo = @{ name = 'workshop-validator'; version = '0.4.0' } } }
 
+Step 'Live - the gateway is the only way in and refuses wrong tokens' 'Proves no token or a wrong-audience token gets HTTP 401, and the Function host is closed.'
 $anonymous = Invoke-Mcp $gateway $initialize $base
 $challenge = "$($anonymous.Headers['WWW-Authenticate'])"
 if ($anonymous.Status -ne 401) { Fail "gateway request without a token returned HTTP $($anonymous.Status) (expected HTTP 401)." }
@@ -222,6 +231,7 @@ try {
     Pass 'a valid token for another audience (Microsoft Graph) is refused by the gateway (expected HTTP 401).'
 
     if ($SubscriptionId -and $SubscriptionId -ne [guid]::Empty) {
+        Step 'Azure configuration matches Terraform' 'Proves the Function is private and gateway logs keep zero body bytes and no headers.'
         Assert-WorkshopAzureContext -TenantId $TenantId -SubscriptionId $SubscriptionId
         Pass 'explicit Azure context matches the approved test target (expected HTTP 200 from Azure Resource Manager).'
         $group = $outputs.resource_group_name?.value
@@ -279,6 +289,11 @@ try {
         return
     }
 
+    if ($Persona -eq 'Eve') {
+        Step 'Persona - Eve is refused a token' 'Proves a user without an app role assignment never reaches the gateway.'
+    } else {
+        Step "Persona - $Persona calls tools through the gateway" 'Proves each tool call is checked against your app role: Tools.Read to read, Tools.Write to write.'
+    }
     $account = Invoke-WorkshopAzureJson -Arguments @('account', 'show', '--query', '{tenantId:tenantId,userType:user.type}')
     if ($account.tenantId -ne $TenantId.ToString() -or $account.userType -ne 'user') {
         Fail 'Azure CLI must be signed in interactively as the test account in the explicit tenant (expected HTTP N/A).'

@@ -60,9 +60,16 @@ function Get-Value($Object, [string]$Path) {
     return $Object
 }
 function Get-Rows($Report) { return (@(Get-Value $Report 'rows') | ForEach-Object { "$(Get-Value $_ 'service')|$(Get-Value $_ 'requests')|$(Get-Value $_ 'errors')" }) -join ';' }
+$script:StepNumber = 0
+function Step([string]$Title, [string]$Why) {
+    $script:StepNumber++
+    Write-Output ''; Write-Output "== Step $($script:StepNumber): $Title =="; Write-Output "   Why: $Why"
+}
+Write-Output 'Module 05 validator - user tools act as the signed-in user (On-Behalf-Of), app-only tools act as a managed identity.'
 
 # ---------------------------------------------------------------- offline checks (always run)
 
+Step 'Offline - your copy uses On-Behalf-Of and managed identities, no secret (no Azure call)' 'Proves the code and Terraform never forward the client token and never store a client secret.'
 $code = (Get-ChildItem -LiteralPath $server -Recurse -File -Filter *.cs | Where-Object { $_.FullName -notmatch '[\\/](bin|obj)[\\/]' } |
     ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join "`n"
 $credentials = Get-Content -LiteralPath (Join-Path $server 'Identity' 'DownstreamCredentials.cs') -Raw
@@ -128,6 +135,7 @@ foreach ($pattern in $secretPatterns) {
 Pass "no client secret, key, SAS or token in module 05, server, infra/entra or infra/workload files ($($scanned.Count) files, expected HTTP N/A)."
 
 if (-not $SkipBuild) {
+    Step 'Offline - unit tests and Terraform mock plans' 'Proves the tools behave for each persona and both Terraform roots are valid, without deploying.'
     $tests = & dotnet test (Join-Path $root 'tests' 'FunctionsMcpServer.Tests') --nologo 2>&1
     if ($LASTEXITCODE -ne 0) { $tests | Select-Object -Last 15 | ForEach-Object { Write-Warning $_ }; Fail 'locked build and unit tests (expected HTTP N/A).' }
     Pass 'locked build and unit tests: Alice reads, Bob denied downstream, app-only identical for everyone, app-only callers refused, Graph gets only its own token (expected HTTP N/A).'
@@ -173,6 +181,7 @@ $personas = if (Test-Path -LiteralPath $PersonaObjectIdsPath) { Get-Content -Lit
 $token = $null; $authorized = $null
 try {
     if ($SubscriptionId -and $SubscriptionId -ne [guid]::Empty) {
+        Step 'Azure configuration matches Terraform' 'Proves settings hold no secret, Entra trusts only the OBO identity, and report roles are least privilege.'
         Assert-WorkshopAzureContext -TenantId $TenantId -SubscriptionId $SubscriptionId
         Pass 'explicit Azure context matches the approved test target (expected HTTP 200 from Azure Resource Manager).'
         $group = $outputs.resource_group_name?.value
@@ -214,6 +223,7 @@ try {
         return
     }
 
+    Step "Persona - $Persona calls the user and app-only tools" 'Proves user tools use your own rights, while app-only tools give everyone the same result.'
     $account = Invoke-WorkshopAzureJson -Arguments @('account', 'show', '--query', '{tenantId:tenantId,userType:user.type}')
     if ($account.tenantId -ne $TenantId.ToString() -or $account.userType -ne 'user') {
         Fail 'Azure CLI must be signed in interactively as the test account in the explicit tenant (expected HTTP N/A).'
