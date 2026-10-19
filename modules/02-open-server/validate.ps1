@@ -25,9 +25,16 @@ $expectedTools = @('create_ticket', 'get_service_health', 'read_report_as_app', 
 
 function Pass([string]$Message) { Write-Output "PASS $Message" }
 function Fail([string]$Message) { throw "FAIL $Message" }
+$script:StepNumber = 0
+function Step([string]$Title, [string]$Why) {
+    $script:StepNumber++
+    Write-Output ''; Write-Output "== Step $($script:StepNumber): $Title =="; Write-Output "   Why: $Why"
+}
+Write-Output 'Module 02 validator - the open server answers only with its function key, and shows why a key alone is not enough.'
 
 # ---------------------------------------------------------------- offline checks (always run)
 
+Step 'Offline - your copy keeps the key gate closed and holds no secret (no Azure call)' 'Proves the code and Terraform never open an anonymous endpoint or store a key.'
 $hostJson = Get-Content -LiteralPath (Join-Path $server 'host.json') -Raw | ConvertFrom-Json -AsHashtable
 $level = $hostJson.extensions?.mcp?.system?.webhookAuthorizationLevel
 if ($level -cne 'System') { Fail 'host.json webhookAuthorizationLevel must be System (expected HTTP 401 without key).' }
@@ -62,6 +69,7 @@ if ($terraformText -notmatch 'shared_access_key_enabled\s*=\s*false' -or $terraf
 Pass 'Terraform disables Storage shared keys, uses managed identity and outputs no key (expected HTTP N/A).'
 
 if (-not $SkipBuild) {
+    Step 'Offline - build, unit tests and Terraform mock plans' 'Proves the server compiles, the tools behave and the plan is valid, without deploying.'
     $tests = Join-Path $root 'tests' 'FunctionsMcpServer.Tests' 'FunctionsMcpServer.Tests.csproj'
     & dotnet restore $tests --locked-mode --verbosity quiet
     if ($LASTEXITCODE -ne 0) { Fail 'locked package restore (expected HTTP N/A; check SDK, package access and lock files).' }
@@ -88,6 +96,7 @@ if ($Offline -or -not $TenantId -or -not $SubscriptionId -or $TenantId -eq [guid
 # ---------------------------------------------------------------- live checks (approved deployment only)
 
 . (Join-Path $root 'scripts' 'context-common.ps1')
+Step 'Live - Azure context and Function App state' 'Proves you target the approved subscription and the app runs over HTTPS only.'
 Assert-WorkshopAzureContext -TenantId $TenantId -SubscriptionId $SubscriptionId
 Pass 'explicit Azure context matches the approved test target (expected HTTP 200 from Azure Resource Manager).'
 
@@ -130,6 +139,7 @@ try {
     $initialize = @{ jsonrpc = '2.0'; id = 1; method = 'initialize'; params = @{
         protocolVersion = '2025-06-18'; capabilities = @{}; clientInfo = @{ name = 'workshop-validator'; version = '0.2.0' } } }
 
+    Step 'Live - the server refuses callers without the key' 'Proves a missing or wrong key gets HTTP 401, so the endpoint is not anonymous.'
     $anonymous = Invoke-Mcp $initialize $base
     if ($anonymous.Status -ne 401) { Fail "request without key returned HTTP $($anonymous.Status) (expected HTTP 401)." }
     Pass 'MCP request without the mcp_extension key is refused (expected HTTP 401).'
@@ -138,6 +148,7 @@ try {
     if ($wrong.Status -ne 401) { Fail "request with a wrong key returned HTTP $($wrong.Status) (expected HTTP 401)." }
     Pass 'anonymous access disabled: a random wrong key is refused (expected HTTP 401).'
 
+    Step 'Live - the key alone opens every tool (the risk)' 'Shows that anyone holding the key can list and call tools; no user or role is checked.'
     $keyed = $base + @{ 'x-functions-key' = $key }
     $init = Invoke-Mcp $initialize $keyed
     $version = $init.Payload?.result?.protocolVersion

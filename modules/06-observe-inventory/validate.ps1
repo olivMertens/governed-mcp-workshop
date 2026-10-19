@@ -20,6 +20,12 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+$script:StepNumber = 0
+function Step([string]$Title, [string]$Why) {
+    $script:StepNumber++
+    Write-Output ''; Write-Output "== Step $($script:StepNumber): $Title =="; Write-Output "   Why: $Why"
+}
+Write-Output 'Module 06 validator - the observe and inventory guide reads metadata only and leaks nothing (offline).'
 
 if (-not $Offline) {
     throw 'FAIL: only -Offline is supported for module 06. No live checks are scripted.'
@@ -56,6 +62,7 @@ $readme     = if (Test-Path $readmePath) { Get-Content -Raw $readmePath } else {
 $kql        = if (Test-Path $kqlPath) { Get-Content -Raw $kqlPath } else { '' }
 
 # 1. Required files exist.
+Step 'Offline - module files and README structure' 'Proves every file exists and the guide follows the workshop contract in both languages.'
 foreach ($f in @('README.md', 'README.fr.md', 'validate.ps1', 'validate.sh', 'cleanup.ps1', 'cleanup.sh', 'queries/mcp-traffic.kql')) {
     Check "file exists: $f" { Test-Path (Join-Path $moduleDir $f) } 'missing file'
 }
@@ -87,6 +94,7 @@ Check 'Steps give PowerShell before bash' {
 } 'PowerShell block must come before bash'
 
 # 5. Preview labels on the preview features.
+Step 'Offline - Preview labels and payload-free queries' 'Proves preview features are marked and the KQL reads metadata only, never bodies or tokens.'
 Check 'Preview label on API Center, BYO and Agent 365' {
     ($readme -match 'API Center') -and ($readme -match 'BYO') -and ($readme -match 'Agent 365') -and
     ($readme -match '\*\*Preview\*\*')
@@ -110,6 +118,7 @@ Check 'README does not instruct enabling payload logging' {
 } 'README tells the reader to enable payload logging'
 
 # 8. No secrets or tokens in the module.
+Step 'Offline - no secrets or real IDs' 'Proves the module holds synthetic data only, so nothing can leak a real tenant.'
 $secretPatterns = @(
     'eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}',
     '(?i)(client_secret|password|api[_-]?key)\s*[:=]\s*[''"]?[A-Za-z0-9/+_\-]{12,}',
@@ -139,6 +148,7 @@ Check 'only placeholder GUIDs in module files' {
 } 'a non-placeholder GUID was found'
 
 # 10. Status is authored, never validated.
+Step 'Offline - status, sources and log rules are recorded' 'Proves progress is not overclaimed, sources are dated, no infra is added and log rules are stated.'
 $progress = Get-Content -Raw (Join-Path $root 'docs/PROGRESS.md')
 Check 'PROGRESS row 06 is not claimed as validated before live run' {
     $row = ($progress -split "`n" | Where-Object { $_ -match '^\|\s*06\s*\|' }) | Select-Object -First 1
