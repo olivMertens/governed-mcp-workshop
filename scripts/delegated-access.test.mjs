@@ -327,3 +327,32 @@ Write-Output 'PASS synthetic publish not-deployed'
     assert.equal(result.status, 0, result.stderr + result.stdout);
     assert.equal((result.stdout.match(/PASS synthetic publish /g) ?? []).length, 2);
 });
+
+test("clean-up guards accept only the exact portal tier restore (F1 back to B1), never another portal change", () => {
+    const common = join(fileURLToPath(new URL("../", import.meta.url)), "scripts", "context-common.ps1").replaceAll("'", "''");
+    const result = pwsh(`
+$ErrorActionPreference='Stop'
+. '${common}'
+function C($address, $before, $after) { @{ address = $address; change = @{ actions = @('update'); before = $before; after = $after } } }
+$plan = @{ name = 'asp'; sku_name = 'F1'; tags = @{ workshop = 'x' } }
+$app = @{ name = 'web'; app_settings = @{ A = '1' }; site_config = @(@{ always_on = $false; ftps_state = 'Disabled' }) }
+function Dup($v) { $v | ConvertTo-Json -Depth 10 | ConvertFrom-Json -AsHashtable }
+$planOk = Dup $plan; $planOk.sku_name = 'B1'
+$planBad = Dup $planOk; $planBad.tags.workshop = 'y'
+$appOk = Dup $app; $appOk.site_config[0].always_on = $true
+$appBad = Dup $appOk; $appBad.site_config[0].ftps_state = 'AllAllowed'
+$appSettings = Dup $appOk; $appSettings.app_settings.A = '2'
+$delete = @{ address = 'azurerm_service_plan.portal[0]'; change = @{ actions = @('delete'); before = $plan; after = $null } }
+@(
+  (Test-WorkshopPortalTierRestore (C 'azurerm_service_plan.portal[0]' $plan $planOk)),
+  (Test-WorkshopPortalTierRestore (C 'azurerm_linux_web_app.portal[0]' $app $appOk)),
+  (Test-WorkshopPortalTierRestore (C 'azurerm_service_plan.portal[0]' $plan $planBad)),
+  (Test-WorkshopPortalTierRestore (C 'azurerm_linux_web_app.portal[0]' $app $appBad)),
+  (Test-WorkshopPortalTierRestore (C 'azurerm_linux_web_app.portal[0]' $app $appSettings)),
+  (Test-WorkshopPortalTierRestore (C 'azurerm_service_plan.other[0]' $plan $planOk)),
+  (Test-WorkshopPortalTierRestore $delete)
+) -join ','
+`);
+    assert.equal(result.status, 0, result.stderr + result.stdout);
+    assert.equal(result.stdout.trim(), "True,True,False,False,False,False,False");
+});
