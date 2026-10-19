@@ -45,7 +45,7 @@ le serveur MCP le refuse ([wrong-audience.json](synthetic-claims/wrong-audience.
 
 ### Comprendre le changement d'authentification en deux étapes
 
-**Pourquoi la clé de fonction n'est plus la barrière.** L'authentification intégrée s'exécute devant l'hôte Functions et
+**Pourquoi la clé de fonction n'est plus le verrou.** L'authentification intégrée s'exécute devant l'hôte Functions et
 renvoie HTTP 401 avant l'exécution du moindre code MCP. Le paramètre documenté
 `AzureFunctionsJobHost__extensions__mcp__system__webhookAuthorizationLevel = Anonymous` indique alors à l'extension MCP de ne
 plus demander la clé système : une clé est un secret partagé que les clients devraient aussi détenir, et elle n'apporte
@@ -68,8 +68,8 @@ brièvement le webhook.
 | Clients pré-autorisés pour `user_impersonation` | Visual Studio Code `aebc6443-996d-45c2-90f0-388ff96faa56`, Azure CLI `04b07795-8ddb-461a-bbee-02f9e1bf7b46` |
 | Attributions de rôles (comptes de test existants seulement) | Alice → `Tools.Read` + `Tools.Write` ; Bob → `Tools.Read` ; Eve → aucune |
 
-Aucune permission Microsoft Graph ou Storage n'est encore demandée, donc **aucun consentement administrateur** n'est
-nécessaire : les clients pré-autorisés obtiennent `user_impersonation` sans demande de consentement. Le module 05 ajoute les
+Le module ne demande encore aucune permission Microsoft Graph ou Storage : **aucun consentement administrateur** n'est
+donc nécessaire : les clients pré-autorisés obtiennent `user_impersonation` sans demande de consentement. Le module 05 ajoute les
 permissions On-Behalf-Of et la fédération d'identité pour l'identité managée (la sortie `module05_federated_credential`
 en prépare les valeurs).
 
@@ -102,7 +102,7 @@ supplémentaires. Toute modification des paramètres d'application redémarre l'
   identités les crée séparément (par exemple avec un Temporary Access Pass) et ne transmet que leurs ID d'objet, en privé.
   Terraform ne crée jamais d'utilisateurs : le fournisseur AzureAD enregistrerait leur mot de passe initial dans l'état.
 
-**Administrateur des identités** (personne ou session distincte, rôle limité dans le temps via Privileged Identity Management si possible) :
+**Administrateur des identités** (personne ou session distincte, rôle activé pour une durée limitée avec Privileged Identity Management si possible) :
 
 - **Administrateur d'applications cloud** (ou Administrateur d'applications) pour créer l'inscription, l'application
   d'entreprise, les pré-autorisations et les attributions de rôles. Pas d'Administrateur général, pas de consentement
@@ -125,7 +125,7 @@ Exécutez les commandes depuis la racine du dépôt. Les étapes 2 à 7 modifien
 & .\modules\03-entra-authentication\validate.ps1 -Offline
 ```
 
-> **Résultat attendu** — d'après les messages du validateur ; pas encore une capture. Aucun appel à Azure ni à Entra.
+> **Résultat attendu** — tiré des messages du validateur ; ce n'est pas encore une capture. Aucun appel à Azure ni à Entra.
 >
 > ```text
 > PASS host.json keeps the level 0 System webhook level; the published package is never anonymous on its own (expected HTTP N/A).
@@ -138,7 +138,7 @@ Exécutez les commandes depuis la racine du dépôt. Les étapes 2 à 7 modifien
 > PASS offline checks only. Module 03 is NOT deployed or Entra-validated by this result.
 > ```
 >
-> **Ce que cela signifie pour vous :** le code et Terraform gardent toutes les barrières fermées et ne contiennent aucun secret.
+> **Ce que cela signifie pour vous :** le code et Terraform laissent tous les accès fermés et ne contiennent aucun secret.
 > Rien n'est encore déployé.
 
 **2. Administrateur des identités : connexion au tenant seulement.** Utilisez un terminal distinct.
@@ -184,7 +184,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Terraform plan failed.' }
 terraform '-chdir=infra\entra' apply '..\..\.workshop\entra.tfplan'
 ```
 
-> **Résultat réel** — extrait de l'apply pour la création, 2026-10-17, tenant de test de l'auteur. Noms et ID masqués.
+> **Résultat réel** — extrait de l'apply de création, 2026-10-17, tenant de test de l'auteur. Noms et ID masqués.
 >
 > ```text
 > azuread_application.mcp[0]: Creation complete after 6s [id=/applications/<guid>]
@@ -209,11 +209,11 @@ terraform '-chdir=infra\entra' apply '..\..\.workshop\entra.tfplan'
 >
 > Avec `create_application = false`, Terraform se contente de lire l'application existante : attendez-vous aux trois attributions seulement.
 >
-> **Ce que cela signifie pour vous :** huit objets Entra, sans mot de passe ni certificat : Eve n'a aucune attribution.
+> **Ce que cela signifie pour vous :** huit objets Entra, sans mot de passe ni certificat ; Eve n'a aucune attribution.
 > Votre plan doit afficher `Plan: 8 to add, 0 to change, 0 to destroy.` Lors d'une première exécution, arrêtez-vous si
 > le plan affiche `to destroy` ou `to change`.
 
-**5. Transmission au participant (ID non secrets seulement).**
+**5. Transmettre les ID au participant (aucun secret).**
 
 ```powershell
 terraform -chdir=infra/entra output -json workload_module03_tfvars | Set-Content -LiteralPath .\.workshop\module03.tfvars.json
@@ -244,7 +244,7 @@ terraform '-chdir=infra\workload' apply '..\..\.workshop\module03.tfplan'
 > Apply complete! Resources: 0 added, 2 changed, 0 destroyed.
 > ```
 >
-> **Ce que cela signifie pour vous :** le serveur est mis à jour en place, pas remplacé. L'application redémarre une fois.
+> **Ce que cela signifie pour vous :** Terraform met à jour le serveur sans le remplacer. L'application redémarre une fois.
 > Chez l'auteur, **2** ressources ont changé, car le portail facultatif a aussi reçu l'indication de connexion
 > `WORKSHOP_MCP_SCOPE`. Sans portail, attendez-vous à `Plan: 0 to add, 1 to change, 0 to destroy.` (la Function App seule).
 
@@ -273,7 +273,7 @@ terraform '-chdir=infra\workload' apply '..\..\.workshop\module03.tfplan'
 > **Ce que cela signifie pour vous :** la seule modification est le paramètre du webhook. Si le plan retire aussi
 > `auth_settings_v2`, arrêtez-vous : un fichier de variables manque.
 
-Aucun code n'est republié : `host.json` ne change pas.
+Inutile de republier le code : `host.json` ne change pas.
 
 **8. Vérifications opérateur (aucun compte de test nécessaire).**
 
@@ -308,16 +308,17 @@ Aucun code n'est republié : `host.json` ne change pas.
 > PASS the level 0 system key alone no longer opens the server (expected HTTP 401).
 > INFO persona checks skipped. Sign in as each test account in a separate AZURE_CONFIG_DIR and rerun with -Persona Alice, Bob, then Eve.
 > PASS module 03 operator checks complete. Persona checks are still required for validation.
-> ```n>
-> **Ce que cela signifie pour vous :** la plateforme refuse désormais les appelants **avant que votre code s'exécute**.
-> Un vrai jeton Microsoft ne suffit pas : il doit être émis **pour ce serveur** (audience). Seule, l'ancienne clé
-> partagée ne sert plus à rien.
+> ```
+>
+> **Ce que cela signifie pour vous :** la plateforme refuse désormais les appelants **avant que votre code ne s'exécute**.
+> Un vrai jeton Microsoft ne suffit pas : il doit être émis **pour ce serveur** (audience). L'ancienne clé
+> partagée, seule, ne sert plus à rien.
 
 Comment lire cette sortie : chaque en-tête `== Step N ==` annonce ce qui est vérifié, et sa ligne `Why:` dit ce que
 l'étape prouve. Chaque contrôle affiche ensuite une ligne `PASS` (ou `FAIL`) avec le statut HTTP attendu. Sur la capture
-ci-dessous, les cadres numérotés montrent quoi regarder en premier : (1) sans le bon jeton, le serveur répond HTTP 401 ;
+ci-dessous, les cadres numérotés indiquent ce qu'il faut regarder en premier : (1) sans le bon jeton, le serveur répond HTTP 401 ;
 (2) l'ancienne clé seule ne l'ouvre plus ; (3) la partie opérateur est terminée, mais les comptes de test doivent encore
-se connecter. Le script s'affiche en anglais.
+se connecter. Le script affiche ses messages en anglais.
 
 ![Sortie réelle du terminal : vérifications opérateur du module 03, cadres sur les contrôles HTTP 401, sur la clé qui n'ouvre plus le serveur et sur le rappel des personas](../../assets/screenshots/terminal-03-operator.png)
 
@@ -328,11 +329,11 @@ se connecter. Le script s'affiche en anglais.
 
 Non, HTTP 401. Le jeton est authentique, mais son audience (`aud`) est Microsoft Graph, pas l'API MCP. Un jeton par appel,
 une audience par jeton : le serveur n'accepte que les jetons émis pour `api://<client-id>`. L'inverse vaut aussi : le serveur
-ne doit jamais transmettre le jeton d'Alice à Graph (pas de token passthrough) : le module 05 utilise On-Behalf-Of.
+ne doit jamais transmettre le jeton d'Alice à Graph (pas de token passthrough). Le module 05 utilise On-Behalf-Of.
 
 </details>
 
-**9. Connecter VS Code avec une connexion Entra.** Dans votre configuration MCP **utilisateur**, remplacez le serveur
+**9. Connecter VS Code avec l'authentification Entra.** Dans votre configuration MCP **utilisateur**, remplacez le serveur
 `workshop-open` (et sa demande de clé) par une simple URL. Aucun en-tête, rien de secret.
 
 ```json
@@ -380,9 +381,9 @@ Remove-Item Env:\AZURE_CONFIG_DIR
 > PASS module 03 persona checks complete for Alice. Per-tool roles (Bob cannot write) are enforced in module 04.
 > ```
 
-![Sortie réelle du terminal : vérification persona du module 03 connectée en tant qu'Alice ; le cadre 1 marque l'étape persona, le cadre 2 le jeton accepté et les cinq outils listés](../../assets/screenshots/terminal-03-alice.png)
+![Sortie réelle du terminal : vérification par persona du module 03, connexion en tant qu'Alice ; le cadre 1 marque l'étape persona, le cadre 2 le jeton accepté et les cinq outils listés](../../assets/screenshots/terminal-03-alice.png)
 
-> **Résultat attendu** — Bob et Eve ; pas encore capturé (leur enregistrement MFA reste à faire dans le tenant de test).
+> **Résultat attendu** — Bob et Eve ; pas encore de capture (ils doivent encore enregistrer leur MFA dans le tenant de test).
 >
 > ```text
 > PASS Bob initialize with a token for the MCP audience succeeds; negotiated protocol <version> (expected HTTP 200).
@@ -390,8 +391,8 @@ Remove-Item Env:\AZURE_CONFIG_DIR
 > PASS Eve cannot obtain a token: she is not assigned to the enterprise application (expected HTTP 400 from the token endpoint, AADSTS50105).
 > ```
 >
-> **Ce que cela signifie pour vous :** vous savez maintenant **qui** appelle. Eve est arrêtée à la connexion et
-> n'atteint jamais le serveur. Mais Alice et Bob voient les mêmes cinq outils, **écriture comprise** : être connecté
+> **Ce que cela signifie pour vous :** vous savez maintenant **qui** appelle. Entra bloque Eve dès la connexion :
+> elle n'atteint jamais le serveur. Mais Alice et Bob voient les mêmes cinq outils, **écriture comprise** : être connecté
 > ne veut pas encore dire être autorisé. Le module 04 ajoute les rôles par outil.
 
 **Question :** Bob est connecté et reçoit HTTP 200. Son jeton ne porte que `Tools.Read`. Peut-il appeler `create_ticket` au niveau 1 ?
@@ -435,20 +436,20 @@ done
 unset AZURE_CONFIG_DIR
 ```
 
-> **Résultat attendu** — les mêmes lignes PASS, les mêmes résumés de plan et les mêmes écritures de fichiers silencieuses
+> **Résultat attendu** — les mêmes lignes PASS, les mêmes résumés de plan et les mêmes fichiers écrits sans message
 > que l'exécution PowerShell ci-dessus.
 
 ## Ce que vous devez voir
 
 | Action | Résultat attendu | Signification |
 |---|---|---|
-| Requête MCP sans jeton | HTTP 401 avec `WWW-Authenticate: Bearer … resource_metadata="…"` | L'authentification intégrée refuse avant l'exécution du code MCP. |
+| Requête MCP sans jeton | HTTP 401 avec `WWW-Authenticate: Bearer … resource_metadata="…"` | L'authentification intégrée refuse la requête avant que le code MCP ne s'exécute. |
 | `GET` sur l'URL `resource_metadata` | HTTP 200, `authorization_servers` = votre tenant, `scopes_supported` = `api://…/user_impersonation` | Les PRM (**Preview**) indiquent aux clients où se connecter. |
-| Requête avec la seule clé du niveau 0 | HTTP 401 | La clé n'est plus la barrière. |
+| Requête avec la seule clé du niveau 0 | HTTP 401 | La clé seule n'ouvre plus le serveur. |
 | Jeton Microsoft Graph d'Alice | HTTP 401 | Mauvaise audience : une audience par jeton. |
 | Alice, puis Bob, avec un jeton pour `api://<client-id>` | HTTP 200, cinq outils | Les utilisateurs attribués atteignent le serveur. |
 | Eve demande un jeton | `AADSTS50105`, aucun jeton | Attribution obligatoire : Eve n'atteint jamais le serveur. |
-| Bob appelle `create_ticket` dans VS Code | Fonctionne encore au niveau 1 | Accès au serveur seulement ; le module 04 ajoute les rôles par outil. |
+| Bob appelle `create_ticket` dans VS Code | Fonctionne toujours au niveau 1 | Seul l'accès au serveur est contrôlé ; le module 04 ajoute les rôles par outil. |
 
 > **Résultat réel** — requête MCP sans jeton, 2026-10-17, tenant de test de l'auteur. Noms et ID masqués.
 >
@@ -457,14 +458,14 @@ unset AZURE_CONFIG_DIR
 > WWW-Authenticate: Bearer ... resource_metadata="https://func-mcp-p01-<suffix>.azurewebsites.net/.well-known/oauth-protected-resource/runtime/webhooks/mcp", scope="api://<guid>/user_impersonation"
 > ```
 >
-> **Ce que cela signifie pour vous :** ce 401 n'est pas une impasse. Le challenge indique au client où lire les
+> **Ce que cela signifie pour vous :** ce 401 n'est pas une impasse. L'en-tête `WWW-Authenticate` indique au client où lire les
 > métadonnées de ressource protégée (**Preview**) et quel scope demander : VS Code peut ainsi lancer seul la connexion Microsoft.
 
 ### Retrouver le même résultat dans le portail Azure
 
 Captures réelles du portail, 2026-10-19, tenant de test de l'auteur. Les noms sont pseudonymisés et chaque ID est remplacé
 par des zéros. Ouvrez les mêmes pages dans votre tenant pour vérifier ce que Terraform a configuré. Le portail est affiché en
-anglais. Les cadres roses montrent quoi vérifier. Sélectionnez une image pour l'ouvrir en grand.
+anglais. Les cadres roses indiquent ce qu'il faut vérifier. Cliquez sur une image pour l'agrandir.
 
 **1. Function App → Settings → Authentication.** L'authentification App Service est activée, les requêtes non
 authentifiées reçoivent HTTP 401 et le magasin de jetons (*token store*) est désactivé : la plateforme vérifie le jeton,
@@ -472,8 +473,8 @@ le serveur ne le conserve jamais.
 
 ![Capture réelle : page Authentication de la Function App, authentification exigée, HTTP 401 pour les requêtes non authentifiées, magasin de jetons désactivé](../../assets/screenshots/azure-03-function-authentication.png)
 
-**2. App registrations → Workshop MCP API → Overview.** Une seule organisation (*My organization only*), et le lien
-« Add a certificate or secret » : l'application n'a aucun mot de passe.
+**2. App registrations → Workshop MCP API → Overview.** L'application est limitée à une seule organisation (*My organization only*).
+Le lien « Add a certificate or secret » montre qu'elle n'a aucun mot de passe.
 
 ![Capture réelle : vue d'ensemble de l'inscription d'application, une seule organisation, aucun secret ni certificat](../../assets/screenshots/azure-03-app-registration-overview.png)
 
@@ -483,17 +484,17 @@ aux applications. Le module 04 les applique outil par outil.
 ![Capture réelle : page App roles avec Tools.Read et Tools.Write pour les utilisateurs et Tools.Execute.All pour les applications](../../assets/screenshots/azure-03-app-roles.png)
 
 **4. Enterprise applications → Workshop MCP API → Properties.** « Assignment required? » vaut **Yes** : seuls les
-utilisateurs affectés (Alice et Bob) obtiennent un jeton. C'est pourquoi Eve reçoit `AADSTS50105`.
+utilisateurs attribués (Alice et Bob) obtiennent un jeton. C'est pourquoi Eve reçoit `AADSTS50105`.
 
-![Capture réelle : propriétés de l'application d'entreprise, affectation obligatoire à Yes](../../assets/screenshots/azure-03-enterprise-app-properties.png)
+![Capture réelle : propriétés de l'application d'entreprise, attribution obligatoire réglée sur Yes](../../assets/screenshots/azure-03-enterprise-app-properties.png)
 
 **Question :** Eve fait partie du tenant. Quel réglage de la capture 4 l'arrête avant même le serveur MCP ?
 
 <details>
-<summary>Voir la réponse</summary>
+<summary>Afficher la réponse</summary>
 
 « Assignment required? » = Yes. Microsoft Entra ID refuse d'émettre un jeton pour cette API à un utilisateur sans
-affectation : Eve reçoit `AADSTS50105` dès la connexion. Le serveur MCP ne voit jamais sa requête.
+attribution : Eve reçoit `AADSTS50105` dès la connexion. Le serveur MCP ne voit jamais sa requête.
 
 </details>
 
@@ -520,7 +521,7 @@ tenant, `user_impersonation`, les trois rôles et l'attribution obligatoire, san
 utilisateur ; aucun motif de jeton ou de clé dans les fichiers du module ; les revendications synthétiques n'utilisent que
 des ID synthétiques ; format, schéma et tests Terraform simulés pour les deux modules racines.
 
-Sortie hors ligne (ce résultat **ne prouve pas** un déploiement) :
+Sortie hors ligne (ce résultat **ne prouve aucun** déploiement) :
 
 ```text
 PASS host.json keeps the level 0 System webhook level; the published package is never anonymous on its own (expected HTTP N/A).
@@ -572,7 +573,7 @@ Remove-Item -LiteralPath .\.workshop\az-alice, .\.workshop\az-bob, .\.workshop\a
 & .\modules\03-entra-authentication\cleanup.ps1 -TenantId <tenant-id> -Scope Entra -Apply
 ```
 
-> **Résultat attendu** — d'après les messages du script de nettoyage ; pas encore une capture. Les lignes d'application de Terraform sont omises.
+> **Résultat attendu** — d'après les messages du script de nettoyage ; ce n'est pas encore une capture. Les lignes de l'apply Terraform sont omises.
 >
 > ```text
 > PASS explicit Azure context and private participant parameters (expected HTTP 200 from Azure Resource Manager).

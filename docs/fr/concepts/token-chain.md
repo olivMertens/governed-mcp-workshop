@@ -28,19 +28,19 @@ On-Behalf-Of (OBO) pour un outil qui agit au nom de l'utilisateur, ou par une id
 2. APIM valide le jeton A, le nom fixe de l'outil et le rôle applicatif d'Alice.
 3. `whoami` échange l'assertion d'Alice contre le jeton B.
 4. `read_report_as_user` obtient un jeton Storage distinct dans le contexte d'Alice.
-5. `read_report_as_app` obtient un jeton Storage de l'identité managée, sans le contexte d'Alice.
+5. `read_report_as_app` obtient un jeton Storage au nom de l'identité managée, sans le contexte d'Alice.
 
-Le jeton MCP de Bob peut être valide alors que Storage refuse `read_report_as_user`. Eve ne peut pas obtenir
+Le jeton MCP de Bob peut être valide, et Storage refuser quand même `read_report_as_user`. Eve ne peut pas obtenir
 le jeton réservé aux utilisateurs affectés. Un refus HTTP 403 en aval peut revenir sous forme d'erreur MCP dans une réponse HTTP 200.
 
 ## Résultat attendu
 
 Vous savez identifier, à chaque étape, l'émetteur, l'audience et le détenteur des droits, sans examiner de jeton réel.
-Aucun jeton, prompt, argument ou résultat n'est journalisé. APIM reste le seul point d'entrée public.
+Le serveur ne journalise aucun jeton, prompt, argument ni résultat. APIM reste le seul point d'entrée public.
 
 > [!WARNING]
 > Transmettre un jeton n'est pas déléguer. N'envoyez jamais le jeton MCP à une API en aval, n'élargissez pas les
-> audiences acceptées et ne vous rabattez pas sur l'identité du développeur en cas d'échec OBO.
+> audiences acceptées et ne vous rabattez pas sur l'identité du développeur si OBO échoue.
 
 ## Sources
 

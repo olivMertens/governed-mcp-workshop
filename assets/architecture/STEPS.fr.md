@@ -1,10 +1,10 @@
 # L'architecture, étape par étape
 
-Ces schémas montrent ce que le parcours vous fait construire, pas des ressources déjà déployées.
+Ces schémas montrent ce que vous allez construire au fil du parcours, pas des ressources déjà déployées.
 
-Le Model Context Protocol (MCP) relie un client à des outils. Chaque étape ajoute un contrôle ou précise qui est responsable de quoi.
+Le Model Context Protocol (MCP) relie un client à des outils. Chaque étape ajoute un contrôle ou précise qui est responsable de chaque partie.
 
-Ce fichier est généré à partir de `workshop.drawio` : ne le modifiez pas directement. Chaque cadre délimite un périmètre de responsabilité ; une vue répétée désigne le même environnement. GitHub affiche le schéma Mermaid ; l'application affiche le SVG équivalent, avec ses icônes et son tracé vérifiés.
+Ce fichier est généré à partir de `workshop.drawio` : ne le modifiez pas directement. Chaque cadre délimite un périmètre de responsabilité ; une vue répétée représente le même environnement. GitHub affiche le schéma Mermaid ; l'application affiche le SVG équivalent, avec ses icônes et son tracé vérifiés.
 
 ## 00 - Préparer les identités et les ressources
 
