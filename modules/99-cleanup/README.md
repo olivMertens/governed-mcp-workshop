@@ -235,6 +235,17 @@ Each check prints `PASS` or `FAIL`. The last line is `RESULT: PASS` when every c
 > An offline `PASS` checks the guide and script safety. It does **not** prove that Azure resources were deleted.
 > Complete the manual checks and inspect the remaining inventory in your own subscription.
 
+**Question:** the check `safety: reports by default (-Apply switch)` passes. Why test a mode that deletes nothing?
+
+<details>
+<summary>Show answer</summary>
+
+Because the report is your safety net. It lists exactly what would be deleted, and you review it before `-Apply`. The
+test makes sure nobody turns deletion into the default, so one wrong command cannot remove resources you did not review.
+
+</details>
+
+
 ## Troubleshooting
 
 - **A step stops with an exit code.** The script stops at the first failure and does not continue. Read the message, fix it,

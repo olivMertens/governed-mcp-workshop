@@ -509,6 +509,18 @@ En mode réel, après un déploiement approuvé :
 
 Le module n'est `validated` que lorsque tout cela réussit sur un abonnement neuf, juste après les modules 00 à 04.
 
+**Question :** un contrôle hors ligne refuse tout « repli sur les identifiants du développeur » dans le serveur. Que pourrait-il se passer sans lui ?
+
+<details>
+<summary>Afficher la réponse</summary>
+
+Sur un poste, des identifiants par défaut peuvent utiliser en silence **votre propre** connexion Azure CLI. Le serveur lirait
+alors Storage avec vos droits, et non ceux de l'appelant (On-Behalf-Of) ou de l'application (identité managée). Une
+configuration cassée aurait l'air de fonctionner. Le contrôle oblige le serveur à échouer de façon visible.
+
+</details>
+
+
 ## Dépannage
 
 | Symptôme | Vérification |

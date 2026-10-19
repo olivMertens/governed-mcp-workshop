@@ -492,6 +492,18 @@ Live modes, after an approved deployment:
 
 The module is `validated` only when all of these pass on a fresh subscription right after modules 00 to 04.
 
+**Question:** an offline check refuses any "developer-credential fallback" in the server. What could go wrong without it?
+
+<details>
+<summary>Show answer</summary>
+
+On a laptop, a default credential can silently use **your own** Azure CLI sign-in. The server would then read Storage
+with your rights, not the caller's (On-Behalf-Of) or the app's (managed identity). A broken setup would look like it
+works. The check makes the server fail loudly instead.
+
+</details>
+
+
 ## Troubleshooting
 
 | Symptom | Check |

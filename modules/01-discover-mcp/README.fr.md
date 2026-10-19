@@ -253,6 +253,17 @@ Il ne consigne que l'issue des contrôles, jamais les paramètres, les résultat
 Observez séparément l'approbation et le résultat dans VS Code. La réussite des contrôles automatiques ne remplace pas cette observation.
 Le module reste `in-progress` tant que l'approbation manuelle et le jalon d'environnement précédent ne sont pas consignés.
 
+**Question :** le validateur affiche `PASS unknown service returns a tool error`. Pourquoi une entrée refusée compte-t-elle comme une réussite ?
+
+<details>
+<summary>Afficher la réponse</summary>
+
+Parce que le contrôle **attend** ce refus. Un bon test prouve une règle, pas seulement le cas où tout va bien : le serveur
+doit rejeter un service inconnu avec `isError: true` au lieu de deviner. `PASS` signifie que la règle a tenu.
+
+</details>
+
+
 ## Dépannage
 
 | Problème | À vérifier |

@@ -156,6 +156,17 @@ bash ./modules/07-clients/validate.sh --offline
 
 Chaque vérification affiche une ligne `PASS` ou `FAIL`. Aucune vérification en ligne n'est automatisée : cette démo dépend des paramètres du tenant.
 
+**Question :** tous les contrôles hors ligne passent. Cela prouve-t-il que Foundry ou Copilot Studio peuvent appeler votre serveur ?
+
+<details>
+<summary>Afficher la réponse</summary>
+
+Non. Ils prouvent que le dossier est complet et que les règles sont écrites : jamais l'option **None**, aucun secret,
+Streamable HTTP uniquement. La connexion d'un client dépend des paramètres du tenant : elle reste une vérification manuelle.
+
+</details>
+
+
 ## Dépannage
 
 - **Le client reçoit 401 :** l'audience du jeton ne correspond pas au serveur. Vérifiez le module 03.
