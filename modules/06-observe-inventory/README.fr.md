@@ -217,6 +217,48 @@ az monitor app-insights query --app "$ai" --resource-group "$group" --offset 24h
 > **Résultat attendu** — la même liste que l'exécution PowerShell ci-dessus.
 La requête ne lit que des métadonnées : nom d'opération, nom d'outil, statut, durée et type d'erreur. Elle ne lit jamais les corps de requête ou de réponse.
 
+### Facultatif - Poser la même question à l'Observability Agent
+
+La page Logs propose un interrupteur **Agent** qui ouvre l'Azure Copilot Observability Agent. Vous posez la question en
+langage courant ; l'agent écrit une requête KQL, l'exécute sur ce composant Application Insights et explique le résultat.
+Le chat ne demande aucune ressource supplémentaire. Si l'interrupteur n'apparaît pas, votre tenant ne propose peut-être pas
+Azure Copilot : passez cette étape, le module n'en dépend pas.
+
+1. Dans le même composant Application Insights, ouvrez **Logs**, puis activez **Agent** (en haut à droite).
+2. Saisissez cette question (en anglais, comme le portail) :
+
+   ```text
+   Show MCP requests from the last 7 days where customDimensions api.type is Mcp or mcp-backend: timestamp, operation (gen_ai.operation.name), resultCode, success, duration and client (user_agent.name). Metadata only, no request or response bodies.
+   ```
+
+3. Dépliez **Reasoned for ...** pour voir la requête exécutée par l'agent. Comparez-la avec `queries/mcp-traffic.kql`.
+
+> **Résultat réel** — Observability Agent, 2026-10-19, tenant de test de l'auteur. Noms pseudonymisés, ID remplacés.
+> Le premier cadre montre la question ; le second, le tableau renvoyé par l'agent : les deux mêmes lignes `initialize`
+> refusées avec HTTP 401 que le fichier KQL.
+>
+> **Ce que cela signifie pour vous :** l'agent arrive au même résultat parce que les journaux ne contiennent que des
+> métadonnées. Il ne trouve que ce qui a été journalisé : ni prompt, ni jeton, ni corps de requête à divulguer. Le chat est
+> temporaire et limité à cette seule ressource.
+
+![Capture réelle : chat de l'Observability Agent dans Logs, avec la question et les deux lignes de métadonnées renvoyées](../../assets/screenshots/azure-06-observability-agent-answer.png)
+
+La requête générée par l'agent (encadrée) utilise le même filtre `api.type` que le fichier de l'atelier :
+
+![Capture réelle : requête KQL générée par l'Observability Agent, filtre api.type sur Mcp et mcp-backend](../../assets/screenshots/azure-06-observability-agent-query.png)
+
+**Question :** pourquoi garder `queries/mcp-traffic.kql` si l'agent sait écrire la requête ?
+
+<details>
+<summary>Voir la réponse</summary>
+
+Parce que le fichier est reproductible et relu : il donne toujours le même résultat, il est versionné dans Git et il
+s'exécute depuis Azure CLI et le validateur, sans portail ni IA. La requête de l'agent peut changer d'une fois à l'autre,
+et un contenu généré par l'IA peut être faux. Servez-vous de l'agent pour explorer et ébaucher ; gardez le fichier relu
+comme référence.
+
+</details>
+
 ### Étape 4 - Enregistrer le serveur MCP dans API Center (Préversion)
 
 L'inventaire API Center est en **Préversion**. Dans le portail Azure :
@@ -364,5 +406,6 @@ Les pages officielles Microsoft Learn utilisées pour ce module sont consignées
 - [Inventaire API Center](https://learn.microsoft.com/azure/api-center/register-discover-mcp-server) (enregistrement en Préversion).
 - [Apporter son serveur MCP](https://learn.microsoft.com/microsoft-365/admin/manage/manage-byo-mcp-server) (Préversion).
 - [Agent 365 avec API Management](https://learn.microsoft.com/azure/api-management/agent-365) (Préversion ; argumentaire facultatif, non revérifié ici).
+- [Azure Copilot Observability Agent](https://learn.microsoft.com/azure/azure-monitor/aiops/observability-agent-overview) et [dialoguer avec vos données d'observabilité](https://learn.microsoft.com/azure/azure-monitor/aiops/observability-agent-chat) : étape facultative. Les opérations autonomes et la ressource de l'agent sont en Préversion et ne sont pas utilisées ici. Dernière vérification : 2026-10-19.
 
-Dernière vérification : 2026-10-18. Requête KQL exécutée en ligne sur le trafic de la passerelle le 2026-10-18 ; étapes API Center et BYO manuelles, non exécutées. Argumentaire Agent 365 : 2026-10-14.
+Dernière vérification : 2026-10-18. Requête KQL exécutée en ligne sur le trafic de la passerelle le 2026-10-18 ; étapes API Center et BYO manuelles, non exécutées. Argumentaire Agent 365 : 2026-10-14. Étape facultative Observability Agent exécutée en ligne le 2026-10-19.

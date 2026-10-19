@@ -242,6 +242,22 @@ Get these IDs privately from your administrator; do not post them to GitHub or t
 Signing in does not grant new permissions, and the validator creates no resources.
 On failure, stop and use the [Azure context guide](DEPLOYMENT.md).
 
+**Test accounts and MFA:** your test tenant may require multifactor authentication (MFA).
+The first time Alice, Bob or Eve signs in, Microsoft Entra asks the account to register a method,
+for example an authenticator app. Register it in the browser that opens. Never weaken Conditional Access to skip it.
+
+### How to read validator output
+
+Every module has a `validate.ps1`; `validate.sh` runs the same script, so the output is identical.
+
+- The first line says what the module proves.
+- `== Step N: ... ==` headers group the checks. The `Why:` line under each header says what that step proves.
+- Each check prints one line: `PASS` or `FAIL`, then what was checked and the HTTP status it expects,
+  for example `(expected HTTP 401)`. `INFO` lines explain a skipped or manual check.
+- The last line gives the result. One `FAIL` means stop and read the module's Troubleshooting section.
+
+Module 03 shows a [real annotated capture](../modules/03-entra-authentication/README.md#steps) of this output.
+
 <details>
 <summary>More detail: review a Terraform plan and preserve its state</summary>
 
