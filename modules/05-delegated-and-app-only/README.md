@@ -642,4 +642,4 @@ correlation ID along, never the token.
   `azuread_application_federated_identity_credential`, `azuread_service_principal_delegated_permission_grant`) and
   [AzureRM 5.9.0](https://registry.terraform.io/providers/hashicorp/azurerm/5.9.0/docs)
 
-Last verified: 2026-10-18. Operator checks validated live in the author's test tenant on 2026-10-18; persona checks not yet run (MFA registration required).
+Last verified: 2026-10-18.

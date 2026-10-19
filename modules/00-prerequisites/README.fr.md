@@ -276,4 +276,4 @@ Consultez aussi les [explications sur la sécurité](../../docs/fr/LEARNING-GUID
 - [Conteneurs VS Code](https://code.visualstudio.com/docs/devcontainers/containers).
 - [Versions et sources retenues](../../docs/sources.md).
 
-Dernière vérification : 2026-10-14. Les tests locaux ne remplacent pas la validation dans Azure et dans le conteneur.
+Dernière vérification : 2026-10-14.
