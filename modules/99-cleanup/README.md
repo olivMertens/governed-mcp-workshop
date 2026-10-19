@@ -89,10 +89,10 @@ flowchart LR
 
 ```powershell
 # 1. Report only (default). Read each plan. Nothing changes.
-pwsh ./modules/99-cleanup/cleanup.ps1 -TenantId <tenant-guid> -SubscriptionId <subscription-guid>
+pwsh ./modules/99-cleanup/cleanup.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID
 
 # 2. Apply after you have reviewed every report.
-pwsh ./modules/99-cleanup/cleanup.ps1 -TenantId <tenant-guid> -SubscriptionId <subscription-guid> -Apply
+pwsh ./modules/99-cleanup/cleanup.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID -Apply
 ```
 
 > **Real result** — report mode, 2026-10-19, author's test tenant with modules 02 and 03 deployed, module 05 Entra
@@ -140,10 +140,10 @@ pwsh ./modules/99-cleanup/cleanup.ps1 -TenantId <tenant-guid> -SubscriptionId <s
 
 ```bash
 # 1. Report only (default).
-./modules/99-cleanup/cleanup.sh --tenant-id <tenant-guid> --subscription-id <subscription-guid>
+./modules/99-cleanup/cleanup.sh --tenant-id "$ARM_TENANT_ID" --subscription-id "$ARM_SUBSCRIPTION_ID"
 
 # 2. Apply after review.
-./modules/99-cleanup/cleanup.sh --tenant-id <tenant-guid> --subscription-id <subscription-guid> --apply
+./modules/99-cleanup/cleanup.sh --tenant-id "$ARM_TENANT_ID" --subscription-id "$ARM_SUBSCRIPTION_ID" --apply
 ```
 
 > **Expected result** — the same `SKIP`, `-->`, `PLAN`, `PASS` and `DONE` lines as the PowerShell run above; the wrapper calls `cleanup.ps1`.
@@ -156,7 +156,8 @@ Manual steps (the script does not touch these):
 4. Run the tag check below.
 
 ```powershell
-az resource list --tag workshop=mcp-<prefix>-<suffix> --query "[].{name:name, type:type}" -o table
+$p = Get-Content -LiteralPath ./.workshop/participant.tfvars.json -Raw | ConvertFrom-Json
+az resource list --tag "workshop=mcp-$($p.participant_prefix)-$($p.resource_suffix)" --query "[].{name:name, type:type}" -o table
 ```
 
 > **Expected result** — from the Azure CLI table format; not a capture after a complete clean-up.
