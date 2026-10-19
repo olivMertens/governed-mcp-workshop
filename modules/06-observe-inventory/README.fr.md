@@ -199,6 +199,13 @@ az monitor app-insights query --app $ai --resource-group $group --offset 24h `
 >
 > **Ce que cela signifie pour vous :** chaque ligne ne contient que des métadonnées : aucun corps, jeton, prompt, argument ou résultat. Les deux lignes réelles sont les appels `initialize` du validateur du module 04, refusés par la passerelle avec HTTP 401 : elles n'ont donc pas de nom d'outil. Elles apparaissent parce que la requête retient `api.type` `Mcp` ou `mcp-backend` : Microsoft Learn cite `Mcp`, mais un serveur MCP en passthrough comme celui de l'atelier journalise `mcp-backend`. Une liste vide est possible s'il n'y a pas eu de trafic MCP dans les dernières 24 heures ou si l'ingestion est encore en retard ; elle ne prouve ni réussite ni absence d'activité.
 
+La même requête dans le portail : composant Application Insights → **Logs**, passez en **KQL mode**, collez la requête,
+puis **Run** (capture réelle, 2026-10-19, tenant de test de l'auteur ; noms pseudonymisés ; portail en anglais). Le
+premier cadre marque le filtre qui ne garde que le trafic MCP ; le second marque les lignes : opération, statut, durée et
+nom du client, rien d'autre.
+
+![Capture réelle : Logs d'Application Insights en mode KQL, filtre MCP et deux lignes de métadonnées, initialize refusé avec HTTP 401](../../assets/screenshots/azure-06-kql-logs.png)
+
 bash :
 
 ```bash

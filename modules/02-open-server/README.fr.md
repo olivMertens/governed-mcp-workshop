@@ -190,6 +190,19 @@ if ($LASTEXITCODE -ne 0) { throw 'Terraform apply failed.' }
 >
 > **Ce que cela signifie pour vous :** les chiffres doivent correspondre au plan relu. Le serveur existe, mais n'exécute encore aucun code.
 
+Si vous avez activé `mcp_private_storage = true`, vérifiez-le dans le portail Azure : ouvrez le compte de stockage, puis
+**Security + networking → Networking** (captures réelles, 2026-10-19, tenant de test de l'auteur ; noms pseudonymisés,
+ID remplacés par des zéros ; portail en anglais ; les cadres roses montrent quoi vérifier). Sélectionnez une image pour
+l'ouvrir en grand.
+
+![Capture réelle : page Networking du compte de stockage, onglet Public access, accès réseau public à Disabled](../../assets/screenshots/azure-02-storage-public-access.png)
+
+![Capture réelle : page Networking du compte de stockage, onglet Private endpoints, points de terminaison privés blob et queue à l'état Approved](../../assets/screenshots/azure-02-storage-private-endpoints.png)
+
+L'accès réseau public est **désactivé** (*Disabled*) : la Function App n'atteint les blobs et les files d'attente que par
+les deux points de terminaison privés approuvés. Cela protège le stockage derrière le serveur ; le point de terminaison MCP
+reste, lui, ouvert avec une clé.
+
 **5. Publiez le code du serveur.** Azure CLI utilise votre connexion Microsoft Entra ; il n'existe aucun mot de passe de publication.
 
 ```powershell

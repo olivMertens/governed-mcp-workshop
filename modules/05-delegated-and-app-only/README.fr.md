@@ -281,7 +281,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Entra apply failed.' }
 > exactement deux scopes délégués. `whoami` et `read_report_as_user` peuvent maintenant échanger des jetons.
 
 Vérifiez-le dans le centre d'administration Microsoft Entra (captures réelles, 2026-10-19, tenant de test de l'auteur ;
-noms pseudonymisés, ID remplacés par des zéros ; portail affiché en anglais). Sélectionnez une image pour l'ouvrir en grand.
+noms pseudonymisés, ID remplacés par des zéros ; portail affiché en anglais). Les cadres roses montrent quoi vérifier. Sélectionnez une image pour l'ouvrir en grand.
 
 **App registrations → Workshop MCP API → API permissions.** Exactement deux autorisations déléguées : Azure Storage
 `user_impersonation` (pour `read_report_as_user`) et Microsoft Graph `User.Read` (pour `whoami`). Aucune autorisation d'application.

@@ -272,27 +272,43 @@ No code is republished: `host.json` is unchanged.
 & .\modules\03-entra-authentication\validate.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID
 ```
 
-> **Real result** — operator checks, 2026-10-17, author's test tenant. Names and IDs withheld.
+> **Real result** — operator checks, 2026-10-19, author's test tenant. Names and IDs withheld.
 >
 > ```text
+> Module 03 validator - only Microsoft Entra tokens issued for the MCP audience open the server.
+>
+> == Step 1: Offline - your copy keeps every gate closed (no Azure call) ==
+>    Why: Proves the code, Terraform and examples tie access to Entra and hold no secret or token.
 > PASS host.json keeps the level 0 System webhook level; the published package is never anonymous on its own (expected HTTP N/A).
 > PASS the key gate is removed only together with enforced built-in authentication and Return401 (expected HTTP 401 without a token).
 > PASS infra/entra: single tenant, user_impersonation, Tools.Read/Tools.Write/Tools.Execute.All, assignment required, no secret or user (expected HTTP N/A).
 > PASS no access token, key, SAS or client secret in module 03, infra/entra or workload files (expected HTTP N/A).
 > PASS synthetic claim examples use synthetic IDs only and contain no token (4 files, expected HTTP N/A).
+>
+> == Step 2: Live - the server refuses callers without the right token ==
+>    Why: Proves no token, or a token for another audience, gets HTTP 401 while metadata guides clients.
 > PASS MCP request without a token is refused by built-in authentication (expected HTTP 401).
 > PASS Protected Resource Metadata (Preview) names the tenant authorization server and the user_impersonation scope (expected HTTP 200).
 > PASS a valid token for another audience (Microsoft Graph) is refused (expected HTTP 401).
+>
+> == Step 3: Azure configuration matches Terraform ==
+>    Why: Proves built-in authentication and app settings are deployed as the code describes, and the key alone fails.
 > PASS explicit Azure context matches the approved test target (expected HTTP 200 from Azure Resource Manager).
 > PASS deployed authsettingsV2: required, Return401, tenant issuer, MCP audience only, no secret setting (expected HTTP 200 from Azure Resource Manager).
 > PASS app settings: webhook key gate replaced by Entra, PRM scope set (Preview) (expected HTTP 200 from Azure Resource Manager).
 > PASS the level 0 system key alone no longer opens the server (expected HTTP 401).
 > INFO persona checks skipped. Sign in as each test account in a separate AZURE_CONFIG_DIR and rerun with -Persona Alice, Bob, then Eve.
 > PASS module 03 operator checks complete. Persona checks are still required for validation.
-> ```
->
+> ```n>
 > **What it means for you:** the platform now refuses callers **before your code runs**. A real Microsoft token is
 > not enough: it must be issued **for this server** (audience). The old shared key is useless on its own.
+
+How to read it: each `== Step N ==` header names what is checked, and its `Why:` line says what the step proves.
+Every check then prints one `PASS` (or `FAIL`) line with the HTTP status it expects. In the capture below, the
+numbered frames mark what to look at first: (1) without the right token the server answers HTTP 401, (2) the old key
+alone no longer opens it, (3) the operator part is done, but the test accounts still have to sign in.
+
+![Real terminal output: module 03 operator checks, with frames on the HTTP 401 checks, the key that no longer opens the server, and the persona reminder](../../assets/screenshots/terminal-03-operator.png)
 
 **Question:** Alice holds a valid Microsoft Graph token from your tenant and sends it to the MCP server. Is it accepted?
 
@@ -321,6 +337,10 @@ Sign in as Alice: the five tools appear. Sign in as Eve (another VS Code profile
 
 **10. Persona checks.** Use one separate Azure CLI profile per test account so your own session is not replaced.
 
+Your tenant may require multifactor authentication (MFA). The first time each test account signs in, Microsoft Entra
+asks it to register a method (for example an authenticator app). Do it in the browser that `az login` opens; never
+weaken a Conditional Access policy to skip it.
+
 ```powershell
 foreach ($persona in 'Alice', 'Bob', 'Eve') {
     $env:AZURE_CONFIG_DIR = Join-Path $PWD ".workshop\az-$($persona.ToLower())"
@@ -331,11 +351,22 @@ foreach ($persona in 'Alice', 'Bob', 'Eve') {
 Remove-Item Env:\AZURE_CONFIG_DIR
 ```
 
-> **Expected result** — validator messages per persona; not captured: the test tenant requires MFA registration for the test accounts.
+> **Real result** — Alice, 2026-10-19, author's test tenant, after her MFA registration. Names and IDs withheld.
 >
 > ```text
-> PASS Alice initialize with a token for the MCP audience succeeds; negotiated protocol <version> (expected HTTP 200).
+> == Step 3: Persona - Alice signs in and lists the tools ==
+>    Why: Proves an assigned user gets a token for the MCP audience and sees the five tools.
+> PASS signed-in account matches the private Alice object ID (expected HTTP 200 from Microsoft Graph).
+> PASS Alice initialize with a token for the MCP audience succeeds; negotiated protocol 2025-06-18 (expected HTTP 200).
 > PASS Alice tools/list returns exactly the five workshop tools (expected HTTP 200).
+> PASS module 03 persona checks complete for Alice. Per-tool roles (Bob cannot write) are enforced in module 04.
+> ```
+
+![Real terminal output: module 03 persona check signed in as Alice; frame 1 marks the persona step, frame 2 the token accepted and the five tools listed](../../assets/screenshots/terminal-03-alice.png)
+
+> **Expected result** — Bob and Eve; not yet captured (their MFA registration is still pending in the test tenant).
+>
+> ```text
 > PASS Bob initialize with a token for the MCP audience succeeds; negotiated protocol <version> (expected HTTP 200).
 > PASS Bob tools/list returns exactly the five workshop tools (expected HTTP 200).
 > PASS Eve cannot obtain a token: she is not assigned to the enterprise application (expected HTTP 400 from the token endpoint, AADSTS50105).
@@ -413,7 +444,7 @@ unset AZURE_CONFIG_DIR
 ### Check the same result in the Azure portal
 
 Real portal captures, 2026-10-19, author's test tenant. Names are pseudonymised and every ID is replaced by zeros.
-Open the same blades in your own tenant to confirm what Terraform did. Select an image to open it full size.
+Open the same blades in your own tenant to confirm what Terraform did. Pink frames mark what to check. Select an image to open it full size.
 
 **1. Function App → Settings → Authentication.** App Service authentication is enabled, unauthenticated requests get
 HTTP 401, and the token store is off: the platform checks the token, the server never keeps it.

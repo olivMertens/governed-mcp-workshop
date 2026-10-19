@@ -201,6 +201,12 @@ az monitor app-insights query --app $ai --resource-group $group --offset 24h `
 > `Mcp`, but a passthrough MCP server such as this workshop's logs `mcp-backend`. An empty list is possible when there was no
 > MCP traffic in the last 24 hours or ingestion is still delayed; it proves neither success nor absence of activity.
 
+The same query in the portal: Application Insights component → **Logs**, switch to **KQL mode**, paste the query, then
+**Run** (real capture, 2026-10-19, author's test tenant; names pseudonymised). Frame 1 marks the filter that keeps only MCP
+traffic; frame 2 marks the rows: operation, status, duration and client name, and nothing else.
+
+![Real capture: Application Insights Logs in KQL mode with the MCP filter and two metadata-only rows, initialize refused with HTTP 401](../../assets/screenshots/azure-06-kql-logs.png)
+
 bash:
 
 ```bash

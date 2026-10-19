@@ -34,6 +34,11 @@ if (-not $PersonaObjectIdsPath) { $PersonaObjectIdsPath = Join-Path $root '.work
 
 function Pass([string]$Message) { Write-Output "PASS $Message" }
 function Fail([string]$Message) { throw "FAIL $Message" }
+$script:StepNumber = 0
+function Step([string]$Title, [string]$Why) {
+    $script:StepNumber++
+    Write-Output ''; Write-Output "== Step $($script:StepNumber): $Title =="; Write-Output "   Why: $Why"
+}
 # Strict-mode-safe lookup of a dotted path in nested dictionaries; missing keys return $null.
 function Get-Value($Object, [string]$Path) {
     foreach ($name in $Path.Split('.')) {
@@ -42,9 +47,11 @@ function Get-Value($Object, [string]$Path) {
     }
     return $Object
 }
+Write-Output 'Module 03 validator - only Microsoft Entra tokens issued for the MCP audience open the server.'
 
 # ---------------------------------------------------------------- offline checks (always run)
 
+Step 'Offline - your copy keeps every gate closed (no Azure call)' 'Proves the code, Terraform and examples tie access to Entra and hold no secret or token.'
 $hostJson = Get-Content -LiteralPath (Join-Path $server 'host.json') -Raw | ConvertFrom-Json -AsHashtable
 if ($hostJson.extensions?.mcp?.system?.webhookAuthorizationLevel -cne 'System') {
     Fail 'host.json must keep webhookAuthorizationLevel System; module 03 overrides it only through an app setting under built-in authentication (expected HTTP N/A).'
@@ -110,6 +117,7 @@ foreach ($file in $claims) {
 Pass "synthetic claim examples use synthetic IDs only and contain no token ($($claims.Count) files, expected HTTP N/A)."
 
 if (-not $SkipBuild) {
+    Step 'Offline - Terraform format, schema and mock plans' 'Proves both Terraform roots are valid without creating anything in Azure or Entra.'
     foreach ($terraformRoot in @($entra, $workload)) {
         if (-not (Test-Path -LiteralPath (Join-Path $terraformRoot '.terraform'))) {
             & terraform "-chdir=$terraformRoot" init -lockfile=readonly -input=false -no-color | Out-Null
@@ -174,6 +182,7 @@ $initialize = @{ jsonrpc = '2.0'; id = 1; method = 'initialize'; params = @{
     protocolVersion = '2025-06-18'; capabilities = @{}; clientInfo = @{ name = 'workshop-validator'; version = '0.3.0' } } }
 
 # Checks that need no assigned user (both modes).
+Step 'Live - the server refuses callers without the right token' 'Proves no token, or a token for another audience, gets HTTP 401 while metadata guides clients.'
 $anonymous = Invoke-Mcp $initialize $base
 $challenge = "$($anonymous.Headers['WWW-Authenticate'])"
 if ($anonymous.Status -ne 401) { Fail "request without a token returned HTTP $($anonymous.Status) (expected HTTP 401)." }
@@ -199,6 +208,7 @@ try {
     Pass 'a valid token for another audience (Microsoft Graph) is refused (expected HTTP 401).'
 
     if ($SubscriptionId -and $SubscriptionId -ne [guid]::Empty) {
+        Step 'Azure configuration matches Terraform' 'Proves built-in authentication and app settings are deployed as the code describes, and the key alone fails.'
         Assert-WorkshopAzureContext -TenantId $TenantId -SubscriptionId $SubscriptionId
         Pass 'explicit Azure context matches the approved test target (expected HTTP 200 from Azure Resource Manager).'
         $group = $outputs.resource_group_name?.value
@@ -239,6 +249,11 @@ try {
         return
     }
 
+    if ($Persona -eq 'Eve') {
+        Step 'Persona - Eve is refused a token' 'Proves a user without an app role assignment cannot even get a token for the MCP server.'
+    } else {
+        Step "Persona - $Persona signs in and lists the tools" 'Proves an assigned user gets a token for the MCP audience and sees the five tools.'
+    }
     $account = Invoke-WorkshopAzureJson -Arguments @('account', 'show', '--query', '{tenantId:tenantId,userType:user.type}')
     if ($account.tenantId -ne $TenantId.ToString() -or $account.userType -ne 'user') {
         Fail 'Azure CLI must be signed in interactively as the test account in the explicit tenant (expected HTTP N/A).'

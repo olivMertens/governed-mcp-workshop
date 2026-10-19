@@ -20,6 +20,12 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+$script:StepNumber = 0
+function Step([string]$Title, [string]$Why) {
+    $script:StepNumber++
+    Write-Output ''; Write-Output "== Step $($script:StepNumber): $Title =="; Write-Output "   Why: $Why"
+}
+Write-Output 'Module 07 validator - the other-clients guide is complete, marks Preview and holds no secret (offline).'
 
 if (-not $Offline) {
     throw 'FAIL: only -Offline is supported for module 07. No live checks are scripted.'
@@ -54,6 +60,7 @@ $readme     = if (Test-Path $readmePath) { Get-Content -Raw $readmePath } else {
 $readmeFr   = if (Test-Path $frPath) { Get-Content -Raw $frPath } else { '' }
 
 # 1. Required files exist.
+Step 'Offline - module files and README structure' 'Proves every file exists and the guide follows the workshop contract in both languages.'
 foreach ($f in @('README.md', 'README.fr.md', 'validate.ps1', 'validate.sh', 'cleanup.ps1', 'cleanup.sh')) {
     Check "file exists: $f" { Test-Path (Join-Path $moduleDir $f) } 'missing file'
 }
@@ -78,6 +85,7 @@ Check 'French README has the same section count' {
 } 'section count differs between EN and FR'
 
 # 4. Required guidance is present.
+Step 'Offline - the guide gives safe client guidance' 'Proves it marks Preview, never suggests anonymous access and links the official pages.'
 Check 'states that this module creates no resources' {
     $readme -match 'creates no Azure' -and $readmeFr -match 'ne crée aucune ressource'
 } 'missing "no resources" statement in EN or FR'
@@ -99,6 +107,7 @@ Check 'Sources link the Foundry and Copilot Studio pages' {
 } 'source links missing'
 
 # 5. No secrets or tenant-specific identifiers in this folder.
+Step 'Offline - no secrets or tenant IDs' 'Proves the folder holds nothing that could leak a real tenant or credential.'
 $allText = (Get-ChildItem -Path $moduleDir -File | Get-Content -Raw) -join "`n"
 Check 'no GUIDs or client secrets in module files' {
     -not ($allText -match '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}') -and
