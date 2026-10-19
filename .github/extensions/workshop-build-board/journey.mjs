@@ -101,6 +101,9 @@ export function readJourney(root, progress) {
                 concepts: document(french ? "Comprendre MCP et les agents" : "MCP and agent concepts", "MCP-CONCEPTS.md"),
                 gettingStarted: document(french ? "Choisir votre environnement" : "Choose your workspace", "GETTING-STARTED.md"),
                 practice: { title: french ? "Tester votre serveur MCP" : "Try your MCP", sourcePath: [...base, "PRACTICE.md"].join("/"), content: practice },
+                ...(available([...base, "MCP-SERVER.md"]) ? {
+                    mcpServer: document(french ? "Le serveur MCP et ses réponses" : "The MCP server and its answers", "MCP-SERVER.md"),
+                } : {}),
                 runbook: document(french ? "Construire avec Copilot" : "Build runbook", "COPILOT-RUNBOOK.md"),
                 sources: document(french ? "Références vérifiées" : "Verified sources", french ? "REFERENCES.md" : "sources.md"),
                 governance: { title: french ? "Comprendre la gouvernance" : "Understand governance",
