@@ -10,18 +10,18 @@ Les modules 01, 07 et 99 sont rédigés (contrôles hors ligne réussis). Les pr
 Suivez l'ordre d'exécution du [README racine](../../README.md).
 Les participants peuvent faire le [module 01](../../modules/01-discover-mcp/README.fr.md) sans attendre votre portail ni un déploiement Azure.
 
-## Avant la session : liste de contrôle
+## Avant la session
 
-- [ ] **Faites enregistrer la MFA d'Alice, Bob et Eve.** Un tenant de test peut exiger l'authentification multifacteur (MFA).
-  Connectez-vous une fois avec chaque compte de test et enregistrez une méthode (par exemple une application d'authentification).
-  N'affaiblissez jamais l'accès conditionnel pour l'éviter. Sans cela, les vérifications par persona bloquent à la connexion.
-- [ ] **Renouvelez la revue de capacité avant de déployer le portail.** Les contrôles préalables du portail n'acceptent
-  qu'une revue de moins de 24 heures ([vérifier capacité et coût en privé](HOSTING.md#vérifier-capacité-et-coût-en-privé)).
-  Faites-la le jour même du déploiement.
-- [ ] **Prévoyez API Management (module 04) sur une seule journée.** Le niveau Standard v2 est facturé à l'heure tant qu'il existe
-  (environ 1 USD de l'heure au moment de la rédaction ; vérifiez la calculatrice de prix pour votre région).
-  Déployez-le le jour où vous présentez le module 04 et supprimez-le le soir même.
-- [ ] Ouvrez à l'avance les captures réelles listées ci-dessous : elles servent de solution de repli si une étape en direct échoue.
+1. **Faites enregistrer la MFA d'Alice, Bob et Eve.** Un tenant de test peut exiger l'authentification multifacteur (MFA).
+   Connectez-vous une fois avec chaque compte de test et enregistrez une méthode (par exemple une application d'authentification).
+   N'affaiblissez jamais l'accès conditionnel pour l'éviter. Sans cela, les vérifications par persona bloquent à la connexion.
+2. **Renouvelez la revue de capacité avant de déployer le portail.** Les contrôles préalables du portail n'acceptent
+   qu'une revue de moins de 24 heures ([vérifier capacité et coût en privé](HOSTING.md#vérifier-capacité-et-coût-en-privé)).
+   Faites-la le jour même du déploiement.
+3. **Prévoyez API Management (module 04) sur une seule journée.** Le niveau Standard v2 est facturé à l'heure tant qu'il existe
+   (environ 1 USD de l'heure au moment de la rédaction ; vérifiez la calculatrice de prix pour votre région).
+   Déployez-le le jour où vous présentez le module 04 et supprimez-le le soir même.
+4. Ouvrez à l'avance les captures réelles listées ci-dessous : elles servent de solution de repli si une étape en direct échoue.
 
 ## Captures réelles en solution de repli
 
