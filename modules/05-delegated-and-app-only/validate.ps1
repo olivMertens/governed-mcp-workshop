@@ -237,8 +237,9 @@ try {
         Write-Output "INFO no private persona file; the signed-in account was not cross-checked against $Persona."
     }
 
-    $text = (& az account get-access-token --tenant $TenantId --resource $audience --query accessToken --output tsv --only-show-errors 2>&1 | Out-String).Trim()
-    if ($LASTEXITCODE -ne 0 -or $text -notmatch '^[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]*$') {
+    $result = Get-WorkshopAccessToken -TenantId $TenantId -Resource $audience
+    $text = $result.Value
+    if (-not $result.Ok) {
         $text = $null
         Fail "$Persona could not obtain a token for the MCP API (expected HTTP 200 from the token endpoint)."
     }

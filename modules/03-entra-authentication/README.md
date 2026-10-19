@@ -407,13 +407,24 @@ Remove-Item Env:\AZURE_CONFIG_DIR
 
 ![Real terminal output: module 03 persona check signed in as Alice; frame 1 marks the persona step, frame 2 the token accepted and the five tools listed](../../assets/screenshots/terminal-03-alice.png)
 
-> **Expected result** — Bob and Eve; not yet captured (their MFA registration is still pending in the test tenant).
+> **Real result** — Bob and Eve, 2026-10-19, author's test tenant, after their MFA registration. Names and IDs withheld.
 >
 > ```text
-> PASS Bob initialize with a token for the MCP audience succeeds; negotiated protocol <version> (expected HTTP 200).
+> == Step 4: Persona - Bob signs in and lists the tools ==
+> PASS signed-in account matches the private Bob object ID (expected HTTP 200 from Microsoft Graph).
+> PASS Bob initialize with a token for the MCP audience succeeds; negotiated protocol 2025-06-18 (expected HTTP 200).
 > PASS Bob tools/list returns exactly the five workshop tools (expected HTTP 200).
+> PASS module 03 persona checks complete for Bob. Per-tool roles (Bob cannot write) are enforced in module 04.
+>
+> == Step 4: Persona - Eve is refused a token ==
+> PASS signed-in account matches the private Eve object ID (expected HTTP 200 from Microsoft Graph).
 > PASS Eve cannot obtain a token: she is not assigned to the enterprise application (expected HTTP 400 from the token endpoint, AADSTS50105).
+> PASS module 03 persona check complete for Eve.
 > ```
+>
+> Eve's check takes about two minutes. When Entra refuses her token, recent Azure CLI versions try to open a sign-in
+> window and wait. The validator stops that request after 60 seconds and keeps only the `AADSTS50105` code. If you
+> run `az account get-access-token` yourself as Eve, the same window appears: close it.
 >
 > **What it means for you:** you now know **who** is calling. Eve is stopped at sign-in and never reaches the server.
 > But Alice and Bob see the same five tools, **including the write**: being signed in is not yet being authorized.

@@ -176,10 +176,7 @@ function Invoke-Mcp([string]$Uri, [hashtable]$Body, [hashtable]$Headers) {
     }
     return [pscustomobject]@{ Status = [int]$response.StatusCode; Headers = $response.Headers; Payload = $payload; Text = [string]$response.Content }
 }
-function Get-Token([string]$Resource) {
-    $text = (& az account get-access-token --tenant $TenantId --resource $Resource --query accessToken --output tsv --only-show-errors 2>&1 | Out-String).Trim()
-    return [pscustomobject]@{ Ok = ($LASTEXITCODE -eq 0 -and $text -match '^[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]*$'); Value = $text }
-}
+function Get-Token([string]$Resource) { Get-WorkshopAccessToken -TenantId $TenantId -Resource $Resource }
 # Joins the text content of a tool result. The content is synthetic ticket data, checked here and never printed.
 # MCP lets a server omit isError when the call succeeded (absent means false); API Management does so.
 function Test-ToolError($Result) { return $Result -is [System.Collections.IDictionary] ? [bool]$Result['isError'] : [bool]($Result.PSObject.Properties['isError']?.Value) }

@@ -82,6 +82,34 @@ function Invoke-WorkshopAzureJson {
     return ,$value
 }
 
+function Get-WorkshopAccessToken {
+    # Requests a token with Azure CLI and never waits for an interactive sign-in. When Microsoft Entra refuses the
+    # token (for example AADSTS50105 for an unassigned user), recent Azure CLI versions fall back to a pop-up sign-in
+    # that never returns in a script; the refusal is already written to stderr, so stop after a short wait.
+    param([Parameter(Mandatory)][string]$TenantId, [Parameter(Mandatory)][string]$Resource, [int]$TimeoutSeconds = 60)
+    $arguments = @('account', 'get-access-token', '--tenant', $TenantId, '--resource', $Resource, '--query', 'accessToken', '--output', 'tsv')
+    $pattern = '^[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]*$'
+    $command = Get-Command az -ErrorAction Stop | Select-Object -First 1
+    if ($command.CommandType -ne 'Application') {
+        # A PowerShell function or alias (for example a test double) runs in-process with the same parsing.
+        $output = (& az @arguments 2>&1 | Out-String).Trim()
+        $ok = $LASTEXITCODE -eq 0 -and $output -match $pattern
+        return [pscustomobject]@{ Ok = $ok; Value = $(if ($ok) { $output } else { [regex]::Match($output, 'AADSTS\d+').Value }) }
+    }
+    $info = [System.Diagnostics.ProcessStartInfo]::new($command.Source)
+    foreach ($argument in $arguments) { $info.ArgumentList.Add($argument) }
+    $info.RedirectStandardOutput = $true; $info.RedirectStandardError = $true; $info.UseShellExecute = $false
+    $process = [System.Diagnostics.Process]::Start($info)
+    $stdout = $process.StandardOutput.ReadToEndAsync(); $stderr = $process.StandardError.ReadToEndAsync()
+    $exited = $process.WaitForExit($TimeoutSeconds * 1000)
+    if (-not $exited) { try { $process.Kill($true) } catch { } }
+    $text = $stdout.Result.Trim(); $errors = $stderr.Result
+    $ok = $exited -and $process.ExitCode -eq 0 -and $text -match $pattern
+    # Only the AADSTS error code is kept from stderr: no trace ID, user name or token is returned.
+    $code = [regex]::Match($errors, 'AADSTS\d+').Value
+    return [pscustomobject]@{ Ok = $ok; Value = $(if ($ok) { $text } else { $code }) }
+}
+
 function Assert-WorkshopAzureContext {
     param([Parameter(Mandatory)][guid]$TenantId, [Parameter(Mandatory)][guid]$SubscriptionId)
     if ($TenantId -eq [guid]::Empty -or $SubscriptionId -eq [guid]::Empty) {
