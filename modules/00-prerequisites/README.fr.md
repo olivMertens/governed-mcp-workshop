@@ -7,7 +7,7 @@
 Choisir où travailler, vérifier les outils et confirmer que vous pouvez utiliser votre environnement Azure de test.
 Vous préparerez aussi les informations à transmettre à l'administrateur Microsoft Entra.
 
-## Pourquoi cette étape est importante
+## Pourquoi c'est important
 
 Avoir les bons outils ne suffit pas : il faut aussi les droits et la capacité nécessaires dans Azure.
 Les noms propres à chaque participant limitent les conflits, mais n'augmentent pas les quotas disponibles.
