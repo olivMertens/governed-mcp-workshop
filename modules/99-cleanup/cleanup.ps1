@@ -30,6 +30,7 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 
 # Reverse build order. Module 05 Entra must run before module 03 Entra.
+# Module 04's clean-up removes the optional part B (REST API exposed as MCP, phase 0) before the gateway itself.
 # Each step needs the private files its own clean-up requires. Without them that clean-up cannot plan safely,
 # so the step is skipped with a visible reason instead of failing the whole run.
 $steps = @(

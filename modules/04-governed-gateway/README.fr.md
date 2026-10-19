@@ -71,6 +71,9 @@ privés. Les variables d'activation valent false par défaut : tant que `enable_
 | Journaliseur + diagnostics | Application Insights (module 02) via une chaîne de connexion **et l'identité managée de la passerelle** (Monitoring Metrics Publisher sur ce seul composant), 0 octet de corps aux portées « toutes les API » et « API MCP » |
 | Function App (module 02) | Étape 2 seulement : `public_network_access_enabled = false` |
 
+La **partie B** facultative (`enable_rest_mcp_demo`, voir Étapes) ajoute une API REST fictive et un second serveur MCP adossé à
+cette API REST (**Preview**) sur la même passerelle, avec les mêmes règles de jeton, de rôle, de débit et de journalisation.
+
 ![Architecture du niveau 2](../../assets/architecture/04.fr.svg)
 
 L'URL client devient `https://apim-mcp-<prefix>-<suffix>.azure-api.net/workshop-mcp/mcp`. Les clients ne reçoivent
@@ -310,6 +313,192 @@ Start-Sleep -Seconds 300   # délai d'ingestion de la télémétrie
 > **Ce que cela signifie pour vous :** être connecté ne veut plus dire « tout faire » : Bob lit, seule Alice écrit, et
 > personne ne peut saturer le serveur. Les journaux indiquent **qui** a appelé **quel outil**, jamais ce qu'il a envoyé.
 
+### Partie B facultative - Exposer une API REST en serveur MCP (approche API-first)
+
+Facultative, après l'étape 6. La partie B n'ajoute **aucune ressource facturée** : elle ajoute deux API à l'instance Standard v2
+que vous payez déjà. Le type de serveur MCP et la version d'API `2025-09-01-preview` sont en **Preview** (préversion).
+
+**Pourquoi.** API Management peut fournir des outils aux agents de deux façons. Dans la **partie A** (étapes 1 à 6), le serveur MCP
+existe déjà (la Function) et la passerelle se place devant lui. Dans la **partie B** (approche API-first), vous avez déjà une API
+REST gérée par API Management : la passerelle transforme elle-même certaines opérations en outils MCP. Personne n'écrit de code MCP.
+
+| | Partie A - serveur MCP existant derrière la passerelle | Partie B - API REST exposée en serveur MCP |
+|---|---|---|
+| Qui écrit le code MCP | Vous (extension MCP d'Azure Functions) | Personne : API Management construit le serveur MCP à partir des opérations de l'API |
+| Transport | Streamable HTTP fourni par votre serveur, relayé par la passerelle | Streamable HTTP fourni par API Management ; derrière, de simples appels HTTP REST |
+| Capacités MCP | Outils, ressources et prompts, selon ce que votre serveur implémente | **Outils uniquement** : ni ressources, ni prompts |
+| Où l'autorisation s'applique | Stratégie de la passerelle, puis authentification intégrée de la Function (même audience) | Stratégies de la passerelle sur le serveur MCP et sur l'API REST (même audience) |
+| Quand la choisir | Logique en plusieurs étapes, streaming, choix d'identité côté serveur (On-Behalf-Of), outils pensés pour les agents | Accès rapide, surtout en lecture, à des API bien décrites que vous gouvernez déjà |
+
+**Ce que la partie B déploie** ([infra/workload/rest-mcp.tf](../../infra/workload/rest-mcp.tf), activée par `enable_rest_mcp_demo`) :
+
+- l'API REST `contoso-tickets-api` sur `/contoso-tickets`, avec `GET /tickets` (opération `list-tickets`) et
+  `GET /tickets/{ticketId}` (opération `get-ticket`). Elle répond avec `mock-response` à partir de l'exemple JSON de chaque
+  opération : trois tickets Contoso fictifs (`CT-1001` à `CT-1003`), sans backend ni donnée personnelle ;
+- le serveur MCP `contoso-tickets-mcp` (**Preview**, `type: mcp`, sans endpoint de backend) avec deux outils, `list_tickets` et
+  `get_ticket`, chacun relié à son opération par `operationId` (l'ID de ressource complet de l'opération) ;
+- [policies/rest-mcp-server.xml](policies/rest-mcp-server.xml) sur le serveur MCP : le même `validate-azure-ad-token` que dans la
+  partie A (audience de l'API MCP uniquement, clients autorisés, `user_impersonation`), le `oid` de l'appelant lu dans le jeton
+  validé, `rate-limit-by-key` par `oid`, le rôle d'application `Tools.Read` ou `Tools.Write` (les deux outils ne font que lire),
+  une trace limitée au `oid` de l'appelant et une réponse 401 qui désigne ses propres métadonnées de ressource protégée ;
+- [policies/rest-api.xml](policies/rest-api.xml) sur l'API REST : le même contrôle du jeton **avant** `mock-response`. L'API REST
+  n'est donc jamais anonyme, même appelée directement ;
+- une opération de plus sur l'API de métadonnées existante, pour `/.well-known/oauth-protected-resource/contoso-tickets-mcp/mcp`.
+
+Aucune clé d'abonnement nulle part. Le diagnostic de niveau « toutes les API » (0 octet de corps, aucun en-tête) couvre aussi les
+deux API de la partie B, et la partie B n'ajoute aucun diagnostic au niveau d'une API qui pourrait le remplacer. Comme l'exige
+Microsoft Learn pour les serveurs MCP, aucune stratégie ne lit le corps de la réponse.
+
+**B1. Contrôles hors ligne (sans Azure).**
+
+```powershell
+& .\modules\04-governed-gateway\validate-rest-mcp.ps1 -Offline
+```
+
+> **Résultat attendu** — lignes du validateur hors ligne, exécution de l'auteur du 2026-10-19 ; rien n'est déployé.
+>
+> ```text
+> PASS part B files exist: rest-mcp.tf, its mock tests, both policies and the bash wrapper (expected HTTP N/A).
+> PASS REST API policy: Entra token for the MCP audience only and user_impersonation before mock-response, no subscription key (expected HTTP 401 without a token).
+> PASS MCP server policy: Entra token for the MCP audience only, Tools.Read or Tools.Write, per-oid rate limit, trace with caller oid only, PRM challenge, no body access (expected HTTP 401/403/429).
+> PASS Terraform: opt-in behind the gateway, MCP server (Preview) with list_tickets and get_ticket mapped to their operations, no subscription key, all-APIs diagnostic at 0 body bytes (expected HTTP N/A).
+> PASS no access token, subscription key, SAS or client secret in part B files (expected HTTP N/A).
+> PASS Terraform format, schema and part B mock-only plans for infra/workload (expected HTTP N/A; no live plan/apply).
+> NOT DEPLOYED CHECKS SKIPPED: supply -TenantId (and -SubscriptionId) as operator, or -TenantId -Persona as a test account, after an approved deployment.
+> PASS offline checks only. Module 04 part B is NOT deployed or validated by this result.
+> ```
+>
+> **Ce que cela signifie pour vous :** votre copie applique à la partie B les mêmes contrôles qu'à la partie A. Rien n'a été déployé.
+
+**B2. Fichier d'activation privé (ignoré par Git), puis plan, relecture et application après approbation.** Gardez `$vars` de l'étape 3.
+
+```powershell
+@{ enable_rest_mcp_demo = $true } | ConvertTo-Json | Set-Content -LiteralPath .\.workshop\module04b.tfvars.json
+$varsB = $vars + '-var-file=..\..\.workshop\module04b.tfvars.json'
+terraform '-chdir=infra\workload' plan @varsB '-out=..\..\.workshop\module04b.tfplan'
+if ($LASTEXITCODE -ne 0) { throw 'Terraform plan failed.' }
+# Relecture : 10 ajouts (API REST, 2 opérations, stratégie d'API, serveur MCP, 2 outils, stratégie du serveur MCP, opération de
+# métadonnées et sa stratégie), 0 suppression ; les mises à jour connues de l'étape 4 peuvent apparaître. Puis, après approbation :
+terraform '-chdir=infra\workload' apply '..\..\.workshop\module04b.tfplan'
+```
+
+> **Résultat réel** — apply du module 04 (étape 1) et de la partie B ensemble, 2026-10-19, tenant de test de l'auteur. Noms et ID masqués.
+>
+> ```text
+> Plan: 27 to add, 3 to change, 0 to destroy.
+> ...
+> azurerm_api_management.gateway[0]: Creation complete after 5m57s [id=/subscriptions/<subscription-id>/.../service/apim-mcp-p01-<suffix>]
+> azapi_resource.rest_api[0]: Creation complete after 4s [id=.../apis/contoso-tickets-api]
+> azapi_resource.rest_mcp_api[0]: Creation complete after 5s [id=.../apis/contoso-tickets-mcp]
+> azapi_resource.rest_mcp_tool["get_ticket"]: Creation complete after 2s [id=.../apis/contoso-tickets-mcp/tools/get_ticket]
+> azapi_resource.rest_mcp_tool["list_tickets"]: Creation complete after 3s [id=.../apis/contoso-tickets-mcp/tools/list_tickets]
+> ...
+> Apply complete! Resources: 27 added, 3 changed, 0 destroyed.
+> ```
+>
+> Seule, sur une passerelle déjà en place, la partie B ajoute **10** ressources : 27 = 17 pour l'étape 1 du module 04 + 10 pour la partie B.
+>
+> **Ce que cela signifie pour vous :** un second serveur MCP existe maintenant sur la même passerelle. Si le plan affiche
+> `to destroy`, il manque un fichier de variables : n'appliquez pas. Tant que la partie B existe, **passez toujours**
+> `module04b.tfvars.json` à chaque plan de la charge de travail, sinon le plan la supprime.
+
+En bash, créez le fichier avec `printf '%s\n' '{"enable_rest_mcp_demo": true}' > .workshop/module04b.tfvars.json`, ajoutez
+`-var-file=../../.workshop/module04b.tfvars.json` à `$vars`, puis lancez `validate-rest-mcp.sh` avec les mêmes arguments que ci-dessous.
+
+**B3. Contrôles opérateur, puis contrôles par persona.**
+
+```powershell
+& .\modules\04-governed-gateway\validate-rest-mcp.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID
+foreach ($persona in 'Alice', 'Bob') {
+    $env:AZURE_CONFIG_DIR = Join-Path $PWD ".workshop\az-$($persona.ToLower())"
+    az login --tenant $env:ARM_TENANT_ID --allow-no-subscriptions   # se connecter en tant que $persona dans le navigateur
+    & .\modules\04-governed-gateway\validate-rest-mcp.ps1 -TenantId $env:ARM_TENANT_ID -Persona $persona
+    az logout
+}
+Remove-Item Env:\AZURE_CONFIG_DIR
+```
+
+> **Résultat réel** — contrôles opérateur, 2026-10-19, tenant de test de l'auteur. Noms et ID masqués (extrait).
+>
+> ```text
+> PASS part B MCP request without a token is refused with a challenge naming its metadata URL (expected HTTP 401).
+> PASS part B Protected Resource Metadata names its resource, the tenant authorization server and the user_impersonation scope (expected HTTP 200).
+> PASS the backing REST API /contoso-tickets/tickets without a token is refused (expected HTTP 401).
+> PASS a valid token for another audience (Microsoft Graph) is refused by the part B MCP server and its REST API (expected HTTP 401).
+> PASS explicit Azure context matches the approved test target (expected HTTP 200 from Azure Resource Manager).
+> PASS the part B MCP server is type mcp, needs no subscription key and maps list_tickets and get_ticket to their REST operations (expected HTTP 200 from Azure Resource Manager).
+> PASS deployed diagnostics covering part B log 0 body bytes and no header (1 scope(s) read) (expected HTTP 200 from Azure Resource Manager).
+> PASS module 04 part B operator checks complete. Persona checks are still required for validation.
+> ```
+>
+> **Ce que cela signifie pour vous :** transformer une API en outils n'a pas ouvert de nouvelle porte. Le serveur MCP et l'API REST
+> refusent tous deux une requête sans jeton et un jeton émis pour une autre audience.
+
+> **Résultat réel** — contrôles par persona pour Alice, 2026-10-19, tenant de test de l'auteur, après l'enregistrement de sa MFA (extrait).
+>
+> ```text
+> PASS Alice initialize on the part B MCP server succeeds; negotiated protocol 2025-06-18 (expected HTTP 200).
+> PASS Alice tools/list returns exactly list_tickets and get_ticket, one tool per exposed REST operation (expected HTTP 200).
+> PASS Alice list_tickets returns the 3 synthetic Contoso tickets, isError false (expected HTTP 200).
+> PASS Alice get_ticket CT-1001 returns the synthetic ticket, isError false (expected HTTP 200).
+> PASS module 04 part B persona checks complete for Alice.
+> ```
+>
+> **Ce que cela signifie pour vous :** chaque opération exposée est devenue un outil. Bob obtient les mêmes résultats : les deux
+> outils ne font que lire, `Tools.Read` suffit donc. Eve n'obtient toujours aucun jeton.
+
+Vérifiez-le dans le portail Azure (captures réelles, 2026-10-19, tenant de test de l'auteur ; noms pseudonymisés, ID
+remplacés par des zéros ; portail en anglais ; les cadres roses indiquent ce qu'il faut vérifier). Cliquez sur une image
+pour l'agrandir.
+
+**API Management → MCP Servers.** Deux serveurs sur la même passerelle : `contoso-tickets-mcp` (partie B, construit à
+partir d'une API REST) et `workshop-mcp` (partie A, le serveur Azure Functions).
+
+![Capture réelle : liste MCP Servers d'API Management avec contoso-tickets-mcp (API REST exposée en MCP) et workshop-mcp (serveur existant)](../../assets/screenshots/azure-04-mcp-servers.png)
+
+**contoso-tickets-mcp → Tools.** Chaque opération cochée devient un outil MCP : `GET /tickets` et `GET /tickets/{ticketId}`.
+
+![Capture réelle : page Tools du serveur MCP, avec les deux opérations REST Get ticket et List tickets sélectionnées comme outils](../../assets/screenshots/azure-04b-mcp-tools.png)
+
+**contoso-tickets-mcp → Policies.** Le même contrôle de jeton Microsoft Entra que la partie A, et un contrôle de rôle pour
+les deux outils en lecture seule.
+
+![Capture réelle : stratégie du serveur MCP avec validate-azure-ad-token (tenant, clients autorisés, audience MCP, user_impersonation) et la note sur le rôle en lecture](../../assets/screenshots/azure-04b-mcp-policy.png)
+
+![Sortie réelle du terminal : vérification persona de la partie B connectée en tant qu'Alice ; le cadre 1 marque les deux outils, le cadre 2 les deux appels réussis](../../assets/screenshots/terminal-04b-alice.png)
+
+**B4. L'utiliser depuis VS Code.** Ajoutez un second serveur à votre configuration MCP **utilisateur**. Ni en-tête ni clé : VS Code
+lit les métadonnées de la partie B et vous connecte.
+
+```json
+{
+  "servers": {
+    "workshop-governed": { "type": "http", "url": "https://apim-mcp-<prefix>-<suffix>.azure-api.net/workshop-mcp/mcp" },
+    "contoso-tickets": { "type": "http", "url": "https://apim-mcp-<prefix>-<suffix>.azure-api.net/contoso-tickets-mcp/mcp" }
+  }
+}
+```
+
+Connecté en tant qu'Alice ou Bob, collez ce prompt dans Copilot Chat (mode **Agent**) :
+
+```prompt
+Utilise le serveur MCP contoso-tickets. Appelle list_tickets et présente les tickets dans un tableau. Appelle ensuite get_ticket avec ticketId "CT-1001" et résume son statut et sa gravité.
+```
+
+**Question :** Pourquoi garder un vrai serveur MCP (partie A) alors qu'API Management sait transformer n'importe quelle API REST en outils ?
+
+<details>
+<summary>Afficher la réponse</summary>
+
+La partie B n'expose que des **outils** : ni ressources MCP, ni prompts. Chaque outil correspond à une seule opération REST : une
+logique en plusieurs étapes, une progression en streaming ou le choix d'une identité en aval pour chaque outil (On-Behalf-Of ou
+identité managée, module 05) demandent du code côté serveur. La conception des outils compte aussi : un endpoint CRUD est pensé
+pour des programmes, alors qu'un outil pensé pour un agent a un but clair, des valeurs par défaut sûres et des résultats courts et
+ciblés. Utilisez la partie B pour un accès rapide, surtout en lecture, à des API que vous gouvernez déjà ; gardez un vrai serveur
+MCP quand l'outil a besoin de sa propre logique ou de ses propres choix d'identité.
+
+</details>
+
 ### Bash
 
 ```bash
@@ -438,10 +627,35 @@ Le module n'est `validated` que lorsque tout cela réussit sur un abonnement neu
 Nettoyez dans l'ordre inverse. Le script commence par un plan et refuse toute modification hors du module 04.
 Lancez-le une première fois pour relire le plan, puis une seconde fois avec `-Apply`. Il est idempotent. L'auteur ne l'a pas exécuté : aucun déploiement n'existe.
 
+**Partie B seulement** (la partie A et la passerelle restent en place). La phase 0 n'accepte que la suppression des ressources de la partie B :
+
+```powershell
+& .\modules\04-governed-gateway\cleanup.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID -Scope RestDemo
+& .\modules\04-governed-gateway\cleanup.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID -Scope RestDemo -Apply
+Remove-Item -LiteralPath .\.workshop\module04b.tfvars.json -ErrorAction SilentlyContinue
+```
+
+> **Résultat attendu** — d'après les messages du script de nettoyage ; non exécuté par l'auteur (extrait).
+>
+> ```text
+> PASS explicit Azure context and private participant parameters (expected HTTP 200 from Azure Resource Manager).
+> PLAN delete azapi_resource.rest_mcp_api[0] (phase 0: remove optional part B (REST API exposed as MCP))
+> PLAN delete azapi_resource.rest_mcp_tool["list_tickets"] (phase 0: remove optional part B (REST API exposed as MCP))
+> ...
+> PASS 'phase 0: remove optional part B (REST API exposed as MCP)' applied (expected HTTP 200).
+> PASS part B is removed; part A and the gateway are unchanged. Remove .workshop/module04b.tfvars.json and stop passing it to Terraform.
+> ```
+>
+> **Ce que cela signifie pour vous :** seuls les 10 objets de la partie B disparaissent. La partie A, la passerelle et le
+> verrouillage de la Function restent tels quels.
+
+**Module complet.** Sans `-Scope`, le script exécute la phase 0 (partie B, si elle existe), puis les phases 1 et 2 :
+
 ```powershell
 & .\modules\04-governed-gateway\cleanup.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID
 & .\modules\04-governed-gateway\cleanup.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID -Apply
 Remove-Item -LiteralPath .\.workshop\module04.tfvars.json -ErrorAction SilentlyContinue
+Remove-Item -LiteralPath .\.workshop\module04b.tfvars.json -ErrorAction SilentlyContinue
 # Facultatif, pour réutiliser le nom sous 48 heures (suppression réversible d'API Management) :
 az apim deletedservice purge --service-name apim-mcp-<prefix>-<suffix> --location <region>
 ```
@@ -450,14 +664,35 @@ az apim deletedservice purge --service-name apim-mcp-<prefix>-<suffix> --locatio
 >
 > ```text
 > PASS explicit Azure context and private participant parameters (expected HTTP 200 from Azure Resource Manager).
+> PASS 'phase 0: remove optional part B (REST API exposed as MCP)': nothing to do in this state (idempotent, expected HTTP N/A).
 > PLAN update azurerm_function_app_flex_consumption.mcp[0] (phase 1: reopen the Function behind Entra (stage 2 to stage 1))
 > PASS 'phase 1: reopen the Function behind Entra (stage 2 to stage 1)' plan changes only 1 module 04 object(s). Review it, then rerun with -Apply.
 > ```
 >
-> Avec `-Apply` :
+> **Résultat réel** — `-Apply` avec la partie B et l'étape 1 déployées (étape 2 non appliquée), 2026-10-19, tenant de test
+> de l'auteur. `...` masque des lignes `PLAN delete` semblables. Noms et ID masqués.
+>
+> ```text
+> PLAN delete azapi_resource.rest_mcp_tool["list_tickets"] (phase 0: remove optional part B (REST API exposed as MCP))
+> ...
+> Apply complete! Resources: 0 added, 3 changed, 10 destroyed.
+> PASS 'phase 0: remove optional part B (REST API exposed as MCP)' applied (expected HTTP 200).
+> PASS 'phase 1: reopen the Function behind Entra (stage 2 to stage 1)': nothing to do in this state (idempotent, expected HTTP N/A).
+> PLAN delete azapi_resource.mcp_api[0] (phase 2: remove the governed gateway)
+> PLAN delete azurerm_api_management.gateway[0] (phase 2: remove the governed gateway)
+> ...
+> Apply complete! Resources: 0 added, 2 changed, 17 destroyed.
+> PASS 'phase 2: remove the governed gateway' applied (expected HTTP 200).
+> PASS the Function is back at level 1 (Entra only). Remove .workshop/module04.tfvars.json; use modules/03-entra-authentication/cleanup.ps1 next if you continue cleaning up.
+> ```
+>
+> Le nombre de `changed` inclut le retour du portail présentateur facultatif à son niveau validé (lignes `NOTE`, non montrées).
+>
+> Avec `-Apply` après l'étape 2 (attendu, d'après les messages du script) :
 >
 > ```text
 > PASS explicit Azure context and private participant parameters (expected HTTP 200 from Azure Resource Manager).
+> PASS 'phase 0: remove optional part B (REST API exposed as MCP)': nothing to do in this state (idempotent, expected HTTP N/A).
 > PLAN update azurerm_function_app_flex_consumption.mcp[0] (phase 1: reopen the Function behind Entra (stage 2 to stage 1))
 > Apply complete! Resources: 0 added, 1 changed, 0 destroyed.
 > PASS 'phase 1: reopen the Function behind Entra (stage 2 to stage 1)' applied (expected HTTP 200).
@@ -478,12 +713,12 @@ az apim deletedservice purge --service-name apim-mcp-<prefix>-<suffix> --locatio
 
 ```bash
 bash ./modules/04-governed-gateway/cleanup.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId "$ARM_SUBSCRIPTION_ID" -Apply
-rm -f .workshop/module04.tfvars.json
+rm -f .workshop/module04.tfvars.json .workshop/module04b.tfvars.json
 ```
 
 > **Résultat attendu** — les mêmes lignes PASS/PLAN que l'exécution PowerShell avec `-Apply` ci-dessus ; `rm` n'affiche rien.
 
-La phase 1 remet la Function dans son état du module 03 (toujours protégée par Entra, jamais anonyme). La phase 2 supprime la
+La phase 0 supprime la partie B facultative, si vous l'avez déployée. La phase 1 remet la Function dans son état du module 03 (toujours protégée par Entra, jamais anonyme). La phase 2 supprime la
 passerelle, les API, les stratégies, les diagnostics, le journaliseur, l'identité et le rôle de la passerelle, le point de terminaison
 privé, le DNS privé, les sous-réseaux, le NSG et le réseau virtuel. Si vous avez terminé, nettoyez ensuite les modules 03
 et 02. Remplacez `workshop-governed` dans VS Code. Si vous enchaînez avec le module 05, conservez tout.
@@ -495,10 +730,10 @@ et 02. Remplacez `workshop-governed` dans VS Code. Si vous enchaînez avec le mo
 - Pourquoi la passerelle transmet-elle le même jeton à la Function, et pourquoi n'est-ce pas du « token passthrough » ? Comparez
   avec le module 05.
 - Renseignez `gateway_allowed_ip_ranges` avec votre plage d'adresses sortantes, puis constatez le HTTP 403 depuis un autre réseau.
-- **04b facultatif (documentation seulement) :** API Management peut aussi exposer une **API REST gérée comme serveur MCP**, où
-  chaque opération devient un outil ([Exposer une API REST comme serveur MCP](https://learn.microsoft.com/azure/api-management/export-rest-mcp-server),
-  lab AI-Gateway `mcp-from-api`). Les mêmes stratégies `validate-azure-ad-token`, de rôle et de débit s'appliquent. Ce scénario
-  sort du parcours principal et ce dépôt ne le déploie pas.
+- **04b facultatif, désormais pratique :** la partie B des Étapes expose une **API REST gérée comme serveur MCP**, où chaque
+  opération devient un outil ([Exposer une API REST comme serveur MCP](https://learn.microsoft.com/azure/api-management/export-rest-mcp-server),
+  lab AI-Gateway `mcp-from-api`). Exposez une troisième opération comme outil, puis expliquez pourquoi une opération d'écriture
+  exigerait `Tools.Write` et une approbation dans le client.
 
 ## Sources
 
@@ -506,6 +741,11 @@ et 02. Remplacez `workshop-governed` dans VS Code. Si vous enchaînez avec le mo
 - [Sécuriser l'accès aux serveurs MCP dans API Management](https://learn.microsoft.com/azure/api-management/secure-mcp-servers)
 - [Serveurs MCP dans Azure API Management](https://learn.microsoft.com/azure/api-management/mcp-server-overview)
 - [Gérer les serveurs MCP par programmation (REST, Bicep, Azure CLI, Terraform ; 2025-09-01-preview)](https://learn.microsoft.com/azure/api-management/manage-mcp-servers-rest-api)
+  (la partie B suit « ARM and Bicep templates > REST API-backed MCP server » ; dernière vérification le 2026-10-19)
+- [Exposer une API REST d'API Management comme serveur MCP](https://learn.microsoft.com/azure/api-management/export-rest-mcp-server)
+  (partie B : outils uniquement, pas d'espaces de travail, ne jamais lire le corps de la réponse, 0 octet de contenu pour la
+  réponse frontale ; dernière vérification le 2026-10-19)
+- [Stratégie mock-response](https://learn.microsoft.com/azure/api-management/mock-response-policy)
 - [Stratégie validate-azure-ad-token](https://learn.microsoft.com/azure/api-management/validate-azure-ad-token-policy),
   [stratégie rate-limit-by-key](https://learn.microsoft.com/azure/api-management/rate-limit-by-key-policy),
   [stratégie ip-filter](https://learn.microsoft.com/azure/api-management/ip-filter-policy)

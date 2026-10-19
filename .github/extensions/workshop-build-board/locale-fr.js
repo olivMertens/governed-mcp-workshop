@@ -20,6 +20,7 @@ const french = {
   "Open concepts, section 10: On-Behalf-Of explained simply (text and diagram)": "Ouvrir les concepts, section 10 : On-Behalf-Of expliqué simplement (texte et schéma)",
   "Run these commands in your own VS Code terminal. The guide steps above show the output you should see.": "Lancez ces commandes dans votre propre terminal VS Code. Les étapes du guide ci-dessus montrent le résultat attendu.",
   "Part": "Partie",
+  "Session 2: integrate and expose MCP": "Séquence 2 : intégrer et exposer MCP",
   "part": "partie",
   "of": "sur",
   "continued": "suite",

@@ -109,6 +109,9 @@ export function readJourney(root, progress) {
                 hosting: document(french ? "Publier ou héberger les guides" : "Publish or host the guides", "HOSTING.md"),
                 ...(available([...base, "PRESENTER.md"]) ? {
                     presenter: document(french ? "Guide présentateur" : "Presenter guide", "PRESENTER.md"),
+                    ...(available([...base, "INTEGRATION-OPTIONS.md"]) ? {
+                        integration: document(french ? "Séquence 2 : intégrer et exposer MCP" : "Session 2: integrate and expose MCP", "INTEGRATION-OPTIONS.md"),
+                    } : {}),
                 } : {}),
                 ...(available(["docs", "requests", "identity-request.md"]) ? {
                     [french ? "originalIdentityRequest" : "identityRequest"]:

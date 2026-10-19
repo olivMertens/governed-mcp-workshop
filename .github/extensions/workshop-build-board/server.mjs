@@ -14,7 +14,7 @@ function publicAsset(url, root) {
     if (/^\/assets\/icons\/(?:azure|microsoft|entra|apim|functions|storage|insights|api-center|subscription|foundry-agent-service|copilot-studio)\.svg$/.test(url) ||
         /^\/assets\/architecture\/(?:00|01|02|03|04|05|06|07|99)\.(?:en|fr)\.svg$/.test(url)) type = "image/svg+xml";
     else if (/^\/assets\/architecture\/(?:00|01|02|03|04|05|06|07|99)\.(?:en|fr)\.png$/.test(url) ||
-        /^\/assets\/screenshots\/(?:azure-02-storage-(?:public-access|private-endpoints)|azure-03-(?:function-authentication|app-registration-overview|app-roles|enterprise-app-properties)|terminal-03-(?:operator|alice)|azure-05-(?:api-permissions|federated-credentials)|azure-06-(?:kql-logs|observability-agent-answer|observability-agent-query)|diagram-05-(?:obo-hops|rbac-checks)-(?:en|fr))\.png$/.test(url)) type = "image/png";
+        /^\/assets\/screenshots\/(?:azure-02-storage-(?:public-access|private-endpoints)|azure-03-(?:function-authentication|app-registration-overview|app-roles|enterprise-app-properties)|terminal-03-(?:operator|alice)|azure-05-(?:api-permissions|federated-credentials)|azure-06-(?:kql-logs|observability-agent-answer|observability-agent-query)|diagram-05-(?:obo-hops|rbac-checks)-(?:en|fr)|azure-04-mcp-servers|azure-04b-mcp-(?:tools|policy)|terminal-04b-(?:operator|alice))\.png$/.test(url)) type = "image/png";
     else if (url === "/assets/architecture/workshop.drawio") type = "application/xml";
     else throw new BoardError("not_found", "Unknown public asset.", 404);
     const parts = url.slice("/assets/".length).split("/");

@@ -3,11 +3,14 @@
 .SYNOPSIS
     Module 04 clean-up. Idempotent, plan-reviewed, refuses anything outside module 04.
 .DESCRIPTION
-    Two guarded phases on infra/workload, in the reverse order of the staged deployment:
+    Guarded phases on infra/workload, in the reverse order of the staged deployment:
+      0. remove the optional part B (enable_rest_mcp_demo = false): the REST-backed MCP server, its two tools, the
+         synthetic REST API, their operations and policies, and the part B metadata operation. Part A stays;
       1. reopen the Function App to its module 03 state (gateway_lock_function = false). The Function stays protected by
          Microsoft Entra built-in authentication; nothing becomes anonymous;
       2. remove the governed gateway (enable_governed_gateway = false): API Management, MCP and metadata APIs, policies,
          diagnostics, logger, gateway identity and role, private endpoint, private DNS, subnets, NSG and virtual network.
+    -Scope RestDemo runs phase 0 only. -Scope All (default) runs phases 0, 1 and 2.
     Each phase accepts only the module 04 resources listed below (and the known in-place Function App update).
     Modules 02 and 03 stay. Without -Apply it only reports the next phase. With -Apply it applies each exact reviewed plan.
     API Management keeps a soft-deleted copy for 48 hours; the script prints the purge command but never runs it.
@@ -16,6 +19,7 @@
 param(
     [Parameter(Mandatory)][guid]$TenantId,
     [Parameter(Mandatory)][guid]$SubscriptionId,
+    [ValidateSet('All', 'RestDemo')][string]$Scope = 'All',
     [string]$ParametersPath,
     [string]$Module02VarFile,
     [string]$Module03VarFile,
@@ -50,7 +54,8 @@ function Invoke-GuardedPhase([string]$Directory, [string[]]$Arguments, [hashtabl
             $address = $_.address -replace '\[[^\]]+\]$', ''
             # API Management stores policies as normalised XML (tabs, entities, format 'xml'), so every plan re-sends the
             # policies unchanged. Accept that update only when the text is identical apart from whitespace and entities.
-            $whitespaceOnly = $address -in @('azapi_resource.mcp_api_policy', 'azapi_resource.prm_operation_policy') -and
+            $whitespaceOnly = $address -in @('azapi_resource.mcp_api_policy', 'azapi_resource.prm_operation_policy', 'azapi_resource.rest_api_policy',
+                    'azapi_resource.rest_mcp_policy', 'azapi_resource.rest_mcp_prm_operation_policy') -and
                 ($_.change.actions -join ',') -eq 'update' -and
                 ([Net.WebUtility]::HtmlDecode([string]$_.change.before.body.properties.value) -replace '\s', '') -ceq
                 ([Net.WebUtility]::HtmlDecode([string]$_.change.after.body.properties.value) -replace '\s', '')
@@ -110,6 +115,33 @@ $directory = Join-Path $root 'infra' 'workload'
 if ($LASTEXITCODE -ne 0) { throw 'FAIL Terraform init (expected HTTP N/A). Use the pinned Terraform and the locked providers.' }
 $common = @("-var-file=$ParametersPath", "-var-file=$Module02VarFile", "-var-file=$Module03VarFile")
 
+# Part B addresses (for_each keys are stripped by the allow-list check, like count indexes).
+$restDemoDeletes = @(
+    'azapi_resource.rest_mcp_prm_operation_policy', 'azapi_resource.rest_mcp_prm_operation', 'azapi_resource.rest_mcp_policy',
+    'azapi_resource.rest_mcp_tool', 'azapi_resource.rest_mcp_api', 'azapi_resource.rest_api_policy', 'azapi_resource.rest_operation',
+    'azapi_resource.rest_api'
+)
+
+# Phase 0: delete the optional part B resources only. Part A, the lock state and the gateway stay as configured.
+if ($Scope -eq 'RestDemo' -and -not (Test-Path -LiteralPath $Module04VarFile -PathType Leaf)) {
+    throw 'FAIL .workshop/module04.tfvars.json not found. Without it the plan would also remove the gateway; restore it first (expected HTTP N/A).'
+}
+if (Test-Path -LiteralPath $Module04VarFile -PathType Leaf) {
+    $restAllowed = @{ 'azurerm_function_app_flex_consumption.mcp' = 'update' }
+    foreach ($address in $restDemoDeletes) { $restAllowed[$address] = 'delete' }
+    Invoke-GuardedPhase $directory ($common + @("-var-file=$Module04VarFile", '-var=enable_rest_mcp_demo=false')) $restAllowed {
+        param($change)
+        $change.change.actions -contains 'delete'
+    } 'phase 0: remove optional part B (REST API exposed as MCP)'
+    if ($Scope -eq 'RestDemo') {
+        if ($script:PhaseDone) {
+            Write-Output 'PASS part B is removed; part A and the gateway are unchanged. Remove .workshop/module04b.tfvars.json and stop passing it to Terraform.'
+        }
+        return
+    }
+    if (-not $script:PhaseDone) { return }
+}
+
 # Phase 1: only the Function App, and only its public network access, may change.
 if (Test-Path -LiteralPath $Module04VarFile -PathType Leaf) {
     Invoke-GuardedPhase $directory ($common + @("-var-file=$Module04VarFile", '-var=gateway_lock_function=false')) @{ 'azurerm_function_app_flex_consumption.mcp' = 'update' } {
@@ -127,7 +159,7 @@ $gatewayDeletes = @(
     'azurerm_private_endpoint.function', 'azurerm_private_dns_zone_virtual_network_link.functions', 'azurerm_private_dns_zone.functions',
     'azurerm_subnet_network_security_group_association.gateway_apim', 'azurerm_network_security_group.gateway_apim',
     'azurerm_subnet.gateway_apim', 'azurerm_subnet.gateway_private_endpoints', 'azurerm_virtual_network.gateway'
-)
+) + $restDemoDeletes
 $allowed = @{ 'azurerm_function_app_flex_consumption.mcp' = 'update' }
 foreach ($address in $gatewayDeletes) { $allowed[$address] = 'delete' }
 Invoke-GuardedPhase $directory ($common + @('-var=enable_governed_gateway=false', '-var=gateway_lock_function=false')) $allowed {
