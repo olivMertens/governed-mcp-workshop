@@ -80,7 +80,8 @@ test("guided reading splits authored actions, never code fences or nested disclo
     assert.match(html, /content\.append\(intro, servicesList\(module\)\);/);
     assert.doesNotMatch(html, /disclosure\([^)]*servicesList/);
     // Commands and terminal checks stay in the main lesson flow, not in optional reading.
-    assert.match(html, /content\.append\(exercise\);/);
+    assert.match(html, /lesson = guidedDocument\(module\.guide \?\? module\.outline, module\.sourcePath, null, \{ validate, review \}\);/);
+    assert.match(html, /if \(index === shiftedValidate\) body\.append\(validate\.render\(step\)\);/);
     // Learning aids carry an icon: questions, answers and hints, and command results.
     assert.match(html, /node\.classList\.add\("question"\);\s*node\.prepend\(symbol\("question"\)\);/);
     // Answers get their own icon; the yellow tip bulb stays for tips and hints.
