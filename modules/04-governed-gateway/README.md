@@ -229,8 +229,12 @@ gateway URL. No header, no key: VS Code reads the gateway PRM and signs you in.
 }
 ```
 
-As Alice, ask Copilot to create a synthetic ticket: VS Code asks for **approval** before the write tool runs, then it works.
-As Bob (another VS Code profile), the same request fails with HTTP 403.
+As Alice, paste this prompt in Copilot Chat (**Agent** mode). VS Code asks for **approval** before the write tool runs,
+then it works. As Bob (another VS Code profile), the same prompt fails with HTTP 403.
+
+```prompt
+Use the workshop-governed MCP server. Call create_ticket with service "ticket-queue", severity "medium" and summary "Synthetic ticket - Contoso workshop". Show the tool result, or the exact error if the call is refused.
+```
 
 **Question:** Bob clicks **Allow** when VS Code asks him to approve `create_ticket`, but he has only `Tools.Read`. What does the
 gateway return, and does the Function see the call?

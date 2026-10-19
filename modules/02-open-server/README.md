@@ -282,7 +282,13 @@ Never put the key in a URL (`?code=`), a file, a chat or a screenshot.
 > Whoever holds it, colleague or attacker, can write. `whoami` answers `caller: unknown`: logs cannot say who acted.
 > This is the problem modules 03 to 05 solve.
 
-In VS Code, ask the agent to call `create_ticket` with synthetic values. It works for anyone who holds the key.
+In VS Code, open Copilot Chat in **Agent** mode and paste this prompt. Approve the `create_ticket` call when VS Code asks.
+
+```prompt
+Use the workshop-open MCP server. Call create_ticket with service "workshop-api", severity "low" and summary "Synthetic test ticket - Contoso workshop". Then call whoami and tell me who the server thinks I am.
+```
+
+The ticket is created and `whoami` answers `caller: unknown`. It works for anyone who holds the key.
 
 **Question:** the server answers HTTP 401 without the key. Does that mean it is protected per user?
 

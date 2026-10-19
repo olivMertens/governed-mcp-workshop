@@ -147,6 +147,29 @@ Dans l'instance APIM, vérifiez que la journalisation des charges utiles pour l'
 ### Étape 3 - Interroger le trafic MCP dans Application Insights
 
 Ouvrez `modules/06-observe-inventory/queries/mcp-traffic.kql` et exécutez-le dans le volet **Logs** du composant Application Insights dans lequel API Management écrit.
+
+La requête exacte, prête à coller :
+
+```kql
+// Module 06 - MCP traffic in Application Insights (synthetic, metadata only).
+// Reads only request metadata. Never select request or response bodies,
+// tool arguments, tool results, tokens or prompts.
+// Single-quoted strings keep the query intact when PowerShell passes it to the Azure CLI on Windows.
+requests
+| where timestamp > ago(24h)
+| extend apiType = tostring(customDimensions['api.type'])
+// Microsoft Learn lists 'Mcp'; a passthrough MCP server (this workshop) logs 'mcp-backend' (verified 2026-10-18).
+| where apiType in ('Mcp', 'mcp-backend')
+| extend
+    operation = tostring(customDimensions['gen_ai.operation.name']),
+    toolName  = tostring(customDimensions['gen_ai.tool.name']),
+    errorType = tostring(customDimensions['error.type']),
+    clientApp = tostring(customDimensions['user_agent.name'])
+| project timestamp, operation, toolName, resultCode, success, duration, errorType, clientApp
+| order by timestamp desc
+| take 200
+```
+
 La requête utilise les noms de tables d'Application Insights (`requests`, `customDimensions`) : exécutez-la dans le
 périmètre de ce composant Application Insights, pas sur son espace de travail Log Analytics, où les mêmes données se trouvent dans `AppRequests`.
 
@@ -227,7 +250,7 @@ Azure Copilot : passez cette étape, le module n'en dépend pas.
 1. Dans le même composant Application Insights, ouvrez **Logs**, puis activez **Agent** (en haut à droite).
 2. Saisissez cette question (en anglais, comme le portail) :
 
-   ```text
+   ```prompt
    Show MCP requests from the last 7 days where customDimensions api.type is Mcp or mcp-backend: timestamp, operation (gen_ai.operation.name), resultCode, success, duration and client (user_agent.name). Metadata only, no request or response bodies.
    ```
 

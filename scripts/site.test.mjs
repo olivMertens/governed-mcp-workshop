@@ -310,3 +310,25 @@ foreach ($global:mode in @('success', 'empty', 'no-context', 'mismatch', 'contex
     assert.equal(result.status, 0, result.stderr);
     assert.equal((result.stdout.match(/PASS /g) || []).length, 10, result.stdout);
 });
+
+test("module guides keep exact, copyable prompts and the KQL file in sync", () => {
+    const repo = fileURLToPath(new URL("../", import.meta.url));
+    const kql = readFileSync(join(repo, "modules", "06-observe-inventory", "queries", "mcp-traffic.kql"), "utf8").replace(/\r\n/g, "\n").trim();
+    for (const name of ["README.md", "README.fr.md"]) {
+        const guide = readFileSync(join(repo, "modules", "06-observe-inventory", name), "utf8").replace(/\r\n/g, "\n");
+        const block = /```kql\n([\s\S]*?)\n```/.exec(guide);
+        assert.ok(block, `${name} must show the exact KQL query in a kql block`);
+        assert.equal(block[1].trim(), kql, `${name} KQL block must match queries/mcp-traffic.kql`);
+    }
+    for (const folder of ["02-open-server", "03-entra-authentication", "04-governed-gateway", "05-delegated-and-app-only", "06-observe-inventory", "07-clients"]) {
+        for (const name of ["README.md", "README.fr.md"]) {
+            const guide = readFileSync(join(repo, "modules", folder, name), "utf8").replace(/\r\n/g, "\n");
+            const prompts = [...guide.matchAll(/^\s*```prompt\n([\s\S]*?)\n\s*```/gm)].map((match) => match[1].trim());
+            assert.ok(prompts.length >= 1, `${folder}/${name} must give at least one exact prompt`);
+            for (const prompt of prompts) {
+                assert.ok(prompt.length > 30 && !/<[a-z-]+>/.test(prompt), `${folder}/${name}: prompts must be complete, with no placeholder`);
+                assert.doesNotMatch(prompt, /eyJ[A-Za-z0-9_-]{8,}|Bearer |client_secret/i, `${folder}/${name}: prompts must contain no secret`);
+            }
+        }
+    }
+});
