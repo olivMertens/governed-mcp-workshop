@@ -354,6 +354,26 @@ En tant qu'Alice, vérifiez la connexion avec ce prompt dans Copilot Chat (mode 
 Utilise le serveur MCP workshop-entra. Liste ses outils, puis appelle get_service_health avec service "workshop-api" et montre le résultat.
 ```
 
+<details>
+<summary>Comment faire dans VS Code, clic par clic</summary>
+
+1. Récupérez l'URL dans votre terminal : `terraform -chdir=infra/workload output -raw mcp_endpoint`.
+2. Appuyez sur **Ctrl+Maj+P** (macOS : **Cmd+Maj+P**) et lancez **MCP: Open User Configuration**. Collez le JSON
+   ci-dessus, remplacez l'espace réservé par votre URL, puis enregistrez le fichier.
+3. Sélectionnez **Start** juste au-dessus de `workshop-entra` dans ce fichier. Vous pouvez aussi lancer **MCP: List Servers**,
+   choisir `workshop-entra`, puis **Start Server**.
+4. VS Code indique que le serveur veut s'authentifier auprès de Microsoft : sélectionnez **Allow**, puis connectez-vous
+   avec votre compte de test (par exemple Alice) dans la fenêtre de navigateur qui s'ouvre.
+5. Ouvrez le Chat avec **Ctrl+Alt+I** (macOS : **Ctrl+Cmd+I**). Dans la liste des modes sous la zone de saisie, choisissez
+   **Agent**. Sélectionnez l'icône des outils (**Configure Tools**) et ne gardez que les outils de `workshop-entra`.
+6. Collez le prompt. Quand VS Code demande d'exécuter un outil, lisez son nom et ses arguments, puis sélectionnez
+   **Allow** une seule fois. Dépliez l'appel d'outil dans le Chat pour lire son entrée et sa sortie.
+
+**Autre compte de test (Bob, Eve) :** lancez **Profiles: New Profile...**, donnez-lui le nom du compte et ouvrez-le.
+Dans cette nouvelle fenêtre, refaites les étapes 2 à 6 en vous connectant avec ce compte. Votre propre profil garde sa connexion.
+
+</details>
+
 **10. Vérifications par persona.** Utilisez un profil Azure CLI distinct pour chaque compte de test afin de ne pas écraser votre session.
 
 Votre tenant peut exiger l'authentification multifacteur (MFA). À sa première connexion, chaque compte de test doit
