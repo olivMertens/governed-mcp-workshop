@@ -69,7 +69,7 @@ Les contrôles sont les mêmes qu'avec PowerShell.
 
 Le script utilise `az login --tenant`, `az account set --subscription` et `az account show`.
 Il définit `ARM_TENANT_ID` et `ARM_SUBSCRIPTION_ID` dans le processus courant uniquement.
-Il refuse les paramètres d'authentification incompatibles plutôt que de les ignorer.
+Il refuse les paramètres d'authentification incompatibles au lieu de les ignorer.
 La confirmation demandée atteste votre accord ; elle ne détecte pas automatiquement un environnement de production.
 
 Ces scripts ciblent le cloud public Azure. Un cloud souverain nécessite une configuration distincte, à examiner
@@ -126,7 +126,7 @@ $resourceGroup
 **Observez :** un nom de groupe dans votre terminal privé. Aucune ressource n'a été créée.
 **Avant de continuer :** comparez-le au groupe approuvé. Si l'état est absent, arrêtez-vous ; n'en recréez pas un.
 
-### Observer 3. Distinguer les ressources de votre participant
+### Observer 3. Repérer vos ressources de participant
 
 **Pourquoi :** un groupe partagé peut contenir les ressources d'autres participants.
 **Prévoyez :** le tag `workshop` contient votre préfixe et votre suffixe stable.
@@ -186,7 +186,7 @@ Lancez ensuite la validation du module pour tester les accès.
 Terminez les vérifications du [module 00](../../modules/00-prerequisites/README.fr.md), puis l'exercice local
 du module 01 lorsqu'il sera disponible. Sélectionner un abonnement ne valide pas un module.
 
-Le code Terraform actuel prépare le groupe et un portail App Service public facultatif, désactivé par défaut.
+Le code Terraform actuel prépare le groupe et un portail public facultatif sur App Service, désactivé par défaut.
 Le serveur MCP et les modules suivants ne sont pas encore implémentés. Attendez leurs guides de déploiement,
 de vérification et de nettoyage. Ce tableau ne propose aucun bouton pour déployer tout l'atelier.
 
@@ -201,10 +201,10 @@ Vérifiez les ressources créées et les périmètres des rôles. Les fournisseu
 doivent cibler l'abonnement approuvé ; AzureAD doit cibler l'annuaire approuvé.
 Un paramètre explicite ou un alias peut prendre le pas sur une variable d'environnement.
 Revérifiez le contexte après tout changement de terminal, d'abonnement, de fournisseur ou de connexion.
-Ces fournisseurs et l'infrastructure Entra seront ajoutés dans les modules concernés.
+Les modules concernés ajouteront ces fournisseurs et l'infrastructure Entra.
 
 L'administrateur d'identité examine séparément `infra/entra` lorsqu'il sera implémenté.
-Les objets fournis par l'organisation ne doivent être ni modifiés ni supprimés.
+Ne modifiez et ne supprimez jamais les objets fournis par l'organisation.
 Utilisez des identités managées et la fédération, jamais de secret client.
 
 Vérifiez aussi les régions disponibles, les quotas partagés, les règles Azure Policy et les tags.
@@ -252,6 +252,6 @@ Arrêter un service ne met pas nécessairement fin à tous ses frais.
 - [Configuration et authentification AzureRM](https://registry.terraform.io/providers/hashicorp/azurerm/5.9.0/docs).
 - [Guide de test](PRACTICE.md).
 
-Dernière vérification : 2026-10-14. Pendant la préparation, aucun abonnement n'a été consulté et aucune ressource n'a été déployée.
+Dernière vérification : 2026-10-14. Pendant la préparation, nous n'avons consulté aucun abonnement ni déployé aucune ressource.
 
 Commandes de lecture et boutons de copie vérifiés le 2026-10-16 : contrôles hors ligne uniquement, aucun tenant interrogé.

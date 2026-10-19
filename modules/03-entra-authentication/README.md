@@ -299,7 +299,8 @@ No code is republished: `host.json` is unchanged.
 > PASS the level 0 system key alone no longer opens the server (expected HTTP 401).
 > INFO persona checks skipped. Sign in as each test account in a separate AZURE_CONFIG_DIR and rerun with -Persona Alice, Bob, then Eve.
 > PASS module 03 operator checks complete. Persona checks are still required for validation.
-> ```n>
+> ```
+>
 > **What it means for you:** the platform now refuses callers **before your code runs**. A real Microsoft token is
 > not enough: it must be issued **for this server** (audience). The old shared key is useless on its own.
 

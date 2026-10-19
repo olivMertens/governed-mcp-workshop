@@ -10,9 +10,9 @@ de déploiement partagée et n'a aucun accès aux tenants des participants.
 | Élément | Hébergement conseillé | Accès et responsabilités |
 |---|---|---|
 | Guides EN/FR, schémas et choix d'environnement | GitHub Pages | Contenu statique public, sans connexion Azure ni droit de déploiement. |
-| Copie publique Azure facultative | App Service Linux B1 du participant, activé explicitement dans Terraform | Guides publics. Entra autorise le déploiement, pas l'accès des visiteurs. |
-| Copie interne facultative | App Service **ou** Azure Container Apps désigné | Conception distincte ; connexion des visiteurs sans secret non implémentée ici. |
-| Ressources MCP du participant | Abonnement et groupe de test approuvés | Terraform exécuté depuis son terminal connecté à Azure, après examen du plan. |
+| Copie publique Azure facultative | App Service Linux B1 du participant, activé explicitement dans Terraform | Guides publics. Entra protège le déploiement, pas l'accès des visiteurs. |
+| Copie interne facultative | App Service **ou** Azure Container Apps désigné | Conception à part ; la connexion des visiteurs sans secret n'est pas implémentée ici. |
+| Ressources MCP du participant | Abonnement et groupe de test approuvés | Le participant lance Terraform depuis son terminal connecté à Azure, après examen du plan. |
 
 App Service et Azure Container Apps (ACA) sont des services différents.
 Héberger le portail sur l'un d'eux ne déploie pas les services de l'atelier. L'architecture MCP reste Azure Functions derrière API Management ;
@@ -36,20 +36,20 @@ if ($LASTEXITCODE -ne 0) { throw 'Site build failed.' }
 node --test scripts/site.test.mjs && node scripts/build-site.mjs
 ```
 
-Le dossier de sortie `site-dist` est ignoré par Git. Un dossier existant n'est pas écrasé.
+Git ignore le dossier de sortie `site-dist`. Le script n'écrase jamais un dossier existant.
 Pour reconstruire, choisissez un nouveau dossier avec `--output` ; ne supprimez une ancienne sortie qu'après l'avoir inspectée.
 Servez le dossier avec un serveur HTTP, pas via `file://`.
 La sortie portable contient le HTML, la traduction JavaScript, le parcours public en JSON et seulement les icônes et schémas autorisés.
-Elle ne contient ni dépôt complet, ni `.git`, ni `.workshop`, ni identifiants, ni état Terraform, ni serveur canvas, ni capacité d'accès locale.
+Elle ne contient ni dépôt complet, ni `.git`, ni `.workshop`, ni identifiants, ni état Terraform, ni serveur canvas, ni accès au poste local.
 Les chemins relatifs fonctionnent aussi sous `/workshop-mcp/`.
 
 Accueil : `#/start`. Français : `?lang=fr#/start`. Anglais : `?lang=en#/start`.
-Les routes reposent sur le fragment d'URL, sans serveur applicatif ni réécriture GitHub Pages.
+La navigation repose sur le fragment d'URL (`#`) : ni serveur applicatif ni règle de réécriture sur GitHub Pages.
 Le site lit ses fichiers statiques. L'adresse saisie reste dans la mémoire de la page ; seuls vos outils de test appellent le serveur MCP.
 
 ## Publier sur GitHub Pages
 
-Le workflow `.github/workflows/workshop-pages.yml` suit la procédure GitHub officielle, fixe chaque action sur un commit
+Le workflow `.github/workflows/workshop-pages.yml` suit la procédure GitHub officielle, épingle chaque action sur un commit
 et publie **uniquement `site-dist`**, jamais la racine du dépôt.
 Il n'utilise aucun identifiant Azure ni secret client. Son identité GitHub temporaire donne accès à Pages, pas à votre tenant Azure.
 
@@ -57,7 +57,7 @@ Il n'utilise aucun identifiant Azure ni secret client. Son identité GitHub temp
    scripts/configurations nécessaires sur la branche par défaut. Sinon, le clone et Codespaces pointent vers des
    fichiers indisponibles : ne promettez pas de prérequis non publiés.
 2. Dans **Settings > Pages**, choisissez **GitHub Actions** comme source.
-   Le workflow ne modifie pas silencieusement ce réglage.
+   Le workflow ne change pas ce réglage à votre place.
 3. Définissez les branches autorisées et l'éventuel approbateur de l'environnement `github-pages`.
 4. Dans **Actions > Publish workshop guides > Run workflow**, choisissez la branche par défaut.
    Déclenchement manuel uniquement : aucune publication automatique sur push ou pull request.
@@ -65,8 +65,8 @@ Il n'utilise aucun identifiant Azure ni secret client. Son identité GitHub temp
    sur le site réel avant d'en partager l'adresse.
 
 Adresse attendue après une publication réussie pour ce dépôt : `https://olivmertens.github.io/workshop-mcp/`.
-**Cela ne signifie pas que le site est en ligne.** Pages était désactivé lors de la préparation ;
-aucun workflow n'a été lancé et aucun réglage distant n'a été modifié. Vérifiez les droits, la visibilité et les limites Pages/Actions de votre offre.
+**Cela ne signifie pas que le site est en ligne.** Pages était désactivé pendant la préparation :
+personne n'a lancé le workflow ni modifié de réglage distant. Vérifiez les droits, la visibilité et les limites Pages/Actions de votre offre.
 
 </details>
 
@@ -82,11 +82,11 @@ Ne remplacez pas une application et ne créez ni accès,
 ni permission, ni configuration Entra sans approbation explicite. N'utilisez pas une application de production comme raccourci.
 
 Pour un portail privé, examinez l'authentification Entra intégrée prise en charge par le service choisi,
-les règles d'accès et les paramètres mono-tenant d'émetteur/audience. Un écran de connexion ne suffit pas.
+les règles d'accès et les paramètres d'émetteur et d'audience limités à un seul tenant. Un écran de connexion ne suffit pas.
 Utilisez une identité managée pour l'accès applicatif autorisé, et la fédération OpenID Connect (OIDC) pour un pipeline approuvé.
 N'utilisez ni profil de publication copié, ni clé permanente, ni secret client.
 La référence ACA montre aussi une configuration avec secret client : ne l'exécutez pas.
-Un parcours de connexion au portail privé sans secret n'est pas encore défini et reste un prérequis bloquant.
+Aucun parcours de connexion sans secret n'est encore défini pour le portail privé : c'est un prérequis bloquant.
 Les identifiants réels et la résolution de cible restent dans la session privée de déploiement, pas dans ce dépôt public.
 Pendant cette préparation, l'auteur ne s'est pas connecté à Azure et n'a ni découvert ni modifié d'applications.
 
@@ -97,14 +97,14 @@ Pendant cette préparation, l'auteur ne s'est pas connecté à Azure et n'a ni d
 Cette option, déjà implémentée, héberge la **même application monopage (SPA) publique**, pas un site interne authentifié.
 Elle utilise App Service Linux Basic B1 et Node.js 22 LTS (version maintenue à long terme).
 Elle n'utilise ni registre de conteneurs, ni construction d'image, ni secret client, ni profil de publication, ni clé de déploiement.
-ACA n'est pas implémenté dans cette version. Suivez d'abord le
+Cette version ne propose pas ACA. Suivez d'abord le
 [module 00](../../modules/00-prerequisites/README.fr.md).
 Tout passe par une seule racine, `infra/workload`, et un seul état. L'activation reste dans les paramètres privés ;
 un plan ultérieur ordinaire ne désactive pas le portail à votre insu.
 
 **Coût :** l'instance B1 dédiée est facturée en continu. Vérifiez les prix de la région et les règles de l'abonnement.
 Arrêter le site n'interrompt pas la facturation du plan. HTTPS et Transport Layer Security (TLS) 1.2+ sont imposés ;
-File Transfer Protocol (FTP) et publication par authentification de base sont désactivés.
+File Transfer Protocol (FTP) et la publication par authentification de base sont désactivés.
 Le serveur en lecture seule n'enregistre ni corps, ni paramètres de requête, ni identifiants, ni résultats.
 Il n'expose que 50 fichiers publics et `/health`, jamais l'API du canvas.
 GitHub Pages reste le choix le plus simple pour un atelier public.
@@ -121,7 +121,7 @@ Le script de vérification du portail exige que ce groupe existe.
 
 Relancez votre commande initiale `prepare-workshop.ps1`, avec **les mêmes** préfixe, région, propriétaire,
 date et l'éventuel groupe existant, en ajoutant `-EnablePublicPortal`.
-Cette activation explicite peut compléter le fichier de paramètres existant du socle : le suffixe et l'état sont conservés.
+Cette activation explicite peut compléter le fichier de paramètres du socle, en conservant le suffixe et l'état.
 Ne régénérez pas les noms et ne changez pas de copie ou d'état.
 
 ```powershell
@@ -148,7 +148,7 @@ Sur App Service, le serveur lit `PORT` et n'accepte de connexions extérieures q
 
 Le groupe doit déjà exister pour les contrôles du portail : examinez et faites approuver le plan du
 [socle seul](GETTING-STARTED.md), **avant** d'activer le portail, qui nécessite sa propre approbation.
-Un groupe fourni par l'administrateur n'est ni créé ni importé.
+Terraform ne crée ni n'importe un groupe fourni par l'administrateur.
 
 Si nécessaire, l'administrateur examine séparément l'inscription du fournisseur de ressources `Microsoft.Web`.
 Vérifiez la disponibilité de B1 Linux, le quota régional d'instances, les règles et le coût d'une instance.
@@ -157,7 +157,7 @@ la demande maximale en mémoire est partagée entre les participants. Les noms a
 Le contrôle `mcp` vérifie les régions Flex et la prise en charge de .NET 10 en processus isolé.
 Il ne construit pas les modules suivants.
 
-Conservez la preuve dans `.workshop/capacity-review.json`, ignoré par Git, jamais dans le tableau.
+Conservez la preuve dans `.workshop/capacity-review.json`, ignoré par Git, jamais dans le tableau de bord.
 Cet exemple **échoue volontairement** tant que l'abonnement, la capacité, l'heure UTC et le coût n'ont pas été vérifiés :
 
 ```json
@@ -172,16 +172,16 @@ Cet exemple **échoue volontairement** tant que l'abonnement, la capacité, l'he
 }
 ```
 
-Pour Flex, utilisez `stage: "mcp"` et `unit: "MB"`. Plafond par défaut : 2048 Mo fois 10 instances.
+Pour Flex, utilisez `stage: "mcp"` et `unit: "MB"`. Plafond par défaut : 2048 Mo × 10 instances.
 Adaptez `-FlexMemoryMB` et `-FlexMaximumInstances` dans l'appel à `scripts/preflight.ps1` si le plan diffère.
-La preuve doit correspondre à l'abonnement, à la région et à l'étape. Elle doit dater de moins de 24 heures, sans être dans le futur.
-C'est une **revue humaine de quota/coût**, pas une lecture automatique du quota ni une réservation.
-Les capacités API Management/réseau/télémétrie et les règles seront vérifiées avec le plan réel du module concerné.
+La preuve doit correspondre à l'abonnement, à la région et à l'étape. Elle doit avoir moins de 24 heures et ne pas être datée dans le futur.
+C'est une **revue humaine du quota et du coût**, pas une lecture automatique du quota ni une réservation.
+La capacité d'API Management, du réseau et de la télémétrie, ainsi que les règles, seront vérifiées avec le plan réel de chaque module.
 
 ### Planifier, approuver, déployer
 
-Ces commandes lisent la cible approuvée sans se connecter, sans changer d'abonnement, sans inscription de fournisseur ni attribution de rôle.
-Conservez le contexte sélectionné en privé dans le même terminal.
+Ces commandes lisent la cible approuvée. Elles ne vous connectent pas, ne changent pas d'abonnement, n'inscrivent aucun fournisseur et n'attribuent aucun rôle.
+Gardez le contexte sélectionné dans ce même terminal, sans le partager.
 
 ```powershell
 $ErrorActionPreference = 'Stop'
@@ -215,7 +215,7 @@ bash ./scripts/deploy-portal.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId "$ARM
 ```
 
 Un plan sauvegardé s'applique sans nouvelle confirmation de Terraform : **ne collez pas le bloc entier avant approbation**.
-L'envoi du code demande une confirmation distincte pour l'application nommée du participant.
+L'envoi du code demande une confirmation distincte avant de remplacer la documentation de l'application du participant, désignée par son nom.
 `-WhatIf` effectue les lectures, mais ne crée pas de ZIP et ne transfère rien.
 Le script vérifie la cible, les étiquettes, le plan, l'environnement d'exécution, TLS
 et la désactivation de la publication par authentification de base.
@@ -226,7 +226,7 @@ avec un nouveau chemin ZIP et les mêmes contrôles.
 
 Vérifiez `terraform output public_portal_url`, `/health` en HTTPS (200 et `{"status":"ok"}`),
 l'accueil, les deux langues, les schémas et la préparation du client sur le site réel avant d'en partager l'adresse.
-Pendant la rédaction, aucun plan Azure réel, apply, transfert ni contrôle de site déployé n'a été exécuté.
+Pendant la rédaction, l'auteur n'a lancé ni plan Azure réel, ni apply, ni transfert, ni contrôle du site déployé.
 Les preuves actuelles sont locales : schéma Terraform, plans simulés, serveur et déploiement synthétique.
 
 </details>
@@ -258,7 +258,7 @@ terraform -chdir=infra/workload show ../../.workshop/destroy.tfplan
 ```
 
 Le groupe existant fourni par l'administrateur reste une source de données, jamais une cible de suppression.
-Le groupe dédié non vide reste protégé. Conservez paramètres et état privés jusqu'à vérification de la suppression.
+Le groupe dédié non vide reste protégé. Gardez les paramètres et l'état privés jusqu'à ce que la suppression soit vérifiée.
 Ne supprimez pas un groupe entier pour masquer des ressources non suivies.
 
 </details>
@@ -280,7 +280,7 @@ Le serveur du portail revérifie ces deux valeurs et n'expose qu'elles, sur `/pa
 La page **Essayer votre MCP** préremplit le point de terminaison et affiche le scope délégué. Rien n'est prérempli
 sur GitHub Pages : le participant saisit son adresse, qui reste dans la mémoire du navigateur.
 
-- Jamais ajoutés : la clé système du module 02, les jetons, les ID de tenant ou d'abonnement, les chaînes de connexion, les secrets client.
+- Ne sont jamais ajoutés : la clé système du module 02, les jetons, les ID de tenant ou d'abonnement, les chaînes de connexion, les secrets client.
 - Le portail est public : il révèle le nom d'hôte et le scope, qui ne sont pas des secrets. Le point de terminaison reste
   protégé par la clé système (niveau 0) ou Microsoft Entra (niveau 1). Ne diffusez pas le lien hors de votre groupe de test,
   et supprimez le portail avec le workload.

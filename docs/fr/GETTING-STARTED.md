@@ -2,7 +2,7 @@
 
 **Participant :** ouvrez le lien envoyé par le présentateur, choisissez EN/FR, puis commencez le module 00.
 Vous n'avez besoin ni d'un autre App Service ni du compte administrateur du présentateur.
-Sans portail, suivez directement ces guides Markdown.
+Pas de portail ? Suivez directement ces guides Markdown.
 **Présentateur :** utilisez le [guide de publication séparé](PRESENTER.md).
 
 **Essayer MCP sans Azure :** après le clonage et l'installation de .NET 10/PowerShell 7,
@@ -11,7 +11,7 @@ Le portail du présentateur ne fait qu'héberger les guides ; il est facultatif.
 
 Choisissez où exécuter les commandes : sur votre poste, dans un conteneur de développement avec
 **Visual Studio Code (VS Code)**, ou dans GitHub Codespaces. Les exercices et les scripts sont les mêmes.
-Vous pouvez suivre les guides sans Copilot ni ce tableau.
+Vous pouvez suivre les guides sans Copilot ni le tableau de bord de l'atelier.
 
 ## 0. Récupérer le dépôt sur votre poste
 
@@ -43,15 +43,15 @@ Set-Location .\workshop-mcp
 
 **Résultat attendu :** `README.md`, `scripts` et `infra` sont présents dans le dossier courant.
 Toutes les commandes suivantes s'exécutent depuis ce dossier. Si VS Code est installé, ouvrez-le avec `code .`.
-Chaque participant utilise sa propre copie. Une fois le dépôt public, aucun compte GitHub ni GitHub CLI n'est nécessaire pour le cloner.
-Tant qu'il est privé, le présentateur doit vous accorder l'accès au dépôt ou partager le portail documentaire.
+Chaque participant utilise sa propre copie. Une fois le dépôt public, vous pouvez le cloner sans compte GitHub ni GitHub CLI.
+Tant qu'il reste privé, le présentateur doit vous donner accès au dépôt ou vous partager le portail des guides.
 
 <details>
 <summary>Vous avez déjà une copie ? La retrouver et la mettre à jour</summary>
 
 Revenez dans **votre copie d'origine**, surtout si des ressources ont déjà été déployées.
 Vérifiez que vous êtes sur `main` avec `git branch --show-current`.
-Si le dossier est suivi par Git et ne contient aucune modification locale :
+Si le dossier est bien un dépôt Git, sans modification locale :
 
 ```powershell
 if (git status --porcelain) { throw 'Conservez vos modifications locales avant la mise a jour.' }
@@ -59,7 +59,7 @@ git pull --ff-only
 if ($LASTEXITCODE -ne 0) { throw 'Mise a jour refusee. Ne forcez pas la fusion.' }
 ```
 
-Gardez privés `.workshop` et l'état Terraform. Ne supprimez pas ces fichiers, ne clonez pas de nouveau le dépôt pour
+Ne partagez ni `.workshop` ni l'état Terraform. Ne supprimez pas ces fichiers, ne clonez pas de nouveau le dépôt pour
 « repartir de zéro » et ne lancez pas `git clean` pour résoudre un problème de mise à jour.
 
 </details>
@@ -69,12 +69,12 @@ Gardez privés `.workshop` et l'état Terraform. Ne supprimez pas ces fichiers, 
 | Environnement | Ce qu'il vous faut | Pour commencer |
 |---|---|---|
 | VS Code avec un conteneur de développement | VS Code, l'extension Dev Containers et un moteur de conteneurs Linux autorisé par votre organisation | Ouvrir le dépôt avec `code .`, puis choisir **Dev Containers: Reopen in Container** dans la palette de commandes. |
-| Terminal local | Git, PowerShell 7.4+, Azure CLI, Terraform, SDK .NET, Node.js, Functions Core Tools | Conserver la copie locale. Installer les outils selon les règles de votre organisation. |
+| Terminal local | Git, PowerShell 7.4+, Azure CLI, Terraform, SDK .NET, Node.js, Functions Core Tools | Garder la copie locale. Installer les outils selon les règles de votre organisation. |
 | Codespaces, facultatif | Un compte GitHub avec un quota disponible et l'accord pour d'éventuels frais | [Choisir la branche et la machine](https://codespaces.new/olivMertens/workshop-mcp). Seuls les fichiers publiés sur cette branche seront disponibles. |
 
-Gardez les ports de MCP Inspector privés. Ne partagez pas votre dossier de connexion Azure avec le conteneur.
-La configuration du conteneur a été vérifiée, mais son démarrage et celui de Codespaces restent à tester.
-En cas de problème avec le conteneur, le terminal local reste possible si votre organisation l'autorise.
+Ne rendez pas publics les ports de MCP Inspector. Ne partagez pas votre dossier de connexion Azure avec le conteneur.
+La configuration du conteneur a été vérifiée, mais personne n'a encore testé son démarrage ni celui de Codespaces.
+Si le conteneur pose problème, passez au terminal local, à condition que votre organisation l'autorise.
 
 <details>
 <summary>Pour aller plus loin : fonctionnement du conteneur et compatibilité Docker ou Podman</summary>
@@ -91,17 +91,17 @@ dans `.devcontainer/devcontainer.json`.
 Versions retenues : Azure CLI 2.88.0, Terraform 1.16.6, SDK .NET 10.0.402, PowerShell 7.6.6,
 Node.js 22.22.0 et Functions Core Tools 4.14.0. Le script de création installe Core Tools puis lance
 le **même** `check-tools.ps1` que sur le poste local. Les dépendances téléchargées et les extensions de l'éditeur
-peuvent évoluer : ces empreintes ne figent pas tous les paquets. Toute mise à jour doit être examinée.
+peuvent évoluer : ces empreintes ne figent pas tous les paquets. Examinez chaque mise à jour.
 
-Docker doit répondre à `docker version` et `docker info`, pas seulement être installé.
+Il ne suffit pas que Docker soit installé : `docker version` et `docker info` doivent répondre.
 Pour Podman 5+, suivez [la procédure VS Code](https://code.visualstudio.com/remote/advancedcontainers/docker-options) :
 vérifiez `podman version`, `podman info` et, sur Windows/macOS, `podman machine list`, puis définissez
-**Dev Containers: Docker Path** sur `podman`. Pour contourner un problème, ne créez pas de nouvelle machine
-et n'exposez pas de socket TCP. VS Code ne prend pas officiellement en charge tous les clients compatibles Docker.
+**Dev Containers: Docker Path** sur `podman`. Ne créez pas de nouvelle machine et n'exposez pas de socket TCP
+pour contourner un problème. VS Code ne prend pas officiellement en charge tous les clients compatibles Docker.
 Cette configuration n'utilise ni Compose ni conteneurs imbriqués.
 
-**Limite de vérification :** configuration et empreintes publiques vérifiées, mais aucun moteur n'était accessible sur le
-poste de l'auteur. La construction, les deux architectures Linux et l'exécution Codespaces restent à vérifier
+**Ce qui reste à vérifier :** la configuration et les empreintes publiques ont été contrôlées, mais aucun moteur
+de conteneurs n'était disponible sur le poste de l'auteur. La construction, les deux architectures Linux et l'exécution Codespaces restent à vérifier
 au jalon du module 00. La présence d'un fichier ne prouve pas que votre moteur ou votre proxy fonctionne.
 En cas d'échec, consultez **Dev Containers: Show Container Log**. Corrigez l'erreur réelle de registre, proxy ou plateforme ;
 ne désactivez pas la vérification des certificats et ne changez pas de moteur sans examen.
@@ -129,7 +129,7 @@ Sur macOS/Linux, suivez les liens officiels correspondant à votre système.
 
 Installez les versions compatibles avec votre système depuis les sources officielles :
 
-| Outil | Contrôle commun | Source |
+| Outil | Version vérifiée | Source |
 |---|---|---|
 | Git | 2+ | [Téléchargements Git](https://git-scm.com/downloads) |
 | PowerShell | 7.4+ | [Installation](https://learn.microsoft.com/powershell/scripting/install/installing-powershell) |
@@ -144,9 +144,9 @@ Certains lanceurs npm téléchargent le programme au premier appel. Le contrôle
 incomplètes connues et s'arrête au lieu de déclencher ce téléchargement. Terminez l'installation selon la
 procédure approuvée. Aucun script ne modifie automatiquement votre poste ou votre moteur de conteneurs.
 
-## 2. Vérifier le terminal réellement utilisé
+## 2. Vérifier le terminal que vous allez utiliser
 
-Dans le conteneur si vous l'avez choisi, sinon sur le poste, depuis la racine du dépôt :
+Depuis la racine du dépôt, dans le conteneur si vous l'avez choisi, sinon sur votre poste :
 
 ```powershell
 & .\scripts\check-tools.ps1
@@ -156,8 +156,8 @@ Dans le conteneur si vous l'avez choisi, sinon sur le poste, depuis la racine du
 bash ./scripts/check-tools.sh
 ```
 
-PowerShell reste requis sur macOS/Linux. Corrigez chaque `FAIL`.
-Ce contrôle se limite à des commandes locales d'affichage de version : il ne vérifie ni les permissions Azure ni les quotas, et ne déploie rien.
+PowerShell est aussi nécessaire sous macOS et Linux. Corrigez chaque `FAIL`.
+Ce contrôle se contente d'afficher la version des outils locaux : il ne vérifie ni les permissions Azure ni les quotas, et ne déploie rien.
 
 ## 3. Préparer vos paramètres de déploiement
 
@@ -202,9 +202,9 @@ Le suffixe aléatoire n'est jamais raccourci.
 | Ressource | Nom d'une nouvelle préparation | Contrainte Azure |
 |---|---|---|
 | Nouveau groupe de ressources | `rg-mcp-<participant>-<suffixe>` | 1 à 90 caractères ; unique dans l'abonnement |
-| Compte Storage, prévu | `st<court><suffixe>` | 3 à 24 lettres minuscules ou chiffres ; unique dans tout Azure |
-| Application Functions, prévue | `func-mcp-<court>-<suffixe>` | Nom d'application unique dans tout Azure ; limité ici à 32 caractères pour préserver l'identifiant de l'hôte |
-| API Management, prévu | `apim-mcp-<participant>-<suffixe>` | 1 à 50 lettres, chiffres ou traits d'union ; unique dans tout Azure |
+| Compte de stockage (prévu) | `st<court><suffixe>` | 3 à 24 lettres minuscules ou chiffres ; unique dans tout Azure |
+| Application Functions (prévue) | `func-mcp-<court>-<suffixe>` | Nom d'application unique dans tout Azure ; limité ici à 32 caractères pour préserver l'identifiant de l'hôte |
+| API Management (prévu) | `apim-mcp-<participant>-<suffixe>` | 1 à 50 lettres, chiffres ou traits d'union ; unique dans tout Azure |
 | Plan App Service facultatif | `plan-mcp-<participant>-<suffixe>-portal` | 1 à 60 caractères ; unique dans le groupe |
 | Application du portail facultatif | `web-mcp-<participant>-<suffixe>-portal` | 2 à 60 lettres, chiffres ou traits d'union ; nom d'application unique dans tout Azure |
 
@@ -213,19 +213,19 @@ Le caractère aléatoire réduit le risque de collision sans le supprimer : vér
 Ne régénérez jamais le suffixe pour résoudre un problème de quota ou réparer un déploiement existant.
 Si les paramètres ont disparu mais qu'un état local, des métadonnées de stockage de l'état ou un plan enregistré
 sont encore présents aux emplacements connus, le script s'arrête. Restaurez le fichier privé d'origine.
-Un état distant ou enregistré ailleurs n'est pas toujours détectable.
+Le script ne détecte pas toujours un état distant ou enregistré ailleurs.
 
 Pour un groupe fourni par l'administrateur, ajoutez son nom exact avec `-ExistingResourceGroupName` au **premier**
-appel. Terraform lit ce groupe au moyen d'une source de données : aucun import, renommage, changement d'étiquettes
-ou suppression. Les ressources créées ensuite dans ce groupe conservent le suffixe du participant.
+appel. Terraform lit ce groupe comme une source de données : il ne l'importe pas, ne le renomme pas,
+ne modifie pas ses étiquettes et ne le supprime pas. Les ressources créées ensuite dans ce groupe conservent le suffixe du participant.
 Créer un groupe exige une autorisation distincte sur l'abonnement ; Contributor sur un groupe existant
-ne permet pas de créer un groupe voisin. Préférez utiliser un groupe existant plutôt que d'élargir les rôles.
+ne permet pas de créer un groupe voisin. Mieux vaut utiliser un groupe existant qu'élargir les rôles.
 
 Si un nom est refusé, recherchez-en la cause avant le premier déploiement. Ne renommez pas un groupe déjà
 déployé sans examiner les conséquences.
 
-Les noms d'outils, les valeurs du protocole, les autorisations et rôles applicatifs, ainsi que les noms de zones
-privées du système de noms de domaine (DNS) imposés par les services, ne doivent pas être rendus aléatoires.
+Ne rendez jamais aléatoires les noms d'outils, les valeurs du protocole, les autorisations et rôles applicatifs,
+ni les noms de zones privées du système de noms de domaine (DNS) imposés par les services.
 Les modules d'identité et de réseau, encore à construire, devront aussi vérifier l'isolation des participants
 et l'absence de chevauchement des plages d'adresses.
 
@@ -238,7 +238,7 @@ Le code Terraform actuel prépare le groupe et, sur demande, un portail App Serv
 Il ne déploie pas encore de serveur MCP, de réseau privé ni d'API Management.
 Le parcours en terminal local a été validé sur la cible de préparation, sans créer de ressource.
 Chaque participant doit refaire ces contrôles pour sa propre cible ; le parcours conteneur/Codespaces n'a pas encore été vérifié.
-Le [module 01 local](../../modules/01-discover-mcp/README.fr.md) peut maintenant être exécuté avec .NET 10 et PowerShell 7.
+Vous pouvez déjà exécuter le [module 01 en local](../../modules/01-discover-mcp/README.fr.md) avec .NET 10 et PowerShell 7.
 Il ne demande ni connexion Azure, ni Terraform, ni portail du présentateur.
 Les contrôles SDK et Inspector réussissent en local ; l'approbation dans le client reste à vérifier à la main.
 Terminez le module 00 dans l'environnement réellement choisi avant les exercices cloud.
@@ -299,13 +299,13 @@ terraform -chdir=infra/workload init -lockfile=readonly &&
 terraform -chdir=infra/workload plan -var-file=../../.workshop/participant.tfvars.json -out=../../.workshop/workload.tfplan
 ```
 
-La commande `plan` peut interroger Azure. Le tableau n'exécute aucune commande. Pas d'`apply` avant approbation du plan exact,
-des permissions, du quota et des coûts. Pas de `-auto-approve`. L'enregistrement automatique des fournisseurs
+La commande `plan` peut interroger Azure. Le tableau de bord n'exécute aucune commande. Ne lancez pas `apply` avant l'approbation du plan exact,
+des permissions, du quota et des coûts. N'utilisez jamais `-auto-approve`. L'enregistrement automatique des fournisseurs
 est désactivé : un administrateur enregistre séparément ceux qui sont requis. Attribuer des rôles Azure et administrer Entra sont deux permissions distinctes.
 N'utilisez jamais de rôle Owner global, de secret client ni d'abonnement de production pour contourner un blocage.
 
 Gardez une seule copie et un seul état pour le déploiement. Le conteneur monté et le poste partagent les fichiers ;
-un autre clone ou codespace possède son propre état local. N'y redéployez pas : restaurez paramètres et état de façon privée
+un autre clone ou codespace possède son propre état local. N'y redéployez pas : restaurez en privé les paramètres et l'état,
 ou configurez d'abord un backend distant approuvé et isolé. Ne publiez ni état, ni plan, ni paramètres, ni identifiants CLI.
 
 Après les étapes payantes, suivez le module 99. Examinez le plan de suppression avec le même état.
@@ -324,4 +324,4 @@ Conservez les groupes et identités existants. Ne supprimez pas un groupe entier
 - [Tests Terraform simulés](https://developer.hashicorp.com/terraform/language/tests/mocking), [état](https://developer.hashicorp.com/terraform/language/state).
 - [Pratique MCP](PRACTICE.md), [gouvernance](LEARNING-GUIDE.md), [références](REFERENCES.md).
 
-Dernière vérification : 2026-10-14. Les contrôles locaux/simulés ne valident ni la construction du conteneur ni le déploiement Azure.
+Dernière vérification : 2026-10-14. Les contrôles locaux et simulés ne valident ni la construction du conteneur ni le déploiement Azure.

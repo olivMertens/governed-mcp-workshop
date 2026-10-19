@@ -28,7 +28,7 @@ Rien. Ce module ne crée aucune ressource Azure, Microsoft Entra ou Copilot Stud
 
 - Modules 03 à 06 terminés et validés (ou un enregistrement de leur démonstration).
 - L'URL du serveur MCP du module 04 (via la passerelle, jamais l'URL de la Function).
-- Pour une démo en direct seulement : un projet Microsoft Foundry et un environnement Copilot Studio autorisés par votre tenant. Votre administrateur les approuve. Rien dans ce module ne modifie leurs rôles.
+- Pour une démo en direct seulement : un projet Microsoft Foundry et un environnement Copilot Studio autorisés dans votre tenant. Votre administrateur les approuve. Rien dans ce module ne modifie leurs rôles.
 
 ## Étapes
 
@@ -36,14 +36,14 @@ Rien. Ce module ne crée aucune ressource Azure, Microsoft Entra ou Copilot Stud
 
 ![Les clients facultatifs utilisent les mêmes contrôles API Management et la même Function privée.](../../assets/architecture/07.fr.svg)
 
-Le produit change ; les droits exigés par le serveur ne changent pas.
+Le client change, pas les droits exigés par le serveur.
 
 | Appel | Jeton et contrôle à prévoir |
 |---|---|
 | Client vers passerelle MCP | Jeton destiné à l'audience MCP. Les contrôles de la plateforme valident l'émetteur, le tenant, l'audience, l'expiration, le scope et le rôle |
 | Passerelle vers Function | Même ressource logique MCP dans l'atelier ; pas d'échange vers une audience en aval. L'authentification et l'accès privé de la Function restent en place |
-| Serveur MCP vers Graph ou Storage comme utilisateur | Nouveau jeton pour cette API par On-Behalf-Of (OBO) ; droits utilisateur et consentement délégué |
-| Serveur MCP vers Storage comme application | Nouveau jeton Storage par identité managée ; droits applicatifs limités au conteneur |
+| Serveur MCP vers Graph ou Storage au nom de l'utilisateur | Nouveau jeton pour cette API par On-Behalf-Of (OBO) ; droits utilisateur et consentement délégué |
+| Serveur MCP vers Storage en tant qu'application | Nouveau jeton Storage par identité managée ; droits applicatifs limités au conteneur |
 | Serveur local en stdio | Pas de jeton OAuth HTTP sur ce transport ; l'accès au processus et les droits du système d'exploitation restent nécessaires |
 | Calcul synthétique dans un outil | Aucun jeton en aval s'il n'y a aucun appel en aval ; l'accès MCP distant reste authentifié |
 
@@ -70,14 +70,14 @@ les outils OBO doivent aussi refuser les appelants applicatifs. L'identité du c
 2. Indiquez l'URL de la passerelle du module 04. Utilisez le transport **Streamable HTTP**.
 3. Choisissez l'authentification :
    - **Identité managée du projet :** option documentée de Foundry, mais incompatible avec le contrôle de scope délégué actuel de l'atelier. Expliquez la différence ; ne la présentez pas comme une démonstration réussie.
-   - **Passage d'identité OAuth (préversion) :** l'appel utilise l'identité de chaque utilisateur connecté. Le serveur doit accepter un jeton dont l'audience est sa propre audience. Les jetons Microsoft ne sont pas transmis à des points de terminaison MCP non approuvés.
-4. Posez une question en lecture seule qui appelle un outil de lecture. Collez ce prompt dans le terrain de jeu de l'agent, puis montrez le résultat :
+   - **Passage d'identité OAuth (préversion) :** l'appel utilise l'identité de chaque utilisateur connecté. Le serveur doit accepter un jeton émis pour sa propre audience. Aucun jeton Microsoft n'est transmis à un point de terminaison MCP non approuvé.
+4. Posez une question qui n'appelle qu'un outil de lecture. Collez ce prompt dans le playground de l'agent, puis montrez le résultat :
 
    ```prompt
    Utilise l'outil MCP de l'atelier pour appeler get_service_health avec service "workshop-api". Résume le résultat. N'appelle aucun outil d'écriture.
    ```
 
-5. Avant toute écriture, vérifiez que ce client peut exiger une confirmation humaine pour cet appel précis. Sinon, ne montrez pas l'écriture. La confirmation ne donne jamais le rôle manquant : Bob doit toujours être refusé.
+5. Avant toute écriture, vérifiez que ce client peut exiger une confirmation humaine pour cet appel précis. Sinon, ne montrez pas l'écriture. La confirmation ne donne jamais le rôle manquant : Bob doit toujours recevoir un refus.
 
 ### Partie B — Microsoft Copilot Studio (plan)
 
@@ -89,9 +89,9 @@ les outils OBO doivent aussi refuser les appelants applicatifs. L'identité du c
 
 > [!CAUTION]
 > Arrêtez-vous avant de créer une connexion Copilot Studio qui demande un **Client secret**. Ne passez jamais
-> à **Aucune** ni à **Clé API** pour la faire fonctionner : cela supprime le contrôle d'identité construit dans l'atelier.
+> à **Aucune** ni à **Clé API** pour la faire fonctionner : cela supprime le contrôle d'identité mis en place dans l'atelier.
 
-> Les libellés exacts des écrans peuvent changer. Vérifiez la page source ci-dessous avant la session.
+> Les libellés exacts des écrans peuvent changer. Vérifiez la page citée dans les sources avant la session.
 
 **Question :** le parcours OAuth Manual de Copilot Studio demande un secret client. Pourquoi ne pas passer à **Clé API** pour terminer la démo ?
 
@@ -115,11 +115,11 @@ Arrêtez-vous et utilisez le plan ou un enregistrement.
 
 - Avec un flux utilisateur compatible et approuvé, Foundry peut renvoyer un résultat de lecture ; sinon, montrez l'enregistrement et la limite de compatibilité.
 - L'écriture de Bob est refusée même s'il confirme. Alice a besoin du rôle et d'une confirmation pour cet appel précis.
-- Les métadonnées disponibles de la passerelle montrent les requêtes sans corps. Elles ne prouvent pas que le client a affiché une confirmation : vérifiez-le séparément.
+- Les métadonnées de la passerelle montrent les requêtes, sans leur corps. Elles ne prouvent pas que le client a affiché une confirmation : vérifiez-le séparément.
 
 ## Valider
 
-Vérifications hors ligne uniquement. Elles confirment que ce dossier est complet et que les règles ci-dessus sont présentes :
+Vérifications hors ligne uniquement. Elles confirment que ce dossier est complet et que les règles ci-dessus y figurent :
 
 ```powershell
 pwsh ./modules/07-clients/validate.ps1 -Offline
@@ -146,7 +146,7 @@ pwsh ./modules/07-clients/validate.ps1 -Offline
 > RESULT: all offline checks passed
 > ```
 >
-> **Ce que cela signifie pour vous :** le dossier est complet et les règles de sécurité (jamais **Aucune**, aucun secret, Streamable uniquement) sont écrites. Cela ne prouve pas qu'un client a été connecté.
+> **Ce que cela signifie pour vous :** le dossier est complet et les règles de sécurité (jamais **Aucune**, aucun secret, Streamable uniquement) sont écrites. Cela ne prouve pas qu'un client s'est connecté.
 
 ```bash
 bash ./modules/07-clients/validate.sh --offline
@@ -154,7 +154,7 @@ bash ./modules/07-clients/validate.sh --offline
 
 > **Résultat attendu** — les mêmes lignes PASS/FAIL que l'exécution PowerShell ci-dessus.
 
-Chaque vérification affiche une ligne `PASS` ou `FAIL`. Aucune vérification réelle n'est automatisée : cette démo dépend des paramètres du tenant.
+Chaque vérification affiche une ligne `PASS` ou `FAIL`. Aucune vérification en ligne n'est automatisée : cette démo dépend des paramètres du tenant.
 
 ## Dépannage
 

@@ -2,7 +2,7 @@
 
 Ce guide sert à tester **votre serveur déjà déployé**, pas à le déployer.
 **Sans Azure :** commencez par le [module 01 local](../../modules/01-discover-mcp/README.fr.md),
-avec ses commandes réelles et sans champ d'adresse distante.
+avec de vraies commandes et sans adresse distante à saisir.
 Le tableau prépare les commandes. VS Code ou MCP Inspector les exécute.
 Un résultat attendu décrit dans le guide ne prouve pas qu'un test a réussi.
 
@@ -15,7 +15,7 @@ Un résultat attendu décrit dans le guide ne prouve pas qu'un test a réussi.
    et utilisez seulement des données fictives. S'il n'est pas disponible, arrêtez-vous.
 4. Lancez **Call Tool** dans Inspector ou, dans VS Code, utilisez le prompt proposé dans le tableau.
    Vérifiez la trace de l'exécution, pas seulement la réponse de l'assistant.
-5. Comparez le résultat avec celui du module. Un code HTTP 200 peut contenir une erreur MCP.
+5. Comparez le résultat avec celui qu'annonce le module. Un code HTTP 200 peut contenir une erreur MCP.
    Lancez ensuite le script de vérification du module, s'il est publié.
 
 > [!IMPORTANT]
@@ -43,7 +43,7 @@ La version 2.11.0 publiée sur GitHub n'était pas disponible dans le registre d
 vérification du 2026-10-14. Si la version prévue manque, la commande s'arrête sans changer de registre ni de version.
 
 Utilisez une connexion ponctuelle, pas un catalogue enregistré. Les identifiants restent en mémoire ;
-les jetons OAuth ne sont pas enregistrés de façon persistante. N'enregistrez et n'exportez aucun en-tête
+les jetons OAuth ne sont pas conservés durablement. N'enregistrez et n'exportez aucun en-tête
 d'authentification : les en-têtes d'un catalogue peuvent rester lisibles même si les secrets sont protégés.
 Le client négocie la version du protocole ; n'inventez pas de messages de connexion pour contourner une erreur.
 
@@ -54,7 +54,7 @@ pour un nouveau client. Laissez le secret client vide ; arrêtez-vous si le parc
 des droits supplémentaires.
 
 Au module 02, utilisez uniquement la saisie protégée de la clé système `mcp_extension` prévue par le guide.
-L'adresse seule ne permet pas de se connecter. Aucune clé dans l'URL, les arguments de commande,
+L'adresse seule ne permet pas de se connecter. Ne placez jamais la clé dans l'URL, les arguments de commande,
 un en-tête enregistré, la conversation, les journaux ou le dépôt.
 Les métadonnées de ressource protégée (PRM) d'App Service sont en **Preview** (préversion).
 
@@ -69,11 +69,11 @@ Gardez leurs identifiants dans votre terminal privé.
 
 Codespaces n'inclut que les fichiers publiés sur la branche choisie. Vérifiez cette branche, la taille de la
 machine, les quotas et la prise en charge des frais. La configuration du conteneur est disponible,
-mais son exécution et celle de Codespaces restent à vérifier.
+mais son fonctionnement, en local comme dans Codespaces, reste à vérifier.
 
 Pour Inspector avec connexion utilisateur, privilégiez VS Code installé sur votre poste, connecté si besoin
-au codespace avec une redirection privée des ports. La connexion depuis le seul navigateur
-peut utiliser une autre adresse de retour OAuth. Ne rendez jamais Inspector public et ne désactivez pas
+au codespace avec une redirection privée des ports. Depuis un simple navigateur,
+la connexion peut utiliser une autre adresse de retour OAuth. Ne rendez jamais Inspector public et ne désactivez pas
 son authentification. Arrêtez-le avec Ctrl+C. Arrêtez les codespaces inutilisés ; leur stockage peut rester facturé.
 
 </details>
@@ -87,7 +87,7 @@ Ces résultats décrivent les exercices prévus. Ils ne prouvent pas que votre d
 | 01 | Afficher puis exécuter un outil local | Une liste d'outils et un résultat réel |
 | 02 | Essayer sans clé, puis avec la clé système | HTTP 401, puis HTTP 200 et réussite de l'outil |
 | 03 | Essayer sans jeton, puis avec un jeton destiné à un autre service | HTTP 401 ; Eve ne peut pas obtenir le jeton requis |
-| 04 | Préparer une création de ticket avec Bob, puis Alice, avec approbation | HTTP 403 pour Bob ; HTTP 200 et réussite pour Alice |
+| 04 | Préparer une création de ticket, avec approbation, en tant que Bob puis Alice | HTTP 403 pour Bob ; HTTP 200 et réussite pour Alice |
 | 04 | Dépasser la limite de débit ; essayer l'accès direct à la Function | HTTP 429 ; accès direct refusé |
 | 05 | Lire avec `read_report_as_user`, en tant qu'Alice puis Bob | Alice réussit ; le stockage refuse Bob, parfois dans une réponse HTTP 200 |
 | 05 | Lire avec `read_report_as_app`, en tant qu'Alice puis Bob | Le même rapport fictif est accessible aux deux |
@@ -117,7 +117,7 @@ des prompts, les arguments des outils ou leurs résultats.
 
 **À vérifier :** les outils fonctionnent et votre environnement de test est approuvé.
 **Conseil :** un droit Azure ne donne pas de droit d'administration dans Microsoft Entra.
-**En cas de problème :** utilisez le guide du module 00 et faites préciser les droits nécessaires par l'administrateur.
+**En cas de problème :** utilisez le guide du module 00 et demandez à l'administrateur de préciser les droits nécessaires.
 
 ## 01 - Afficher les outils avant de les utiliser
 
@@ -169,7 +169,7 @@ dans VS Code ou utilisez Inspector avec le [guide exécutable](../../modules/01-
 **À vérifier :** les ressources et affectations créées pour l'atelier sont supprimées ; les ressources partagées restent intactes.
 **Conseil :** nettoyez séparément les ressources Azure et les identités. Arrêtez Inspector et les codespaces inutilisés.
 **En cas de problème :** examinez l'inventaire, les durées de conservation et les suppressions récupérables.
-Ne lancez pas de suppression globale sans examen et approbation.
+Ne lancez pas de suppression globale sans l'avoir examinée et fait approuver.
 
 ## Sources
 

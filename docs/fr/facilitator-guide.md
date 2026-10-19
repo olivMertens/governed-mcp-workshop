@@ -5,19 +5,19 @@
 Ce guide vous aide à préparer l'atelier principal, qui dure 4 heures. Les modules 00 et 02 sont validés en conditions réelles.
 Les modules 03 à 06 ont réussi leurs vérifications opérateur dans un tenant de test, mais restent au statut « rédigé »
 tant que les vérifications d'Alice, Bob et Eve ne sont pas réussies. Les modules 01, 07 et 99 sont rédigés (contrôles hors ligne réussis).
-Les horaires décrivent le parcours prévu et ne constituent pas une preuve de validation.
+Les horaires décrivent le parcours prévu ; ils ne prouvent pas que les modules sont validés.
 
 ## Avant l'arrivée des participants - 30 minutes
 
 - Vérifiez la révision publiée, les statuts et la [provenance des schémas](../../assets/architecture/README.fr.md).
 - Utilisez uniquement les personnages fictifs Alice, Bob et Eve. N'affichez aucun jeton réel, aucun tenant ni aucun abonnement.
-- Vérifiez l'abonnement hors production, l'administrateur d'identité, le responsable des rôles et le budget.
+- Vérifiez que vous disposez d'un abonnement hors production, d'un administrateur des identités, d'un responsable des rôles et d'un budget.
 - Si le tenant de test exige la MFA, faites-la enregistrer pour Alice, Bob et Eve avant la session : une première connexion
   par compte suffit. N'affaiblissez jamais l'accès conditionnel pour l'éviter.
 - Renouvelez la revue de capacité du portail (moins de 24 heures) avant tout déploiement ou redéploiement.
   Voir [vérifier capacité et coût en privé](HOSTING.md#vérifier-capacité-et-coût-en-privé).
 - Prévoyez l'API Management du module 04 sur une seule journée : il est facturé à l'heure tant qu'il existe. Déployez-le et supprimez-le le même jour.
-- Ouvrez à l'avance les captures réelles annotées (liste ci-dessous). Une capture ou un enregistrement montre le résultat attendu, pas une validation.
+- Ouvrez à l'avance les captures réelles annotées (liste ci-dessous). Une capture ou un enregistrement montre le résultat attendu, mais ne vaut pas validation.
 - Réservez Agent 365 et AI Gateway à l'animateur ; les deux sont en **Preview**.
 
 ## Captures réelles en solution de repli
@@ -25,7 +25,7 @@ Les horaires décrivent le parcours prévu et ne constituent pas une preuve de v
 Chaque module présente, à l'étape concernée, des captures réelles prises dans le tenant de test de l'auteur.
 Les noms sont des pseudonymes, les identifiants sont remplacés par des zéros, et des cadres roses signalent ce qu'il faut vérifier.
 
-| Module | Où dans le guide | Ce que montre la capture |
+| Module | Emplacement dans le guide | Ce que montre la capture |
 |---|---|---|
 | 02 | [Étapes](../../modules/02-open-server/README.fr.md#étapes) | Réseau du compte de stockage : accès public désactivé, points de terminaison privés approuvés |
 | 03 | [Étapes](../../modules/03-entra-authentication/README.fr.md#étapes) | Terminal : sortie du validateur opérateur ; vérification d'Alice |
@@ -51,7 +51,7 @@ puis une ligne `PASS`/`FAIL` par contrôle avec le statut HTTP attendu.
 | 02:45-03:15 | 05 | OBO ou identité managée | Utilisateur : Alice oui/Bob non ; application : même résultat | Tableau des quatre résultats et captures réelles du module 05 |
 | 03:15-03:40 | 06 | Métadonnées et inventaire | Appelant, outil fixe, statut, durée, corrélation ; aucun contenu | Capture KQL réelle du module 06 ou résultat de requête préparé |
 | 03:40-03:50 | 07 facultatif | Même protection avec un autre client | Connexion sans secret prise en charge | Ignorer ; transfert Foundry **Preview** seulement |
-| 03:50-04:00 | 99 | Nettoyage et preuves | Ressources de l'atelier recensées ; suppression encore soumise à approbation | Liste de contrôle |
+| 03:50-04:00 | 99 | Nettoyage et preuves | Ressources de l'atelier recensées ; suppression encore soumise à approbation | Liste des points à vérifier |
 
 ## Erreurs fréquentes et réponses sûres
 
@@ -59,24 +59,24 @@ puis une ligne `PASS`/`FAIL` par contrôle avec le statut HTTP attendu.
 |---|---|---|
 | HTTP 401 | Échec d'authentification ou de validation | Vérifier émetteur, tenant, audience exacte et expiration |
 | HTTP 403 dans APIM | Identité valide, rôle absent ou blocage | Vérifier l'affectation ; ne pas élargir le rôle de Bob |
-| HTTP 200 et `isError: true` | Transport MCP réussi, outil ou ressource aval en échec | Lire le résultat structuré et la corrélation |
-| Appel direct Functions réussi | Contournement de la passerelle | Arrêter et rétablir l'accès privé/APIM uniquement |
-| OBO échoue pour Bob | Les droits utilisateur sont appliqués | Conserver le refus ; aucun repli applicatif |
+| HTTP 200 et `isError: true` | Transport MCP réussi, outil ou ressource aval en échec | Lire le résultat structuré et l'ID de corrélation |
+| Appel direct Functions réussi | Contournement de la passerelle | Arrêter, puis rétablir l'accès uniquement par le réseau privé et APIM |
+| OBO échoue pour Bob | Les droits de l'utilisateur s'appliquent | Conserver le refus ; aucun repli applicatif |
 | Le client exige un secret | Parcours incompatible avec l'atelier | Reporter le client facultatif ; ne pas ajouter de secret |
 | Les journaux contiennent le corps | Paramétrage non conforme | Arrêter le trafic, supprimer la capture et vérifier l'absence de tout octet de corps |
-| Une fonction en Preview se comporte autrement | Contrat ou disponibilité modifiés | Utiliser l'enregistrement et revérifier Microsoft Learn |
+| Une fonctionnalité en Preview se comporte autrement | Contrat ou disponibilité modifiés | Utiliser l'enregistrement et revérifier Microsoft Learn |
 
 ## Démonstrations facultatives réservées à l'animateur
 
 Les métadonnées de ressource protégée et les API de gestion MCP d'API Management sont en **Preview**.
 Agent 365 et **AI Gateway (Preview)** exigent une approbation distincte pour le tenant ; aucune étape destinée aux participants ne la
-demande. Le transfert d'identité Foundry est en **Preview** lorsqu'il est documenté. Les clients utilisent toujours
-APIM et les API aval reçoivent de nouveaux jetons propres à leur audience.
+demande. Le transfert d'identité Foundry est en **Preview** lorsqu'il est documenté. Les clients passent toujours
+par APIM, et les API aval reçoivent de nouveaux jetons émis pour leur propre audience.
 
 ## Clôture
 
-Consignez seulement les lignes PASS non sensibles, les écarts et les dates des sources publiques. Un module devient
-`validated` uniquement après réussite de son validateur sur un abonnement neuf, juste après le module précédent.
+Consignez seulement les lignes PASS non sensibles, les écarts et les dates des sources publiques. Un module ne devient
+`validated` qu'après la réussite de son validateur sur un abonnement neuf, juste après le module précédent.
 
 ## Sources
 
