@@ -2,8 +2,8 @@
 
 [English](../facilitator-guide.md)
 
-Ce guide vous aide à préparer l'atelier principal, qui dure 4 heures. Les modules 00 et 02 sont validés en conditions réelles.
-Les modules 03 à 06 ont réussi leurs vérifications opérateur dans un tenant de test, mais restent au statut « rédigé »
+Ce guide vous aide à préparer l'atelier principal, qui dure 4 heures. Les modules 00, 02 et 03 sont validés en conditions réelles.
+Les modules 04 à 06 ont réussi leurs vérifications opérateur dans un tenant de test, mais restent au statut « rédigé »
 tant que les vérifications d'Alice, Bob et Eve ne sont pas réussies. Les modules 01, 07 et 99 sont rédigés (contrôles hors ligne réussis).
 Les horaires décrivent le parcours prévu ; ils ne prouvent pas que les modules sont validés.
 
@@ -28,7 +28,7 @@ Les noms sont des pseudonymes, les identifiants sont remplacés par des zéros, 
 | Module | Emplacement dans le guide | Ce que montre la capture |
 |---|---|---|
 | 02 | [Étapes](../../modules/02-open-server/README.fr.md#étapes) | Réseau du compte de stockage : accès public désactivé, points de terminaison privés approuvés |
-| 03 | [Étapes](../../modules/03-entra-authentication/README.fr.md#étapes) | Terminal : sortie du validateur opérateur ; vérification d'Alice |
+| 03 | [Étapes](../../modules/03-entra-authentication/README.fr.md#étapes) | Terminal : sortie du validateur opérateur ; vérifications d'Alice, Bob et Eve |
 | 03 | [Retrouver le même résultat dans le portail Azure](../../modules/03-entra-authentication/README.fr.md#retrouver-le-même-résultat-dans-le-portail-azure) | Authentification de la Function, inscription d'application, rôles d'application, affectation obligatoire |
 | 05 | [Étape de l'administrateur des identités](../../modules/05-delegated-and-app-only/README.fr.md#administrateur-des-identités--approuver-la-confiance-et-le-consentement) | Autorisations d'API ; information d'identification fédérée, sans secret client |
 | 06 | [Étape 3](../../modules/06-observe-inventory/README.fr.md#étape-3---interroger-le-trafic-mcp-dans-application-insights) | Logs d'Application Insights en mode KQL, métadonnées uniquement |

@@ -419,13 +419,25 @@ Remove-Item Env:\AZURE_CONFIG_DIR
 
 ![Sortie réelle du terminal : vérification par persona du module 03, connexion en tant qu'Alice ; le cadre 1 marque l'étape persona, le cadre 2 le jeton accepté et les cinq outils listés](../../assets/screenshots/terminal-03-alice.png)
 
-> **Résultat attendu** — Bob et Eve ; pas encore de capture (ils doivent encore enregistrer leur MFA dans le tenant de test).
+> **Résultat réel** — Bob et Eve, 2026-10-19, tenant de test de l'auteur, après l'enregistrement de leur MFA. Noms et ID masqués.
 >
 > ```text
-> PASS Bob initialize with a token for the MCP audience succeeds; negotiated protocol <version> (expected HTTP 200).
+> == Step 4: Persona - Bob signs in and lists the tools ==
+> PASS signed-in account matches the private Bob object ID (expected HTTP 200 from Microsoft Graph).
+> PASS Bob initialize with a token for the MCP audience succeeds; negotiated protocol 2025-06-18 (expected HTTP 200).
 > PASS Bob tools/list returns exactly the five workshop tools (expected HTTP 200).
+> PASS module 03 persona checks complete for Bob. Per-tool roles (Bob cannot write) are enforced in module 04.
+>
+> == Step 4: Persona - Eve is refused a token ==
+> PASS signed-in account matches the private Eve object ID (expected HTTP 200 from Microsoft Graph).
 > PASS Eve cannot obtain a token: she is not assigned to the enterprise application (expected HTTP 400 from the token endpoint, AADSTS50105).
+> PASS module 03 persona check complete for Eve.
 > ```
+>
+> La vérification d'Eve dure environ deux minutes. Quand Entra refuse son jeton, les versions récentes d'Azure CLI
+> essaient d'ouvrir une fenêtre de connexion et attendent. Le validateur arrête cette demande au bout de 60 secondes et
+> ne garde que le code `AADSTS50105`. Si vous lancez vous-même `az account get-access-token` en tant qu'Eve, la même
+> fenêtre s'ouvre : fermez-la.
 >
 > **Ce que cela signifie pour vous :** vous savez maintenant **qui** appelle. Entra bloque Eve dès la connexion :
 > elle n'atteint jamais le serveur. Mais Alice et Bob voient les mêmes cinq outils, **écriture comprise** : être connecté

@@ -61,7 +61,7 @@ test("public site exports only the allowlist, with no capability, root URLs, pri
         assert.equal(open.validation.powershell, "modules/02-open-server/validate.ps1");
         assert.equal(open.validation.bash, "modules/02-open-server/validate.sh");
         const entra = language.modules.find((module) => module.module === "03");
-        assert.equal(entra.status, "authored");
+        assert.equal(entra.status, "validated");
         assert.match(entra.guide, /user_impersonation/);
         assert.match(entra.guide, /AADSTS50105/);
         assert.match(entra.guide, /HTTP 401/);
