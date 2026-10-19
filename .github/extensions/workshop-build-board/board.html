@@ -287,7 +287,8 @@
       "azure-03-function-authentication", "azure-03-app-registration-overview", "azure-03-app-roles",
       "azure-03-enterprise-app-properties", "terminal-03-operator", "terminal-03-alice",
       "azure-05-api-permissions", "azure-05-federated-credentials", "azure-06-kql-logs",
-      "azure-06-observability-agent-answer", "azure-06-observability-agent-query"];
+      "azure-06-observability-agent-answer", "azure-06-observability-agent-query",
+      "diagram-05-obo-hops-en", "diagram-05-obo-hops-fr", "diagram-05-rbac-checks-en", "diagram-05-rbac-checks-fr"];
     let state;
     let rawState;
     let participant = null;
@@ -458,9 +459,9 @@
         const line = lines[i];
         if (!line.trim()) { i++; continue; }
         const diagramImage = /^!\[([^\]]+)\]\(([^)]+)\)$/.exec(line);
-        const screenshot = diagramImage && /^(?:\.\.\/)+assets\/screenshots\/((?:azure|terminal)-\d{2}-[a-z0-9-]+)\.png$/.exec(diagramImage[2]);
+        const screenshot = diagramImage && /^(?:\.\.\/)+assets\/screenshots\/((?:azure|terminal|diagram)-\d{2}-[a-z0-9-]+)\.png$/.exec(diagramImage[2]);
         if (screenshot) {
-          if (!PORTAL_SCREENSHOTS.includes(screenshot[1])) throw new Error("Document screenshots must be published workshop captures.");
+          if (!PORTAL_SCREENSHOTS.includes(screenshot[1]) || (/^diagram-/.test(screenshot[1]) && !screenshot[1].endsWith(`-${language}`))) throw new Error("Document screenshots must be published workshop captures.");
           const figure = element("figure", undefined, "screenshot");
           const src = `${staticSite ? "" : "/"}assets/screenshots/${screenshot[1]}.png`;
           const link = element("a");
