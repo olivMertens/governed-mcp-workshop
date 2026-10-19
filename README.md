@@ -190,8 +190,17 @@ Run the modules in this order. Each row ends with a checkpoint you can show the 
 | 🌐 Copilot app | Ask: "Show the workshop build board." |
 | 📄 No tool | Read the Markdown guides. Start with [GETTING-STARTED](docs/GETTING-STARTED.md). |
 
-The board has three parts: **Start** (environment, overview, what exists) · **Main route** (modules in order,
-optional ones are marked) · **References** (practice, governance, sources). Switch **EN / FR** at the top.
+The board has three parts: **Start** (environment, concepts, overview) · **Main route** (modules in order,
+optional ones are marked) · **Resources** (practice, Azure context, governance, architecture, sources). A
+**Facilitators and authors** menu holds the presenter guide and the hosting guide. Switch **EN / FR** at the top.
+
+Each module page reads **one step at a time**: use **Next** and **Previous**, or **Outline** to jump to a step.
+Below the steps:
+
+- **Try this stage**: the validator command to copy, and a hint.
+- **Go further (optional)**: the architecture diagram, prerequisites and why the boundary matters.
+- **Whole guide on one page**: the same content as the steps, all at once, to search with Ctrl+F or print.
+  It adds nothing new; skip it if you follow the steps.
 
 ## 🧪 Try your MCP
 
