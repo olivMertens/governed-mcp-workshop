@@ -505,5 +505,4 @@ vous pouvez garder le serveur et sauter le nettoyage ; le module 03 remplace la 
 - [Points de terminaison privés pour Azure Storage](https://learn.microsoft.com/azure/storage/common/storage-private-endpoints)
 - [Accès sortant par défaut : non applicable aux sous-réseaux délégués](https://learn.microsoft.com/azure/virtual-network/ip-services/default-outbound-access)
 
-Dernière vérification : 2026-10-16. Validé en conditions réelles dans l'abonnement de test de l'auteur le 2026-10-16,
-avec le stockage privé facultatif imposé par la stratégie de ce tenant. Chaque participant doit encore valider le module dans son propre abonnement.
+Dernière vérification : 2026-10-16.

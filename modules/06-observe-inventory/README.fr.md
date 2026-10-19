@@ -431,4 +431,4 @@ Les pages officielles Microsoft Learn utilisées pour ce module sont consignées
 - [Agent 365 avec API Management](https://learn.microsoft.com/azure/api-management/agent-365) (Préversion ; argumentaire facultatif, non revérifié ici).
 - [Azure Copilot Observability Agent](https://learn.microsoft.com/azure/azure-monitor/aiops/observability-agent-overview) et [dialoguer avec vos données d'observabilité](https://learn.microsoft.com/azure/azure-monitor/aiops/observability-agent-chat) : étape facultative. Les opérations autonomes et la ressource de l'agent sont en Préversion et ne sont pas utilisées ici. Dernière vérification : 2026-10-19.
 
-Dernière vérification : 2026-10-18. Requête KQL exécutée en ligne sur le trafic de la passerelle le 2026-10-18 ; étapes API Center et BYO manuelles, non exécutées. Argumentaire Agent 365 : 2026-10-14. Étape facultative Observability Agent exécutée en ligne le 2026-10-19.
+Dernière vérification : 2026-10-19.

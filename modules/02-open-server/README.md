@@ -494,5 +494,4 @@ skip clean-up; module 03 replaces the key with Microsoft Entra authentication.
 - [Use private endpoints for Azure Storage](https://learn.microsoft.com/azure/storage/common/storage-private-endpoints)
 - [Default outbound access: not applicable to delegated subnets](https://learn.microsoft.com/azure/virtual-network/ip-services/default-outbound-access)
 
-Last verified: 2026-10-16. Validated live in the author's test subscription on 2026-10-16, with the optional private
-storage required by that tenant's policy. Participants still validate in their own subscription.
+Last verified: 2026-10-16.

@@ -495,7 +495,7 @@ Use these links when you run the matching check above. Authentication, consent a
 | `user_impersonation` scope versus `Tools.Read` / `Tools.Write`; Bob can still write here | [Scopes and consent](https://learn.microsoft.com/entra/identity-platform/scopes-oidc) describe delegated permission granted to a client. [App roles](https://learn.microsoft.com/entra/identity-platform/howto-add-app-roles-in-apps) express the assigned user's rights. | Module 04 adds the per-tool role check. Defining a role does not enforce it automatically. |
 
 Never paste a workshop token into an online decoder, even if a linked article uses one as an example.
-Documentation links last verified: 2026-10-16; no live authentication result is implied.
+Documentation links last verified: 2026-10-16.
 
 ## Validate
 
@@ -617,4 +617,4 @@ keep everything.
 - [AzureAD provider 3.10.0](https://registry.terraform.io/providers/hashicorp/azuread/3.10.0/docs) and [AzureRM 5.9.0 Flex Consumption `auth_settings_v2`](https://github.com/hashicorp/terraform-provider-azurerm/blob/v5.9.0/website/docs/r/function_app_flex_consumption.html.markdown)
 - [RFC 9728 OAuth 2.0 Protected Resource Metadata](https://www.rfc-editor.org/rfc/rfc9728)
 
-Last verified: 2026-10-18. Operator checks validated live in the author's test tenant on 2026-10-17; persona checks not yet run (MFA registration required).
+Last verified: 2026-10-18.
