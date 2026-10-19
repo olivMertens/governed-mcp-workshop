@@ -1,1 +1,0 @@
-C:\Github\workshop-mcp>  "C:\Program Files\Microsoft SDKs\Azure\CLI2\wbin\\..\python.exe" -IBm azure.cli functionapp config appsettings list -g rg-mcp-p01-<suffix> -n func-mcp-p01-<suffix> --query [?starts_with(name,'WORKSHOP')].{n:name,set:length(value) -o tsv
