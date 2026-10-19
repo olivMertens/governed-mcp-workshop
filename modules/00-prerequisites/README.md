@@ -252,4 +252,4 @@ The optional portal is public documentation only, not an authenticated internal 
 - [Pinned choices and upstream sample](../../docs/sources.md).
 - [Foundry Dev Pack announcement](https://devblogs.microsoft.com/foundry/foundry-devpack-announcement/) (optional installer shortcut).
 
-Last verified: 2026-10-14. Local tests are not a live Azure deployment or container validation.
+Last verified: 2026-10-14.

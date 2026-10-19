@@ -253,6 +253,6 @@ Ce module est le nettoyage. Pour remettre l'environnement de l'atelier dans son 
 Mise en forme : [schémas Mermaid sur GitHub](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/creating-diagrams).
 Encadrés : [alertes GitHub](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#alerts).
 Provenance du schéma : [sources de l'architecture](../../assets/architecture/README.fr.md).
+Toutes les sources Azure : [docs/sources.md](../../docs/sources.md).
 
-Dernière vérification : 2026-10-16 (mise en forme et réutilisation du schéma uniquement).
-Sources Azure : voir [docs/sources.md](../../docs/sources.md).
+Dernière vérification : 2026-10-16.

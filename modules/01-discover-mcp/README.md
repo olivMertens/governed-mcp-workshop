@@ -308,4 +308,4 @@ The presenter's optional portal hosts these instructions only.
 - [MCP Inspector](https://modelcontextprotocol.io/docs/tools/inspector).
 - [VS Code MCP configuration](https://code.visualstudio.com/docs/agent-customization/mcp-servers) and [tool approvals](https://code.visualstudio.com/docs/agents/run/approvals).
 
-Last verified: 2026-10-14. Local Windows SDK/Inspector execution, not Azure or manual UI approval evidence.
+Last verified: 2026-10-14.

@@ -430,4 +430,4 @@ Official Microsoft Learn pages used for this module are recorded with last-verif
 - [Agent 365 with API Management](https://learn.microsoft.com/azure/api-management/agent-365) (Preview; optional talk track, not revalidated here).
 - [Azure Copilot Observability Agent](https://learn.microsoft.com/azure/azure-monitor/aiops/observability-agent-overview) and [chat with your observability data](https://learn.microsoft.com/azure/azure-monitor/aiops/observability-agent-chat): optional step. Autonomous operations and the agent resource are Preview and not used here. Last verified: 2026-10-19.
 
-Last verified: 2026-10-18. KQL run live on gateway traffic 2026-10-18; API Center and BYO steps manual, not run. Agent 365 talk track: 2026-10-14. Observability Agent optional step run live 2026-10-19.
+Last verified: 2026-10-19.

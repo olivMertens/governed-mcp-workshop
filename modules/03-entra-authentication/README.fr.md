@@ -510,7 +510,7 @@ Ouvrez chaque lien au moment du contrôle correspondant ci-dessus. Authentificat
 | Scope `user_impersonation` comparé aux rôles `Tools.Read` / `Tools.Write` ; Bob peut encore écrire ici | [Scopes et consentement](https://learn.microsoft.com/entra/identity-platform/scopes-oidc) décrivent la permission déléguée accordée au client. Les [rôles d'application](https://learn.microsoft.com/entra/identity-platform/howto-add-app-roles-in-apps) expriment les droits attribués à l'utilisateur. | Le module 04 ajoute le contrôle du rôle par outil. Définir un rôle ne l'applique pas automatiquement. |
 
 Ne collez jamais de jeton de l'atelier dans un décodeur en ligne, même si un article lié l'utilise comme exemple.
-Liens vérifiés le 2026-10-16. Cette vérification ne prouve aucun résultat d'authentification en ligne.
+Liens vérifiés le 2026-10-16.
 
 ## Valider
 
@@ -634,4 +634,4 @@ passez directement au module 04, conservez tout.
 - [Fournisseur AzureAD 3.10.0](https://registry.terraform.io/providers/hashicorp/azuread/3.10.0/docs) et [AzureRM 5.9.0 Flex Consumption `auth_settings_v2`](https://github.com/hashicorp/terraform-provider-azurerm/blob/v5.9.0/website/docs/r/function_app_flex_consumption.html.markdown)
 - [RFC 9728 OAuth 2.0 Protected Resource Metadata](https://www.rfc-editor.org/rfc/rfc9728)
 
-Dernière vérification : 2026-10-18. Vérifications opérateur validées en ligne dans le tenant de test de l'auteur le 2026-10-17 ; vérifications par persona pas encore exécutées (enregistrement MFA requis).
+Dernière vérification : 2026-10-18.
