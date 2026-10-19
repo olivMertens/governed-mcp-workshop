@@ -76,6 +76,9 @@
     .availability { color: var(--muted); font-size: 12px; }
     .document { background: var(--surface); border: 1px solid var(--line); padding: 12px 30px 28px; border-radius: 8px; overflow-wrap: anywhere; }
     .document p, .document li { max-width: 76ch; }
+    /* Inside the step panel, text, questions, notes and results use the full panel width. */
+    .lesson-page .document p, .lesson-page .document li, .lesson-page .notice, .lesson-page .result-box { max-width: none; }
+    .lesson-page .screenshot img { max-width: 100%; }
     .document li { margin: 8px 0; }
     .document h1 { font-size: 30px; margin-top: 22px; }
     .document pre { padding: 18px; overflow-x: auto; background: var(--paper); border: 1px solid var(--line); border-radius: 6px; font-size: 12px; line-height: 1.7; }
