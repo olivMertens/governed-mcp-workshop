@@ -189,6 +189,22 @@ Select only `workshop-local` in the tool picker and send:
 Review the actual tool name and arguments; approve **once**.
 Expand the tool-call record and inspect its result, not only the assistant's answer.
 
+<details>
+<summary>How to do it in VS Code, click by click</summary>
+
+1. Open the repository folder with **File** > **Open Folder...**. If VS Code asks whether you trust the authors, trust
+   only your own checkout.
+2. Press **Ctrl+Shift+P** (macOS: **Cmd+Shift+P**), run **MCP: List Servers**, choose `workshop-local`, then
+   **Start Server**. Its status becomes **Running**.
+3. Open Chat with **Ctrl+Alt+I** (macOS: **Ctrl+Cmd+I**). In the mode list under the chat box, choose **Agent**. Select
+   the tools icon (**Configure Tools**) and keep only the `workshop-local` tools.
+4. Keep approvals manual: do not switch the permissions picker to **Allow all** or **Autopilot**.
+5. Paste the prompt. VS Code shows the tool name `get_service_health` and the argument `service: workshop-api`: select
+   **Allow** once. Expand the tool call in the chat to read its input and output.
+6. When you have finished, run **MCP: List Servers**, choose `workshop-local`, then **Stop Server**.
+
+</details>
+
 > [!IMPORTANT]
 > If your client cannot enforce per-call approval, record this exercise as **not verified**.
 > The validator cannot prove that a human saw a dialog.
