@@ -108,7 +108,15 @@
     .exchange .command, .exchange .result-box { margin-top: 0; }
     .lesson-page, .document { container-type: inline-size; }
     @container (max-width: 760px) { .exchange { grid-template-columns: minmax(0, 1fr); } }
-    .quiz-list { padding-left: 22px; } .quiz-list > li { margin: 14px 0; } .quiz-list .lesson-jump { font-size: .92em; }
+    .quiz h2 .count { display: inline-grid; place-items: center; min-width: 26px; height: 26px; padding: 0 8px; border-radius: 13px; background: var(--wash); color: var(--ink); font-size: 14px; font-weight: 650; }
+    .quiz-list { list-style: none; margin: 12px 0 0; padding: 0; }
+    .quiz-list > li { padding: 16px 0; border-top: 1px solid var(--line); }
+    .quiz-list > li > .document { background: none; border: 0; padding: 0; }
+    .quiz-list p.question { margin: 0; }
+    .quiz-list details.reveal { margin: 10px 0 0; }
+    .quiz-list details.reveal[open] > summary { margin-bottom: 8px; }
+    .quiz-list details.reveal .document { background: none; border: 0; border-left: 3px solid var(--line); border-radius: 0; padding: 2px 0 2px 16px; margin: 0 0 0 6px; }
+    .quiz-list .quiz-jump { margin-top: 8px; font-size: 13px; color: var(--muted); }
     .lesson-jump > svg { width: 1em; height: 1em; margin-left: 6px; vertical-align: -2px; color: #7650b3; }
     .exercise details { color: var(--ink); margin: 16px 0; }
     .exercise summary { font-weight: 600; font-size: 15px; }
@@ -930,13 +938,15 @@
       });
       if (!items.length) return null;
       const panel = element("section", undefined, "exercise quiz");
-      const heading = element("h2", `${t("Check your understanding")} (${items.length})`);
+      const heading = element("h2", "Check your understanding");
       heading.prepend(symbol("question"));
-      panel.append(heading, element("p", "Answer in your head first, then open the answer. Each question comes from a step of this module.", "field-message"));
-      const list = element("ol", undefined, "quiz-list");
+      heading.append(element("span", String(items.length), "count"));
+      panel.append(heading, element("p", "Think of your answer before you open it. Each question links back to its step.", "field-message"));
+      // A flat list: one question per row, a thin separator, no numbering or nested cards.
+      const list = element("ul", undefined, "quiz-list");
       for (const item of items) {
         const entry = element("li");
-        const jump = element("button", `${t("Read step")} ${item.stepIndex + 1}${language === "fr" ? " :" : ":"} ${t(item.title)} \u2191`, "lesson-jump");
+        const jump = element("button", `${t("Read step")} ${item.stepIndex + 1}${language === "fr" ? " :" : ":"} ${t(item.title).replace(/\.$/, "")}`, "lesson-jump quiz-jump");
         jump.type = "button";
         jump.addEventListener("click", () => lesson.goTo(item.stepIndex));
         entry.append(markdown(item.text, path), jump);
@@ -1334,7 +1344,8 @@
       exercise.append(hints);
       const lesson = guidedDocument(module.guide ?? module.outline, module.sourcePath);
       content.append(lesson);
-      const questions = module.guide !== null ? questionsPanel(module.guide, module.sourcePath, lesson) : null;
+      // Module 00 checks the environment: no self-check questionnaire there.
+      const questions = module.guide !== null && module.module !== "00" ? questionsPanel(module.guide, module.sourcePath, lesson) : null;
       if (questions) content.append(questions);
       // Commands and terminal checks are part of the lesson, not optional reading.
       content.append(exercise);

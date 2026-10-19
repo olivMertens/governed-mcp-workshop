@@ -153,16 +153,6 @@ Exécutez `validate.ps1` ou `validate.sh` dans l'abonnement de test approuvé.
 Vérifiez aussi que vous comprenez la demande Entra et que vous pourrez la transmettre en privé à l'administrateur.
 Passez au module 01 seulement quand chaque contrôle affiche `PASS`.
 
-**Question :** tous les contrôles du module 00 affichent `PASS`. Ont-ils créé quelque chose dans Azure ?
-
-<details>
-<summary>Afficher la réponse</summary>
-
-Non. Ces contrôles ne font que **lire** : vos outils, votre connexion, l'abonnement, les fournisseurs et vos rôles. Le
-fichier de paramètres privés reste sur votre poste. C'est pour cela que vous pouvez les relancer autant de fois que nécessaire.
-
-</details>
-
 
 ## En cas de problème
 

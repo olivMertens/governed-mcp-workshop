@@ -54,12 +54,12 @@ Le client change, pas les droits exigés par le serveur.
 > Une identité managée Foundry est applicative : lui attribuer un rôle ne suffit **pas**.
 > Ne présentez pas ce chemin comme fonctionnel et ne retirez pas le contrôle de scope. Utilisez un flux utilisateur approuvé ou un enregistrement.
 
-**Question :** Foundry appelle avec son identité managée. `whoami` peut-il agir pour Alice ?
+**Question :** Foundry appelle le serveur avec son identité managée. `whoami` peut-il agir au nom d'Alice ?
 
 <details>
 <summary>Afficher la réponse</summary>
 
-Non. Un jeton applicatif ne contient pas de contexte délégué d'Alice. La passerelle actuelle refuse ce flux ;
+Non. Un jeton d'application ne porte aucun contexte délégué d'Alice. La passerelle actuelle refuse ce flux ;
 les outils OBO doivent aussi refuser les appelants applicatifs. L'identité du client et l'identité managée utilisée par un outil en aval sont deux choix distincts.
 
 </details>
