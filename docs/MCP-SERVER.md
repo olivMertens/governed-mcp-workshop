@@ -20,6 +20,18 @@ responses**, captured on 2026-10-19 in the author's test tenant. Names are pseud
 On 2026-10-19, the author's test tenant runs the **module 03** state: the module 02 server, protected by Microsoft Entra
 built-in authentication. The module 04 gateway was cleaned up, and the module 05 mode is off.
 
+### What sits behind the server
+
+Everything is synthetic; nothing real is read or changed.
+
+<!-- cards -->
+| Source | Where | Used by |
+|---|---|---|
+| Service health | Fixed values in the server code | `get_service_health`: `workshop-api` is healthy, `ticket-queue` is degraded |
+| Ticket queue | Azure Storage queue (module 02) | `create_ticket` adds one synthetic ticket |
+| Monthly report | Azure Storage blob in the report container (module 05) | `read_report_as_user` and `read_report_as_app` |
+| Your identity | Microsoft Graph `/me` (module 05) | `whoami`: a persona label, never a name or email |
+
 ## How you reach it at each level
 
 ![One MCP server, four levels: what you send at each level, who refuses, and when the answers change](../assets/screenshots/diagram-02-server-levels-en.png)
@@ -136,7 +148,8 @@ send_mcp() {
 > **Expected result** — nothing is printed. Each later call prints the HTTP status line, then the `data:` line of the answer.
 
 A real MCP client first sends `initialize`. This Functions server keeps no session, so each request below works on
-its own. Each call takes about 2 to 3 seconds here: most of it is Azure CLI getting the token.
+its own. Each call takes about 2 to 3 seconds here: most of it is Azure CLI getting the token. The server itself
+answers in about 1 second; each real result below shows that time.
 
 ### Request 1 of 6: knock without a token
 
@@ -146,7 +159,7 @@ its own. Each call takes about 2 to 3 seconds here: most of it is Azure CLI gett
 Send-Mcp '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' -NoToken
 ```
 
-> **Real result** — 2026-10-19, author's test tenant.
+> **Real result** — 2026-10-19, author's test tenant. Server answer in 0.8 s.
 >
 > ```text
 > HTTP 401
@@ -164,7 +177,7 @@ Send-Mcp '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' -NoToken
 Send-Mcp '{"jsonrpc":"2.0","id":2,"method":"tools/list"}'
 ```
 
-> **Real result** — 2026-10-19, signed in as Alice.
+> **Real result** — 2026-10-19, signed in as Alice. Server answer in 1.0 s.
 >
 > ```text
 > HTTP 200
@@ -186,7 +199,7 @@ Send-Mcp '{"jsonrpc":"2.0","id":2,"method":"tools/list"}'
 Send-Mcp '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_service_health","arguments":{"service":"workshop-api"}}}'
 ```
 
-> **Real result** — 2026-10-19, signed in as Alice.
+> **Real result** — 2026-10-19, signed in as Alice. Server answer in 1.0 s.
 >
 > ```text
 > HTTP 200
@@ -204,7 +217,7 @@ Send-Mcp '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_se
 Send-Mcp '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"get_service_health","arguments":{"service":"ticket-queue"}}}'
 ```
 
-> **Real result** — 2026-10-19, signed in as Alice.
+> **Real result** — 2026-10-19, signed in as Alice. Server answer in 0.9 s.
 >
 > ```text
 > HTTP 200
@@ -221,7 +234,7 @@ Send-Mcp '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"get_se
 Send-Mcp '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"get_service_health","arguments":{"service":"payroll"}}}'
 ```
 
-> **Real result** — 2026-10-19, signed in as Alice.
+> **Real result** — 2026-10-19, signed in as Alice. Server answer in 1.0 s.
 >
 > ```text
 > HTTP 200
@@ -240,7 +253,7 @@ Send-Mcp '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"get_se
 Send-Mcp '{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"whoami","arguments":{}}}'
 ```
 
-> **Real result** — 2026-10-19, signed in as Alice.
+> **Real result** — 2026-10-19, signed in as Alice. Server answer in 1.1 s.
 >
 > ```text
 > HTTP 200
