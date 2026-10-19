@@ -237,8 +237,12 @@ l'URL de la passerelle. Ni en-tête ni clé : VS Code lit les PRM de la passerel
 }
 ```
 
-En tant qu'Alice, demandez à Copilot de créer un ticket synthétique : VS Code demande votre **approbation** avant d'exécuter
-l'outil d'écriture, puis l'appel réussit. En tant que Bob (autre profil VS Code), la même demande échoue avec HTTP 403.
+En tant qu'Alice, collez ce prompt dans Copilot Chat (mode **Agent**). VS Code demande votre **approbation** avant
+d'exécuter l'outil d'écriture, puis l'appel réussit. En tant que Bob (autre profil VS Code), le même prompt échoue avec HTTP 403.
+
+```prompt
+Utilise le serveur MCP workshop-governed. Appelle create_ticket avec service "ticket-queue", severity "medium" et summary "Synthetic ticket - Contoso workshop". Montre le résultat de l'outil, ou l'erreur exacte si l'appel est refusé.
+```
 
 **Question :** Bob clique sur **Autoriser** quand VS Code lui demande d'approuver `create_ticket`, mais il n'a que `Tools.Read`.
 Que renvoie la passerelle, et la Function voit-elle l'appel ?

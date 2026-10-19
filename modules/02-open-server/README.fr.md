@@ -290,8 +290,13 @@ Ne mettez jamais la clé dans une URL (`?code=`), un fichier, une conversation o
 > Quiconque la détient, collègue ou attaquant, peut écrire. `whoami` répond `caller: unknown` : les journaux ne
 > peuvent pas dire qui a agi. C'est le problème que résolvent les modules 03 à 05.
 
-Dans VS Code, demandez à l'agent d'appeler `create_ticket` avec des valeurs synthétiques.
-L'appel réussit pour quiconque détient la clé.
+Dans VS Code, ouvrez Copilot Chat en mode **Agent** et collez ce prompt. Approuvez l'appel à `create_ticket` quand VS Code le demande.
+
+```prompt
+Utilise le serveur MCP workshop-open. Appelle create_ticket avec service "workshop-api", severity "low" et summary "Synthetic test ticket - Contoso workshop". Appelle ensuite whoami et dis-moi qui le serveur pense que je suis.
+```
+
+Le ticket est créé et `whoami` répond `caller: unknown`. L'appel réussit pour quiconque détient la clé.
 
 **Question :** le serveur répond HTTP 401 sans la clé. Cela veut-il dire qu'il est protégé utilisateur par utilisateur ?
 

@@ -347,6 +347,12 @@ Démarrez le serveur. VS Code lit les métadonnées de ressource protégée et v
 Microsoft**. Connectez-vous en tant qu'Alice : les cinq outils apparaissent. Connectez-vous en tant qu'Eve (autre profil
 VS Code) : Entra affiche `AADSTS50105`.
 
+En tant qu'Alice, vérifiez la connexion avec ce prompt dans Copilot Chat (mode **Agent**) :
+
+```prompt
+Utilise le serveur MCP workshop-entra. Liste ses outils, puis appelle get_service_health avec service "workshop-api" et montre le résultat.
+```
+
 **10. Vérifications par persona.** Utilisez un profil Azure CLI distinct pour chaque compte de test afin de ne pas écraser votre session.
 
 Votre tenant peut exiger l'authentification multifacteur (MFA). À sa première connexion, chaque compte de test doit
