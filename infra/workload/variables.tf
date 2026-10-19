@@ -196,6 +196,17 @@ variable "gateway_lock_function" {
   }
 }
 
+variable "enable_rest_mcp_demo" {
+  type        = bool
+  default     = false
+  nullable    = false
+  description = "Module 04 optional part B: expose a synthetic REST API (mocked responses) as a second MCP server on the same gateway (API-first pattern, Preview API). Same Entra token, role and rate-limit rules; no subscription key. Default off."
+  validation {
+    condition     = !var.enable_rest_mcp_demo || var.enable_governed_gateway
+    error_message = "enable_rest_mcp_demo requires enable_governed_gateway = true: part B reuses the module 04 gateway, its token validation and its payload-free logging."
+  }
+}
+
 variable "gateway_publisher_email" {
   type        = string
   default     = "mcp-workshop@example.com"

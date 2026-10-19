@@ -1,0 +1,45 @@
+<!--
+  Module 04 optional part B - policy at API scope on the synthetic backing REST API "contoso-tickets-api".
+  Rendered by infra/workload/rest-mcp.tf with Terraform templatefile() (non-secret values only: tenant ID, MCP API
+  audience, allowed client IDs).
+
+  The REST API is never anonymous, even when called directly instead of through the MCP server: the same platform
+  token validation as the MCP server (invariant 3), the module 03 MCP API audience only (invariant 1), an allowed client
+  application and the user_impersonation scope. No subscription key. The answer is the operation's JSON example
+  (mock-response), so no backend is called and only synthetic Contoso data is returned.
+  Token validation pattern adapted from Azure-Samples/AI-Gateway, lab mcp-prm-oauth, at commit
+  1679e3137d2fe7592d2a668d77ff71550d35b69e, MIT License, Copyright (c) Microsoft Corporation. See THIRD-PARTY-NOTICES.md.
+-->
+<policies>
+  <inbound>
+    <base />
+    <validate-azure-ad-token tenant-id="${tenant_id}" header-name="Authorization" failed-validation-httpcode="401" failed-validation-error-message="Unauthorized. A Microsoft Entra access token for the MCP API is required.">
+      <client-application-ids>
+%{ for client_id in client_ids ~}
+        <application-id>${client_id}</application-id>
+%{ endfor ~}
+      </client-application-ids>
+      <audiences>
+%{ for audience in audiences ~}
+        <audience>${audience}</audience>
+%{ endfor ~}
+      </audiences>
+      <required-claims>
+        <claim name="scp" match="any" separator=" ">
+          <value>user_impersonation</value>
+        </claim>
+      </required-claims>
+    </validate-azure-ad-token>
+    <!-- Synthetic data only: the 200 application/json example defined on each operation. -->
+    <mock-response status-code="200" content-type="application/json" />
+  </inbound>
+  <backend>
+    <base />
+  </backend>
+  <outbound>
+    <base />
+  </outbound>
+  <on-error>
+    <base />
+  </on-error>
+</policies>

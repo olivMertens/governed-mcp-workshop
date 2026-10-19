@@ -11,7 +11,8 @@ export const screenshots = ["azure-02-storage-public-access", "azure-02-storage-
     "azure-03-enterprise-app-properties", "terminal-03-operator", "terminal-03-alice",
     "azure-05-api-permissions", "azure-05-federated-credentials", "azure-06-kql-logs",
     "azure-06-observability-agent-answer", "azure-06-observability-agent-query",
-    "diagram-05-obo-hops-en", "diagram-05-obo-hops-fr", "diagram-05-rbac-checks-en", "diagram-05-rbac-checks-fr"];
+    "diagram-05-obo-hops-en", "diagram-05-obo-hops-fr", "diagram-05-rbac-checks-en", "diagram-05-rbac-checks-fr",
+    "azure-04-mcp-servers", "azure-04b-mcp-tools", "azure-04b-mcp-policy", "terminal-04b-operator", "terminal-04b-alice"];
 export const publicPaths = ["index.html", "locale-fr.js", "journey.json", ".nojekyll",
     ...icons.map((icon) => `assets/icons/${icon}.svg`), "assets/architecture/workshop.drawio",
     ...screenshots.map((name) => `assets/screenshots/${name}.png`)];
