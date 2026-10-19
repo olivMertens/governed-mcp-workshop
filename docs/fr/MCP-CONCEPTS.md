@@ -25,7 +25,7 @@ Non. La découverte décrit une capacité. L'autorisation du serveur décide qui
 
 | Élément | Responsabilité | Exemple de l'atelier |
 |---|---|---|
-| Hôte | Fournir l'expérience IA, contrôler le contexte et les confirmations | VS Code avec GitHub Copilot |
+| Hôte | Offrir l'interface d'IA, maîtriser le contexte et les confirmations | VS Code avec GitHub Copilot |
 | Client | Échanger les messages MCP avec un serveur | La connexion MCP de l'hôte |
 | Serveur | Annoncer les capacités et vérifier les requêtes | Serveur .NET local, puis Azure Functions |
 | Service en aval | Réaliser l'opération sous-jacente | File Storage ou Microsoft Graph |
@@ -43,7 +43,7 @@ L'hôte affiche la confirmation ; le serveur et le service en aval appliquent to
 
 </details>
 
-## 3. De quoi un agent est-il composé ?
+## 3. De quoi se compose un agent ?
 
 Un agent associe un modèle à une boucle applicative. Le modèle propose une action ;
 le code de l'application décide ce qui peut réellement s'exécuter. MCP est un mécanisme d'intégration, pas l'agent lui-même.
@@ -70,17 +70,17 @@ Non. Les instructions et le comportement du modèle ne sont pas des contrôles d
 
 | Capacité MCP | Usage | Contrôle habituel |
 |---|---|---|
-| Outil, ou tool | Exécuter une opération, en lecture ou en écriture | Choisi par le modèle, sous le contrôle de l'application |
+| Outil (tool) | Exécuter une opération, en lecture ou en écriture | Choisi par le modèle, sous le contrôle de l'application |
 | Ressource | Exposer des données de contexte identifiées par un identifiant uniforme de ressource (URI) | Contexte géré par l'application |
 | Prompt | Proposer un modèle de messages réutilisable | Choisi par l'utilisateur |
 
-Ces modes d'interaction n'imposent aucune interface particulière. Les clients ne prennent pas tous en charge les mêmes capacités.
+Ces capacités n'imposent aucune interface utilisateur particulière. Les clients ne prennent pas tous en charge les mêmes capacités.
 Une ressource MCP n'est pas une ressource Azure. Un prompt MCP n'est pas une instruction système secrète.
 
-**Classez :** consulter la santé d'un service est un outil ; fournir un manuel peut être une ressource ;
-proposer un modèle de synthèse d'incident peut être un prompt.
+**Classez :** consulter l'état de santé d'un service relève d'un outil ; fournir un manuel peut relever d'une ressource ;
+proposer un modèle de synthèse d'incident peut relever d'un prompt.
 
-L'atelier implémente uniquement des **outils**. Cette page explique les ressources et les prompts, mais l'atelier ne les déploie pas.
+L'atelier n'implémente que des **outils**. Cette page présente les ressources et les prompts, mais l'atelier ne les déploie pas.
 
 **Lire :** [outils](https://modelcontextprotocol.io/specification/2026-07-28/server/tools),
 [ressources](https://modelcontextprotocol.io/specification/2026-07-28/server/resources),
@@ -88,42 +88,42 @@ L'atelier implémente uniquement des **outils**. Cette page explique les ressour
 
 ## 5. Lire le contrat d'un outil
 
-Un outil utile possède un nom précis, une description, un schéma d'entrée et un résultat prévisible.
-La description aide à choisir l'outil ; le schéma décrit les entrées ; le serveur doit les vérifier.
+Un bon outil a un nom précis, une description, un schéma d'entrée et un résultat prévisible.
+La description aide à choisir l'outil ; le schéma décrit les entrées ; c'est au serveur de les vérifier.
 
 Pour `get_service_health` dans cet atelier :
 
 - **Intention :** lire un état de santé synthétique sans modifier de données.
 - **Entrée :** `service` vaut `workshop-api` ou `ticket-queue`.
 - **Sortie :** un résultat synthétique, ou une erreur explicite si l'entrée est invalide.
-- **Limite :** aucun ticket créé, aucun accès à la production.
+- **Limite :** ne crée aucun ticket et n'accède pas à la production.
 
 `create_ticket` est différent : il écrit des données synthétiques. Sa description doit le dire.
-Une annotation « lecture seule » est une indication : ni une preuve, ni un contrôle d'autorisation.
+Une annotation « lecture seule » n'est qu'une indication : ce n'est ni une preuve ni un contrôle d'autorisation.
 
 **Question :** que faire d'un argument inattendu ?
 
 <details>
 <summary>Afficher la réponse</summary>
 
-Le serveur le refuse. Il ne doit pas élargir silencieusement l'opération.
+Le serveur le refuse. Il ne doit pas élargir l'opération en silence.
 
 </details>
 
 ## 6. Suivre un tour de boucle de l'agent
 
-Exemple illustratif, pas une exécution réelle :
+Exemple d'illustration, pas une exécution réelle :
 
 1. **Intention :** Alice demande l'état de santé synthétique d'un service.
 2. **Découverte :** le client demande `tools/list`.
 3. **Sélection :** le modèle propose `get_service_health` avec un service autorisé.
-4. **Contrôle :** l'hôte applique ses règles et confirmations.
+4. **Contrôle :** l'hôte applique ses règles et demande les confirmations prévues.
 5. **Exécution :** le client envoie `tools/call` ; le serveur vérifie identité, droits et arguments.
 6. **Observation :** l'hôte reçoit le résultat et vérifie s'il contient une erreur.
 7. **Décision suivante :** répondre, justifier un nouvel appel ou s'arrêter.
 
-Citer le nom d'un outil dans une réponse ne l'exécute pas. Si l'assistant écrit que l'action a réussi,
-ce n'est pas une preuve. Examinez l'appel réel et son résultat.
+Citer le nom d'un outil dans une réponse ne l'exécute pas. Quand l'assistant écrit que l'action a réussi,
+cela ne prouve rien. Examinez l'appel réel et son résultat.
 
 **À observer :** retrouvez l'intention, l'outil choisi, les arguments, le contrôle et le résultat dans le module 01.
 
@@ -135,11 +135,11 @@ Streamable Hypertext Transfer Protocol (HTTP) transporte les requêtes distantes
 Ouvrir l'adresse dans un navigateur (requête GET) ne teste ni `tools/list` ni `tools/call`.
 
 La version a son importance. La spécification 2026-07-28 place les métadonnées de version et de capacités dans chaque requête.
-Des implémentations plus anciennes passent par un échange `initialize`. Suivez la version réellement prise en charge
-par le client et le serveur ; ne mélangez pas leurs formats.
+Des implémentations plus anciennes passent par un échange `initialize`. Tenez-vous-en à la version que le client et le serveur
+prennent réellement en charge ; ne mélangez pas les formats.
 
-Les validateurs de l'atelier construisent les messages pour la combinaison testée.
-Cette page ne propose volontairement aucun JSON incomplet à copier comme requête exécutable.
+Les validateurs de l'atelier construisent les messages adaptés à la combinaison testée.
+Cette page ne donne volontairement aucun extrait JSON incomplet à copier comme requête.
 
 **Lire :** [transports](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports).
 
@@ -173,10 +173,10 @@ Non. Vérifiez séparément le client, l'identité, les droits, les confirmation
 | Confirmation humaine | Cette action précise peut-elle s'exécuter maintenant ? | Confirmation du client avant `create_ticket` |
 
 Une clé partagée n'identifie pas une personne. Se connecter ne donne pas accès à tous les outils.
-Une confirmation humaine ne remplace pas un contrôle de rôle manquant.
+Une confirmation humaine ne compense pas l'absence de contrôle de rôle.
 
 > [!WARNING]
-> Pour une API en aval, obtenez un jeton distinct pour son audience.
+> Pour appeler une API en aval, obtenez un jeton distinct, émis pour son audience.
 > L'accès délégué On-Behalf-Of (OBO) utilise le contexte utilisateur ; l'accès applicatif par identité managée
 > utilise les droits de l'application. Ne transmettez jamais le jeton du client tel quel.
 
@@ -222,12 +222,12 @@ Le jeton du client n'est jamais transmis à Storage. Un jeton par appel, une aud
 | Fonctionne sans utilisateur connecté ? | **Non** (ni tâche planifiée, ni appelant applicatif) | **Oui** |
 | Usage typique | Données personnelles ou sensibles, droits par utilisateur déjà en place | Données de référence partagées, automatisations, même réponse pour tous |
 
-**Choisissez OBO quand** le système en aval porte déjà des droits par utilisateur à respecter,
-ou quand l'audit doit montrer le véritable utilisateur sur les données.
+**Choisissez OBO quand** le système en aval gère déjà des droits par utilisateur qu'il faut respecter,
+ou quand l'audit des données doit montrer le véritable utilisateur.
 
 **Choisissez l'accès applicatif quand** tous les appelants autorisés doivent voir les mêmes données,
 qu'il n'y a pas d'utilisateur (automatisation), ou que l'API en aval n'offre aucune permission déléguée.
-Compensez alors par une autorisation stricte des outils (rôles d'application) et un rôle étroit pour l'identité.
+Compensez alors par une autorisation stricte des outils (rôles d'application) et donnez à l'identité un rôle restreint.
 
 **Exclu pour MCP :** transmettre le jeton du client à l'API en aval (« token passthrough »). C'est interdit.
 
@@ -239,9 +239,9 @@ Compensez alors par une autorisation stricte des outils (rôles d'application) e
 | Identité du serveur | OBO exige que le serveur prouve sa propre identité. Utilisez des **informations d'identification fédérées avec une identité managée**, pas un secret client |
 | Données en aval | Chaque utilisateur a besoin d'un rôle sur les données (ici : Storage Blob Data Reader pour Alice seulement) |
 | Appelants | Refusez les jetons applicatifs sur les outils OBO : il n'y a pas d'utilisateur à représenter |
-| Erreurs | Un HTTP 403 en aval revient comme une **erreur d'outil MCP dans une réponse HTTP 200**. Affichez-la, ne la masquez pas |
+| Erreurs | Un refus HTTP 403 en aval revient sous la forme d'une **erreur d'outil MCP dans une réponse HTTP 200**. Affichez-la, ne la masquez pas |
 | Performances | Un appel Entra supplémentaire par audience en aval. Mettez en cache par utilisateur et audience, jamais entre utilisateurs |
-| Stratégies | L'accès conditionnel et le risque de connexion s'appliquent aussi à l'échange, qui peut échouer comme une connexion |
+| Stratégies | L'accès conditionnel et le risque de connexion s'appliquent aussi à l'échange de jeton : il peut échouer comme une connexion |
 
 **Exemple de l'atelier (module 05) :** `whoami` et `read_report_as_user` utilisent OBO ; `read_report_as_app` utilise une identité managée.
 Alice et Bob posent la même question : seul OBO leur donne des réponses différentes.
@@ -251,7 +251,7 @@ Alice et Bob posent la même question : seul OBO leur donne des réponses diffé
 <details>
 <summary>Afficher la réponse</summary>
 
-OBO renvoie une erreur d'outil pour Bob (Storage le refuse). L'accès applicatif renvoie le rapport,
+Pour Bob, OBO renvoie une erreur d'outil : Storage refuse l'accès. L'accès applicatif renvoie le rapport,
 car l'application a le droit de le lire.
 
 </details>
@@ -261,27 +261,27 @@ car l'application a le droit de le lire.
 
 ## 13. Descriptions et résultats : une frontière de confiance
 
-Traitez les descriptions d'outils, documents et résultats comme des entrées externes.
+Traitez les descriptions d'outils, les documents et les résultats comme des entrées externes.
 Ils peuvent contenir des instructions trompeuses. Un texte renvoyé par un outil ne peut pas s'attribuer un rôle,
 contourner une confirmation ou demander des identifiants.
 
 Exposez des outils ciblés, des entrées bornées et des effets explicites.
 Demandez une confirmation avant les écritures. Rendez les erreurs visibles et limitez les nouvelles tentatives.
 
-Dans l'atelier, les journaux contiennent seulement des métadonnées : outil, identifiant autorisé de l'appelant,
-résultat de contrôle, latence et corrélation. Jamais de jeton, prompt, arguments ni résultat d'outil.
+Dans l'atelier, les journaux ne contiennent que des métadonnées : outil, identifiant autorisé de l'appelant,
+résultat du contrôle, latence et identifiant de corrélation. Jamais de jeton, de prompt, d'arguments ni de résultat d'outil.
 N'utilisez pas de données de production pour illustrer une leçon.
 
 **Ce qu'une trace ne prouve pas :** un HTTP 200 peut contenir une erreur d'outil MCP. Les journaux de passerelle
 ne prouvent pas la confirmation humaine et ne montrent pas le raisonnement du modèle.
 En accès applicatif, le journal en aval identifie l'application, pas la personne.
 L'absence de trace ne prouve pas l'absence d'appel. Le [module 06](../../modules/06-observe-inventory/README.fr.md)
-détaille les champs disponibles et les manques.
+détaille les champs disponibles et ce qui manque.
 
 **Lire :** [conseils sur les outils](https://learn.microsoft.com/azure/foundry/agents/concepts/tool-best-practice).
 Leurs recommandations générales sur le traçage ne remplacent pas la règle de l'atelier : aucun corps de message dans les journaux.
 
-## 14. Placer les composants de l'atelier
+## 14. Situer les composants de l'atelier
 
 | Composant | Rôle dans le parcours |
 |---|---|
@@ -290,18 +290,18 @@ Leurs recommandations générales sur le traçage ne remplacent pas la règle de
 | Microsoft Entra ID | Authentifier l'appelant |
 | Azure API Management | Appliquer les contrôles de passerelle au module 04 |
 | Storage et Microsoft Graph | Exécuter les opérations en aval, avec leurs propres droits |
-| Application Insights | Fournir des preuves sans contenu dans les modules suivants |
+| Application Insights | Fournir des preuves sans le contenu des échanges, dans les modules suivants |
 
 [Azure MCP Server](https://learn.microsoft.com/azure/developer/azure-mcp-server/overview) est un produit distinct
 qui propose des outils de gestion Azure. Ce n'est pas le serveur à cinq outils de cet atelier.
-N'utilisez pas un outil d'administration large pour contourner les commandes ciblées.
+N'utilisez pas un outil d'administration aux droits étendus pour contourner les commandes ciblées.
 
 **Suite :** le [module 01](../../modules/01-discover-mcp/README.fr.md) montre une vraie découverte locale et une lecture synthétique.
 Cette démonstration ne demande aucun déploiement Azure.
 
 ## Sources
 
-Dernière vérification : 2026-10-16. Explications originales et génériques fondées sur des références publiques uniquement.
+Dernière vérification : 2026-10-16. Explications originales et génériques, fondées uniquement sur des références publiques.
 Aucun contenu privé d'événement n'est repris.
 
 - [Architecture MCP](https://modelcontextprotocol.io/specification/2026-07-28/architecture).
@@ -309,7 +309,7 @@ Aucun contenu privé d'événement n'est repris.
   [ressources](https://modelcontextprotocol.io/specification/2026-07-28/server/resources) et
   [prompts](https://modelcontextprotocol.io/specification/2026-07-28/server/prompts).
 - [Transports](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports).
-- [Microsoft MCP for Beginners](https://github.com/microsoft/mcp-for-beginners) : pour poursuivre ; aucun code copié.
+- [Microsoft MCP for Beginners](https://github.com/microsoft/mcp-for-beginners) : pour aller plus loin ; aucun code n'en est repris.
 - [Conseils Foundry sur les outils](https://learn.microsoft.com/azure/foundry/agents/concepts/tool-best-practice).
 - [Vue d'ensemble Azure MCP Server](https://learn.microsoft.com/azure/developer/azure-mcp-server/overview).
 - [Limites de gouvernance de l'atelier](LEARNING-GUIDE.md) et leurs sources sur l'identité.

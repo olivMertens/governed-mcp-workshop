@@ -8,15 +8,15 @@ Microsoft Entra ID protège votre serveur MCP (module 03). Le serveur n'est joig
 Azure API Management (APIM, module 04) et il accède aux données en aval avec la bonne identité (module 05).
 Reste une question : **voyez-vous ce qui se passe, et les autres équipes trouvent-elles ce serveur ?**
 
-Ce module y répond en deux parties :
+Ce module répond en deux temps :
 
 - **Observer :** quel outil, quel appelant, quand, quel statut, quelle durée. Vous lisez ces métadonnées dans
   Application Insights avec une requête KQL (Kusto Query Language).
 - **Inventorier :** inscrire le serveur dans un catalogue (existence, responsable, adresse). Vous l'enregistrez dans
   Azure API Center (**Preview**). Un administrateur peut aussi le déclarer dans le centre d'administration
-  Microsoft 365 comme serveur MCP apporté par le client (BYO) (**Preview**).
+  Microsoft 365 comme serveur MCP « apporté par le client » (BYO, Bring Your Own) (**Preview**).
 
-Vous ne déployez rien de nouveau. Vous apprenez aussi ce que prouve chaque élément (journal, inventaire,
+Vous ne déployez rien de nouveau. Vous apprenez en revanche ce que prouve chaque élément (journal, inventaire,
 déclaration BYO) et ce qu'il ne prouve pas.
 
 ## Pourquoi c'est important
@@ -44,7 +44,7 @@ Ce module ne déploie **aucune nouvelle ressource Azure**. Il réutilise l'insta
 | Requête KQL du trafic MCP | Fichier KQL (`queries/mcp-traffic.kql`) | Dossier de ce module | Stable |
 | Enregistrement du serveur MCP dans API Center | Asset d'un centre API | Portail Azure (étapes manuelles) | **Préversion** |
 | Entrée de serveur MCP BYO | Entrée dans le centre d'administration Microsoft 365 | Centre d'administration Microsoft 365 | **Préversion** |
-| Agent 365 avec API Management (démo uniquement) | Argumentaire optionnel, voir « Aller plus loin » | Non mis en place par les participants | **Préversion** |
+| Agent 365 avec API Management (démo uniquement) | Argumentaire facultatif, voir « Aller plus loin » | Non mis en place par les participants | **Préversion** |
 
 Ce module n'utilise pas Terraform. Il n'a pas de dossier `infra/` car il n'ajoute aucune infrastructure. Deux étapes touchent des paramètres du tenant : l'entrée BYO et, s'il y en a une, la stratégie Agent 365. C'est un administrateur du tenant qui s'en charge, jamais un participant.
 
@@ -52,11 +52,11 @@ Ce module n'utilise pas Terraform. Il n'a pas de dossier `infra/` car il n'ajout
 
 - Modules 00 à 05 terminés ; le point de terminaison MCP d'APIM doit répondre.
 - PowerShell 7.4 ou version ultérieure (`pwsh`) et, pour les étapes Linux ou macOS, bash.
-- Azure CLI, connecté à un abonnement hors production approuvé que vous possédez. En tant que présentateur, n'exécutez pas ces étapes dans le tenant d'un participant.
+- Azure CLI, connecté à un abonnement hors production approuvé que vous possédez. Si vous êtes présentateur, n'exécutez pas ces étapes dans le tenant d'un participant.
 - **Lecteur** sur le composant Application Insights, pour exécuter les requêtes KQL.
 - Pour API Center : un rôle qui autorise l'enregistrement d'assets dans le centre API. Confirmez le nom exact du rôle intégré dans la page des rôles intégrés Azure RBAC avant de l'attribuer. Ce module ne présuppose aucun rôle précis.
 - Pour l'entrée BYO : un administrateur informatique dans le centre d'administration Microsoft 365. Le participant n'a pas besoin de ce rôle et ne doit pas le demander.
-- Pour Agent 365 (démo optionnelle) : un administrateur du tenant détenant le rôle Agent 365 MCP Gateway Policy Operator. Ce rôle n'est jamais attribué à un participant.
+- Pour Agent 365 (démo facultative) : un administrateur du tenant qui détient le rôle Agent 365 MCP Gateway Policy Operator. Ce rôle n'est jamais attribué à un participant.
 
 ## Étapes
 
@@ -80,9 +80,9 @@ Kusto Query Language (KQL) est le langage de requête des journaux. Il lit les t
 | Refus du service en aval | Résultat MCP à examiner dans le client | HTTP 200 peut contenir `isError: true` ; un succès HTTP n'est pas un succès de l'outil |
 | Confirmation humaine, prompt, arguments, résultat | Non collectés ici | La passerelle ne prouve pas la confirmation et ne conserve pas la conversation |
 
-En accès applicatif, les journaux en aval identifient l'application, pas Alice ou Bob.
+En accès applicatif (app-only), les journaux en aval identifient l'application, pas Alice ou Bob.
 OBO peut conserver l'identité utilisateur, mais l'audit en aval exige sa propre configuration et ses propres droits.
-Reliez les métadonnées disponibles entre services ; n'ajoutez jamais de jeton ni de corps pour combler un manque.
+Recoupez les métadonnées disponibles d'un service à l'autre ; n'ajoutez jamais de jeton ni de corps pour combler un manque.
 
 **Question :** une requête renvoie HTTP 200. Cela prouve-t-il que Bob a lu le rapport ?
 
@@ -142,11 +142,11 @@ bash :
 
 ### Étape 2 - Confirmer que la journalisation des charges utiles est désactivée
 
-Dans l'instance APIM, vérifiez que la journalisation des charges utiles pour l'API MCP est désactivée. N'activez pas la capture de `gen_ai.tool.call.arguments` ni de `gen_ai.tool.call.result` pour cet atelier.
+Dans l'instance APIM, vérifiez que la journalisation des charges utiles est désactivée pour l'API MCP. N'activez pas la capture de `gen_ai.tool.call.arguments` ni de `gen_ai.tool.call.result` pour cet atelier.
 
 ### Étape 3 - Interroger le trafic MCP dans Application Insights
 
-Ouvrez `modules/06-observe-inventory/queries/mcp-traffic.kql` et exécutez-le dans le volet **Logs** du composant Application Insights dans lequel API Management écrit.
+Ouvrez `modules/06-observe-inventory/queries/mcp-traffic.kql` et exécutez son contenu dans le volet **Logs** du composant Application Insights où écrit API Management.
 
 La requête exacte, prête à coller :
 
@@ -171,7 +171,7 @@ requests
 ```
 
 La requête utilise les noms de tables d'Application Insights (`requests`, `customDimensions`) : exécutez-la dans le
-périmètre de ce composant Application Insights, pas sur son espace de travail Log Analytics, où les mêmes données se trouvent dans `AppRequests`.
+périmètre de ce composant Application Insights, pas sur son espace de travail Log Analytics, où les mêmes données se trouvent dans la table `AppRequests`.
 
 PowerShell, depuis le dossier du dépôt (extension Azure CLI `application-insights` : `az extension add --name application-insights`) :
 
@@ -210,7 +210,7 @@ az monitor app-insights query --app $ai --resource-group $group --offset 24h `
 > ]
 > ```
 >
-> **Résultat attendu** — avec du trafic des personas (Alice et Bob qui appellent des outils) passant par la passerelle du module 04 ; pas encore capturé. Valeurs fictives ; les colonnes suivent la requête : timestamp, operation, toolName, resultCode, success, duration, errorType, clientApp.
+> **Résultat attendu** — quand les personas (Alice et Bob) appellent des outils via la passerelle du module 04 ; pas encore capturé. Valeurs fictives ; les colonnes suivent la requête : timestamp, operation, toolName, resultCode, success, duration, errorType, clientApp.
 >
 > ```text
 > [
@@ -220,11 +220,11 @@ az monitor app-insights query --app $ai --resource-group $group --offset 24h `
 > ]
 > ```
 >
-> **Ce que cela signifie pour vous :** chaque ligne ne contient que des métadonnées : aucun corps, jeton, prompt, argument ou résultat. Les deux lignes réelles sont les appels `initialize` du validateur du module 04, refusés par la passerelle avec HTTP 401 : elles n'ont donc pas de nom d'outil. Elles apparaissent parce que la requête retient `api.type` `Mcp` ou `mcp-backend` : Microsoft Learn cite `Mcp`, mais un serveur MCP en passthrough comme celui de l'atelier journalise `mcp-backend`. Une liste vide est possible s'il n'y a pas eu de trafic MCP dans les dernières 24 heures ou si l'ingestion est encore en retard ; elle ne prouve ni réussite ni absence d'activité.
+> **Ce que cela signifie pour vous :** chaque ligne ne contient que des métadonnées : aucun corps, jeton, prompt, argument ou résultat. Les deux lignes réelles sont les appels `initialize` du validateur du module 04, refusés par la passerelle avec HTTP 401 : elles n'ont donc pas de nom d'outil. Elles apparaissent parce que la requête retient `api.type` `Mcp` ou `mcp-backend` : Microsoft Learn cite `Mcp`, mais un serveur MCP en passthrough comme celui de l'atelier journalise `mcp-backend`. Une liste vide est possible s'il n'y a pas eu de trafic MCP au cours des dernières 24 heures ou si l'ingestion est encore en retard ; elle ne prouve ni réussite ni absence d'activité.
 
 La même requête dans le portail : composant Application Insights → **Logs**, passez en **KQL mode**, collez la requête,
 puis **Run** (capture réelle, 2026-10-19, tenant de test de l'auteur ; noms pseudonymisés ; portail en anglais). Le
-premier cadre marque le filtre qui ne garde que le trafic MCP ; le second marque les lignes : opération, statut, durée et
+premier cadre entoure le filtre qui ne garde que le trafic MCP ; le second entoure les lignes : opération, statut, durée et
 nom du client, rien d'autre.
 
 ![Capture réelle : Logs d'Application Insights en mode KQL, filtre MCP et deux lignes de métadonnées, initialize refusé avec HTTP 401](../../assets/screenshots/azure-06-kql-logs.png)
@@ -244,7 +244,7 @@ La requête ne lit que des métadonnées : nom d'opération, nom d'outil, statut
 
 La page Logs propose un interrupteur **Agent** qui ouvre l'Azure Copilot Observability Agent. Vous posez la question en
 langage courant ; l'agent écrit une requête KQL, l'exécute sur ce composant Application Insights et explique le résultat.
-Le chat ne demande aucune ressource supplémentaire. Si l'interrupteur n'apparaît pas, votre tenant ne propose peut-être pas
+Le chat ne nécessite aucune ressource supplémentaire. Si l'interrupteur n'apparaît pas, votre tenant ne propose peut-être pas
 Azure Copilot : passez cette étape, le module n'en dépend pas.
 
 1. Dans le même composant Application Insights, ouvrez **Logs**, puis activez **Agent** (en haut à droite).
@@ -257,8 +257,8 @@ Azure Copilot : passez cette étape, le module n'en dépend pas.
 3. Dépliez **Reasoned for ...** pour voir la requête exécutée par l'agent. Comparez-la avec `queries/mcp-traffic.kql`.
 
 > **Résultat réel** — Observability Agent, 2026-10-19, tenant de test de l'auteur. Noms pseudonymisés, ID remplacés.
-> Le premier cadre montre la question ; le second, le tableau renvoyé par l'agent : les deux mêmes lignes `initialize`
-> refusées avec HTTP 401 que le fichier KQL.
+> Le premier cadre montre la question ; le second, le tableau renvoyé par l'agent : les mêmes deux lignes `initialize`
+> refusées avec HTTP 401 qu'avec le fichier KQL.
 >
 > **Ce que cela signifie pour vous :** l'agent arrive au même résultat parce que les journaux ne contiennent que des
 > métadonnées. Il ne trouve que ce qui a été journalisé : ni prompt, ni jeton, ni corps de requête à divulguer. Le chat est
@@ -273,7 +273,7 @@ La requête générée par l'agent (encadrée) utilise le même filtre `api.type
 **Question :** pourquoi garder `queries/mcp-traffic.kql` si l'agent sait écrire la requête ?
 
 <details>
-<summary>Voir la réponse</summary>
+<summary>Afficher la réponse</summary>
 
 Parce que le fichier est reproductible et relu : il donne toujours le même résultat, il est versionné dans Git et il
 s'exécute depuis Azure CLI et le validateur, sans portail ni IA. La requête de l'agent peut changer d'une fois à l'autre,
@@ -288,7 +288,7 @@ L'inventaire API Center est en **Préversion**. Dans le portail Azure :
 
 1. Ouvrez votre centre API et sélectionnez **Assets**.
 2. Choisissez **+ Register an asset**, puis **MCP server**.
-3. Saisissez un titre, un résumé et une description. Utilisez un texte synthétique, par exemple « Contoso governed MCP demo ».
+3. Saisissez un titre, un résumé et une description. Utilisez un texte fictif, par exemple « Contoso governed MCP demo ».
 4. Sous **Remotes**, ajoutez l'URL d'exécution du point de terminaison MCP d'API Management et choisissez un environnement.
 5. Ajoutez une version, une étape de cycle de vie et une licence.
 6. Choisissez **Create**. API Center génère les définitions SSE et Streamable.
@@ -302,7 +302,7 @@ Contrôle : l'asset apparaît dans **Assets** avec l'environnement choisi.
 
 Non. Une entrée d'inventaire n'autorise personne. API Center ne relaie pas les appels. Chaque appel passe toujours par
 API Management. La passerelle valide le jeton Microsoft Entra (émetteur, tenant, audience, expiration, scope), puis vérifie le rôle d'application (`Tools.Read` ou `Tools.Write`).
-Sans jeton valide ni le bon rôle, Eve est refusée.
+Sans jeton valide ni le bon rôle, la passerelle refuse Eve.
 
 </details>
 
@@ -310,7 +310,7 @@ Sans jeton valide ni le bon rôle, Eve est refusée.
 
 L'entrée BYO MCP est en **Préversion** et n'est pas destinée à la production. Un administrateur informatique du tenant l'examine et l'approuve dans le centre d'administration Microsoft 365. En tant que participant, vous vérifiez seulement que l'entrée existe et que son statut est celui défini par l'administrateur. Vous ne l'approuvez pas vous-même.
 
-Contrôle : l'entrée affiche le nom du serveur et un état d'approbation. Cet état ne prouve pas que le serveur est sûr : les contrôles restent appliqués par les modules 04 et 05.
+Contrôle : l'entrée affiche le nom du serveur et un état d'approbation. Cet état ne prouve pas que le serveur est sûr : ce sont toujours les modules 04 et 05 qui appliquent les contrôles.
 
 ## Ce que vous devriez voir
 
@@ -375,7 +375,7 @@ Chaque vérification affiche `PASS` ou `FAIL` sur une ligne. Une ligne `FAIL` in
 
 ## Nettoyer
 
-Ce module ne crée aucune ressource Azure : le nettoyage se limite donc à un rapport protégé.
+Ce module ne crée aucune ressource Azure : le nettoyage se limite donc à un rapport, précédé d'un contrôle de sécurité.
 
 PowerShell :
 
@@ -416,15 +416,15 @@ Sans `-Apply` (ou `--apply`), le script se contente d'un rapport. Avec l'option,
 
 ## Aller plus loin
 
-- **Alertes** : créez une alerte de journal Azure Monitor sur le taux de réponses `403` de l'opération MCP. Gardez-la synthétique et agrégée.
+- **Alertes** : créez une alerte de journal Azure Monitor sur le taux de réponses `403` de l'opération MCP. Appuyez-la sur des données fictives et agrégées.
 - **Agent 365 (Préversion, démo uniquement)** : Agent 365 peut inventorier les serveurs MCP exposés via API Management et bloquer un serveur que la stratégie n'autorise pas (l'appelant reçoit 403). Le contrôle outil par outil, l'observabilité et l'intégration avec Defender ou Purview nécessitent le niveau AI Gateway, lui aussi en Préversion. Seul un administrateur du tenant peut donner le consentement pour tout le tenant. C'est un argumentaire pour le présentateur, sans étape pour les participants.
-- **Rétention** : décidez de la durée de conservation de la télémétrie MCP et alignez-la sur la politique de protection des données.
+- **Rétention** : décidez de la durée de conservation de la télémétrie MCP et alignez-la sur votre politique de protection des données.
 
 ## Sources
 
-Les pages officielles Microsoft Learn utilisées pour ce module sont consignées avec leurs dates de dernière vérification dans `docs/sources.md`, sous le module 06 :
+`docs/sources.md` recense, sous le module 06, les pages officielles Microsoft Learn utilisées pour ce module, avec leur date de dernière vérification :
 
-- [Surveiller le trafic MCP](https://learn.microsoft.com/azure/api-management/monitor-mcp-servers) : dimensions par défaut et journalisation du contenu, maintenue désactivée ici.
+- [Surveiller le trafic MCP](https://learn.microsoft.com/azure/api-management/monitor-mcp-servers) : dimensions par défaut et journalisation du contenu, que l'atelier laisse désactivée.
 - [Intégration Application Insights](https://learn.microsoft.com/azure/api-management/api-management-howto-app-insights) : échantillonnage et corrélation.
 - [Inventaire API Center](https://learn.microsoft.com/azure/api-center/register-discover-mcp-server) (enregistrement en Préversion).
 - [Apporter son serveur MCP](https://learn.microsoft.com/microsoft-365/admin/manage/manage-byo-mcp-server) (Préversion).

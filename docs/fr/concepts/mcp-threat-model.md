@@ -2,7 +2,7 @@
 
 [English](../../concepts/mcp-threat-model.md)
 
-Ce modèle couvre le point d'entrée gouverné prévu. Utilisez les schémas des
+Ce modèle porte sur le point d'entrée gouverné que l'atelier met en place. Appuyez-vous sur les schémas des
 [modules 04](../../../assets/architecture/04.fr.svg) et [06](../../../assets/architecture/06.fr.svg).
 La Function privée n'est pas un second point d'entrée public.
 
@@ -18,17 +18,17 @@ La Function privée n'est pas un second point d'entrée public.
 | Secret réutilisé | Clé ou jeton volé | Durée de vie courte, aucun secret dans les fichiers | Aucun identifiant dans un commit |
 
 Les métadonnées de ressource protégée (PRM) sont en **Preview**. Les API de gestion MCP d'API Management
-(version `2025-09-01-preview`) sont en **Preview**. Elles ne remplacent pas l'autorisation appliquée par la passerelle et par la ressource.
+(version `2025-09-01-preview`) sont en **Preview**. Elles ne remplacent pas l'autorisation que la passerelle et la ressource appliquent.
 
-## Contexte facultatif réservé à l'animateur
+## Pour l'animateur uniquement (facultatif)
 
 L'intégration Microsoft Agent 365 est en **Preview**. Avec API Management v2, elle permet d'inventorier et de bloquer un serveur.
 Le blocage par outil, l'observabilité par outil et la protection contre les menaces exigent
-**AI Gateway (Preview)**, hors parcours principal. Le consentement à l'échelle du tenant et la rédaction de
-stratégies ne sont jamais confiés aux participants.
+**AI Gateway (Preview)**, hors parcours principal. On ne confie jamais aux participants le consentement à l'échelle
+du tenant ni la rédaction des stratégies.
 
-Le transfert d'identité Foundry est en **Preview** lorsqu'il est documenté. Il n'autorise pas la transmission du
-jeton MCP à Graph ou Storage. Les clients facultatifs utilisent toujours APIM et un parcours sans secret pris en charge.
+Là où il est documenté, le transfert d'identité Foundry est en **Preview**. Il n'autorise pas la transmission du
+jeton MCP à Graph ou Storage. Les clients facultatifs passent toujours par APIM, avec un parcours sans secret pris en charge.
 
 ## Résultat attendu
 

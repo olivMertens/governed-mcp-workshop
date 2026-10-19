@@ -21,7 +21,7 @@ Rien. Ce module exécute les scripts de nettoyage des modules 02 à 05 dans l'or
 <summary>Périmètres du nettoyage (Mermaid)</summary>
 
 Ce schéma présente les périmètres, pas l'ordre exact du script. Suivez le tableau numéroté ci-dessous.
-GitHub affiche Mermaid ; l'application du présentateur affiche le schéma correspondant avec les icônes Microsoft vérifiées.
+GitHub affiche le schéma Mermaid ; le portail du présentateur affiche le même schéma avec les icônes Microsoft vérifiées.
 [Ouvrir le SVG avec icônes](../../assets/architecture/99.fr.svg) ou le [PNG](../../assets/architecture/99.fr.png).
 
 ```mermaid
@@ -69,11 +69,11 @@ flowchart LR
 > - Lisez chaque plan avant de continuer.
 > - Rien n'est supprimé tant que vous n'ajoutez pas `-Apply`.
 
-## Prérequis et rôles requis
+## Prérequis et rôles nécessaires
 
 - Les mêmes rôles Azure et Microsoft Entra que dans les modules 02 à 05 (Contributor sur le groupe de ressources de l'atelier,
   et les rôles Entra utilisés pour les inscriptions d'applications).
-- PowerShell 7.4 ou plus récent (`pwsh`), Terraform 1.16.6 ou plus récent dans le `PATH`, et la CLI Azure connectée au tenant.
+- PowerShell 7.4 ou plus récent (`pwsh`), Terraform 1.16.6 ou plus récent dans le `PATH`, et Azure CLI connecté au tenant.
 - Les mêmes fichiers de paramètres que lors des déploiements. Le nettoyage les lit pour retrouver les noms des ressources.
 
 > [!IMPORTANT]
@@ -126,7 +126,7 @@ pwsh ./modules/99-cleanup/cleanup.ps1 -TenantId <guid-tenant> -SubscriptionId <g
 > DONE report only. Nothing was changed. 2 stage(s) wait for earlier stages: run with -Apply (it applies in order and plans each stage again), or rerun this report after applying.
 > ```
 >
-> **Ce que cela signifie pour vous :** lisez chaque ligne d'après son premier mot.
+> **Ce que cela signifie pour vous :** le premier mot de chaque ligne indique de quoi il s'agit.
 >
 > - `PLAN` : ce que cette étape modifierait. Lisez-les toutes.
 > - `nothing to do` : il ne reste rien à retirer pour cette étape.
@@ -157,7 +157,7 @@ pwsh ./modules/99-cleanup/cleanup.ps1 -TenantId <guid-tenant> -SubscriptionId <g
 
 1. Supprimez les utilisateurs de test de l'atelier (Alice, Bob, Eve) si vous les avez créés.
 2. Retirez les attributions de rôle ajoutées à la main pour l'atelier.
-3. Si un présentateur a publié le portail facultatif, il est conservé volontairement. Retirez-le seulement à la fin de l'atelier, avec la procédure validée de [docs/fr/HOSTING.md](../../docs/fr/HOSTING.md).
+3. Si un présentateur a publié le portail facultatif, le script le conserve volontairement. Retirez-le seulement à la fin de l'atelier, avec la procédure validée de [docs/fr/HOSTING.md](../../docs/fr/HOSTING.md).
 4. Lancez la vérification des tags ci-dessous.
 
 ```powershell
@@ -168,7 +168,7 @@ az resource list --tag workshop=mcp-<prefix>-<suffix> --query "[].{name:name, ty
 > Après un nettoyage complet, la commande n'affiche rien (un résultat vide ne produit pas de tableau).
 > Avant le nettoyage, elle affiche une ligne par ressource de l'atelier, par exemple `func-mcp-p01-<suffix>` ou `stp01<suffix>`.
 >
-> **Ce que cela signifie pour vous :** une sortie vide prouve qu'il ne reste aucune ressource marquée de l'atelier. Chaque ligne affichée est une ressource oubliée.
+> **Ce que cela signifie pour vous :** une sortie vide prouve qu'il ne reste aucune ressource portant le tag de l'atelier. Chaque ligne affichée est une ressource oubliée.
 
 ## Résultat attendu
 
@@ -176,7 +176,7 @@ az resource list --tag workshop=mcp-<prefix>-<suffix> --query "[].{name:name, ty
   Une étape dont le fichier privé requis est absent affiche `SKIP <étape> (missing .workshop/<fichier>; ...)` : c'est normal si vous ne l'avez jamais déployée.
   Une étape qui dépend de suppressions encore prévues affiche `WAIT` en mode rapport ; `-Apply` la traite dans l'ordre.
 - En mode application : `DONE module clean-ups applied.` suivi des étapes manuelles.
-- La vérification des tags renvoie un tableau vide. Chaque ligne affichée correspond à une ressource restante à supprimer.
+- La vérification des tags renvoie un tableau vide. Chaque ligne affichée correspond à une ressource qu'il reste à supprimer.
 
 **Question :** pourquoi le module 99 lance-t-il les nettoyages des modules dans l'ordre inverse plutôt qu'un seul `terraform destroy` ?
 
@@ -244,15 +244,15 @@ Chaque contrôle affiche `PASS` ou `FAIL`. La dernière ligne est `RESULT: PASS`
 ## Dépannage
 
 - **Une étape s'arrête avec un code d'erreur.** Le script s'arrête à la première erreur. Lisez le message, corrigez le problème, puis
-  relancez le script. Grâce à leurs garde-fous, les étapes déjà appliquées sont ignorées.
+  relancez le script. Grâce à leurs garde-fous, les étapes déjà appliquées ne refont rien.
 - **Un plan contient une modification inattendue.** Ne l'appliquez pas. Le garde-fou interrompt le script si une modification sort de la
   liste autorisée, et rien n'est appliqué. Adressez-vous au formateur.
-- **La vérification des tags affiche encore des ressources.** Soit elles ont été créées en dehors de l'atelier, soit une étape a été sautée.
+- **La vérification des tags affiche encore des ressources.** Soit elles ont été créées en dehors de l'atelier, soit vous avez sauté une étape.
   Identifiez chaque ressource dans le portail avant de la supprimer à la main.
 
 ## Nettoyage
 
-Ce module est le nettoyage. Pour remettre l'environnement de l'atelier dans son état initial, exécutez la section
+Ce module est lui-même le nettoyage. Pour remettre l'environnement de l'atelier dans son état initial, exécutez la section
 « Étapes » en mode application, puis les étapes manuelles, puis la vérification des tags.
 
 ## Pour aller plus loin

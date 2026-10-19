@@ -350,14 +350,14 @@ def architecture_documents(pages, directory, check):
         name = "STEPS.fr.md" if french else "STEPS.md"
         lines = [
             "# " + ("L'architecture, étape par étape" if french else "Architecture, step by step"), "",
-            ("Ces schémas montrent ce que le parcours vous fait construire, pas des ressources déjà déployées."
+            ("Ces schémas montrent ce que vous allez construire au fil du parcours, pas des ressources déjà déployées."
              if french else "These diagrams show learning targets, not deployed resources."), "",
             ("Le Model Context Protocol (MCP) relie un client à des outils. "
-             "Chaque étape ajoute un contrôle ou précise qui est responsable de quoi." if french else
+             "Chaque étape ajoute un contrôle ou précise qui est responsable de chaque partie." if french else
              "The Model Context Protocol (MCP) connects a client to tools. "
              "Each step adds a control or explains an ownership boundary."), "",
             ("Ce fichier est généré à partir de `workshop.drawio` : ne le modifiez pas directement. "
-             "Chaque cadre délimite un périmètre de responsabilité ; une vue répétée désigne le même environnement. "
+             "Chaque cadre délimite un périmètre de responsabilité ; une vue répétée représente le même environnement. "
              "GitHub affiche le schéma Mermaid ; l'application affiche le SVG équivalent, avec ses icônes et son tracé vérifiés."
              if french else
              "Generated from `workshop.drawio`; do not edit separately. Frames are ownership boundaries; "

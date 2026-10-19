@@ -10,10 +10,10 @@ Pour suivre l'atelier, ouvrez les [schémas étape par étape](STEPS.fr.md).
 Tous montrent une **cible prévue**, pas une infrastructure déjà déployée.
 Chaque cadre en pointillés délimite un périmètre nommé : poste local, identité ou ressources Azure.
 Les lignes numérotées sont des vues liées de la même étape, pas des ressources déployées en double.
-Requêtes, identité, observation et administration sont représentées séparément. Le module 05 représente Storage ;
-Graph exige un autre jeton pour sa propre audience.
+Les flux de requêtes, d'identité, d'observation et d'administration sont représentés séparément. Le module 05 représente Storage ;
+Graph exige un autre jeton, émis pour sa propre audience.
 
-Les mainteneurs suivent [la compétence de schémas d'architecture](../../.github/skills/architecture-diagram-author/SKILL.md)
+Pour les modifier, les mainteneurs suivent [la compétence de schémas d'architecture](../../.github/skills/architecture-diagram-author/SKILL.md)
 (en anglais), que l'agent de construction des modules charge lorsqu'un module modifie une architecture représentée.
 
 ## Reproduire les exports
@@ -24,9 +24,9 @@ Les mainteneurs suivent [la compétence de schémas d'architecture](../../.githu
 Pour générer les PNG, il faut Python 3, le paquet Python `playwright` et une installation existante de Chromium ou Edge.
 Installez le paquet avec `python -m pip install playwright==1.62.0`. Aucun paquet ni navigateur n'est installé automatiquement.
 La génération SVG seule et `--check` utilisent uniquement la bibliothèque standard de Python.
-Le générateur local gère le sous-ensemble mxGraph utilisé : texte simple, rectangles carrés, périmètres pointillés,
+Le générateur local gère le sous-ensemble mxGraph utilisé : texte simple, rectangles à angles droits, périmètres en pointillés,
 SVG incorporés, coordonnées des parents et routage orthogonal ancré. Un style non pris en charge provoque une erreur.
-Ce n'est pas un exporteur draw.io général. Draw.io Desktop n'était pas disponible ; Edge convertit le SVG local en PNG, hors ligne.
+Ce n'est pas un remplaçant de l'exporteur draw.io. Draw.io Desktop n'était pas disponible ; Edge convertit le SVG local en PNG, hors ligne.
 
 ```powershell
 python .\scripts\render-architecture.py --browser 'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe'
@@ -39,11 +39,11 @@ python3 ./scripts/render-architecture.py --browser "$(command -v chromium)"
 Indiquez le chemin réel de votre navigateur. `--svg-only` régénère les SVG sans navigateur mais **pas les PNG**.
 Régénérez les deux avant publication. Examinez les PNG et le tableau après toute modification de la disposition.
 `python .\scripts\render-architecture.py --check` vérifie la cohérence sans navigateur ni modification des exports.
-Chaque PNG contient l'empreinte SHA-256 de son SVG source ; une paire périmée provoque un échec.
-Contrôles effectués : segments complets, traversée de composants, intersections et recouvrement d'arêtes, écart de 16 pixels
-entre arêtes parallèles, arrivée perpendiculaire des flèches, place disponible pour le texte et icônes autonomes.
+Chaque PNG contient l'empreinte SHA-256 de son SVG source ; une paire désynchronisée fait échouer le contrôle au lieu de passer inaperçue.
+Contrôles effectués : segments orthogonaux complets, traversée de composants sans rapport, croisements et chevauchements d'arêtes, écart de 16 pixels
+entre arêtes parallèles, arrivée perpendiculaire des flèches, place suffisante pour le texte et icônes intégrées au SVG.
 
-La même commande régénère les deux guides Mermaid. `--check` refuse aussi un guide devenu incohérent.
+La même commande régénère les deux guides Mermaid. `--check` refuse aussi un texte Mermaid qui n'est plus à jour.
 Mermaid conserve les liens et les périmètres, pas la position exacte des éléments ni les icônes Microsoft.
 GitHub affiche directement ses blocs Mermaid. Dans l'application et le portail, chaque bloc publié s'affiche
 sous la forme du SVG correspondant, avec ses icônes et son tracé vérifiés, sans bibliothèque Mermaid ni service externe.
@@ -52,7 +52,7 @@ Le code Mermaid de chaque module reste dans une section repliée par défaut, av
 Les README du module 99 reprennent aussi le bloc généré dans une section repliable pour GitHub.
 Après toute modification de l'architecture du module 99, recopiez le bloc 99 de chaque guide `STEPS` dans le README correspondant ;
 `node --test scripts/site.test.mjs` échoue à la moindre divergence, dans les deux langues.
-Après une modification, régénérez, examinez les PNG et vérifiez les deux langues avant publication.
+Après chaque modification, régénérez les exports, examinez les PNG et vérifiez les deux langues avant publication.
 
 </details>
 
@@ -60,7 +60,7 @@ Après une modification, régénérez, examinez les PNG et vérifiez les deux la
 
 Utilisez les alertes GitHub : `> [!NOTE]`, `> [!TIP]`, `> [!IMPORTANT]`, `> [!WARNING]`, `> [!CAUTION]`.
 Séparez les paragraphes, listes et blocs de code par une ligne citée vide (`>`).
-GitHub et le moteur commun du tableau et du portail conservent ces blocs.
+GitHub conserve ces blocs, tout comme le moteur d'affichage commun au tableau de bord et au portail.
 L'application ajoute une icône décorative, un libellé traduit et une couleur distincte par type.
 Les citations restent des citations ; le HTML arbitraire s'affiche comme du texte, sans être interprété.
 Le [guide de nettoyage](../../modules/99-cleanup/README.fr.md) sert d'exemple bilingue.
