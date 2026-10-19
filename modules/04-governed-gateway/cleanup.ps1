@@ -64,13 +64,14 @@ function Invoke-GuardedPhase([string]$Directory, [string[]]$Arguments, [hashtabl
                             if ($key -ne 'WORKSHOP_MCP_ENDPOINT' -and $before.app_settings[$key] -cne $after.app_settings[$key]) { $only = $false }
                         }
                     }
-                    elseif (($before[$name] | ConvertTo-Json -Depth 50 -Compress) -ne ($after[$name] | ConvertTo-Json -Depth 50 -Compress)) { $only = $false }
+                    elseif ((Get-WorkshopPortalAttributeJson $name $before[$name]) -ne (Get-WorkshopPortalAttributeJson $name $after[$name])) { $only = $false }
                 }
                 $only)
-            -not $whitespaceOnly -and -not $portalHint -and (-not $Allowed.ContainsKey($address) -or ($_.change.actions -join ',') -ne $Allowed[$address]) })
+            -not $whitespaceOnly -and -not $portalHint -and -not (Test-WorkshopPortalTierRestore $_) -and (-not $Allowed.ContainsKey($address) -or ($_.change.actions -join ',') -ne $Allowed[$address]) })
         if ($foreign.Count -gt 0) {
             throw "FAIL '$Label' plan contains $($foreign.Count) change(s) outside module 04; nothing was applied. Review 'terraform plan' privately (expected HTTP N/A)."
         }
+        Write-WorkshopPortalTierNotes $changes
         $work = @($changes | Where-Object { & $Relevant $_ })
         if ($work.Count -eq 0) {
             Write-Output "PASS '$Label': nothing to do in this state (idempotent, expected HTTP N/A)."

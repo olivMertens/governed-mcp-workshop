@@ -57,14 +57,17 @@ try {
             foreach ($name in $before.app_settings.Keys) { if ($name -ne 'WORKSHOP_MCP_ENDPOINT') { $expected[$name] = $before.app_settings[$name] } }
             $same = ($expected | ConvertTo-Json -Depth 5 -Compress) -eq ([ordered]@{} + $after.app_settings | ConvertTo-Json -Depth 5 -Compress)
             foreach ($name in $before.Keys) {
-                if ($name -ne 'app_settings' -and (($before[$name] | ConvertTo-Json -Depth 50 -Compress) -ne ($after[$name] | ConvertTo-Json -Depth 50 -Compress))) { $same = $false }
+                if ($name -ne 'app_settings' -and ((Get-WorkshopPortalAttributeJson $name $before[$name]) -ne (Get-WorkshopPortalAttributeJson $name $after[$name]))) { $same = $false }
             }
             $same) })
-    $foreign = @($changes | Where-Object { $_ -notin $portalHint } | Where-Object {
+    $tierRestore = @($changes | Where-Object { $_ -notin $portalHint -and (Test-WorkshopPortalTierRestore $_) })
+    $foreign = @($changes | Where-Object { $_ -notin $portalHint -and $_ -notin $tierRestore } | Where-Object {
         ($_.change.actions -join ',') -ne 'delete' -or ($_.address -replace '\[[^\]]+\]$', '') -notin $owned })
     if ($foreign.Count -gt 0) {
         throw "FAIL cleanup plan contains $($foreign.Count) change(s) outside module 02 deletions; nothing was applied. Review 'terraform plan' privately (expected HTTP N/A)."
     }
+    Write-WorkshopPortalTierNotes $changes
+    $changes = @($changes | Where-Object { $_ -notin $tierRestore })
     if ($changes.Count -eq 0) {
         Write-Output 'PASS no module 02 resources remain in this state; nothing to delete (idempotent, expected HTTP N/A).'
         return

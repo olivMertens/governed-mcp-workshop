@@ -1,5 +1,60 @@
 #requires -Version 7.4
 
+# A clean-up plan may also restore the optional presenter portal to its reviewed tier when something outside Terraform
+# downgraded it (for example a tenant automation that switches App Service plans to F1 at night). Only two exact
+# changes qualify: the portal plan's sku_name, and the portal app's site_config.always_on (F1 cannot keep it on).
+# Every other attribute must be identical, so a clean-up can never hide a real portal change.
+function Test-WorkshopPortalTierRestore {
+    param([Parameter(Mandatory)]$Change)
+    try { return Test-WorkshopPortalTierRestoreCore $Change } catch { return $false }
+}
+
+function Test-WorkshopPortalTierRestoreCore {
+    param([Parameter(Mandatory)]$Change)
+    if (($Change.change.actions -join ',') -ne 'update') { return $false }
+    $address = $Change.address -replace '\[[^\]]+\]$', ''
+    $before = $Change.change.before; $after = $Change.change.after
+    if ($before -isnot [System.Collections.IDictionary] -or $after -isnot [System.Collections.IDictionary]) { return $false }
+    $json = { param($value) $value | ConvertTo-Json -Depth 50 -Compress }
+    $keys = @(@($before.Keys) + @($after.Keys) | Sort-Object -Unique)
+    if ($address -eq 'azurerm_service_plan.portal') {
+        foreach ($key in $keys) { if ($key -ne 'sku_name' -and (& $json $before[$key]) -ne (& $json $after[$key])) { return $false } }
+        return $before.sku_name -cne $after.sku_name
+    }
+    if ($address -eq 'azurerm_linux_web_app.portal') {
+        $changed = $false
+        foreach ($key in $keys) {
+            if ($key -ne 'site_config') { if ((& $json $before[$key]) -ne (& $json $after[$key])) { return $false }; continue }
+            $b = @($before.site_config)[0]; $a = @($after.site_config)[0]
+            if ($b -isnot [System.Collections.IDictionary] -or $a -isnot [System.Collections.IDictionary]) { return $false }
+            foreach ($name in @(@($b.Keys) + @($a.Keys) | Sort-Object -Unique)) {
+                if ((& $json $b[$name]) -eq (& $json $a[$name])) { continue }
+                if ($name -ne 'always_on') { return $false }
+                $changed = $true
+            }
+        }
+        return $changed
+    }
+    return $false
+}
+
+# Compares one top-level resource attribute, ignoring site_config.always_on (see Test-WorkshopPortalTierRestore).
+function Get-WorkshopPortalAttributeJson {
+    param([string]$Name, $Value)
+    if ($Name -eq 'site_config' -and $null -ne $Value) {
+        $copy = @(@($Value) | ForEach-Object { if ($_ -is [System.Collections.IDictionary]) { $c = [ordered]@{} + $_; $c.Remove('always_on'); $c } else { $_ } })
+        return $copy | ConvertTo-Json -Depth 50 -Compress
+    }
+    return $Value | ConvertTo-Json -Depth 50 -Compress
+}
+
+function Write-WorkshopPortalTierNotes {
+    param([object[]]$Changes)
+    foreach ($change in @($Changes | Where-Object { Test-WorkshopPortalTierRestore $_ })) {
+        Write-Output "NOTE plan also restores $($change.address) to its reviewed tier (changed outside Terraform, for example F1 at night). Not a module change; the portal is kept."
+    }
+}
+
 function Assert-WorkshopInteractiveEnvironment {
     foreach ($name in @('ARM_CLIENT_ID', 'ARM_CLIENT_SECRET', 'ARM_CLIENT_CERTIFICATE_PATH',
         'ARM_CLIENT_CERTIFICATE', 'ARM_CLIENT_CERTIFICATE_PASSWORD', 'ARM_USE_MSI',

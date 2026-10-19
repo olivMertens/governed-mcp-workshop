@@ -42,6 +42,8 @@ $steps = @(
 )
 
 Write-Output "Module 99 clean-up. Mode: $(if ($Apply) { 'APPLY' } else { 'REPORT ONLY (no change)' })"
+$pending = $false
+$waiting = @()
 foreach ($step in $steps) {
     $script = Join-Path $root "modules/$($step.Module)/cleanup.ps1"
     if (-not (Test-Path -LiteralPath $script)) {
@@ -61,15 +63,33 @@ foreach ($step in $steps) {
     if ($step.Scope) { $arguments.Scope = $step.Scope }
     if ($Apply) { $arguments.Apply = $true }
 
-    & $script @arguments
-    if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) {
-        Write-Output "FAIL $label stopped with exit code $LASTEXITCODE. Fix it, then run this script again."
-        exit $LASTEXITCODE
+    try {
+        $global:LASTEXITCODE = 0
+        & $script @arguments | ForEach-Object {
+            if (-not $Apply -and "$_" -match '^PLAN ') { $pending = $true }
+            $_
+        }
+        if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { throw "exit code $LASTEXITCODE" }
+    }
+    catch {
+        $reason = ($_.Exception.Message -split "`n")[0]
+        # In report mode nothing is applied, so a later stage still sees objects that an earlier stage only planned to
+        # remove, and its guard refuses. That is expected; it plans cleanly once the earlier stages are applied.
+        if (-not $Apply -and $pending) {
+            Write-Output "WAIT $label cannot be planned yet: earlier stages above still have PLAN lines to apply ($reason)"
+            $waiting += $label
+            continue
+        }
+        Write-Output "FAIL $label stopped: $reason Fix it, then run this script again."
+        exit 1
     }
 }
 
 if ($Apply) {
     Write-Output 'DONE module clean-ups applied. Next: delete test users and role assignments, then run the tag check in README.md.'
+}
+elseif ($waiting.Count) {
+    Write-Output "DONE report only. Nothing was changed. $($waiting.Count) stage(s) wait for earlier stages: run with -Apply (it applies in order and plans each stage again), or rerun this report after applying."
 }
 else {
     Write-Output 'DONE report only. Nothing was changed. Re-run with -Apply after reviewing each plan.'

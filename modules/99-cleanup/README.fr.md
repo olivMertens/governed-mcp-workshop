@@ -97,36 +97,50 @@ pwsh ./modules/99-cleanup/cleanup.ps1 -TenantId <guid-tenant> -SubscriptionId <g
 pwsh ./modules/99-cleanup/cleanup.ps1 -TenantId <guid-tenant> -SubscriptionId <guid-abonnement> -Apply
 ```
 
-> **Résultat réel** — mode rapport dans l'abonnement de test de l'auteur, 2026-10-17, où seul le module 02 (avec stockage
-> privé et portail facultatif) était déployé. `...` masque 16 lignes `PLAN delete` semblables. Noms et identifiants masqués.
+> **Résultat réel** — mode rapport, 2026-10-19, tenant de test de l'auteur avec les modules 02 et 03 déployés, la
+> délégation Entra du module 05 encore présente, et la charge de travail des modules 04 et 05 déjà retirée. `...` masque des
+> lignes semblables. Noms et identifiants masqués.
 >
 > ```text
 > Module 99 clean-up. Mode: REPORT ONLY (no change)
-> SKIP 05-delegated-and-app-only -Scope Workload (missing .workshop/module03.tfvars.json; if you deployed this stage, restore the file and run again)
-> SKIP 05-delegated-and-app-only -Scope Entra (missing .workshop/entra.tfvars.json; if you deployed this stage, restore the file and run again)
-> SKIP 04-governed-gateway (missing .workshop/module03.tfvars.json; if you deployed this stage, restore the file and run again)
+> --> 05-delegated-and-app-only -Scope Workload
+> PASS explicit Azure context and private participant parameters (expected HTTP 200 from Azure Resource Manager).
+> NOTE plan also restores azurerm_linux_web_app.portal[0] to its reviewed tier (changed outside Terraform, for example F1 at night). Not a module change; the portal is kept.
+> NOTE plan also restores azurerm_service_plan.portal[0] to its reviewed tier (changed outside Terraform, for example F1 at night). Not a module change; the portal is kept.
+> PASS 'remove module 05 workload resources': nothing to do in this state (idempotent, expected HTTP N/A).
+> --> 05-delegated-and-app-only -Scope Entra
+> PASS explicit tenant and interactive identity administrator sign-in (expected HTTP 200 from Microsoft Graph).
+> PLAN delete azuread_application_api_access.downstream["graph"] (remove module 05 Entra delegation)
+> ...
+> PLAN delete azuread_service_principal_delegated_permission_grant.downstream["storage"] (remove module 05 Entra delegation)
+> PASS 'remove module 05 Entra delegation' plan changes only 5 module 05 object(s). Review it, then rerun with -Apply.
+> --> 04-governed-gateway
+> PASS 'phase 2: remove the governed gateway': nothing to do in this state (idempotent, expected HTTP N/A).
 > --> 03-entra-authentication -Scope Workload
-> PASS explicit Azure context and private participant parameters (expected HTTP 200 from Azure Resource Manager).
-> PASS 'phase 2: remove built-in authentication': nothing to do in this state (idempotent, expected HTTP N/A).
-> SKIP 03-entra-authentication -Scope Entra (missing .workshop/entra.tfvars.json; if you deployed this stage, restore the file and run again)
+> PLAN update azurerm_function_app_flex_consumption.mcp[0] (phase 1: restore the key gate behind Entra)
+> PASS 'phase 1: restore the key gate behind Entra' plan changes only 1 module 03 object(s). Review it, then rerun with -Apply.
+> --> 03-entra-authentication -Scope Entra
+> WAIT 03-entra-authentication -Scope Entra cannot be planned yet: earlier stages above still have PLAN lines to apply (...)
 > --> 02-open-server
-> PASS explicit Azure context and private participant parameters (expected HTTP 200 from Azure Resource Manager).
-> PLAN delete azurerm_application_insights.mcp[0]
-> PLAN delete azurerm_function_app_flex_consumption.mcp[0]
-> ...
-> PLAN delete azurerm_storage_account.mcp[0]
-> ...
-> PLAN delete azurerm_virtual_network.gateway[0]
-> PLAN update azurerm_linux_web_app.portal[0]: remove only the WORKSHOP_MCP_ENDPOINT hint (portal may restart)
-> PASS cleanup plan deletes only 20 module 02 resource(s) and removes the portal endpoint hint. Review it, then rerun with -Apply.
-> DONE report only. Nothing was changed. Re-run with -Apply after reviewing each plan.
+> WAIT 02-open-server cannot be planned yet: earlier stages above still have PLAN lines to apply (...)
+> DONE report only. Nothing was changed. 2 stage(s) wait for earlier stages: run with -Apply (it applies in order and plans each stage again), or rerun this report after applying.
 > ```
 >
-> **Ce que cela signifie pour vous :** `SKIP` indique le fichier privé qui manque pour nettoyer une étape. C'est normal pour
-> une étape jamais déployée. Une étape qui n'a rien à retirer affiche `nothing to do`. Chaque étape déployée affiche ses propres
-> lignes `PLAN` : lisez-les toutes. Après accord, `-Apply` exécute les mêmes étapes et se termine par `DONE module clean-ups
-> applied. Next: delete test users and role assignments, then run the tag check in README.md.` Si un garde-fou refuse un plan,
-> le script affiche `FAIL` et s'arrête sans rien appliquer.
+> **Ce que cela signifie pour vous :** lisez chaque ligne d'après son premier mot.
+>
+> - `PLAN` : ce que cette étape modifierait. Lisez-les toutes.
+> - `nothing to do` : il ne reste rien à retirer pour cette étape.
+> - `SKIP` : un fichier privé manque. Normal pour une étape jamais déployée ; sinon, restaurez le fichier.
+> - `NOTE` : Terraform remet aussi le portail facultatif du présentateur sur son niveau validé, parce qu'un élément extérieur
+>   à Terraform l'a modifié (ici, un passage nocturne en F1). Seule cette modification précise est acceptée ; le portail est
+>   conservé.
+> - `WAIT` : le mode rapport n'applique rien, donc cette étape voit encore des objets qu'une étape précédente *prévoit*
+>   seulement de retirer. Ce n'est pas une erreur. Avec `-Apply`, les étapes s'exécutent dans l'ordre et chacune refait son
+>   plan après la précédente.
+> - `FAIL` : un garde-fou a refusé un plan. Rien n'a été appliqué. Arrêtez-vous et lisez le message.
+>
+> Après accord, `-Apply` se termine par `DONE module clean-ups applied. Next: delete test users and role assignments, then
+> run the tag check in README.md.`
 ### Bash
 
 ```bash
@@ -143,7 +157,8 @@ pwsh ./modules/99-cleanup/cleanup.ps1 -TenantId <guid-tenant> -SubscriptionId <g
 
 1. Supprimez les utilisateurs de test de l'atelier (Alice, Bob, Eve) si vous les avez créés.
 2. Retirez les attributions de rôle ajoutées à la main pour l'atelier.
-3. Lancez la vérification des tags ci-dessous.
+3. Si un présentateur a publié le portail facultatif, il est conservé volontairement. Retirez-le seulement à la fin de l'atelier, avec la procédure validée de [docs/fr/HOSTING.md](../../docs/fr/HOSTING.md).
+4. Lancez la vérification des tags ci-dessous.
 
 ```powershell
 az resource list --tag workshop=mcp-<prefix>-<suffix> --query "[].{name:name, type:type}" -o table
@@ -159,6 +174,7 @@ az resource list --tag workshop=mcp-<prefix>-<suffix> --query "[].{name:name, ty
 
 - En mode rapport : une ligne `-->` par étape déployée, le résumé du plan, puis `DONE report only. Nothing was changed.`
   Une étape dont le fichier privé requis est absent affiche `SKIP <étape> (missing .workshop/<fichier>; ...)` : c'est normal si vous ne l'avez jamais déployée.
+  Une étape qui dépend de suppressions encore prévues affiche `WAIT` en mode rapport ; `-Apply` la traite dans l'ordre.
 - En mode application : `DONE module clean-ups applied.` suivi des étapes manuelles.
 - La vérification des tags renvoie un tableau vide. Chaque ligne affichée correspond à une ressource restante à supprimer.
 
