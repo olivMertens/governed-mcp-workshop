@@ -452,6 +452,13 @@ and `workshop-mcp` (part A, the Azure Functions server).
 
 ![Real capture: MCP server policy with validate-azure-ad-token (tenant, allowed clients, MCP audience, user_impersonation) and the read-only role note](../../assets/screenshots/azure-04b-mcp-policy.png)
 
+**Terminal: operator checks.** Frame 1: no token, or a token for another audience, is refused. Frame 2: Azure shows
+exactly the two mapped tools.
+
+![Real terminal output: part B operator checks; frame 1 marks the four refusals without a valid token, frame 2 the MCP server mapping two REST operations](../../assets/screenshots/terminal-04b-operator.png)
+
+**Terminal: signed in as Alice.** Frame 1: the two tools. Frame 2: the two successful tool calls.
+
 ![Real terminal output: part B persona check signed in as Alice; frame 1 marks the two tools, frame 2 the two successful tool calls](../../assets/screenshots/terminal-04b-alice.png)
 
 **B4. Use it from VS Code.** Add a second server to your **user** MCP configuration. No header, no key: VS Code reads the
