@@ -476,7 +476,7 @@ skip clean-up; module 03 replaces the key with Microsoft Entra authentication.
 - Restrict callers with `mcp_allowed_ip_ranges` and observe HTTP 403 from another network.
 - Rotate the key and watch the old VS Code session fail with HTTP 401.
 - Read the [threat model](../../docs/concepts/mcp-threat-model.md): which threats does a key not address?
-- Next: [module 03 plan](../../docs/BUILD-PLAN.md#03--identity-with-microsoft-entra-level-1).
+- Next: [module 03](../03-entra-authentication/README.md).
 
 ## Sources
 

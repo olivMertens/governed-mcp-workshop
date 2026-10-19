@@ -1220,7 +1220,7 @@
       if (["#/start", "#/start/devcontainer", "#/start/local", "#/start/codespaces"].includes(route)) showStart(route.split("/")[2]);
       else if (module) showModule(module);
       else if (route === "#/practice") showPractice();
-      else if (route === "#/decisions") {
+      else if (route === "#/decisions" && state.openDecisions) {
         content.append(element("h1", "Build decisions."),
           element("p", "Implementation choices still to resolve. These do not require participant input in this interface.", "lead"),
           markdown(state.openDecisions, "docs/PROGRESS.md"));
@@ -1288,7 +1288,8 @@
         ]],
         ["author-group", "author-nav", "Facilitators and authors", "people", [
           ...(state?.documents.presenter ? [["presenter", "Presenter guide", "people"]] : []),
-          ["runbook", "Build runbook", "route"], ["decisions", "Build decisions", "flag"],
+          // Build runbook and open decisions are authoring tools: local board only, never on the published site.
+          ...(staticSite ? [] : [["runbook", "Build runbook", "route"], ["decisions", "Build decisions", "flag"]]),
           ["hosting", "Publish or host the guides", "globe"],
         ]],
       ]) {

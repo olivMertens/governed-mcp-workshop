@@ -296,8 +296,7 @@ Keep module 00's private parameters/state. No Azure teardown is needed for modul
 ## Go further
 
 Try `ticket-queue` and predict its result first. Explain why a read-only annotation is a hint, not an access check.
-Then read the [module 02 plan](../../docs/BUILD-PLAN.md#02--an-open-mcp-server-level-0).
-Its cloud server is not implemented yet; do not infer that this local server deploys it.
+Next: [module 02](../02-open-server/README.md) deploys the same server to Azure, protected only by a key.
 The presenter's optional portal hosts these instructions only.
 
 ## Sources

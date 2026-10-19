@@ -17,8 +17,7 @@ portal, authenticates to Azure.
 > Use only an approved **non-production** tenant and subscription. Never run the workshop in production
 > or in someone else's tenant.
 
-See the [step-by-step architecture](../../assets/architecture/STEPS.md) and
-[actual implementation status](../../docs/IMPLEMENTATION-STATUS.md).
+See the [step-by-step architecture](../../assets/architecture/STEPS.md).
 The diagram is a learning target, not proof that identities or resources have been deployed.
 
 ## What you deploy
@@ -192,10 +191,8 @@ resources and do not reset any quota.
 ## Validate
 
 Use `validate.ps1` or `validate.sh` above in your approved fresh test subscription.
-Record the stage, terminal route, date and non-sensitive PASS lines in `docs/PROGRESS.md`.
-Before marking this module validated, confirm the administrator request is understood and can be submitted
-privately. Do not mark future service capacity or another workspace route validated by implication.
-Only after real module 00 validation may you begin module 01.
+Also confirm that the administrator request is understood and can be sent privately.
+Move on to module 01 only when every check prints `PASS`.
 
 ## Troubleshooting
 
