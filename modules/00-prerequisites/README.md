@@ -194,16 +194,6 @@ Use `validate.ps1` or `validate.sh` above in your approved fresh test subscripti
 Also confirm that the administrator request is understood and can be sent privately.
 Move on to module 01 only when every check prints `PASS`.
 
-**Question:** every module 00 check prints `PASS`. Did they create anything in Azure?
-
-<details>
-<summary>Show answer</summary>
-
-No. These checks only **read**: your tools, your sign-in, the subscription, the providers and your roles. The private
-parameters file stays on your machine. That is why you can run them as often as you like.
-
-</details>
-
 
 ## Troubleshooting
 

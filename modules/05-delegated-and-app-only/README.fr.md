@@ -299,7 +299,7 @@ OBO prouve l'identité de l'API avec l'identité managée `-obo`, jamais avec un
 <summary>Afficher la réponse</summary>
 
 Il n'y en a pas : la capture affiche Client secrets (0). L'information d'identification fédérée permet à l'identité
-managée `-obo` de signer l'échange de jetons à sa place. Aucun secret n'existe, donc rien à divulguer, à renouveler ni à commiter.
+managée `-obo` de signer l'échange de jetons à sa place. Aucun secret n'existe, donc rien qui puisse fuir, ni à renouveler, ni à versionner dans Git.
 
 </details>
 
