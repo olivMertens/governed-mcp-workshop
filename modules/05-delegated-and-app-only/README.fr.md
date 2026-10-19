@@ -594,14 +594,10 @@ Si vous passez directement au module 06, conservez tout.
 pour transmettre l'identité de l'utilisateur « tout au long de la chaîne de requêtes ». Mais chaque saut change ce que voit
 le service suivant : plus la chaîne est longue, plus elle est difficile à exploiter et à auditer.
 
-```text
-VS Code ---jeton A--> API MCP ---OBO--> jeton B ---> API B ---OBO--> jeton C ---> API C
-         aud : API MCP                  aud : API B                  aud : API C
-         utilisateur : Alice            utilisateur : Alice          utilisateur : Alice
-         client : VS Code               client : API MCP             client : API B
-```
+![On-Behalf-Of sur trois sauts : l'utilisateur Alice est conservé, mais chaque saut émet un nouveau jeton pour l'audience suivante et le client devient l'API précédente ; règles à chaque saut : pas de relais, consentement préalable, MFA renvoyée, utilisateurs seulement](../../assets/screenshots/diagram-05-obo-hops-fr.png)
 
-Ce que chaque saut conserve, et ce qu'il perd :
+<details>
+<summary>Version texte : ce que chaque saut conserve, et ce qu'il perd</summary>
 
 | | Conservé | Modifié ou perdu |
 |---|---|---|
@@ -613,9 +609,15 @@ Ce que chaque saut conserve, et ce qu'il perd :
 | MFA et accès conditionnel | — | Si une API en aval exige la MFA, le point de terminaison de jeton renvoie un challenge de revendications. **Chaque** service intermédiaire doit le renvoyer au client (HTTP 401 avec `WWW-Authenticate`). Un seul relais manquant casse la chaîne. |
 | Appelant applicatif | — | OBO ne fonctionne que pour des **utilisateurs**. Un jeton applicatif ne peut pas être échangé : utilisez alors l'identité propre de l'application (client credentials ou identité managée). |
 
+</details>
+
 Dans cet atelier, la chaîne reste volontairement courte : un seul saut OBO, du serveur MCP vers Graph ou Storage.
 
 **Le RBAC Azure est une décision distincte des scopes et des rôles d'application.**
+
+![Trois contrôles différents : scope (dans le jeton, scp), rôle d'application (dans le jeton, roles, appliqué par la passerelle) et rôle Azure (pas dans le jeton, appliqué par Storage à chaque appel)](../../assets/screenshots/diagram-05-rbac-checks-fr.png)
+
+En détail :
 
 - `user_impersonation` (un scope) indique que l'API MCP **peut agir pour** Alice. Storage Blob Data Reader (un rôle Azure)
   indique qu'Alice **peut lire** ce conteneur. Storage vérifie le rôle de l'utilisateur : Bob est donc refusé, même avec un
