@@ -284,7 +284,25 @@ comme référence.
 
 ### Étape 4 - Enregistrer le serveur MCP dans API Center (Préversion)
 
-L'inventaire API Center est en **Préversion**. Dans le portail Azure :
+L'inventaire API Center est en **Préversion**.
+
+**Pas encore de centre API ?** Créez-en un, puis un environnement qui représente la passerelle. Lancez ces commandes
+depuis la racine du dépôt, après approbation. Le centre API est créé avec le plan **Free**, dans le groupe de ressources
+de l'atelier. Le fournisseur `Microsoft.ApiCenter` doit déjà être enregistré : sinon, demandez-le à votre administrateur.
+
+```powershell
+$group = terraform -chdir=infra/workload output -raw resource_group_name
+$apic = (terraform -chdir=infra/workload output -raw mcp_function_app_name) -replace '^func-', 'apic-'
+az apic create --resource-group $group --name $apic --location (az group show --name $group --query location --output tsv)
+az apic environment create --resource-group $group --service-name $apic --environment-id gateway --title "API Management gateway" --type development
+terraform -chdir=infra/workload output -raw gateway_mcp_endpoint
+```
+
+> **Résultat attendu** — le JSON du nouveau centre API (`"sku": { "name": "Free" }`) et de l'environnement `gateway`, puis
+> l'URL de la passerelle à coller sous **Remotes**. La première commande `az apic` propose d'installer l'extension Azure CLI
+> `apic-extension` : acceptez. Si la région n'est pas proposée pour API Center, créez-le dans une région prise en charge.
+
+Dans le portail Azure, cherchez **API Center**, ouvrez le centre API que vous avez créé, puis :
 
 1. Ouvrez votre centre API et sélectionnez **Assets**.
 2. Choisissez **+ Register an asset**, puis **MCP server**.
@@ -387,7 +405,9 @@ la règle « métadonnées uniquement » dans le support lui-même.
 
 ## Nettoyer
 
-Ce module ne crée aucune ressource Azure : le nettoyage se limite donc à un rapport, précédé d'un contrôle de sécurité.
+Terraform et les scripts de ce module ne créent aucune ressource Azure : le script de nettoyage se limite donc à un rapport,
+précédé d'un contrôle de sécurité. La seule ressource que vous pouvez ajouter à la main est le centre API facultatif de
+l'étape 4 : supprimez-le avec la commande à la fin de cette section.
 
 PowerShell :
 
@@ -425,6 +445,18 @@ bash :
 > **Résultat attendu** — les mêmes lignes de rapport que l'exécution PowerShell ci-dessus.
 
 Sans `-Apply` (ou `--apply`), le script se contente d'un rapport. Avec l'option, il ne supprime que ce que ce module a créé, c'est-à-dire rien. Pour supprimer l'asset API Center, passez par le portail. Seul un administrateur peut retirer l'entrée BYO, et uniquement via le centre d'administration Microsoft 365.
+
+Si vous avez créé le centre API à l'étape 4, supprimez-le avec les mêmes noms. Cela supprime le centre API, son
+environnement et l'asset :
+
+```powershell
+$group = terraform -chdir=infra/workload output -raw resource_group_name
+$apic = (terraform -chdir=infra/workload output -raw mcp_function_app_name) -replace '^func-', 'apic-'
+az apic delete --resource-group $group --name $apic --yes
+```
+
+> **Résultat attendu** — aucune sortie et un code de sortie 0. `az apic show --resource-group $group --name $apic` indique
+> ensuite que la ressource est introuvable.
 
 ## Aller plus loin
 

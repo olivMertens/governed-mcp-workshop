@@ -220,6 +220,8 @@ terraform '-chdir=infra\workload' apply '..\..\.workshop\module04.tfplan'
 > The two azapi policy updates are a known whitespace normalisation (no functional change), so your plan may show 1 or 3 changes.
 
 Publish code changes **before** stage 2: once public access is disabled, deployment endpoints are private too.
+To publish, rerun the commands of [module 02, step 5](../02-open-server/README.md#steps) (`dotnet publish`, then
+`az functionapp deployment source config-zip`), and wait for them to succeed before you apply stage 2.
 
 **5. Connect VS Code to the gateway.** In your **user** MCP configuration, replace the `workshop-entra` server with the
 gateway URL. No header, no key: VS Code reads the gateway PRM and signs you in.
@@ -238,6 +240,26 @@ then it works. As Bob (another VS Code profile), the same prompt fails with HTTP
 ```prompt
 Use the workshop-governed MCP server. Call create_ticket with service "ticket-queue", severity "medium" and summary "Synthetic ticket - Contoso workshop". Show the tool result, or the exact error if the call is refused.
 ```
+
+<details>
+<summary>How to do it in VS Code, click by click</summary>
+
+1. Get the URL in your terminal: `terraform -chdir=infra/workload output -raw gateway_mcp_endpoint`.
+2. Press **Ctrl+Shift+P** (macOS: **Cmd+Shift+P**) and run **MCP: Open User Configuration**. Paste the JSON above,
+   replace the placeholder with your URL, then save the file.
+3. Select **Start** just above `workshop-governed` in that file. You can also run **MCP: List Servers**, choose `workshop-governed`, then
+   **Start Server**.
+4. VS Code says the server wants to authenticate with Microsoft: select **Allow**, then sign in with your test
+   account (for example Alice) in the browser window that opens.
+5. Open Chat with **Ctrl+Alt+I** (macOS: **Ctrl+Cmd+I**). In the mode list under the chat box, choose **Agent**. Select
+   the tools icon (**Configure Tools**) and keep only the `workshop-governed` tools.
+6. Paste the prompt. When VS Code asks to run a tool, read its name and arguments, then select **Allow** once. Expand
+   the tool call in the chat to read its input and output.
+
+**Another test account (Bob, Eve):** run **Profiles: New Profile...**, name it after the account, and open it. In that
+new window, repeat steps 2 to 6 and sign in as that account. Your own profile keeps its sign-in.
+
+</details>
 
 **Question:** Bob clicks **Allow** when VS Code asks him to approve `create_ticket`, but he has only `Tools.Read`. What does the
 gateway return, and does the Function see the call?
@@ -478,6 +500,26 @@ As Alice or Bob, paste this prompt in Copilot Chat (**Agent** mode):
 ```prompt
 Use the contoso-tickets MCP server. Call list_tickets and show the tickets as a table. Then call get_ticket with ticketId "CT-1001" and summarise its status and severity.
 ```
+
+<details>
+<summary>How to do it in VS Code, click by click</summary>
+
+1. Get the URL in your terminal: `terraform -chdir=infra/workload output -raw rest_mcp_endpoint`.
+2. Press **Ctrl+Shift+P** (macOS: **Cmd+Shift+P**) and run **MCP: Open User Configuration**. Paste the JSON above,
+   replace the placeholder with your URL, then save the file.
+3. Select **Start** just above `contoso-tickets` in that file. You can also run **MCP: List Servers**, choose `contoso-tickets`, then
+   **Start Server**.
+4. VS Code says the server wants to authenticate with Microsoft: select **Allow**, then sign in with your test
+   account (for example Alice) in the browser window that opens.
+5. Open Chat with **Ctrl+Alt+I** (macOS: **Ctrl+Cmd+I**). In the mode list under the chat box, choose **Agent**. Select
+   the tools icon (**Configure Tools**) and keep only the `contoso-tickets` tools.
+6. Paste the prompt. When VS Code asks to run a tool, read its name and arguments, then select **Allow** once. Expand
+   the tool call in the chat to read its input and output.
+
+**Another test account (Bob, Eve):** run **Profiles: New Profile...**, name it after the account, and open it. In that
+new window, repeat steps 2 to 6 and sign in as that account. Your own profile keeps its sign-in.
+
+</details>
 
 **Question:** Why would you still keep a real MCP server (part A) when API Management can turn any REST API into tools?
 

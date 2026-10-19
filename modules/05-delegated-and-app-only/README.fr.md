@@ -338,6 +338,18 @@ Utilise le serveur MCP workshop-governed. Appelle whoami. Appelle ensuite read_r
 Alice obtient deux rapports identiques. Bob obtient `isError: true` pour `read_report_as_user`, et le même rapport qu'Alice
 pour `read_report_as_app`.
 
+<details>
+<summary>Comment faire dans VS Code, clic par clic</summary>
+
+1. En tant qu'Alice, gardez le serveur `workshop-governed` du module 04 et démarrez-le si besoin : **Ctrl+Maj+P**,
+   **MCP: List Servers**, `workshop-governed`, **Start Server**.
+2. Ouvrez le Chat avec **Ctrl+Alt+I**, choisissez **Agent**, ne gardez que les outils de `workshop-governed`, collez le
+   prompt et sélectionnez **Allow** une seule fois pour chaque appel d'outil.
+3. Pour Bob, lancez **Profiles: New Profile...**, nommez-le `Bob` et ouvrez-le. Dans cette fenêtre, ajoutez le même serveur
+   avec **MCP: Open User Configuration**, démarrez-le, connectez-vous en tant que Bob, puis refaites l'étape 2.
+
+</details>
+
 **7. Vérifications opérateur, puis vérifications par persona.**
 
 ```powershell

@@ -191,6 +191,22 @@ Sélectionnez uniquement `workshop-local` dans les outils du chat et envoyez :
 Vérifiez le nom réel de l'outil et ses paramètres, puis approuvez **une seule fois**.
 Dépliez l'appel et examinez son résultat, pas seulement la réponse de l'assistant.
 
+<details>
+<summary>Comment faire dans VS Code, clic par clic</summary>
+
+1. Ouvrez le dossier du dépôt avec **File** > **Open Folder...**. Si VS Code vous demande si vous faites confiance aux
+   auteurs, ne faites confiance qu'à votre propre copie.
+2. Appuyez sur **Ctrl+Maj+P** (macOS : **Cmd+Maj+P**), lancez **MCP: List Servers**, choisissez `workshop-local`, puis
+   **Start Server**. Son état passe à **Running**.
+3. Ouvrez le Chat avec **Ctrl+Alt+I** (macOS : **Ctrl+Cmd+I**). Dans la liste des modes sous la zone de saisie, choisissez
+   **Agent**. Sélectionnez l'icône des outils (**Configure Tools**) et ne gardez que les outils de `workshop-local`.
+4. Gardez les approbations manuelles : ne passez pas le sélecteur d'autorisations sur **Allow all** ni **Autopilot**.
+5. Collez le prompt. VS Code affiche le nom de l'outil `get_service_health` et l'argument `service: workshop-api` :
+   sélectionnez **Allow** une seule fois. Dépliez l'appel d'outil dans le Chat pour lire son entrée et sa sortie.
+6. Quand vous avez terminé, lancez **MCP: List Servers**, choisissez `workshop-local`, puis **Stop Server**.
+
+</details>
+
 > [!IMPORTANT]
 > Si votre client ne permet pas d'imposer une approbation par appel, notez **non vérifié**.
 > Le script automatique ne peut pas prouver qu'une personne a vu une confirmation.

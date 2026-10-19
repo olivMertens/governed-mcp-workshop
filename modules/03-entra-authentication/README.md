@@ -342,6 +342,26 @@ As Alice, check the connection with this prompt in Copilot Chat (**Agent** mode)
 Use the workshop-entra MCP server. List its tools, then call get_service_health with service "workshop-api" and show the result.
 ```
 
+<details>
+<summary>How to do it in VS Code, click by click</summary>
+
+1. Get the URL in your terminal: `terraform -chdir=infra/workload output -raw mcp_endpoint`.
+2. Press **Ctrl+Shift+P** (macOS: **Cmd+Shift+P**) and run **MCP: Open User Configuration**. Paste the JSON above,
+   replace the placeholder with your URL, then save the file.
+3. Select **Start** just above `workshop-entra` in that file. You can also run **MCP: List Servers**, choose `workshop-entra`, then
+   **Start Server**.
+4. VS Code says the server wants to authenticate with Microsoft: select **Allow**, then sign in with your test
+   account (for example Alice) in the browser window that opens.
+5. Open Chat with **Ctrl+Alt+I** (macOS: **Ctrl+Cmd+I**). In the mode list under the chat box, choose **Agent**. Select
+   the tools icon (**Configure Tools**) and keep only the `workshop-entra` tools.
+6. Paste the prompt. When VS Code asks to run a tool, read its name and arguments, then select **Allow** once. Expand
+   the tool call in the chat to read its input and output.
+
+**Another test account (Bob, Eve):** run **Profiles: New Profile...**, name it after the account, and open it. In that
+new window, repeat steps 2 to 6 and sign in as that account. Your own profile keeps its sign-in.
+
+</details>
+
 **10. Persona checks.** Use one separate Azure CLI profile per test account so your own session is not replaced.
 
 Your tenant may require multifactor authentication (MFA). The first time each test account signs in, Microsoft Entra

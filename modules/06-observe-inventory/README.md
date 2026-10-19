@@ -283,7 +283,25 @@ and AI-generated content may be incorrect. Use the agent to explore and to draft
 
 ### Step 4 - Register the MCP server in API Center (Preview)
 
-API Center inventory is in **Preview**. In the Azure portal:
+API Center inventory is in **Preview**.
+
+**No API center yet?** Create one, then an environment that stands for the gateway. Run from the repository root,
+after approval. The API center is created on the **Free** plan, in your workshop resource group. The
+`Microsoft.ApiCenter` provider must already be registered: if it is not, ask your administrator.
+
+```powershell
+$group = terraform -chdir=infra/workload output -raw resource_group_name
+$apic = (terraform -chdir=infra/workload output -raw mcp_function_app_name) -replace '^func-', 'apic-'
+az apic create --resource-group $group --name $apic --location (az group show --name $group --query location --output tsv)
+az apic environment create --resource-group $group --service-name $apic --environment-id gateway --title "API Management gateway" --type development
+terraform -chdir=infra/workload output -raw gateway_mcp_endpoint
+```
+
+> **Expected result** — JSON for the new API center (`"sku": { "name": "Free" }`) and for the `gateway` environment,
+> then the gateway URL to paste under **Remotes**. The first `az apic` command offers to install the `apic-extension`
+> Azure CLI extension: accept. If the region is not offered for API Center, add the asset in a supported region instead.
+
+In the Azure portal, search for **API Center**, open the API center you created, then:
 
 1. Open your API center and choose **Assets**.
 2. Choose **+ Register an asset**, then **MCP server**.
@@ -385,7 +403,8 @@ payload logging on, and it would suggest doing so. Testing the query keeps the "
 
 ## Clean up
 
-This module creates no Azure resources, so cleanup is a guarded report.
+Terraform and the scripts of this module create no Azure resources, so the cleanup script is a guarded report. The only
+resource you may add by hand is the optional API center from step 4: delete it with the command at the end of this section.
 
 PowerShell:
 
@@ -423,6 +442,18 @@ bash:
 > **Expected result** — the same report lines as the PowerShell run above.
 
 Without `-Apply` (or `--apply`), the script only reports. With the flag it removes only what this module created, which is nothing. To remove the API Center asset, delete it in the portal. Remove the BYO listing only through the Microsoft 365 admin center, as the administrator.
+
+If you created the API center in step 4, delete it with the same names. This removes the API center, its environment
+and the asset:
+
+```powershell
+$group = terraform -chdir=infra/workload output -raw resource_group_name
+$apic = (terraform -chdir=infra/workload output -raw mcp_function_app_name) -replace '^func-', 'apic-'
+az apic delete --resource-group $group --name $apic --yes
+```
+
+> **Expected result** — no output and exit code 0. `az apic show --resource-group $group --name $apic` then reports that
+> the resource was not found.
 
 ## Go further
 
