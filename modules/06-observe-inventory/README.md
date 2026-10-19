@@ -145,6 +145,29 @@ In the APIM instance, confirm that payload logging for the MCP API is off. Do no
 ### Step 3 - Query MCP traffic in Application Insights
 
 Open `modules/06-observe-inventory/queries/mcp-traffic.kql` and run it in the Application Insights **Logs** blade of the component that API Management writes to.
+
+The exact query, ready to paste:
+
+```kql
+// Module 06 - MCP traffic in Application Insights (synthetic, metadata only).
+// Reads only request metadata. Never select request or response bodies,
+// tool arguments, tool results, tokens or prompts.
+// Single-quoted strings keep the query intact when PowerShell passes it to the Azure CLI on Windows.
+requests
+| where timestamp > ago(24h)
+| extend apiType = tostring(customDimensions['api.type'])
+// Microsoft Learn lists 'Mcp'; a passthrough MCP server (this workshop) logs 'mcp-backend' (verified 2026-10-18).
+| where apiType in ('Mcp', 'mcp-backend')
+| extend
+    operation = tostring(customDimensions['gen_ai.operation.name']),
+    toolName  = tostring(customDimensions['gen_ai.tool.name']),
+    errorType = tostring(customDimensions['error.type']),
+    clientApp = tostring(customDimensions['user_agent.name'])
+| project timestamp, operation, toolName, resultCode, success, duration, errorType, clientApp
+| order by timestamp desc
+| take 200
+```
+
 The query uses the Application Insights table names (`requests`, `customDimensions`): run it in the scope of that
 Application Insights component, not on its Log Analytics workspace, where the same data is in `AppRequests`.
 
@@ -228,7 +251,7 @@ depend on it.
 1. In the same Application Insights component, open **Logs**, then switch **Agent** on (top right).
 2. Type this question:
 
-   ```text
+   ```prompt
    Show MCP requests from the last 7 days where customDimensions api.type is Mcp or mcp-backend: timestamp, operation (gen_ai.operation.name), resultCode, success, duration and client (user_agent.name). Metadata only, no request or response bodies.
    ```
 

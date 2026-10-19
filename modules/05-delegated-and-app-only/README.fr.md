@@ -328,9 +328,15 @@ managée `-obo` de signer l'échange de jetons à sa place. Aucun secret n'exist
 > Le conteneur a affiché `UPLOADED`. Supprimez l'instance de conteneur, son identité temporaire et son attribution de rôle
 > juste après le dépôt.
 
-**6. Essayer dans VS Code.** Avec le serveur `workshop-governed` du module 04, connecté en tant qu'Alice, demandez à Copilot : « Qui suis-je ? »
-puis « Lis le rapport monthly-usage en tant que moi, puis en tant qu'application ». Recommencez en tant que Bob dans un autre profil
-VS Code.
+**6. Essayer dans VS Code.** Avec le serveur `workshop-governed` du module 04, connecté en tant qu'Alice, collez ce prompt
+dans Copilot Chat (mode **Agent**). Recommencez en tant que Bob dans un autre profil VS Code et comparez.
+
+```prompt
+Utilise le serveur MCP workshop-governed. Appelle whoami. Appelle ensuite read_report_as_user avec report "monthly-usage", puis read_report_as_app avec report "monthly-usage". Pour chaque appel, montre le résultat de l'outil et indique si isError vaut true.
+```
+
+Alice obtient deux rapports identiques. Bob obtient `isError: true` pour `read_report_as_user`, et le même rapport qu'Alice
+pour `read_report_as_app`.
 
 **7. Vérifications opérateur, puis vérifications par persona.**
 

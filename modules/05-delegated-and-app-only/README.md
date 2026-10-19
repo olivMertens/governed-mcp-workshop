@@ -317,8 +317,15 @@ the token exchange instead. Nothing secret exists to leak, rotate or commit.
 > Contributor on the `reports` container only. The container printed `UPLOADED`. Delete the container instance, its
 > temporary identity and its role assignment right after the upload.
 
-**6. Try it in VS Code.** With the module 04 `workshop-governed` server, ask Copilot as Alice: "Who am I?" and "Read the
-monthly-usage report as me, then as the app". Repeat as Bob in another VS Code profile.
+**6. Try it in VS Code.** With the module 04 `workshop-governed` server, signed in as Alice, paste this prompt in Copilot
+Chat (**Agent** mode). Repeat as Bob in another VS Code profile and compare.
+
+```prompt
+Use the workshop-governed MCP server. Call whoami. Then call read_report_as_user with report "monthly-usage", then read_report_as_app with report "monthly-usage". For each call, show the tool result and whether isError is true.
+```
+
+Alice gets two identical reports. Bob gets `isError: true` for `read_report_as_user`, and the same report as Alice for
+`read_report_as_app`.
 
 **7. Operator checks, then persona checks.**
 

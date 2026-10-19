@@ -335,6 +335,12 @@ input) with a URL only. There is no header and nothing secret.
 Start the server. VS Code reads the Protected Resource Metadata and asks you to **authenticate with Microsoft**.
 Sign in as Alice: the five tools appear. Sign in as Eve (another VS Code profile): Entra shows `AADSTS50105`.
 
+As Alice, check the connection with this prompt in Copilot Chat (**Agent** mode):
+
+```prompt
+Use the workshop-entra MCP server. List its tools, then call get_service_health with service "workshop-api" and show the result.
+```
+
 **10. Persona checks.** Use one separate Azure CLI profile per test account so your own session is not replaced.
 
 Your tenant may require multifactor authentication (MFA). The first time each test account signs in, Microsoft Entra
