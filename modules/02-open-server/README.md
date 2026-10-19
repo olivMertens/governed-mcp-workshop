@@ -184,6 +184,17 @@ if ($LASTEXITCODE -ne 0) { throw 'Terraform apply failed.' }
 >
 > **What it means for you:** the numbers must match the plan you reviewed. The server exists, but runs no code yet.
 
+If you set `mcp_private_storage = true`, check it in the Azure portal: open the storage account, then
+**Security + networking → Networking** (real captures, 2026-10-19, author's test tenant; names pseudonymised, IDs replaced
+by zeros; pink frames mark what to check). Select an image to open it full size.
+
+![Real capture: storage account Networking, Public access tab, with Public network access set to Disabled](../../assets/screenshots/azure-02-storage-public-access.png)
+
+![Real capture: storage account Networking, Private endpoints tab, with the blob and queue private endpoints Approved](../../assets/screenshots/azure-02-storage-private-endpoints.png)
+
+Public network access is **Disabled**, and the Function App reaches blobs and queues only through the two approved private
+endpoints. This protects the storage behind the server; the MCP endpoint itself is still open with a key.
+
 **5. Publish the server code.** Azure CLI uses your Microsoft Entra sign-in; no publishing password exists.
 
 ```powershell
