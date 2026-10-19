@@ -102,6 +102,8 @@
     .copy { font-size: 12px; background: var(--surface); color: var(--blue); border: 1px solid var(--line); border-radius: 5px; padding: 5px 10px; flex-shrink: 0; }
     .exercise { border-top: 2px solid var(--blue); padding-top: 4px; margin: 28px 0; }
     .quiz { border-top-color: #7650b3; }
+    .check-work { margin: 28px 0 0; padding-top: 12px; }
+    .check-work > h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; }
     .request-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 4px; }
     .request-tabs[hidden] { display: none; }
     .request-tabs button { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); color: var(--ink); font: inherit; font-size: 13px; cursor: pointer; }
@@ -877,8 +879,20 @@
       if (!steps.length) throw new Error("A guided document needs at least one step.");
       return steps;
     }
-    function guidedDocument(text, path, startSection = null, finish = null) {
+    function guidedDocument(text, path, startSection = null, extras = {}) {
+      const { finish = null, validate = null, review = null } = extras;
       const steps = lessonSteps(text);
+      // The module validator is shown inside the guide's own "Validate" step, where the README asks for it.
+      const validateIndex = validate ? steps.findLastIndex((step) => /^(?:Validate|Valider|Vérifier avant de poursuivre)$/.test(step.title)) : -1;
+      // Review questions become one step near the end of the guide, before the optional "Go further" reading.
+      let reviewIndex = -1;
+      if (review) {
+        const further = steps.findIndex((step) => /^(?:Go further|Pour aller plus loin|Aller plus loin)$/.test(step.title));
+        reviewIndex = further === -1 ? steps.length : further;
+        steps.splice(reviewIndex, 0, { title: "Review questions", content: "", review: true });
+      }
+      const mapIndex = (original) => reviewIndex !== -1 && original >= reviewIndex ? original + 1 : original;
+      const shiftedValidate = validateIndex === -1 ? -1 : mapIndex(validateIndex);
       const section = element("section", undefined, "lesson");
       section.setAttribute("aria-label", t("One step at a time"));
       // Reading order for beginners: where am I, the content, then what to do next.
@@ -908,7 +922,7 @@
         const jump = element("button", stepTitle(step), "lesson-jump");
         jump.type = "button";
         // A question icon in the outline shows where the module's self-check questions are.
-        if (hasQuestion(step.content)) {
+        if (step.review || hasQuestion(step.content)) {
           jump.append(symbol("question"));
           jump.title = t("This step has a question");
         }
@@ -955,7 +969,8 @@
         const heading = element("h2", step.title);
         if (step.part) heading.append(element("span", partLabel(step), "part-badge"));
         heading.tabIndex = -1;
-        const body = markdown(step.content, path);
+        const body = step.review ? review.render((original) => section.goTo(mapIndex(original))) : markdown(step.content, path);
+        if (index === shiftedValidate) body.append(validate.render(step));
         for (const command of body.querySelectorAll(".command")) {
           const code = command.querySelector("code").textContent;
           if (code.split("\n").length > 12 || code.length > 1200) {
@@ -993,6 +1008,9 @@
       navigation.append(previous, next);
       section.append(header, ...(tabs ? [tabs] : []), page, navigation, outline);
       section.goTo = (stepIndex) => { index = stepIndex; outline.open = false; show(true); };
+      section.stepCount = steps.length;
+      section.validateIndex = shiftedValidate;
+      section.reviewIndex = reviewIndex;
       show();
       return section;
     }
@@ -1030,8 +1048,8 @@
       return true;
     }
     function hasQuestion(text) { return /^\*\*Question\s?:\*\*/m.test(text.replace(/```[\s\S]*?```/g, "")); }
-    // Gathers every "Question:" with its hidden answer, so the module ends with one self-check panel.
-    function questionsPanel(text, path, lesson, number = null) {
+    // Gathers every "Question:" with its hidden answer, for the review step at the end of a module guide.
+    function collectQuestions(text) {
       const items = [];
       lessonSteps(text).forEach((step, stepIndex) => {
         const lines = step.content.split("\n");
@@ -1055,24 +1073,23 @@
           i = j;
         }
       });
-      if (!items.length) return null;
-      const panel = element("section", undefined, "exercise quiz");
-      const heading = element("h2", "Review questions", "section-title");
-      heading.prepend(number ? element("span", String(number), "step-num") : symbol("question"));
-      heading.append(element("span", String(items.length), "count"));
-      panel.append(heading, element("p", "Think of your answer before you open it. Each question links back to its step.", "field-message"));
+      return items;
+    }
+    function reviewList(items, path, goTo, stepNumber) {
+      const body = element("div", undefined, "document");
+      body.append(element("p", "Think of your answer before you open it. Each question links back to its step.", "field-message"));
       // A flat list: one question per row, a thin separator, no numbering or nested cards.
       const list = element("ul", undefined, "quiz-list");
       for (const item of items) {
         const entry = element("li");
-        const jump = element("button", `${t("Read step")} ${item.stepIndex + 1}${language === "fr" ? " :" : ":"} ${t(item.title).replace(/\.$/, "")}`, "lesson-jump quiz-jump");
+        const jump = element("button", `${t("Read step")} ${stepNumber(item.stepIndex)}${language === "fr" ? " :" : ":"} ${t(item.title).replace(/\.$/, "")}`, "lesson-jump quiz-jump");
         jump.type = "button";
-        jump.addEventListener("click", () => lesson.goTo(item.stepIndex));
+        jump.addEventListener("click", () => goTo(item.stepIndex));
         entry.append(markdown(item.text, path), jump);
         list.append(entry);
       }
-      panel.append(list);
-      return panel;
+      body.append(list);
+      return body;
     }
     function notice(title, description, type = "important") {
       const node = element("div", undefined, `notice ${type}`);
@@ -1445,68 +1462,66 @@
           body);
         content.append(original);
       }
-      const sectionTitle = (number, text, className = "section-title") => {
-        const heading = element("h2", text, className);
-        heading.prepend(element("span", String(number), "step-num"));
-        heading.tabIndex = -1;
-        return heading;
-      };
       const goTo = (target) => { target.scrollIntoView({ behavior: "smooth", block: "start" }); target.focus({ preventScroll: true }); };
-      // 1. The guide, one step at a time.
-      const guideTitle = sectionTitle(1, "Follow the guide");
-      // 2. Check the work with the module validator.
-      const exercise = element("section", undefined, "exercise");
-      const exerciseTitle = sectionTitle(2, "Check your work");
-      exercise.append(exerciseTitle);
-      if (module.module === "00") {
-        exercise.append(element("p", "The module 00 checks are the commands in the guide above. When they all print PASS, review your Azure context, then open module 01.", "field-message"),
-          link("Your Azure context", "#/deployment", "secondary"));
-      } else {
-        exercise.append(element("p", "When you reach the end of the guide, run the module validator in your own terminal. It checks the whole module and prints one PASS or FAIL line per check, with the expected HTTP status.", "field-message"),
-          validationCommands(module));
-        const useful = element("p", undefined, "useful-links");
-        useful.append(document.createTextNode(`${t("Useful links:")} `), link("Prepare a server test", "#/practice"));
-        if (module.module !== "01") useful.append(document.createTextNode(" \u00b7 "), link("See your Azure results", "#/deployment"));
-        exercise.append(useful);
-      }
-      const hints = element("details", undefined, "answer");
-      const hintTitle = element("summary", "Need a hint? Understand what this stage proves.");
-      hintTitle.prepend(symbol("tip"));
-      hints.append(hintTitle,
-        markdown(module.hints, module.hintsSourcePath));
-      exercise.append(hints);
-      const lesson = guidedDocument(module.guide ?? module.outline, module.sourcePath, null,
-        { label: "Next: check your work", action: () => goTo(exerciseTitle) });
-      // 3. Review questions. Module 00 checks the environment: no questionnaire there.
-      const questions = module.guide !== null && module.module !== "00" ? questionsPanel(module.guide, module.sourcePath, lesson, 3) : null;
-      const furtherTitle = sectionTitle(questions ? 4 : 3, "Go further (optional)", "section-title further-title");
+      const guideTitle = element("h2", "Follow the guide", "section-title");
+      guideTitle.tabIndex = -1;
+      const furtherTitle = element("h2", "Architecture and context (optional)", "section-title further-title");
+      furtherTitle.tabIndex = -1;
+      const hintsBlock = () => {
+        const hints = element("details", undefined, "answer");
+        const hintTitle = element("summary", "Need a hint? Understand what this stage proves.");
+        hintTitle.prepend(symbol("tip"));
+        hints.append(hintTitle, markdown(module.hints, module.hintsSourcePath));
+        return hints;
+      };
+      // Inside the guide's "Validate" step: the exact validator command (unless the step already shows it) and a hint.
+      const validate = module.guide === null ? null : { render: (step) => {
+        const block = element("div", undefined, "exercise check-work");
+        const title = element("h3", "Check your work", "section-title");
+        title.prepend(symbol("terminal"));
+        block.append(title);
+        if (module.module === "00") {
+          block.append(element("p", "When every module 00 check prints PASS, review your Azure context, then open module 01.", "field-message"),
+            link("Your Azure context", "#/deployment", "secondary"));
+        } else {
+          block.append(element("p", "Run the module validator in your own terminal. It checks the whole module and prints one PASS or FAIL line per check, with the expected HTTP status.", "field-message"));
+          if (!/```(?:powershell|bash|sh)/.test(step.content)) block.append(validationCommands(module));
+          const useful = element("p", undefined, "useful-links");
+          useful.append(document.createTextNode(`${t("Useful links:")} `), link("Prepare a server test", "#/practice"));
+          if (module.module !== "01") useful.append(document.createTextNode(" \u00b7 "), link("See your Azure results", "#/deployment"));
+          block.append(useful);
+        }
+        block.append(hintsBlock());
+        return block;
+      } };
+      // Module 00 checks the environment: no review questions there.
+      const items = module.guide !== null && module.module !== "00" ? collectQuestions(module.guide) : [];
+      let lesson = null;
+      const review = items.length ? { render: (jump) => reviewList(items, module.sourcePath, jump,
+        (original) => (original >= lesson.reviewIndex ? original + 2 : original + 1)) } : null;
+      lesson = guidedDocument(module.guide ?? module.outline, module.sourcePath, null, { validate, review });
       // A short map tells a first-time reader what to do on this page, in which order.
       const map = element("nav", undefined, "page-map");
       map.setAttribute("aria-label", t("How this page works"));
       map.append(element("p", "How this page works"));
       const stops = element("ol");
-      const stepCount = lessonSteps(module.guide ?? module.outline).length;
-      const questionCount = questions ? questions.querySelectorAll(".quiz-list > li").length : 0;
-      for (const [number, title, detail, target, optional] of [
-        [1, "Follow the guide", `${stepCount} ${t("steps, one at a time")}`, guideTitle],
-        [2, "Check your work", module.module === "00" ? t("Review your Azure context") : t("Run the validator: PASS or FAIL"), exerciseTitle],
-        ...(questions ? [[3, "Review questions", `${questionCount} ${t("questions, answers hidden")}`, questions.querySelector("h2")]] : []),
-        [questions ? 4 : 3, "Go further", t("Optional: architecture, prerequisites, why it matters"), furtherTitle, true],
-      ]) {
+      const stepWord = (number) => `${t("Step")} ${number}`;
+      const cards = [[t("Follow the guide"), `${lesson.stepCount} ${t("steps, one at a time")}`, () => { lesson.goTo(0); }]];
+      if (lesson.validateIndex !== -1) cards.push([t("Check your work"), `${stepWord(lesson.validateIndex + 1)}${language === "fr" ? " : " : ": "}${module.module === "00" ? t("Review your Azure context") : t("Run the validator: PASS or FAIL")}`, () => lesson.goTo(lesson.validateIndex)]);
+      if (lesson.reviewIndex !== -1) cards.push([t("Review questions"), `${stepWord(lesson.reviewIndex + 1)}${language === "fr" ? " : " : ": "}${items.length} ${t("questions, answers hidden")}`, () => lesson.goTo(lesson.reviewIndex)]);
+      cards.push([t("Architecture and context"), t("Optional: architecture, prerequisites, why it matters"), () => goTo(furtherTitle), true]);
+      cards.forEach(([title, detail, action, optional], position) => {
         const stop = element("li");
         const button = element("button", undefined, optional ? "optional" : undefined);
         button.type = "button";
-        button.append(element("span", String(number), "step-num"), element("strong", title), element("small", detail));
-        button.addEventListener("click", () => goTo(target));
+        button.append(element("span", String(position + 1), "step-num"), element("strong", title), element("small", detail));
+        button.addEventListener("click", action);
         stop.append(button);
         stops.append(stop);
-      }
+      });
       map.append(stops);
       content.insertBefore(map, content.children[2] || null);
       content.append(guideTitle, lesson);
-      // Commands and terminal checks are part of the lesson, not optional reading.
-      content.append(exercise);
-      if (questions) content.append(questions);
       // Optional material comes after the lesson, so the main path reads strictly top to bottom.
       content.append(furtherTitle,
         disclosure("Architecture and security flow", architecture(module)));
