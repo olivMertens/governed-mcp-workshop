@@ -264,6 +264,23 @@ L'administrateur vous fournit ces identifiants en privé ; ne les copiez pas dan
 La connexion ne donne pas de nouveaux droits et les contrôles ne créent aucune ressource.
 En cas d'échec, arrêtez-vous et consultez le [guide de contexte Azure](DEPLOYMENT.md).
 
+**Comptes de test et MFA :** votre tenant de test peut exiger l'authentification multifacteur (MFA).
+À la première connexion d'Alice, de Bob ou d'Eve, Microsoft Entra demande d'enregistrer une méthode,
+par exemple une application d'authentification. Faites-le dans le navigateur qui s'ouvre.
+N'affaiblissez jamais l'accès conditionnel pour éviter cette étape.
+
+### Lire la sortie d'un validateur
+
+Chaque module fournit un `validate.ps1` ; `validate.sh` lance le même script et affiche donc la même sortie.
+
+- La première ligne rappelle ce que le module démontre.
+- Les en-têtes `== Step N: ... ==` regroupent les contrôles. La ligne `Why:` placée dessous explique ce que l'étape prouve.
+- Chaque contrôle tient sur une ligne : `PASS` ou `FAIL`, ce qui est vérifié, puis le statut HTTP attendu,
+  par exemple `(expected HTTP 401)`. Une ligne `INFO` signale un contrôle ignoré ou manuel.
+- La dernière ligne donne le résultat. Au moindre `FAIL`, arrêtez-vous et lisez la section Dépannage du module.
+
+Le module 03 montre une [capture réelle annotée](../../modules/03-entra-authentication/README.fr.md#étapes) de cette sortie.
+
 <details>
 <summary>Pour aller plus loin : examiner un plan Terraform et conserver son état</summary>
 

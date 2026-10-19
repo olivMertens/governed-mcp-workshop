@@ -1,7 +1,9 @@
 # 🔐 Governed MCP on Azure — hands-on workshop
 
-> ⚠️ **Work in progress.** Module 00 is validated. Modules 01 to 07 and 99 are authored, and their offline checks pass.
-> Only module 00 is validated on a live subscription. Modules 02 to 07 and 99 are not yet deployed or validated in Azure. Module 01's client-approval observation is still manual.
+> ⚠️ **Work in progress.** Modules 00 and 02 are validated live (2026-10-14 and 2026-10-16).
+> Modules 03 to 06 passed their live operator checks in a test tenant (2026-10-17 and 2026-10-18).
+> They stay *authored* until the Alice, Bob and Eve persona checks pass; in module 03, Alice already passes (2026-10-19).
+> Modules 01, 07 and 99 are authored and pass their offline checks. Module 01's client-approval observation is still manual.
 > Details: [what is available](docs/IMPLEMENTATION-STATUS.md).
 
 Take one MCP server from **open** to **governed** on Azure, alone, in **your own non-production** subscription.
@@ -16,7 +18,7 @@ Take one MCP server from **open** to **governed** on Azure, alone, in **your own
 
 The presenter shares the deployed portal's `?lang=fr#/start` or `?lang=en#/start` link. Paths such as `/fr/` return 404 by design: language is set by query string only.
 Participants do not deploy another portal or use the presenter's administrator account.
-No live portal URL is available until deployment and HTTPS checks succeed.
+The presenter shares the portal link only after its deployment and HTTPS checks succeed; it is not listed in this repository.
 Working locally? Start with [clone and installation](docs/GETTING-STARTED.md#0-get-the-repository-onto-your-computer)
 or [clonage et installation en français](docs/fr/GETTING-STARTED.md#0-récupérer-le-dépôt-sur-votre-poste).
 
@@ -106,15 +108,47 @@ Module 02 deploys real Azure resources: start it only after module 00 validation
 |---|---|---|---|---|
 | 00 | 🧰 Prerequisites and environment | ✅ Required | 🟢 Validated (live, 2026-10-14) | [Open](modules/00-prerequisites/README.md) |
 | 01 | 🔍 Discover MCP (no Azure) | ✅ Required | 🟡 Local SDK + Inspector checks pass; manual approval pending | [Open](modules/01-discover-mcp/README.md) · [FR](modules/01-discover-mcp/README.fr.md) |
-| 02 | 🔑 Server protected by a key (level 0) | ✅ Required | 🟡 Authored; offline checks pass, not deployed | [Open](modules/02-open-server/README.md) · [FR](modules/02-open-server/README.fr.md) |
-| 03 | 🪪 Microsoft Entra identity (level 1) | ✅ Required | 🟡 Authored; offline checks pass, not deployed | [Open](modules/03-entra-authentication/README.md) · [FR](modules/03-entra-authentication/README.fr.md) |
-| 04 | 🚪 API Management as the only entry (level 2) | ✅ Required | 🟡 Authored; offline checks pass, not deployed | [Open](modules/04-governed-gateway/README.md) · [FR](modules/04-governed-gateway/README.fr.md) |
-| 05 | 👤 On-Behalf-Of vs app-only (level 3) | ✅ Required | 🟡 Authored; offline checks pass, not deployed | [Open](modules/05-delegated-and-app-only/README.md) · [FR](modules/05-delegated-and-app-only/README.fr.md) |
-| 06 | 📊 Observe and inventory (level 4) | ✅ Required | 🟡 Authored; offline checks pass, not deployed | [Open](modules/06-observe-inventory/README.md) · [FR](modules/06-observe-inventory/README.fr.md) |
+| 02 | 🔑 Server protected by a key (level 0) | ✅ Required | 🟢 Validated (live, 2026-10-16) | [Open](modules/02-open-server/README.md) · [FR](modules/02-open-server/README.fr.md) |
+| 03 | 🪪 Microsoft Entra identity (level 1) | ✅ Required | 🟡 Authored; live operator checks pass, persona checks pending (Alice passes) | [Open](modules/03-entra-authentication/README.md) · [FR](modules/03-entra-authentication/README.fr.md) |
+| 04 | 🚪 API Management as the only entry (level 2) | ✅ Required | 🟡 Authored; live operator checks pass, persona checks pending | [Open](modules/04-governed-gateway/README.md) · [FR](modules/04-governed-gateway/README.fr.md) |
+| 05 | 👤 On-Behalf-Of vs app-only (level 3) | ✅ Required | 🟡 Authored; live operator checks pass, persona checks pending | [Open](modules/05-delegated-and-app-only/README.md) · [FR](modules/05-delegated-and-app-only/README.fr.md) |
+| 06 | 📊 Observe and inventory (level 4) | ✅ Required | 🟡 Authored; live operator checks pass, persona checks pending | [Open](modules/06-observe-inventory/README.md) · [FR](modules/06-observe-inventory/README.fr.md) |
 | 07 | 🤖 Other clients (Foundry, Copilot Studio) | ➕ Optional | 🟡 Authored; offline checks pass, not deployed | [Open](modules/07-clients/README.md) · [FR](modules/07-clients/README.fr.md) |
 | 99 | 🧹 Clean up | ♻️ As soon as you create resources | 🟡 Authored; offline checks pass, not run live | [Open](modules/99-cleanup/README.md) · [FR](modules/99-cleanup/README.fr.md) |
 
-> 💡 **Authored** means the guide and offline checks exist. It is not proof of a completed Azure deployment.
+> 💡 **Authored** means the guide and offline checks exist. **Live operator checks pass** means the author deployed the
+> module in a test tenant and the operator part of its validator passed; the test-account (persona) part is still to run.
+> Only **Validated** means the whole validator passed live.
+
+## 📸 What you will see (real captures)
+
+These are real captures from the author's test tenant. Names are pseudonymised and IDs are replaced by zeros.
+Pink frames mark what to check. Each module shows its own captures at the step where they appear.
+
+![Real terminal output: module 03 operator checks with numbered Step headers, Why lines and PASS lines with the expected HTTP status](assets/screenshots/terminal-03-operator.png)
+
+*Module 03 validator: each `== Step N ==` header says what is checked, `Why:` says what it proves, then one `PASS` line per check with the expected HTTP status.*
+See [module 03, steps](modules/03-entra-authentication/README.md#steps).
+
+![Real capture: App roles blade listing Tools.Read and Tools.Write for users and Tools.Execute.All for applications](assets/screenshots/azure-03-app-roles.png)
+
+*Module 03 app roles: what a user or an application may do on the MCP server.*
+See [module 03, check the same result in the Azure portal](modules/03-entra-authentication/README.md#check-the-same-result-in-the-azure-portal).
+
+![Real capture: Certificates and secrets blade with zero client secrets and one federated credential](assets/screenshots/azure-05-federated-credentials.png)
+
+*Module 05: no client secret, one federated credential for the On-Behalf-Of exchange.*
+See [module 05, identity administrator step](modules/05-delegated-and-app-only/README.md#identity-administrator-approve-trust-and-consent-before-applying).
+
+![Real capture: Application Insights Logs in KQL mode with the MCP filter and metadata-only rows](assets/screenshots/azure-06-kql-logs.png)
+
+*Module 06 logs: only MCP traffic, and each row holds metadata only (operation, status, duration, client name); no body, token or prompt.*
+See [module 06, step 3](modules/06-observe-inventory/README.md#step-3---query-mcp-traffic-in-application-insights).
+
+![Real capture: Observability Agent chat in Logs, with the question and the two metadata-only rows it returned](assets/screenshots/azure-06-observability-agent-answer.png)
+
+*Module 06, optional: the Observability Agent answers the same question in plain English and finds the same rows.*
+See [module 06, ask the Observability Agent](modules/06-observe-inventory/README.md#optional---ask-the-observability-agent-the-same-question).
 
 ## 🧭 Run order (presenter and attendees)
 
@@ -126,8 +160,8 @@ Run the modules in this order. Each row ends with a checkpoint you can show the 
 | 2 | 01 Discover MCP | No | Attendee | Local MCP server lists its tools in the Inspector |
 | 3 | 02 Open server (level 0) | Yes (paid stage, function key only) | Attendee | Anonymous call is refused (401); keyed call works, which shows the risk |
 | 4 | 03 Entra identity (level 1) | Yes, and identity administrator approval | Identity admin, then attendee | Alice and Bob get HTTP 200; a token for another audience is refused |
-| 5 | 04 Governed gateway (level 2) | Yes (paid stage) | Attendee | Bob's `create_ticket` returns HTTP 403; Alice's returns HTTP 200 |
-| 6 | 05 On-Behalf-Of vs app-only (level 3) | Yes, and identity administrator consent | Identity admin, then attendee | Bob's user-context report read returns `isError: true`; Alice's app-only read succeeds |
+| 5 | 04 Governed gateway (level 2) | Yes (billed per hour: deploy and clean up the same day) | Attendee | Bob's `create_ticket` returns HTTP 403; Alice's returns HTTP 200 |
+| 6 | 05 On-Behalf-Of vs app-only (level 3) | Yes, and identity administrator consent | Identity admin, then attendee | Bob's user-context report read returns `isError: true`; the app-only read gives the same result for Alice and Bob |
 | 7 | 06 Observe and inventory (level 4) | Yes | Attendee | Logs show tool, caller, status and latency (no bodies) |
 | 8 | 07 Other clients (optional) | Optional | Attendee | Foundry or Copilot Studio calls the governed endpoint |
 | 9 | 99 Clean up | Runs against your state | Attendee | Report shows only workshop-owned resources; apply after review |

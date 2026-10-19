@@ -4,8 +4,43 @@
 
 **Vous hébergez les guides. Les participants réalisent leurs propres exercices.**
 Publier le portail ne déploie pas le serveur Model Context Protocol (MCP).
-Le module 00 est validé ; les modules 01 à 07 et 99 sont rédigés (contrôles hors ligne réussis). Suivez l'ordre d'exécution du [README racine](../../README.md).
+Les modules 00 et 02 sont validés en conditions réelles. Les modules 03 à 06 ont réussi leurs vérifications opérateur
+dans un tenant de test, mais restent au statut « rédigé » tant que les vérifications d'Alice, Bob et Eve ne sont pas toutes réussies.
+Les modules 01, 07 et 99 sont rédigés (contrôles hors ligne réussis). Les preuves figurent dans [PROGRESS.md](../PROGRESS.md).
+Suivez l'ordre d'exécution du [README racine](../../README.md).
 Les participants peuvent faire le [module 01](../../modules/01-discover-mcp/README.fr.md) sans attendre votre portail ni un déploiement Azure.
+
+## Avant la session : liste de contrôle
+
+- [ ] **Faites enregistrer la MFA d'Alice, Bob et Eve.** Un tenant de test peut exiger l'authentification multifacteur (MFA).
+  Connectez-vous une fois avec chaque compte de test et enregistrez une méthode (par exemple une application d'authentification).
+  N'affaiblissez jamais l'accès conditionnel pour l'éviter. Sans cela, les vérifications par persona bloquent à la connexion.
+- [ ] **Renouvelez la revue de capacité avant de déployer le portail.** Les contrôles préalables du portail n'acceptent
+  qu'une revue de moins de 24 heures ([vérifier capacité et coût en privé](HOSTING.md#vérifier-capacité-et-coût-en-privé)).
+  Faites-la le jour même du déploiement.
+- [ ] **Prévoyez API Management (module 04) sur une seule journée.** Le niveau Standard v2 est facturé à l'heure tant qu'il existe
+  (environ 1 USD de l'heure au moment de la rédaction ; vérifiez la calculatrice de prix pour votre région).
+  Déployez-le le jour où vous présentez le module 04 et supprimez-le le soir même.
+- [ ] Ouvrez à l'avance les captures réelles listées ci-dessous : elles servent de solution de repli si une étape en direct échoue.
+
+## Captures réelles en solution de repli
+
+Chaque module présente, à l'étape concernée, des captures réelles prises dans le tenant de test de l'auteur.
+Les noms sont remplacés par des pseudonymes, les identifiants par des zéros, et des cadres roses signalent ce qu'il faut vérifier.
+Servez-vous-en quand une étape ne peut pas tourner en direct (consentement absent, MFA non enregistrée, quota, réseau).
+Une capture montre le résultat attendu ; elle ne valide pas le déploiement du participant.
+
+| Module | Étape | Captures |
+|---|---|---|
+| 02 | [Étapes](../../modules/02-open-server/README.fr.md#étapes), contrôle du stockage privé | Réseau du compte de stockage : accès public désactivé, points de terminaison privés approuvés |
+| 03 | [Étapes](../../modules/03-entra-authentication/README.fr.md#étapes), vérifications opérateur et persona | Terminal : sortie du validateur opérateur, vérification d'Alice |
+| 03 | [Retrouver le même résultat dans le portail Azure](../../modules/03-entra-authentication/README.fr.md#retrouver-le-même-résultat-dans-le-portail-azure) | Authentification de la Function, vue d'ensemble de l'inscription, rôles d'application, propriétés de l'application d'entreprise |
+| 05 | [Administrateur des identités : approuver la confiance et le consentement](../../modules/05-delegated-and-app-only/README.fr.md#administrateur-des-identités--approuver-la-confiance-et-le-consentement) | Autorisations d'API, information d'identification fédérée sans secret client |
+| 06 | [Étape 3 - Interroger le trafic MCP](../../modules/06-observe-inventory/README.fr.md#étape-3---interroger-le-trafic-mcp-dans-application-insights) | Logs d'Application Insights en mode KQL, métadonnées uniquement |
+| 06 | [Facultatif - Observability Agent](../../modules/06-observe-inventory/README.fr.md#facultatif---poser-la-même-question-à-lobservability-agent) | Interrupteur **Agent** de Logs : question, KQL générée, mêmes lignes. Facultatif ; à passer si le tenant ne propose pas Azure Copilot |
+
+Chaque validateur affiche une ligne d'objectif, des en-têtes numérotés `== Step N ==` suivis d'une ligne `Why:`,
+puis une ligne `PASS`/`FAIL` par contrôle avec le statut HTTP attendu. Lisez les captures du terminal dans cet ordre avec la salle.
 
 ## Enseigner une étape à la fois
 
@@ -41,8 +76,8 @@ abonnement de test approuvé.
 
 | Élément | Qui | Où |
 |---|---|---|
-| Guides partagés (par défaut) | Présentateur | GitHub Pages, depuis ce dépôt. Pas d'Azure, aucun accès à un tenant. Voir [HOSTING.md](HOSTING.md). |
-| Guides partagés sur App Service (facultatif) | Présentateur | Uniquement dans un abonnement qui appartient au présentateur (sections 1 à 4). Jamais dans le tenant d'un participant. |
+| Guides partagés sur App Service (actuel) | Présentateur | Uniquement dans un abonnement qui appartient au présentateur (sections 1 à 4). Jamais dans le tenant d'un participant. Le portail publié suit cette voie ; la langue se choisit avec `?lang=fr` ou `?lang=en`. |
+| Guides partagés sur GitHub Pages (autre option, désactivée aujourd'hui) | Présentateur | Depuis ce dépôt, une fois public. Pas d'Azure, aucun accès à un tenant. Voir [HOSTING.md](HOSTING.md). |
 | Charge de travail MCP, modules 02 et suivants | Chaque participant | Son propre abonnement et son tenant Microsoft Entra, depuis son propre terminal. |
 | Portail personnel prérempli avec son point de terminaison (facultatif) | Chaque participant | Son propre abonnement. Voir [portail participant](HOSTING.md#portail-participant-facultatif-lié-à-votre-déploiement). |
 
@@ -184,11 +219,13 @@ Message prêt à transmettre :
 > Utilisez uniquement votre tenant et votre abonnement de test approuvés. Vous n'avez pas à héberger les guides partagés.
 > Vous déployez vous-même le serveur MCP ; si vous le souhaitez, vous pouvez déployer votre propre portail prérempli avec votre point de terminaison.
 > Le module 01 fonctionne en local sans Azure. Les modules 02 à 07 se déroulent dans votre abonnement, dans l'ordre du README racine ; le module 99 sert au nettoyage après chaque étape payante.
+> Si votre tenant de test vous demande d'enregistrer la MFA à la première connexion, faites-le ; ne désactivez jamais un contrôle de connexion.
 > Ne transmettez aucun identifiant de connexion ni jeton.
 
 ## 5. Terminer sans laisser de frais inutiles
 
 Chaque participant nettoie ses propres ressources. Le présentateur reste responsable du portail partagé.
+Avant la fin de la session, rappelez aux participants de supprimer l'API Management du module 04 le jour même (nettoyage du module 99), car il est facturé à l'heure.
 Conservez-le jusqu'à la fin de la session, puis examinez et faites approuver le
 [plan de suppression Terraform](HOSTING.md#nettoyer).
 Arrêter le site ne suffit pas à arrêter la facturation du plan.
