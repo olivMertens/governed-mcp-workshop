@@ -28,6 +28,8 @@ const french = {
   "This block stays together to preserve its checks. Read it before running; do not remove guards or approval steps.": "Ce bloc reste entier pour garder ses contrôles. Lisez-le avant de l'exécuter ; ne retirez ni les contrôles ni les étapes d'approbation.",
   "Full participant guide": "Guide participant complet",
   "Full reference guide": "Guide de référence complet",
+  "Whole guide on one page (to search or print)": "Tout le guide sur une page (pour rechercher ou imprimer)",
+  "Same content as the steps above, all at once. Use it to search with Ctrl+F, print, or read without clicking Next.": "Le même contenu que les étapes ci-dessus, en une seule fois. Pratique pour chercher avec Ctrl+F, imprimer ou lire sans cliquer sur Suivant.",
   "Practice and validation": "Exercice et validation",
   "Presenter guide": "Guide présentateur",
   "Governed MCP / self-paced workshop": "MCP sur Azure / parcours autonome",
