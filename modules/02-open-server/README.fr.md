@@ -487,7 +487,7 @@ vous pouvez garder le serveur et sauter le nettoyage ; le module 03 remplace la 
 - Limitez les appelants avec `mcp_allowed_ip_ranges` et observez HTTP 403 depuis un autre réseau.
 - Renouvelez la clé et constatez que l'ancienne session VS Code reçoit HTTP 401.
 - Lisez le [modèle de menaces](../../docs/fr/concepts/mcp-threat-model.md) : quelles menaces une clé ne traite-t-elle pas ?
-- Suite : [plan du module 03](../../docs/fr/BUILD-PLAN.md).
+- Suite : [module 03](../03-entra-authentication/README.fr.md).
 
 ## Sources
 

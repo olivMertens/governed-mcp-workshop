@@ -209,7 +209,7 @@ retention and soft-deletion behavior. Stop Inspector and unused codespaces too.
 - [Azure role assignment authority](https://learn.microsoft.com/azure/role-based-access-control/role-assignments-cli).
 - [Read resources with Azure CLI](https://learn.microsoft.com/cli/azure/resource#az-resource-list).
 - [AzureRM authentication and provider configuration](https://registry.terraform.io/providers/hashicorp/azurerm/5.9.0/docs).
-- [Build plan](BUILD-PLAN.md), [practice guide](PRACTICE.md) and [source assessment](sources.md).
+- [Practice guide](PRACTICE.md) and [source assessment](sources.md).
 
 Inspection and copy-button guidance last verified: 2026-10-16 (offline checks only; no tenant queried).
 

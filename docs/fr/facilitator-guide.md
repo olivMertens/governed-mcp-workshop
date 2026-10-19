@@ -5,7 +5,7 @@
 Ce guide vous aide à préparer l'atelier principal, qui dure 4 heures. Les modules 00 et 02 sont validés en conditions réelles.
 Les modules 03 à 06 ont réussi leurs vérifications opérateur dans un tenant de test, mais restent au statut « rédigé »
 tant que les vérifications d'Alice, Bob et Eve ne sont pas réussies. Les modules 01, 07 et 99 sont rédigés (contrôles hors ligne réussis).
-Les horaires décrivent le parcours prévu et ne constituent pas une preuve de validation. Le statut figure dans [PROGRESS.md](../PROGRESS.md).
+Les horaires décrivent le parcours prévu et ne constituent pas une preuve de validation.
 
 ## Avant l'arrivée des participants - 30 minutes
 

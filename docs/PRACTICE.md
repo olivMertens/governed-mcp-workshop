@@ -213,6 +213,6 @@ Do not run an unreviewed broad resource-group deletion.
 - [Create a codespace](https://docs.github.com/en/codespaces/developing-in-a-codespace/creating-a-codespace-for-a-repository).
 - [Private port forwarding](https://docs.github.com/en/codespaces/developing-in-a-codespace/forwarding-ports-in-your-codespace).
 - [App Service MCP authorization (Preview)](https://learn.microsoft.com/azure/app-service/configure-authentication-mcp).
-- [Workshop build plan](BUILD-PLAN.md) and [source selections](sources.md) for module-specific expectations.
+- [Source selections](sources.md) for module-specific expectations.
 
 Last verified: 2026-10-14. Client launch recipes are not evidence of deployment compatibility or completed modules.

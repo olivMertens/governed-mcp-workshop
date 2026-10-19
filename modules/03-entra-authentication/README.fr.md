@@ -619,7 +619,7 @@ passez directement au module 04, conservez tout.
 - En tant que Bob, appelez `create_ticket` dans VS Code. Cela fonctionne : pourquoi est-ce un problème, et quel module le corrige ?
 - Lisez les concepts [scopes et rôles d'application](../../docs/fr/concepts/scopes-and-app-roles.md) et
   [chaîne de jetons](../../docs/fr/concepts/token-chain.md).
-- Suite : [plan du module 04](../../docs/fr/BUILD-PLAN.md).
+- Suite : [module 04](../04-governed-gateway/README.fr.md).
 
 ## Sources
 

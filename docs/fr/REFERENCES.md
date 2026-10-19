@@ -119,4 +119,4 @@ Dernière vérification : 2026-10-14. Aucune publication ni modification Azure/E
 Les marques restent la propriété de leurs titulaires et ne servent pas de logo à l'atelier.
 Le SDK canvas Copilot est en **Preview**.
 
-Dernière vérification : 2026-10-14. Les statuts et les preuves restent dans le fichier canonique `docs/PROGRESS.md`.
+Dernière vérification : 2026-10-14.
