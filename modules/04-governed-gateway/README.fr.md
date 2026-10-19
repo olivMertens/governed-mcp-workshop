@@ -465,6 +465,13 @@ les deux outils en lecture seule.
 
 ![Capture réelle : stratégie du serveur MCP avec validate-azure-ad-token (tenant, clients autorisés, audience MCP, user_impersonation) et la note sur le rôle en lecture](../../assets/screenshots/azure-04b-mcp-policy.png)
 
+**Terminal : contrôles opérateur.** Cadre 1 : une requête sans jeton, ou avec un jeton émis pour une autre audience, est
+refusée. Cadre 2 : Azure montre exactement les deux outils associés.
+
+![Sortie réelle du terminal : contrôles opérateur de la partie B ; le cadre 1 marque les quatre refus sans jeton valide, le cadre 2 le serveur MCP qui associe deux opérations REST](../../assets/screenshots/terminal-04b-operator.png)
+
+**Terminal : connecté en tant qu'Alice.** Cadre 1 : les deux outils. Cadre 2 : les deux appels d'outil réussis.
+
 ![Sortie réelle du terminal : vérification persona de la partie B connectée en tant qu'Alice ; le cadre 1 marque les deux outils, le cadre 2 les deux appels réussis](../../assets/screenshots/terminal-04b-alice.png)
 
 **B4. L'utiliser depuis VS Code.** Ajoutez un second serveur à votre configuration MCP **utilisateur**. Ni en-tête ni clé : VS Code
