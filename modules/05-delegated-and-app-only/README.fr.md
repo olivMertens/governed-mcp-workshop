@@ -149,6 +149,10 @@ Exécutez les commandes depuis la racine du dépôt. Les étapes 2 à 5 modifien
 **2. Créer le fichier privé qui active le module dans la charge de travail (ignoré par Git).** Demandez les ID d'objet d'Alice et de Bob à
 l'administrateur des identités (sortie `workload_module05_tfvars` de `infra/entra`).
 
+Si vous gérez `infra/entra` vous-même, écrivez plutôt le fichier directement depuis sa sortie :
+`terraform -chdir=infra/entra output -json workload_module05_tfvars | Set-Content -LiteralPath .\.workshop\module05.tfvars.json`.
+Sinon, utilisez les commandes ci-dessous avec les deux ID d'objet que l'administrateur vous a envoyés.
+
 ```powershell
 @{ enable_delegated_access = $true; delegated_persona_object_ids = @{ alice = '<alice-object-id>'; bob = '<bob-object-id>' } } |
     ConvertTo-Json | Set-Content -LiteralPath .\.workshop\module05.tfvars.json
@@ -238,6 +242,9 @@ Tant que l'étape 4 n'est pas terminée, `whoami` et `read_report_as_user` écho
 encore confiance à l'identité.
 
 **4. Administrateur des identités : informations d'identification fédérées, autorisations, consentement.** Dans son propre terminal, avec son propre état :
+
+L'ID du principal s'affiche à la fin de l'étape 3. Vous pouvez le relire avec
+`terraform -chdir=infra/workload output -raw delegated_obo_identity_principal_id` (terminal du participant) ; envoyez-le à l'administrateur.
 
 ```powershell
 @{ enable_delegated_access = $true; obo_identity_principal_id = '<principal-id-from-step-3>'; grant_downstream_admin_consent = $true } |

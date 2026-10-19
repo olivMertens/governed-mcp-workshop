@@ -171,11 +171,15 @@ requests
 The query uses the Application Insights table names (`requests`, `customDimensions`): run it in the scope of that
 Application Insights component, not on its Log Analytics workspace, where the same data is in `AppRequests`.
 
-PowerShell, from the repository root (Azure CLI `application-insights` extension: `az extension add --name application-insights`):
+**In the Azure portal:** search for `appi-mcp-<prefix>-<suffix>` (your Application Insights resource, printed by the first
+line of the command below), open it, select **Monitoring → Logs**, switch the editor to **KQL mode**, paste the query and
+select **Run**.
+
+**Or from your terminal.** PowerShell, from the repository root (Azure CLI `application-insights` extension: `az extension add --name application-insights`):
 
 ```powershell
-$ai = '<application-insights-name>'
-$group = '<resource-group>'
+$ai = (terraform -chdir=infra/workload output -json resource_names | ConvertFrom-Json).application_insights
+$group = terraform -chdir=infra/workload output -raw resource_group_name
 # '@file' lets the Azure CLI read the query file itself: on Windows a multi-line argument is cut at its first line.
 az monitor app-insights query --app $ai --resource-group $group --offset 24h `
   --analytics-query '@modules/06-observe-inventory/queries/mcp-traffic.kql' --query 'tables[0].rows' -o json
@@ -233,7 +237,7 @@ traffic; frame 2 marks the rows: operation, status, duration and client name, an
 bash:
 
 ```bash
-ai='<application-insights-name>'; group='<resource-group>'
+ai=$(terraform -chdir=infra/workload output -json resource_names | jq -r .application_insights); group=$(terraform -chdir=infra/workload output -raw resource_group_name)
 az monitor app-insights query --app "$ai" --resource-group "$group" --offset 24h \
   --analytics-query '@modules/06-observe-inventory/queries/mcp-traffic.kql' --query 'tables[0].rows' -o json
 ```
@@ -347,6 +351,10 @@ Without a valid token and the right role, Eve is refused.
 ### Step 5 - Confirm the BYO listing (Preview)
 
 The BYO MCP listing is in **Preview** and is not for production. A tenant IT administrator reviews and approves it in the Microsoft 365 admin center. As a participant, you only confirm that the entry exists and that its status is what the administrator set. You do not approve it yourself.
+
+Where to look: sign in to the [Microsoft 365 admin center](https://admin.microsoft.com/), then select **Agents → Tools** and
+the **Registry** tab (pending entries are in the **Requests** tab). Viewing it needs an administrator role: if you have
+none, ask the administrator to show you the entry.
 
 Check: the listing shows the server name and an approval state. An approval state does not prove that the server is safe. Modules 04 and 05 still enforce the controls.
 

@@ -699,7 +699,8 @@ Remove-Item -LiteralPath .\.workshop\module04b.tfvars.json -ErrorAction Silently
 Remove-Item -LiteralPath .\.workshop\module04.tfvars.json -ErrorAction SilentlyContinue
 Remove-Item -LiteralPath .\.workshop\module04b.tfvars.json -ErrorAction SilentlyContinue
 # Optional, to reuse the name within 48 hours (API Management soft-delete):
-az apim deletedservice purge --service-name apim-mcp-<prefix>-<suffix> --location <region>
+$p = Get-Content -LiteralPath .\.workshop\participant.tfvars.json -Raw | ConvertFrom-Json
+az apim deletedservice purge --service-name "apim-mcp-$($p.participant_prefix)-$($p.resource_suffix)" --location $p.location
 ```
 
 > **Expected result** — from the clean-up script messages and Terraform output shape; not run by the author (excerpt).
