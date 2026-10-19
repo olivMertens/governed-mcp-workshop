@@ -9,7 +9,8 @@ const icons = ["azure", "microsoft", "entra", "apim", "functions", "storage", "i
 export const screenshots = ["azure-02-storage-public-access", "azure-02-storage-private-endpoints",
     "azure-03-function-authentication", "azure-03-app-registration-overview", "azure-03-app-roles",
     "azure-03-enterprise-app-properties", "terminal-03-operator", "terminal-03-alice",
-    "azure-05-api-permissions", "azure-05-federated-credentials", "azure-06-kql-logs"];
+    "azure-05-api-permissions", "azure-05-federated-credentials", "azure-06-kql-logs",
+    "azure-06-observability-agent-answer", "azure-06-observability-agent-query"];
 export const publicPaths = ["index.html", "locale-fr.js", "journey.json", ".nojekyll",
     ...icons.map((icon) => `assets/icons/${icon}.svg`), "assets/architecture/workshop.drawio",
     ...screenshots.map((name) => `assets/screenshots/${name}.png`)];

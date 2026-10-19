@@ -4,8 +4,41 @@
 
 **You host the public guides. Participants run their own exercises.**
 Publishing the portal does not deploy the Model Context Protocol (MCP) server.
-Module 00 is validated live. Modules 01 to 07 and 99 are authored (offline checks pass) and still need a live run in a test subscription.
+Modules 00 and 02 are validated live. Modules 03 to 06 passed their live operator checks in a test tenant,
+but stay authored until the Alice, Bob and Eve persona checks pass. Modules 01, 07 and 99 are authored (offline checks pass).
+See [PROGRESS.md](PROGRESS.md) for the evidence. Follow the run order in the [root README](../README.md).
 Students can run [module 01](../modules/01-discover-mcp/README.md) without waiting for your portal or Azure deployment.
+
+## Before the session: checklist
+
+- [ ] **Register MFA for Alice, Bob and Eve.** Test tenants may require multifactor authentication (MFA).
+  Sign in once with each test account and register a method (for example an authenticator app).
+  Never weaken Conditional Access to skip it. Without this step, persona checks stop at the sign-in prompt.
+- [ ] **Renew the capacity review before deploying the portal.** The portal preflight accepts a capacity review less than
+  24 hours old only ([review capacity privately](HOSTING.md#review-capacity-privately)). Do it on the deployment day.
+- [ ] **Plan API Management (module 04) for one day.** Standard v2 is billed per hour while it exists
+  (roughly USD 1 per hour at the time of writing; check the pricing calculator for your region).
+  Deploy it the same day you teach module 04 and clean it up that day.
+- [ ] Open the real captures listed below, so you can fall back on them if a live step cannot run.
+
+## Real captures to use as a fallback
+
+Each module shows real captures from the author's test tenant at the step where they apply.
+Names are pseudonymised, IDs are replaced by zeros, and pink frames mark what to check.
+Use them when a live step cannot run (no consent yet, MFA not registered, quota, network).
+A capture shows an expected result; it does not validate the participant's own deployment.
+
+| Module | Step | Captures |
+|---|---|---|
+| 02 | [Steps](../modules/02-open-server/README.md#steps), private storage check | Storage networking: public access disabled, private endpoints approved |
+| 03 | [Steps](../modules/03-entra-authentication/README.md#steps), operator and persona checks | Terminal: operator validator output, Alice persona check |
+| 03 | [Check the same result in the Azure portal](../modules/03-entra-authentication/README.md#check-the-same-result-in-the-azure-portal) | Function authentication, app registration overview, app roles, enterprise app properties |
+| 05 | [Identity administrator: approve trust and consent](../modules/05-delegated-and-app-only/README.md#identity-administrator-approve-trust-and-consent-before-applying) | API permissions, federated credential with no client secret |
+| 06 | [Step 3 - Query MCP traffic](../modules/06-observe-inventory/README.md#step-3---query-mcp-traffic-in-application-insights) | Application Insights Logs in KQL mode, metadata only |
+| 06 | [Optional - Observability Agent](../modules/06-observe-inventory/README.md#optional---ask-the-observability-agent-the-same-question) | Logs **Agent** toggle: question, generated KQL, same rows. Optional; skip if Azure Copilot is not offered in the tenant |
+
+Each validator prints a purpose line, numbered `== Step N ==` headers with a `Why:` line, then one `PASS`/`FAIL` line per
+check with the expected HTTP status. Read the terminal captures in that order with the room.
 
 ## Teach one step at a time
 
@@ -39,8 +72,8 @@ no guest account in their tenant. Each participant deploys in their own approved
 
 | Item | Who | Where |
 |---|---|---|
-| Shared guides (default) | Presenter | GitHub Pages, from this repository. No Azure, no tenant access. See [HOSTING.md](HOSTING.md#publish-with-github-pages). |
-| Shared guides on App Service (optional) | Presenter | Only in a subscription the presenter owns (sections 1 to 4 below). Never in a participant tenant. |
+| Shared guides on App Service (current) | Presenter | Only in a subscription the presenter owns (sections 1 to 4 below). Never in a participant tenant. The published portal uses this route; language is chosen with `?lang=en` or `?lang=fr`. |
+| Shared guides on GitHub Pages (alternative, off today) | Presenter | From this repository once it is public. No Azure, no tenant access. See [HOSTING.md](HOSTING.md#publish-with-github-pages). |
 | MCP workload, modules 02 onward | Each participant | Their own subscription and Microsoft Entra tenant, from their own terminal. |
 | Personal portal prefilled with their endpoint (optional) | Each participant | Their own subscription. See [participant portal](HOSTING.md#optional-participant-portal-linked-to-your-deployment). |
 
@@ -181,12 +214,14 @@ Suggested student message:
 > Open the workshop link, choose your language and workspace, then follow module 00.
 > Use only your approved test tenant and subscription. You do not need to host the shared guides.
 > You deploy the MCP server yourself; optionally, you can deploy your own portal prefilled with your endpoint.
-> Module 01 runs locally without Azure. Modules 02 to 07 are authored and ready to run in your subscription after a live check. Follow the run order in the root README.
+> Module 01 runs locally without Azure. Modules 02 to 07 run in your own subscription, in the order of the root README; run module 99 after every paid stage.
+> If your test tenant asks you to register MFA at first sign-in, do it; never turn off a sign-in control.
 > Do not send credentials or tokens.
 
 ## 5. Close the session safely
 
 Students clean up only resources they own. The presenter owns the shared portal.
+Before everyone leaves, remind attendees to remove module 04 API Management the same day (module 99 cleanup), because it is billed per hour.
 Keep it until everyone has finished; then review and approve the
 [Terraform destroy plan](HOSTING.md#clean-up). Stopping the site does not stop plan billing.
 Keep private parameters and state until cleanup is confirmed.
