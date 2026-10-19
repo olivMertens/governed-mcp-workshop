@@ -91,7 +91,7 @@ $env:MCP_INSPECTOR_PERSIST_TOKENS = 'none'
 
 **Anticipez :** vous devez obtenir un seul outil, `get_service_health`, avec un argument obligatoire `service`.
 
-```powershell
+```powershell exchange
 npx @modelcontextprotocol/inspector@2.9.0 --cli dotnet $server --method tools/list
 if ($LASTEXITCODE -ne 0) { throw 'Inspector discovery failed.' }
 ```
@@ -127,7 +127,7 @@ serveur et, dans les modules suivants, ses contrôles d'authentification et de r
 
 **Anticipez :** `workshop-api` doit renvoyer `healthy` et `isError: false`, avec des données fictives.
 
-```powershell
+```powershell exchange
 npx @modelcontextprotocol/inspector@2.9.0 --cli dotnet $server --method tools/call --tool-name get_service_health --tool-arg service=workshop-api
 if ($LASTEXITCODE -ne 0) { throw 'Inspector tool call failed.' }
 ```
