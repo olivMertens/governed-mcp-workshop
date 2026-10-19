@@ -21,6 +21,18 @@ identifiants remplacés par des zéros.
 Le 2026-10-19, le tenant de test de l'auteur est dans l'état du **module 03** : le serveur du module 02, protégé par
 l'authentification intégrée Microsoft Entra. La passerelle du module 04 a été supprimée et le mode du module 05 est désactivé.
 
+### Ce qu'il y a derrière le serveur
+
+Tout est fictif : rien de réel n'est lu ni modifié.
+
+<!-- cards -->
+| Source | Emplacement | Utilisée par |
+|---|---|---|
+| État des services | Valeurs fixes dans le code du serveur | `get_service_health` : `workshop-api` est `healthy`, `ticket-queue` est `degraded` |
+| File de tickets | File Azure Storage (module 02) | `create_ticket` ajoute un ticket fictif |
+| Rapport mensuel | Blob Azure Storage dans le conteneur des rapports (module 05) | `read_report_as_user` et `read_report_as_app` |
+| Votre identité | Microsoft Graph `/me` (module 05) | `whoami` : un libellé de persona, jamais de nom ni d'adresse e-mail |
+
 ## Comment l'atteindre à chaque niveau
 
 ![Un serveur MCP, quatre niveaux : ce que vous envoyez à chaque niveau, qui refuse, et quand les réponses changent](../../assets/screenshots/diagram-02-server-levels-fr.png)
@@ -139,7 +151,8 @@ send_mcp() {
 > **Résultat attendu** — rien ne s'affiche. Chaque appel suivant affiche la ligne de statut HTTP, puis la ligne `data:` de la réponse.
 
 Un vrai client MCP envoie d'abord `initialize`. Ce serveur Functions ne garde pas de session : chaque requête ci-dessous
-fonctionne seule. Ici, chaque appel prend 2 à 3 secondes, surtout le temps qu'Azure CLI obtienne le jeton.
+fonctionne seule. Ici, chaque appel prend 2 à 3 secondes, surtout le temps qu'Azure CLI obtienne le jeton. Le serveur
+lui-même répond en 1 seconde environ ; chaque résultat réel ci-dessous indique ce temps.
 
 ### Requête 1 sur 6 : frapper à la porte sans jeton
 
@@ -149,7 +162,7 @@ fonctionne seule. Ici, chaque appel prend 2 à 3 secondes, surtout le temps qu'A
 Send-Mcp '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' -NoToken
 ```
 
-> **Résultat réel** — 2026-10-19, tenant de test de l'auteur.
+> **Résultat réel** — 2026-10-19, tenant de test de l'auteur. Réponse du serveur en 0,8 s.
 >
 > ```text
 > HTTP 401
@@ -167,7 +180,7 @@ Send-Mcp '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' -NoToken
 Send-Mcp '{"jsonrpc":"2.0","id":2,"method":"tools/list"}'
 ```
 
-> **Résultat réel** — 2026-10-19, connecté en tant qu'Alice.
+> **Résultat réel** — 2026-10-19, connecté en tant qu'Alice. Réponse du serveur en 1,0 s.
 >
 > ```text
 > HTTP 200
@@ -190,7 +203,7 @@ Send-Mcp '{"jsonrpc":"2.0","id":2,"method":"tools/list"}'
 Send-Mcp '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_service_health","arguments":{"service":"workshop-api"}}}'
 ```
 
-> **Résultat réel** — 2026-10-19, connecté en tant qu'Alice.
+> **Résultat réel** — 2026-10-19, connecté en tant qu'Alice. Réponse du serveur en 1,0 s.
 >
 > ```text
 > HTTP 200
@@ -208,7 +221,7 @@ Send-Mcp '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_se
 Send-Mcp '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"get_service_health","arguments":{"service":"ticket-queue"}}}'
 ```
 
-> **Résultat réel** — 2026-10-19, connecté en tant qu'Alice.
+> **Résultat réel** — 2026-10-19, connecté en tant qu'Alice. Réponse du serveur en 0,9 s.
 >
 > ```text
 > HTTP 200
@@ -225,7 +238,7 @@ Send-Mcp '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"get_se
 Send-Mcp '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"get_service_health","arguments":{"service":"payroll"}}}'
 ```
 
-> **Résultat réel** — 2026-10-19, connecté en tant qu'Alice.
+> **Résultat réel** — 2026-10-19, connecté en tant qu'Alice. Réponse du serveur en 1,0 s.
 >
 > ```text
 > HTTP 200
@@ -244,7 +257,7 @@ Send-Mcp '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"get_se
 Send-Mcp '{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"whoami","arguments":{}}}'
 ```
 
-> **Résultat réel** — 2026-10-19, connecté en tant qu'Alice.
+> **Résultat réel** — 2026-10-19, connecté en tant qu'Alice. Réponse du serveur en 1,1 s.
 >
 > ```text
 > HTTP 200
