@@ -51,10 +51,11 @@ function Invoke-GuardedPhase([string]$Directory, [string[]]$Arguments, [hashtabl
             Where-Object { $_.change.actions -notcontains 'no-op' -and $_.change.actions -notcontains 'read' })
         $foreign = @($changes | Where-Object {
             $address = $_.address -replace '\[[^\]]+\]$', ''
-            -not $Allowed.ContainsKey($address) -or ($_.change.actions -join ',') -ne $Allowed[$address] })
+            -not (Test-WorkshopPortalTierRestore $_) -and (-not $Allowed.ContainsKey($address) -or ($_.change.actions -join ',') -ne $Allowed[$address]) })
         if ($foreign.Count -gt 0) {
             throw "FAIL '$Label' plan contains $($foreign.Count) change(s) outside module 03; nothing was applied. Review 'terraform plan' privately (expected HTTP N/A)."
         }
+        Write-WorkshopPortalTierNotes $changes
         $work = @($changes | Where-Object { & $Relevant $_ })
         if ($work.Count -eq 0) {
             Write-Output "PASS '$Label': nothing to do in this state (idempotent, expected HTTP N/A)."
