@@ -113,12 +113,12 @@ if ($LASTEXITCODE -ne 0) { throw 'Inspector discovery failed.' }
 
 **Avant de continuer :** expliquez la différence entre lister un outil et l'appeler.
 
-**Question :** les `annotations` indiquent `readOnlyHint: true`. Cela empêche-t-il cet outil d'écrire quoi que ce soit ?
+**Question :** les `annotations` indiquent `readOnlyHint: true`. Cela suffit-il à empêcher cet outil d'écrire ?
 
 <details>
 <summary>Afficher la réponse</summary>
 
-Non. Les annotations sont des indications déclarées par le serveur pour le client ; rien ne les impose. Seul le code du
+Non. Les annotations sont des indications déclarées par le serveur pour le client ; rien ne les impose. Seuls le code du
 serveur et, dans les modules suivants, ses contrôles d'authentification et de rôles d'application décident de ce qu'un appelant peut faire.
 
 </details>
@@ -156,7 +156,7 @@ Ne conservez pas la sortie du terminal pour la réutiliser dans les modules suiv
 
 **Observez :** un vrai appel d'outil en local, et non une réponse inventée par un modèle. Aucun service Azure n'a été contacté.
 
-**Question :** la commande Inspector s'est terminée avec le code 0. Cela prouve-t-il que l'outil a réussi ?
+**Question :** la commande Inspector se termine avec le code de sortie 0. Cela prouve-t-il que l'outil a réussi ?
 
 <details>
 <summary>Afficher la réponse</summary>

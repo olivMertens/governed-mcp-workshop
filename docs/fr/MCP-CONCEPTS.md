@@ -101,7 +101,7 @@ Pour `get_service_health` dans cet atelier :
 `create_ticket` est différent : il écrit des données synthétiques. Sa description doit le dire.
 Une annotation « lecture seule » n'est qu'une indication : ce n'est ni une preuve ni un contrôle d'autorisation.
 
-**Question :** que faire d'un argument inattendu ?
+**Question :** que doit faire le serveur d'un argument inattendu ?
 
 <details>
 <summary>Afficher la réponse</summary>

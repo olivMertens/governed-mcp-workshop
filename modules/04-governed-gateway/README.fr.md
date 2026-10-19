@@ -492,14 +492,14 @@ Connecté en tant qu'Alice ou Bob, collez ce prompt dans Copilot Chat (mode **Ag
 Utilise le serveur MCP contoso-tickets. Appelle list_tickets et présente les tickets dans un tableau. Appelle ensuite get_ticket avec ticketId "CT-1001" et résume son statut et sa gravité.
 ```
 
-**Question :** Pourquoi garder un vrai serveur MCP (partie A) alors qu'API Management sait transformer n'importe quelle API REST en outils ?
+**Question :** pourquoi garder un vrai serveur MCP (partie A) alors qu'API Management sait transformer n'importe quelle API REST en outils ?
 
 <details>
 <summary>Afficher la réponse</summary>
 
 La partie B n'expose que des **outils** : ni ressources MCP, ni prompts. Chaque outil correspond à une seule opération REST : une
 logique en plusieurs étapes, une progression en streaming ou le choix d'une identité en aval pour chaque outil (On-Behalf-Of ou
-identité managée, module 05) demandent du code côté serveur. La conception des outils compte aussi : un endpoint CRUD est pensé
+identité managée, module 05) demandent du code côté serveur. La conception des outils compte aussi : un point de terminaison CRUD est pensé
 pour des programmes, alors qu'un outil pensé pour un agent a un but clair, des valeurs par défaut sûres et des résultats courts et
 ciblés. Utilisez la partie B pour un accès rapide, surtout en lecture, à des API que vous gouvernez déjà ; gardez un vrai serveur
 MCP quand l'outil a besoin de sa propre logique ou de ses propres choix d'identité.

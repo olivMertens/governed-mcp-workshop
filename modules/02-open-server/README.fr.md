@@ -298,7 +298,7 @@ Utilise le serveur MCP workshop-open. Appelle create_ticket avec service "worksh
 
 Le ticket est créé et `whoami` répond `caller: unknown`. L'appel réussit pour quiconque détient la clé.
 
-**Question :** le serveur répond HTTP 401 sans la clé. Cela veut-il dire qu'il est protégé utilisateur par utilisateur ?
+**Question :** sans la clé, le serveur répond HTTP 401. Cela veut-il dire qu'il protège l'accès utilisateur par utilisateur ?
 
 <details>
 <summary>Afficher la réponse</summary>
