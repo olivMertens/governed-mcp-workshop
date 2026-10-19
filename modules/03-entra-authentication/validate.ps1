@@ -174,10 +174,7 @@ function Invoke-Mcp([hashtable]$Body, [hashtable]$Headers) {
     }
     return [pscustomobject]@{ Status = [int]$response.StatusCode; Headers = $response.Headers; Payload = $payload }
 }
-function Get-Token([string]$Resource) {
-    $text = (& az account get-access-token --tenant $TenantId --resource $Resource --query accessToken --output tsv --only-show-errors 2>&1 | Out-String).Trim()
-    return [pscustomobject]@{ Ok = ($LASTEXITCODE -eq 0 -and $text -match '^[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]*$'); Value = $text }
-}
+function Get-Token([string]$Resource) { Get-WorkshopAccessToken -TenantId $TenantId -Resource $Resource }
 $initialize = @{ jsonrpc = '2.0'; id = 1; method = 'initialize'; params = @{
     protocolVersion = '2025-06-18'; capabilities = @{}; clientInfo = @{ name = 'workshop-validator'; version = '0.3.0' } } }
 

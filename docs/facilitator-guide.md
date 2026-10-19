@@ -2,7 +2,7 @@
 
 [Français](fr/facilitator-guide.md)
 
-This guide supports a 4-hour core workshop. Modules 00 and 02 are validated live. Modules 03 to 06 passed their live
+This guide supports a 4-hour core workshop. Modules 00, 02 and 03 are validated live. Modules 04 to 06 passed their live
 operator checks in a test tenant but stay authored until the Alice, Bob and Eve persona checks pass.
 Modules 01, 07 and 99 are authored (offline checks pass). Timings describe the planned delivery and must not be presented
 as validation evidence.
@@ -28,7 +28,7 @@ Names are pseudonymised, IDs are zeroed and pink frames mark what to check.
 | Module | Where in the guide | What the capture shows |
 |---|---|---|
 | 02 | [Steps](../modules/02-open-server/README.md#steps) | Storage networking: public access disabled, private endpoints approved |
-| 03 | [Steps](../modules/03-entra-authentication/README.md#steps) | Terminal: operator validator output; Alice persona check |
+| 03 | [Steps](../modules/03-entra-authentication/README.md#steps) | Terminal: operator validator output; Alice, Bob and Eve persona checks |
 | 03 | [Check the same result in the Azure portal](../modules/03-entra-authentication/README.md#check-the-same-result-in-the-azure-portal) | Function authentication, app registration, app roles, assignment required |
 | 05 | [Identity administrator step](../modules/05-delegated-and-app-only/README.md#identity-administrator-approve-trust-and-consent-before-applying) | API permissions; federated credential, no client secret |
 | 06 | [Step 3](../modules/06-observe-inventory/README.md#step-3---query-mcp-traffic-in-application-insights) | Application Insights Logs in KQL mode, metadata only |
