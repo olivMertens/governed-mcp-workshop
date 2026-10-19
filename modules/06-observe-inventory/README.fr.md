@@ -84,7 +84,7 @@ En accès applicatif (app-only), les journaux en aval identifient l'application,
 OBO peut conserver l'identité utilisateur, mais l'audit en aval exige sa propre configuration et ses propres droits.
 Recoupez les métadonnées disponibles d'un service à l'autre ; n'ajoutez jamais de jeton ni de corps pour combler un manque.
 
-**Question :** une requête renvoie HTTP 200. Cela prouve-t-il que Bob a lu le rapport ?
+**Question :** l'appel de Bob renvoie HTTP 200. Cela prouve-t-il qu'il a lu le rapport ?
 
 <details>
 <summary>Afficher la réponse</summary>
@@ -295,7 +295,7 @@ L'inventaire API Center est en **Préversion**. Dans le portail Azure :
 
 Contrôle : l'asset apparaît dans **Assets** avec l'environnement choisi.
 
-**Question :** le serveur a maintenant un asset dans API Center. Eve peut-elle l'appeler parce qu'elle le voit dans le catalogue ?
+**Question :** le serveur a maintenant sa fiche (asset) dans API Center. Eve peut-elle l'appeler parce qu'elle le voit dans le catalogue ?
 
 <details>
 <summary>Afficher la réponse</summary>
