@@ -528,6 +528,18 @@ Live modes, after an approved deployment:
 Tokens and keys stay in memory and are never printed. The module is done only when the operator check and the three persona
 checks pass on a fresh subscription right after modules 00 to 02.
 
+**Question:** every offline check passes. Can you mark module 03 as done?
+
+<details>
+<summary>Show answer</summary>
+
+No. The last line says so: `NOT deployed or Entra-validated`. Offline checks prove that **your files** keep the rules
+(no secret, assignment required, three app roles). Only the live operator and persona checks prove that Azure and
+Microsoft Entra behave as expected.
+
+</details>
+
+
 ## Troubleshooting
 
 | Symptom | Check |

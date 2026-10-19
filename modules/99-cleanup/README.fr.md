@@ -241,6 +241,18 @@ Chaque contrôle affiche `PASS` ou `FAIL`. La dernière ligne est `RESULT: PASS`
 > Un `PASS` hors ligne vérifie le guide et les protections du script. Il ne prouve **pas** la suppression des ressources Azure.
 > Effectuez les contrôles manuels et vérifiez l'inventaire restant dans votre propre abonnement.
 
+**Question :** le contrôle `safety: reports by default (-Apply switch)` passe. Pourquoi tester un mode qui ne supprime rien ?
+
+<details>
+<summary>Afficher la réponse</summary>
+
+Parce que le rapport est votre filet de sécurité. Il liste exactement ce qui serait supprimé, et vous le relisez avant
+`-Apply`. Le test garantit que personne ne fait de la suppression le comportement par défaut : une seule mauvaise commande
+ne peut pas effacer des ressources que vous n'avez pas relues.
+
+</details>
+
+
 ## Dépannage
 
 - **Une étape s'arrête avec un code d'erreur.** Le script s'arrête à la première erreur. Lisez le message, corrigez le problème, puis

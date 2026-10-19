@@ -41,7 +41,57 @@ built-in authentication. The module 04 gateway was cleaned up, and the module 05
 | `read_report_as_user` | Read | `report`: `monthly-usage` | Labelled demonstration, no downstream call | Reads Storage **as the user**: the user's own role decides |
 | `read_report_as_app` | Read | `report`: `monthly-usage` | Labelled demonstration, no downstream call | Reads Storage **as the app**: the same result for everyone |
 
-## Six requests, one at a time
+## Easy path: VS Code, no command
+
+VS Code is already allowed to request tokens for this server (it is pre-authorized in the module 03 app registration).
+It reads the metadata from request 1 below and signs you in by itself. Add the server to your **user** MCP configuration
+(**MCP: Open User Configuration**). There is no header, key or token to paste:
+
+```json
+{
+  "servers": {
+    "workshop-entra": { "type": "http", "url": "https://<function-app-host>/runtime/webhooks/mcp" }
+  }
+}
+```
+
+Start the server and sign in as your test account. Then, in Copilot Chat (**Agent** mode, **Manual** approvals), send
+one prompt per request. Approve each call yourself, then expand the tool call to read its **input** and **output**:
+that is the request and the answer of the protocol path below.
+
+```prompt
+Use only the workshop-entra MCP server. List its tools with their descriptions. Do not call any tool.
+```
+
+```prompt
+Call get_service_health once with service "workshop-api". Show the raw tool result.
+```
+
+```prompt
+Call get_service_health once with service "ticket-queue". Show the raw tool result.
+```
+
+```prompt
+Call get_service_health once with service "payroll". Show the raw tool result and say whether it is an error. Do not retry.
+```
+
+```prompt
+Call whoami once. Show the raw tool result.
+```
+
+> **Expected result** — the same answers as requests 2 to 6 below. Request 1 (no token) happens behind the scenes:
+> it is how VS Code discovers where to sign you in.
+
+Other tools, if you prefer a graphical client:
+
+| Tool | Module 01 (local) and 02 (key) | Modules 03 and later (Microsoft Entra) |
+|---|---|---|
+| VS Code (above) | Yes | **Yes**: pre-authorized, signs you in by itself |
+| MCP Inspector (`npx @modelcontextprotocol/inspector`) | Yes: request and answer side by side | No: it registers itself as a new client, which Microsoft Entra does not allow |
+| Postman (**New** → **MCP**) | Yes: stdio command, or URL plus the key as a secret variable | Only if an identity administrator registers Postman as a client; never paste a token into a request |
+| Visual Studio 2022 17.14+ or 2026 (`.mcp.json`) | Yes | Only if an identity administrator pre-authorizes Visual Studio; not tested in this workshop |
+
+## Protocol path: six requests, one at a time
 
 You need the module 03 state (or later) and a test account such as Alice. Each request below has the command to run
 and the **real answer** captured on 2026-10-19 as Alice (pseudonymised). Read the answer before the next request.
@@ -228,10 +278,10 @@ With the module 05 mode on, the same calls answer with the real identity path. M
 | `read_report_as_user` | `mode: as-user`, the rows **if the user's own Storage role allows it**; Bob gets `isError: true` |
 | `read_report_as_app` | `mode: as-app`, the same rows for Alice and Bob: the managed identity's role decides |
 
-## Next: use a real client
+## Next
 
-The requests above show the raw protocol. Day to day, use an MCP client: VS Code or the Inspector signs you in through
-the metadata of request 1. See [Try your MCP](PRACTICE.md). Each module's validator also makes these calls for you.
+Day to day, use the easy path: an MCP client signs you in and shows each call. See [Try your MCP](PRACTICE.md).
+Each module's validator also makes these calls for you and prints one `PASS` line per check.
 
 ## Sources
 
@@ -239,5 +289,7 @@ the metadata of request 1. See [Try your MCP](PRACTICE.md). Each module's valida
 - [Model Context Protocol: tools, results and `isError`](https://modelcontextprotocol.io/specification/2025-06-18/server/tools)
 - [Azure Functions MCP extension](https://learn.microsoft.com/azure/azure-functions/functions-bindings-mcp)
 - [Protected Resource Metadata for App Service and Functions (Preview)](https://learn.microsoft.com/azure/app-service/configure-authentication-mcp)
+- [Use MCP servers in Visual Studio](https://learn.microsoft.com/visualstudio/ide/mcp-servers)
+- [Postman: MCP requests](https://learning.postman.com/docs/use/send-requests/protocols/mcp-requests/overview/)
 
 Last verified: 2026-10-19.

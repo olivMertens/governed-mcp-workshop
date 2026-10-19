@@ -156,6 +156,17 @@ bash ./modules/07-clients/validate.sh --offline
 
 Each check prints one `PASS` or `FAIL` line. No live check is scripted, because this demo depends on tenant settings.
 
+**Question:** every offline check passes. Does that prove Foundry or Copilot Studio can call your server?
+
+<details>
+<summary>Show answer</summary>
+
+No. They prove the folder is complete and the rules are written down: never the **None** option, no secret, Streamable
+HTTP only. Connecting a client depends on tenant settings, so it stays a manual check.
+
+</details>
+
+
 ## Troubleshooting
 
 - **The client gets 401:** the audience in the token does not match the server. Check module 03.
