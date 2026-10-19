@@ -228,6 +228,8 @@ terraform '-chdir=infra\workload' apply '..\..\.workshop\module04.tfplan'
 > espaces (aucun changement fonctionnel) : votre plan peut donc afficher 1 ou 3 modifications.
 
 Publiez vos modifications de code **avant** l'étape 2 : une fois l'accès public désactivé, les points de terminaison de déploiement deviennent eux aussi privés.
+Pour publier, relancez les commandes de [l'étape 5 du module 02](../02-open-server/README.fr.md#étapes) (`dotnet publish`, puis
+`az functionapp deployment source config-zip`), et attendez qu'elles réussissent avant d'appliquer l'étape 2.
 
 **5. Connecter VS Code à la passerelle.** Dans votre configuration MCP **utilisateur**, remplacez le serveur `workshop-entra` par
 l'URL de la passerelle. Ni en-tête ni clé : VS Code lit les PRM de la passerelle et vous connecte.
@@ -246,6 +248,26 @@ d'exécuter l'outil d'écriture, puis l'appel réussit. Avec le compte de Bob (d
 ```prompt
 Utilise le serveur MCP workshop-governed. Appelle create_ticket avec service "ticket-queue", severity "medium" et summary "Synthetic ticket - Contoso workshop". Montre le résultat de l'outil, ou l'erreur exacte si l'appel est refusé.
 ```
+
+<details>
+<summary>Comment faire dans VS Code, clic par clic</summary>
+
+1. Récupérez l'URL dans votre terminal : `terraform -chdir=infra/workload output -raw gateway_mcp_endpoint`.
+2. Appuyez sur **Ctrl+Maj+P** (macOS : **Cmd+Maj+P**) et lancez **MCP: Open User Configuration**. Collez le JSON
+   ci-dessus, remplacez l'espace réservé par votre URL, puis enregistrez le fichier.
+3. Sélectionnez **Start** juste au-dessus de `workshop-governed` dans ce fichier. Vous pouvez aussi lancer **MCP: List Servers**,
+   choisir `workshop-governed`, puis **Start Server**.
+4. VS Code indique que le serveur veut s'authentifier auprès de Microsoft : sélectionnez **Allow**, puis connectez-vous
+   avec votre compte de test (par exemple Alice) dans la fenêtre de navigateur qui s'ouvre.
+5. Ouvrez le Chat avec **Ctrl+Alt+I** (macOS : **Ctrl+Cmd+I**). Dans la liste des modes sous la zone de saisie, choisissez
+   **Agent**. Sélectionnez l'icône des outils (**Configure Tools**) et ne gardez que les outils de `workshop-governed`.
+6. Collez le prompt. Quand VS Code demande d'exécuter un outil, lisez son nom et ses arguments, puis sélectionnez
+   **Allow** une seule fois. Dépliez l'appel d'outil dans le Chat pour lire son entrée et sa sortie.
+
+**Autre compte de test (Bob, Eve) :** lancez **Profiles: New Profile...**, donnez-lui le nom du compte et ouvrez-le.
+Dans cette nouvelle fenêtre, refaites les étapes 2 à 6 en vous connectant avec ce compte. Votre propre profil garde sa connexion.
+
+</details>
 
 **Question :** Bob clique sur **Autoriser** quand VS Code lui demande d'approuver `create_ticket`, mais il n'a que `Tools.Read`.
 Que renvoie la passerelle, et la Function voit-elle l'appel ?
@@ -491,6 +513,26 @@ Connecté en tant qu'Alice ou Bob, collez ce prompt dans Copilot Chat (mode **Ag
 ```prompt
 Utilise le serveur MCP contoso-tickets. Appelle list_tickets et présente les tickets dans un tableau. Appelle ensuite get_ticket avec ticketId "CT-1001" et résume son statut et sa gravité.
 ```
+
+<details>
+<summary>Comment faire dans VS Code, clic par clic</summary>
+
+1. Récupérez l'URL dans votre terminal : `terraform -chdir=infra/workload output -raw rest_mcp_endpoint`.
+2. Appuyez sur **Ctrl+Maj+P** (macOS : **Cmd+Maj+P**) et lancez **MCP: Open User Configuration**. Collez le JSON
+   ci-dessus, remplacez l'espace réservé par votre URL, puis enregistrez le fichier.
+3. Sélectionnez **Start** juste au-dessus de `contoso-tickets` dans ce fichier. Vous pouvez aussi lancer **MCP: List Servers**,
+   choisir `contoso-tickets`, puis **Start Server**.
+4. VS Code indique que le serveur veut s'authentifier auprès de Microsoft : sélectionnez **Allow**, puis connectez-vous
+   avec votre compte de test (par exemple Alice) dans la fenêtre de navigateur qui s'ouvre.
+5. Ouvrez le Chat avec **Ctrl+Alt+I** (macOS : **Ctrl+Cmd+I**). Dans la liste des modes sous la zone de saisie, choisissez
+   **Agent**. Sélectionnez l'icône des outils (**Configure Tools**) et ne gardez que les outils de `contoso-tickets`.
+6. Collez le prompt. Quand VS Code demande d'exécuter un outil, lisez son nom et ses arguments, puis sélectionnez
+   **Allow** une seule fois. Dépliez l'appel d'outil dans le Chat pour lire son entrée et sa sortie.
+
+**Autre compte de test (Bob, Eve) :** lancez **Profiles: New Profile...**, donnez-lui le nom du compte et ouvrez-le.
+Dans cette nouvelle fenêtre, refaites les étapes 2 à 6 en vous connectant avec ce compte. Votre propre profil garde sa connexion.
+
+</details>
 
 **Question :** pourquoi garder un vrai serveur MCP (partie A) alors qu'API Management sait transformer n'importe quelle API REST en outils ?
 

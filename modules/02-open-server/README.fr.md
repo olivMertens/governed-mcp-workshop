@@ -265,6 +265,23 @@ az functionapp keys list --resource-group $group --name $app --query systemKeys.
 Après l'avoir collée dans la fenêtre de VS Code, exécutez `Set-Clipboard -Value $null`.
 Ne mettez jamais la clé dans une URL (`?code=`), un fichier, une conversation ou une capture d'écran.
 
+<details>
+<summary>Comment faire dans VS Code, clic par clic</summary>
+
+1. Récupérez l'URL dans votre terminal : `terraform -chdir=infra/workload output -raw mcp_endpoint`.
+2. Appuyez sur **Ctrl+Maj+P** (macOS : **Cmd+Maj+P**) et lancez **MCP: Open User Configuration**. Collez le JSON
+   ci-dessus, remplacez l'espace réservé par votre URL, puis enregistrez le fichier.
+3. Sélectionnez **Start** juste au-dessus de `workshop-open` dans ce fichier. Vous pouvez aussi lancer **MCP: List Servers**,
+   choisir `workshop-open`, puis **Start Server**.
+4. VS Code demande la `mcp_extension system key`. Lancez la commande `az functionapp keys list ... | Set-Clipboard`
+   ci-dessus, collez dans la fenêtre de saisie, puis lancez `Set-Clipboard -Value $null`.
+5. Ouvrez le Chat avec **Ctrl+Alt+I** (macOS : **Ctrl+Cmd+I**). Dans la liste des modes sous la zone de saisie, choisissez
+   **Agent**. Sélectionnez l'icône des outils (**Configure Tools**) et ne gardez que les outils de `workshop-open`.
+6. Collez le prompt. Quand VS Code demande d'exécuter un outil, lisez son nom et ses arguments, puis sélectionnez
+   **Allow** une seule fois. Dépliez l'appel d'outil dans le Chat pour lire son entrée et sa sortie.
+
+</details>
+
 **7. Validez et montrez le risque.**
 
 ```powershell

@@ -327,6 +327,18 @@ Use the workshop-governed MCP server. Call whoami. Then call read_report_as_user
 Alice gets two identical reports. Bob gets `isError: true` for `read_report_as_user`, and the same report as Alice for
 `read_report_as_app`.
 
+<details>
+<summary>How to do it in VS Code, click by click</summary>
+
+1. As Alice, keep the `workshop-governed` server from module 04 and start it if needed: **Ctrl+Shift+P**, **MCP: List
+   Servers**, `workshop-governed`, **Start Server**.
+2. Open Chat with **Ctrl+Alt+I**, choose **Agent**, keep only the `workshop-governed` tools, paste the prompt, and select
+   **Allow** once for each tool call.
+3. For Bob, run **Profiles: New Profile...**, name it `Bob`, and open it. In that window, add the same server with **MCP:
+   Open User Configuration**, start it, sign in as Bob, then repeat step 2.
+
+</details>
+
 **7. Operator checks, then persona checks.**
 
 ```powershell
