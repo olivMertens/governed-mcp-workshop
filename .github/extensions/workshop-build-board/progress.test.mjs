@@ -236,8 +236,9 @@ test("guided controls show one page, preserve commands and require opening long 
         detail.append(element("summary", title), ...children);
         return detail;
     };
-    const render = new Function("element", "t", "markdown", "disclosure",
-        `${html.slice(start, end)}; return guidedDocument;`)(element, (text) => text, markdown, disclosure);
+    const symbol = (name) => element("svg", undefined, `symbol ${name}`);
+    const render = new Function("element", "t", "markdown", "disclosure", "symbol",
+        `${html.slice(start, end)}; return guidedDocument;`)(element, (text) => text, markdown, disclosure, symbol);
     const long = Array(13).fill("synthetic").join("\n");
     const wide = "x".repeat(1201);
     const lesson = render(`## Predict\n\`\`\`powershell\nGet-Location\n\`\`\`\n## Review\n\`\`\`text\n${long}\n\`\`\`\n## Compare\n\`\`\`text\n${wide}\n\`\`\``, "synthetic.md");
@@ -253,7 +254,11 @@ test("guided controls show one page, preserve commands and require opening long 
     assert.equal(position.textContent, "Step 1 / 3");
     assert.equal(previous.disabled, true);
     assert.equal(next.className, "primary");
-    assert.equal(next.textContent, "Next: Review \u2192");
+    // The label names the next step; the arrow is an icon, not a text character.
+    assert.deepEqual(next.children.map((child) => child.tag), ["span", "svg"]);
+    assert.equal(next.children[0].textContent, "Next: Review");
+    assert.equal(next.children[1].className, "symbol arrowRight");
+    assert.deepEqual(previous.children.map((child) => child.tag), ["svg", "span"]);
     assert.equal(page.children[0].textContent, "Predict");
     assert.equal(lesson.querySelectorAll(".command").length, 1);
     next.listeners.click();
@@ -270,7 +275,8 @@ test("guided controls show one page, preserve commands and require opening long 
     assert.equal(jumps[2].attributes["aria-current"], "step");
     assert.equal(jumps[1].attributes["aria-current"], undefined);
     assert.equal(next.disabled, true);
-    assert.equal(next.textContent, "End of this guide");
+    assert.equal(next.children[0].textContent, "End of this guide");
+    assert.equal(next.children[1].className, "symbol finish");
     assert.equal(page.children[1].children[0].tag, "details");
     assert.equal(page.querySelector("code").textContent, wide);
     previous.listeners.click();
