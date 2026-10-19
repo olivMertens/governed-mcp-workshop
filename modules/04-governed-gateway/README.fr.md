@@ -18,7 +18,7 @@ Placer **Azure API Management** (APIM) devant le serveur MCP et en faire la **se
 > Ne collez jamais un jeton réel dans un site web, une conversation, un fichier, une capture ou un journal. Le validateur conserve
 > les jetons uniquement en mémoire.
 
-## Pourquoi cette étape compte
+## Pourquoi c'est important
 
 Le niveau 1 (module 03) vérifie **qui** appelle le serveur, pas **ce qu'il a le droit de faire** : Bob peut encore créer des
 tickets, rien ne limite le débit et la Function est joignable depuis n'importe où sur Internet. Une passerelle ajoute les contrôles qu'un

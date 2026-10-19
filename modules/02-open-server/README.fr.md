@@ -12,7 +12,7 @@ Constater ensuite le risque : **toute personne qui détient la clé peut appeler
 > Le niveau 0 sert uniquement à montrer ce risque. Gardez-le peu de temps, ne rendez jamais le point de terminaison
 > anonyme, et passez au module 03 (Microsoft Entra ID) puis au module 04 (API Management) pour le corriger.
 
-## Pourquoi cette étape compte
+## Pourquoi c'est important
 
 Une clé est un secret partagé, pas une identité. Le serveur ne fait pas la différence entre Alice, Bob et Eve.
 Il ne peut ni appliquer de rôle par utilisateur, ni appeler une API en aval « au nom de l'utilisateur ».

@@ -18,7 +18,7 @@ Poser **la même question** sous l'identité de deux utilisateurs différents et
 > Ne collez jamais un jeton réel dans un site web, une conversation, un fichier, une capture ou un journal. Le validateur ne
 > conserve les jetons qu'en mémoire, et `whoami` ne renvoie jamais ni vrai nom ni adresse e-mail.
 
-## Pourquoi cette étape compte
+## Pourquoi c'est important
 
 Jusqu'ici, les outils n'appelaient aucun service en aval (démonstrations synthétiques) ou utilisaient l'identité du serveur. Les
 outils réels appellent d'autres API. La question de conception devient alors : **avec les droits de qui** l'appel part-il ?
