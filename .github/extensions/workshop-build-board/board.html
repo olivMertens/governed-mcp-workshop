@@ -1184,7 +1184,7 @@
       concepts.append(element("summary", "Why this boundary matters"), markdown(module.learning, module.learningSourcePath),
         link("Read the full governance guide", "#/governance", "secondary"));
       content.append(concepts);
-      if (module.guide !== null) content.append(disclosure("Full participant guide", markdown(module.guide, module.sourcePath)));
+      if (module.guide !== null) content.append(disclosure("Whole guide on one page (to search or print)", element("p", "Same content as the steps above, all at once. Use it to search with Ctrl+F, print, or read without clicking Next.", "field-message"), markdown(module.guide, module.sourcePath)));
       const source = element("p", undefined, "source");
       source.append(document.createTextNode(language === "fr" ? "Fichier source : " : "Source: "), element("code", module.sourcePath));
       content.append(source);
@@ -1231,7 +1231,7 @@
         const body = guided ? guidedDocument(doc.content, doc.sourcePath, deep ? Number(deep[2]) : null) : markdown(doc.content, doc.sourcePath);
         if (language === "fr" && route.startsWith("#/original")) body.lang = "en";
         content.append(element("h1", doc.title), body);
-        if (guided) content.append(disclosure("Full reference guide", markdown(doc.content, doc.sourcePath)));
+        if (guided) content.append(disclosure("Whole guide on one page (to search or print)", element("p", "Same content as the steps above, all at once. Use it to search with Ctrl+F, print, or read without clicking Next.", "field-message"), markdown(doc.content, doc.sourcePath)));
       } else if (route === "#/overview" || route === "#content") overview();
       else {
         content.append(element("h1", "Page not found."),
