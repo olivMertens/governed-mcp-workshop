@@ -4,6 +4,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { createHash } from "node:crypto";
 import { parseProgress } from "../.github/extensions/workshop-build-board/progress.mjs";
 import { readJourney } from "../.github/extensions/workshop-build-board/journey.mjs";
+import { screenshots } from "./portal-server.mjs";
 
 const repository = fileURLToPath(new URL("../", import.meta.url));
 const icons = ["azure", "microsoft", "entra", "apim", "functions", "storage", "insights", "api-center", "subscription", "foundry-agent-service", "copilot-studio"];
@@ -55,6 +56,7 @@ export function buildSite(root = repository, destination = join(root, "site-dist
         }
     }
     files.set("assets/architecture/workshop.drawio", read(["assets", "architecture", "workshop.drawio"]));
+    for (const name of screenshots) files.set(`assets/screenshots/${name}.png`, read(["assets", "screenshots", `${name}.png`]));
     mkdirSync(destination);
     for (const [path, content] of files) {
         const parts = path.split("/");
