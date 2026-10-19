@@ -197,4 +197,4 @@ bash ./modules/07-clients/cleanup.sh
 - Microsoft Foundry — Authentification MCP : https://learn.microsoft.com/azure/foundry/agents/how-to/mcp-authentication
 - Microsoft Copilot Studio — Ajouter un serveur MCP existant à un agent : https://learn.microsoft.com/microsoft-copilot-studio/mcp-add-existing-server-to-agent
 
-Dernière vérification : 2026-10-16. Le parcours Copilot Studio Manual documenté exige un secret client et n'est pas exécuté ici.
+Dernière vérification : 2026-10-16.

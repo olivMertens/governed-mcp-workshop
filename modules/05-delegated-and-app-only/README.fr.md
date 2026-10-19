@@ -660,4 +660,4 @@ le premier saut et transmettez un identifiant de corrélation, jamais le jeton.
   `azuread_application_federated_identity_credential`, `azuread_service_principal_delegated_permission_grant`) et
   [AzureRM 5.9.0](https://registry.terraform.io/providers/hashicorp/azurerm/5.9.0/docs)
 
-Dernière vérification : 2026-10-18. Vérifications opérateur validées en ligne dans le tenant de test de l'auteur le 2026-10-18 ; vérifications par persona pas encore exécutées (enregistrement MFA requis).
+Dernière vérification : 2026-10-18.

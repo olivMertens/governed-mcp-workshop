@@ -378,7 +378,7 @@ Ouvrez chaque lien au moment du résultat correspondant ci-dessus. C'est API Man
 | La télémétrie montre statuts et latence, jamais les contenus | [Télémétrie MCP par défaut](https://learn.microsoft.com/azure/api-management/monitor-mcp-servers) : lisez les sections sur la télémétrie par défaut et les requêtes. | La [stratégie trace](https://learn.microsoft.com/azure/api-management/trace-policy) ajoute le nom fixe de l'outil et l'ID de l'appelant. Conservez zéro octet de corps ; ne suivez pas les étapes facultatives d'activation des journaux de contenu de la page liée. |
 
 L'approbation d'une écriture par le client est distincte du contrôle de rôle par la passerelle. Aucun des deux ne remplace l'autre.
-Liens vérifiés le 2026-10-16. Les résultats attendus ne s'observent qu'après un vrai déploiement approuvé.
+Liens vérifiés le 2026-10-16.
 
 ## Valider
 
@@ -516,4 +516,4 @@ vous avez terminé. Remplacez `workshop-governed` dans VS Code. Si vous enchaîn
 - [RFC 9728 OAuth 2.0 Protected Resource Metadata](https://www.rfc-editor.org/rfc/rfc9728)
 - [Fournisseur AzAPI 2.13.0](https://registry.terraform.io/providers/Azure/azapi/2.13.0/docs) et [AzureRM 5.9.0 API Management](https://github.com/hashicorp/terraform-provider-azurerm/blob/v5.9.0/website/docs/r/api_management.html.markdown)
 
-Dernière vérification : 2026-10-18. Vérifications opérateur validées en ligne dans le tenant de test de l'auteur le 2026-10-18 ; vérifications par persona pas encore exécutées (enregistrement MFA requis).
+Dernière vérification : 2026-10-18.

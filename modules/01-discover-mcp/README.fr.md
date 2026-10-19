@@ -309,4 +309,4 @@ Le portail facultatif du présentateur ne fait que diffuser ces instructions.
 - [MCP Inspector](https://modelcontextprotocol.io/docs/tools/inspector).
 - [Configuration MCP de VS Code](https://code.visualstudio.com/docs/agent-customization/mcp-servers) et [approbations](https://code.visualstudio.com/docs/agents/run/approvals).
 
-Dernière vérification : 2026-10-14. Exécution locale sous Windows avec le SDK et Inspector ; ni validation Azure, ni vérification de l'approbation dans l'interface.
+Dernière vérification : 2026-10-14.

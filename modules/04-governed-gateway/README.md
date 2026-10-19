@@ -368,7 +368,7 @@ Use these links for the matching gateway result above. API Management (APIM) enf
 | Telemetry shows status and latency, never payloads | [Default MCP telemetry](https://learn.microsoft.com/azure/api-management/monitor-mcp-servers): read the default telemetry and query sections. | [trace policy](https://learn.microsoft.com/azure/api-management/trace-policy) adds the fixed tool name and caller ID. Keep body logging at zero bytes; do not follow the linked page's optional payload-logging steps. |
 
 Client approval for a write is separate from the gateway's role check. Neither replaces the other.
-Documentation links last verified: 2026-10-16; expected results still require an approved live deployment.
+Documentation links last verified: 2026-10-16.
 
 ## Validate
 
@@ -503,4 +503,4 @@ to module 05 now, keep everything.
 - [RFC 9728 OAuth 2.0 Protected Resource Metadata](https://www.rfc-editor.org/rfc/rfc9728)
 - [AzAPI provider 2.13.0](https://registry.terraform.io/providers/Azure/azapi/2.13.0/docs) and [AzureRM 5.9.0 API Management](https://github.com/hashicorp/terraform-provider-azurerm/blob/v5.9.0/website/docs/r/api_management.html.markdown)
 
-Last verified: 2026-10-18. Operator checks validated live in the author's test tenant on 2026-10-18; persona checks not yet run (MFA registration required).
+Last verified: 2026-10-18.

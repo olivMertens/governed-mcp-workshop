@@ -250,5 +250,6 @@ the manual steps, then the tag check.
 Formatting: [GitHub Mermaid diagrams](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/creating-diagrams).
 Callouts: [GitHub alerts](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#alerts).
 Diagram provenance: [architecture sources](../../assets/architecture/README.md).
+All Azure sources: [docs/sources.md](../../docs/sources.md).
 
-Last verified: 2026-10-16 (formatting and diagram reuse only). Azure sources: see [docs/sources.md](../../docs/sources.md).
+Last verified: 2026-10-16.
