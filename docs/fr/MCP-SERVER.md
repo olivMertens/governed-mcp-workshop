@@ -42,67 +42,167 @@ l'authentification intégrée Microsoft Entra. La passerelle du module 04 a ét�
 | `read_report_as_user` | Lecture | `report` : `monthly-usage` | Démonstration étiquetée, aucun appel en aval | Lit Storage **au nom de l'utilisateur** : c'est son propre rôle qui décide |
 | `read_report_as_app` | Lecture | `report` : `monthly-usage` | Démonstration étiquetée, aucun appel en aval | Lit Storage **au nom de l'application** : même résultat pour tout le monde |
 
-## Échange réel, connecté en tant qu'Alice (état du module 03)
+## Six requêtes, une à la fois
 
-**1. Sans jeton.** Le serveur refuse, et indique au client où obtenir un jeton :
+Il vous faut l'état du module 03 (ou plus loin) et un compte de test, par exemple Alice. Chaque requête ci-dessous donne
+la commande à lancer et la **réponse réelle**, relevée le 2026-10-19 avec Alice (pseudonymisée). Lisez la réponse avant
+de passer à la requête suivante.
 
-```text
-HTTP 401
-WWW-Authenticate: Bearer ... resource_metadata="https://func-mcp-p01-<suffix>.azurewebsites.net/.well-known/oauth-protected-resource/runtime/webhooks/mcp", scope="api://00000000-0000-0000-0000-000000000000/user_impersonation"
+### Préparer votre terminal (une seule fois)
+
+Connectez-vous d'abord avec votre compte de test (voir le module 03). Définissez ensuite une fonction d'aide. Elle lit
+le point de terminaison et l'audience dans vos sorties Terraform, demande à Azure CLI un nouveau jeton pour **ce serveur
+seulement**, et n'affiche jamais ce jeton.
+
+```powershell
+$mcp = terraform -chdir=infra/workload output -raw mcp_endpoint
+$audience = terraform -chdir=infra/workload output -raw mcp_auth_audience
+function Send-Mcp([string]$Body, [switch]$NoToken) {
+    $headers = @{ Accept = 'application/json, text/event-stream'; 'MCP-Protocol-Version' = '2025-06-18' }
+    if (-not $NoToken) { $headers.Authorization = 'Bearer ' + (az account get-access-token --resource $audience --query accessToken -o tsv) }
+    $r = Invoke-WebRequest $mcp -Method Post -ContentType 'application/json' -Body $Body -Headers $headers -SkipHttpErrorCheck
+    "HTTP $($r.StatusCode)"
+    if ($r.StatusCode -eq 401) { return "WWW-Authenticate: $($r.Headers['WWW-Authenticate'])" }
+    $data = (($r.Content -split "`n") -match '^data: ') -replace '^data: ' | ConvertFrom-Json
+    if ($data.result.tools) { $data.result.tools | ForEach-Object { "$($_.name): $($_.description)" } }
+    elseif ($data.result.content) { $data.result.content.text; if ($data.result.isError) { 'isError: true' } }
+    else { $data | ConvertTo-Json -Depth 8 -Compress }
+}
 ```
 
-Le document de métadonnées (Protected Resource Metadata, en **Preview** dans Functions) indique l'autorité et le scope :
+> **Résultat attendu** — rien ne s'affiche. `$mcp` se termine par `/runtime/webhooks/mcp` et `$audience` commence par `api://`.
 
-```json
-{"resource":"https://func-mcp-p01-<suffix>.azurewebsites.net",
- "authorization_servers":["https://login.microsoftonline.com/00000000-0000-0000-0000-000000000000/v2.0"],
- "scopes_supported":["api://00000000-0000-0000-0000-000000000000/user_impersonation"]}
+En Bash, la même fonction affiche la réponse JSON-RPC brute. Utilisez les mêmes corps de requête que ci-dessous, par
+exemple `send_mcp '{"jsonrpc":"2.0","id":2,"method":"tools/list"}'`.
+
+```bash
+mcp=$(terraform -chdir=infra/workload output -raw mcp_endpoint)
+audience=$(terraform -chdir=infra/workload output -raw mcp_auth_audience)
+send_mcp() {
+  auth=()
+  [ "$2" = "--no-token" ] || auth=(-H "Authorization: Bearer $(az account get-access-token --resource "$audience" --query accessToken -o tsv)")
+  curl -sS -i "$mcp" -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
+    -H 'MCP-Protocol-Version: 2025-06-18' "${auth[@]}" -d "$1" | grep -iE '^(HTTP/|www-authenticate:|data: )' | sed 's/^data: //'
+}
 ```
 
-**2. `initialize`** avec le jeton d'Alice : HTTP 200. Le serveur se présente :
+> **Résultat attendu** — rien ne s'affiche. Chaque appel suivant affiche la ligne de statut HTTP, puis la ligne `data:` de la réponse.
 
-```text
-event: message
-data: {"result":{"protocolVersion":"2025-06-18",
-  "capabilities":{"logging":{},"prompts":{},"resources":{},"tools":{}},
-  "serverInfo":{"name":"workshop-open-mcp","version":"0.2.0"},
-  "instructions":"Workshop level 0. Synthetic data only. Never send real names, tickets, tokens or secrets."},
-  "id":1,"jsonrpc":"2.0"}
+Un vrai client MCP envoie d'abord `initialize`. Ce serveur Functions ne garde pas de session : chaque requête ci-dessous
+fonctionne seule. Ici, chaque appel prend 2 à 3 secondes, surtout le temps qu'Azure CLI obtienne le jeton.
+
+### Requête 1 sur 6 : frapper à la porte sans jeton
+
+**Prévoyez :** un refus, avec l'indication de l'endroit où obtenir un jeton.
+
+```powershell exchange
+Send-Mcp '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' -NoToken
 ```
 
-**3. `tools/list`** : HTTP 200, les cinq outils, chacun avec sa description et son schéma d'entrée (extrait) :
+> **Résultat réel** — 2026-10-19, tenant de test de l'auteur.
+>
+> ```text
+> HTTP 401
+> WWW-Authenticate: Bearer realm="func-mcp-p01-<suffix>.azurewebsites.net", scope="api://00000000-0000-0000-0000-000000000000/user_impersonation", resource_metadata="https://func-mcp-p01-<suffix>.azurewebsites.net/.well-known/oauth-protected-resource/runtime/webhooks/mcp"
+> ```
+>
+> **Ce que cela signifie pour vous :** la plateforme refuse avant que votre code ne s'exécute. Le défi indique le scope
+> et le document de métadonnées (Protected Resource Metadata, en **Preview**) : c'est ainsi que VS Code sait où vous connecter.
 
-```json
-{"name":"get_service_health",
- "description":"Read fixed synthetic health data for a workshop service. No real monitoring.",
- "inputSchema":{"type":"object",
-   "properties":{"service":{"type":"string","enum":["workshop-api","ticket-queue"]}},
-   "required":["service"],"additionalProperties":false}}
+### Requête 2 sur 6 : découvrir les outils
+
+**Prévoyez :** cinq outils, chacun avec une description qu'un agent peut lire.
+
+```powershell exchange
+Send-Mcp '{"jsonrpc":"2.0","id":2,"method":"tools/list"}'
 ```
 
-**4. `tools/call`.** Le résultat est du **texte** placé dans `content`. Ici, ce texte est du JSON :
+> **Résultat réel** — 2026-10-19, connecté en tant qu'Alice.
+>
+> ```text
+> HTTP 200
+> create_ticket: WRITE: queue one synthetic ticket in the workshop Storage queue. Synthetic text only. Level 0 checks no identity or role.
+> get_service_health: Read fixed synthetic health data for a workshop service. No real monitoring.
+> read_report_as_app: Read the synthetic report as the application. Levels 0-2: labeled demonstration. Level 3 (module 05): the app-only managed identity reads Azure Storage, same result for every caller.
+> read_report_as_user: Read the synthetic report as the signed-in user. Levels 0-2: labeled demonstration. Level 3 (module 05): On-Behalf-Of to Azure Storage, so the caller's own Storage role applies.
+> whoami: Who am I? Levels 0-2: synthetic explanation, no downstream call. Level 3 (module 05): On-Behalf-Of to Microsoft Graph /me; returns only an allowlisted synthetic persona label, never a name or email.
+> ```
+>
+> **Ce que cela signifie pour vous :** le serveur se décrit lui-même. Un agent choisit un outil à partir de ces
+> descriptions, ce qu'une simple API REST ne permet pas. Alice voit aussi l'outil d'écriture : c'est le module 04 qui
+> décide qui a le droit de l'**appeler**.
 
-| Appel | Réponse réelle (le champ `text`, décodé) |
-|---|---|
-| `get_service_health` `{"service":"workshop-api"}` | `{"service":"workshop-api","status":"healthy","source":"synthetic","level":"0-open"}` |
-| `get_service_health` `{"service":"ticket-queue"}` | `{"service":"ticket-queue","status":"degraded","source":"synthetic","level":"0-open"}` |
-| `get_service_health` `{"service":"payroll"}` | `An error occurred invoking 'get_service_health'.` avec `"isError": true` |
-| `whoami` `{}` | `{"caller":"unknown","source":"synthetic-demonstration","level":"0-open","downstreamCall":"none","explanation":"A function key identifies no user. Module 03 adds Microsoft Entra sign-in; module 05 adds On-Behalf-Of to Microsoft Graph."}` |
-| `read_report_as_user` `{"report":"monthly-usage"}` | `{"report":"monthly-usage","mode":"as-user (demonstration)","source":"synthetic-demonstration","level":"0-open","downstreamCall":"none","authorization":"Not evaluated: ...","rows":[{"service":"workshop-api","requests":1200,"errors":3},{"service":"ticket-queue","requests":340,"errors":12}]}` |
-| `read_report_as_app` `{"report":"monthly-usage"}` | Mêmes lignes, `"mode":"as-app (demonstration)"` |
+### Requête 3 sur 6 : appeler un outil en lecture
 
-L'enveloppe complète d'un appel :
+**Prévoyez :** `workshop-api` est `healthy`.
 
-```text
-event: message
-data: {"result":{"content":[{"type":"text","text":"{\"service\":\"workshop-api\",\"status\":\"healthy\",\"source\":\"synthetic\",\"level\":\"0-open\"}"}]},"id":3,"jsonrpc":"2.0"}
+```powershell exchange
+Send-Mcp '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_service_health","arguments":{"service":"workshop-api"}}}'
 ```
 
-Chaque appel a pris environ 1 seconde (Flex Consumption, instance déjà démarrée).
+> **Résultat réel** — 2026-10-19, connecté en tant qu'Alice.
+>
+> ```text
+> HTTP 200
+> {"service":"workshop-api","status":"healthy","source":"synthetic","level":"0-open"}
+> ```
+>
+> **Ce que cela signifie pour vous :** la réponse est du texte placé dans `result.content` ; ici, ce texte est du JSON.
+> Bash montre l'enveloppe complète : `{"result":{"content":[{"type":"text","text":"{...}"}]},"id":3,"jsonrpc":"2.0"}`.
 
-> **Ce que cela signifie pour vous :** un mauvais argument renvoie une erreur courte et générique avec `isError: true`,
-> jamais une pile d'appels ni un détail interne. Le statut HTTP reste 200 : en MCP, une erreur d'**outil** fait partie
-> de la réponse, ce n'est pas une erreur de transport.
+### Requête 4 sur 6 : même outil, autre argument
+
+**Prévoyez :** seul l'argument change ; `ticket-queue` est `degraded`.
+
+```powershell exchange
+Send-Mcp '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"get_service_health","arguments":{"service":"ticket-queue"}}}'
+```
+
+> **Résultat réel** — 2026-10-19, connecté en tant qu'Alice.
+>
+> ```text
+> HTTP 200
+> {"service":"ticket-queue","status":"degraded","source":"synthetic","level":"0-open"}
+> ```
+>
+> **Ce que cela signifie pour vous :** `degraded` est une réponse normale, pas une erreur. Les données sont fixes et fictives.
+
+### Requête 5 sur 6 : envoyer un mauvais argument
+
+**Prévoyez :** une erreur d'outil, pas une erreur HTTP.
+
+```powershell exchange
+Send-Mcp '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"get_service_health","arguments":{"service":"payroll"}}}'
+```
+
+> **Résultat réel** — 2026-10-19, connecté en tant qu'Alice.
+>
+> ```text
+> HTTP 200
+> An error occurred invoking 'get_service_health'.
+> isError: true
+> ```
+>
+> **Ce que cela signifie pour vous :** en MCP, une erreur d'**outil** fait partie de la réponse : le statut HTTP reste
+> 200 et `isError` vaut `true`. Le message est court et générique, sans pile d'appels ni détail interne.
+
+### Requête 6 sur 6 : demander au serveur qui vous êtes
+
+**Prévoyez :** vous êtes connecté, donc le serveur vous connaît... vraiment ?
+
+```powershell exchange
+Send-Mcp '{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"whoami","arguments":{}}}'
+```
+
+> **Résultat réel** — 2026-10-19, connecté en tant qu'Alice.
+>
+> ```text
+> HTTP 200
+> {"caller":"unknown","source":"synthetic-demonstration","level":"0-open","downstreamCall":"none","explanation":"A function key identifies no user. Module 03 adds Microsoft Entra sign-in; module 05 adds On-Behalf-Of to Microsoft Graph."}
+> ```
+>
+> **Ce que cela signifie pour vous :** la porte d'entrée a vérifié Alice, mais le code de l'outil ne lit pas qui elle
+> est. Le module 05 change cela.
 
 **Question :** Alice est connectée avec Microsoft Entra. Pourquoi `whoami` répond-il encore `caller: unknown` et `level: 0-open` ?
 
@@ -116,7 +216,7 @@ l'outil, pas la porte d'entrée.
 
 </details>
 
-`create_ticket` n'a pas été appelé ici : il écrit. Au module 02, sa réponse ressemble à ceci (l'identifiant change à chaque appel) :
+`create_ticket` n'est pas appelé ici : il écrit. Au module 02, sa réponse ressemble à ceci (l'identifiant change à chaque appel) :
 
 ```json
 {"ticketId":"TCK-1A2B3C4D","service":"ticket-queue","severity":"low","status":"queued","source":"synthetic","level":"0-open",
@@ -134,11 +234,11 @@ résultats complets : [module 05, ce que vous devez voir](../../modules/05-deleg
 | `read_report_as_user` | `mode: as-user`, les lignes **si le rôle Storage de l'utilisateur le permet** ; Bob obtient `isError: true` |
 | `read_report_as_app` | `mode: as-app`, les mêmes lignes pour Alice et Bob : c'est le rôle de l'identité managée qui décide |
 
-## L'essayer vous-même
+## Ensuite : utiliser un vrai client
 
-Passez par un client MCP, pas par un navigateur : VS Code ou l'Inspector vous connectent grâce aux métadonnées
-ci-dessus. Voir [Tester votre serveur MCP](PRACTICE.md). Le script de validation de chaque module fait aussi ces appels
-pour vous et affiche une ligne `PASS` par contrôle.
+Les requêtes ci-dessus montrent le protocole brut. Au quotidien, passez par un client MCP : VS Code ou l'Inspector vous
+connectent grâce aux métadonnées de la requête 1. Voir [Tester votre serveur MCP](PRACTICE.md). Le script de validation
+de chaque module fait aussi ces appels pour vous.
 
 ## Sources
 

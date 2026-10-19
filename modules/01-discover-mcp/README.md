@@ -90,7 +90,7 @@ $env:MCP_INSPECTOR_PERSIST_TOKENS = 'none'
 
 **Predict:** one tool, `get_service_health`, with a required `service` argument.
 
-```powershell
+```powershell exchange
 npx @modelcontextprotocol/inspector@2.9.0 --cli dotnet $server --method tools/list
 if ($LASTEXITCODE -ne 0) { throw 'Inspector discovery failed.' }
 ```
@@ -126,7 +126,7 @@ in later modules, its authentication and app-role checks decide what a caller ma
 
 **Predict:** `workshop-api` returns `healthy` and `isError: false`, with synthetic data.
 
-```powershell
+```powershell exchange
 npx @modelcontextprotocol/inspector@2.9.0 --cli dotnet $server --method tools/call --tool-name get_service_health --tool-arg service=workshop-api
 if ($LASTEXITCODE -ne 0) { throw 'Inspector tool call failed.' }
 ```
