@@ -164,6 +164,22 @@ an unknown service returns `isError: true` inside a successful call.
 
 </details>
 
+**Optional: the same calls in the Inspector web page.** Prefer clicking to typing? Start the Inspector without `--cli`:
+
+```powershell
+npx @modelcontextprotocol/inspector@2.9.0 dotnet $server
+```
+
+> **Expected result** — the terminal prints `MCP Inspector Web is up and running at: http://127.0.0.1:6274?MCP_INSPECTOR_API_TOKEN=...`
+> and opens that page. The token protects the page on your machine: do not share it. Stop with **Ctrl+C** when finished.
+
+In the page: switch **dotnet** on (A); open **Tools**, select `get_service_health`, type `workshop-api` in **service**
+and select **Execute Tool** (B); read the result (C).
+
+![Real capture: MCP Inspector web page; A the dotnet server Connected with MCP 2025-11-25, B the get_service_health tool with READ-ONLY and IDEMPOTENT badges, service workshop-api and Execute Tool, C the result workshop-api healthy synthetic local-only](../../assets/screenshots/client-01-inspector.png)
+
+*Real capture, 2026-10-19, author's workstation. The badges in frame 2 are the tool annotations: hints, not controls.*
+
 **3. Connect VS Code and observe one approval.**
 
 Open this checkout in VS Code. Its reviewed `.vscode/mcp.json` contains `workshop-local` and preserves

@@ -381,6 +381,7 @@
       "azure-06-observability-agent-answer", "azure-06-observability-agent-query",
       "diagram-05-obo-hops-en", "diagram-05-obo-hops-fr", "diagram-05-rbac-checks-en", "diagram-05-rbac-checks-fr",
       "diagram-02-server-levels-en", "diagram-02-server-levels-fr",
+      "client-01-inspector", "client-03-vscode", "azure-06-apic-register",
       "azure-04-mcp-servers", "azure-04b-mcp-tools", "azure-04b-mcp-policy", "terminal-04b-operator", "terminal-04b-alice"];
     let state;
     let rawState;
@@ -558,7 +559,7 @@
         const line = lines[i];
         if (!line.trim()) { i++; continue; }
         const diagramImage = /^!\[([^\]]+)\]\(([^)]+)\)$/.exec(line);
-        const screenshot = diagramImage && /^(?:\.\.\/)+assets\/screenshots\/((?:azure|terminal|diagram)-\d{2}b?-[a-z0-9-]+)\.png$/.exec(diagramImage[2]);
+        const screenshot = diagramImage && /^(?:\.\.\/)+assets\/screenshots\/((?:azure|terminal|diagram|client)-\d{2}b?-[a-z0-9-]+)\.png$/.exec(diagramImage[2]);
         if (screenshot) {
           if (!PORTAL_SCREENSHOTS.includes(screenshot[1]) || (/^diagram-/.test(screenshot[1]) && !screenshot[1].endsWith(`-${language}`))) throw new Error("Document screenshots must be published workshop captures.");
           const figure = element("figure", undefined, "screenshot");
