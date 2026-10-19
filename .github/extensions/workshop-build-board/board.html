@@ -102,6 +102,19 @@
     .copy { font-size: 12px; background: var(--surface); color: var(--blue); border: 1px solid var(--line); border-radius: 5px; padding: 5px 10px; flex-shrink: 0; }
     .exercise { border-top: 2px solid var(--blue); padding-top: 4px; margin: 28px 0; }
     .quiz { border-top-color: #7650b3; }
+    .request-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 4px; }
+    .request-tabs[hidden] { display: none; }
+    .request-tabs button { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); color: var(--ink); font: inherit; font-size: 13px; cursor: pointer; }
+    .request-tabs button > .step-num { width: 22px; height: 22px; font-size: 12px; background: var(--line); color: var(--ink); }
+    .request-tabs button[aria-current="step"] { border-color: var(--blue); font-weight: 650; }
+    .request-tabs button[aria-current="step"] > .step-num { background: var(--blue); color: #fff; }
+    mark.change { background: var(--gold); color: #1b1b1b; border-radius: 3px; padding: 0 2px; }
+    .change-legend mark { margin-right: 6px; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin: 14px 0 20px; }
+    .card { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; background: var(--surface); }
+    .card .card-kind { display: inline-block; margin-bottom: 4px; padding: 1px 8px; border: 1px solid var(--line); border-radius: 10px; color: var(--muted); font-size: 12px; }
+    .card h3 { margin: 0 0 6px; font-size: 15px; }
+    .card p { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
     .page-map { margin: 22px 0 10px; }
     .page-map > p { margin: 0 0 10px; font-size: 14px; font-weight: 650; color: var(--muted); }
     .page-map ol { list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: 0; padding: 0; }
@@ -664,6 +677,32 @@
           body.append(block);
           continue;
         }
+        if (line.trim() === "<!-- cards -->") {
+          i++;
+          while (i < lines.length && !lines[i].trim()) i++;
+          const cells = (row) => row.split("|").slice(1, -1).map((cell) => cell.trim());
+          const headers = cells(lines[i] || "");
+          i += 2;
+          const grid = element("div", undefined, "cards");
+          while (i < lines.length && lines[i].startsWith("|")) {
+            const [title, kind, ...rest] = cells(lines[i++]);
+            const card = element("div", undefined, "card");
+            const name = element("h3");
+            inline(name, title, path);
+            const badge = element("span", undefined, "card-kind");
+            inline(badge, kind, path);
+            card.append(name, badge);
+            rest.forEach((value, column) => {
+              const line = element("p");
+              inline(line, value, path);
+              if (headers[column + 2]) line.prepend(element("strong", `${headers[column + 2]}${language === "fr" ? " : " : ": "}`));
+              card.append(line);
+            });
+            grid.append(card);
+          }
+          body.append(grid);
+          continue;
+        }
         if (line.startsWith("|") && /^\|[\s:|-]+\|$/.test(lines[i + 1] || "")) {
           const wrapper = element("div", undefined, "table-scroll");
           const table = element("table");
@@ -879,6 +918,22 @@
         return jump;
       });
       let index = startSection ? Math.max(0, steps.findIndex((step) => step.section === startSection)) : 0;
+      // A series titled "Request N of M: ..." gets numbered tabs, so the reader sees the whole sequence at once.
+      const requests = steps.map((step, stepIndex) => ({ stepIndex, match: /^(?:Request|Requête) (\d+) (?:of|sur) \d+\s*:\s*(.+)$/.exec(step.title) }))
+        .filter((item) => item.match && !steps[item.stepIndex].part);
+      const tabs = requests.length > 1 ? element("nav", undefined, "request-tabs") : null;
+      const tabButtons = (tabs ? requests : []).map(({ stepIndex, match }) => {
+        const button = element("button");
+        button.type = "button";
+        const label = match[2].charAt(0).toUpperCase() + match[2].slice(1);
+        button.append(element("span", match[1], "step-num"), element("span", label));
+        button.addEventListener("click", () => { index = stepIndex; show(true); });
+        tabs.append(button);
+        return { stepIndex, button };
+      });
+      if (tabs) tabs.setAttribute("aria-label", t("Requests"));
+      // Each "exchange" request is compared with the one before it, and what changed is highlighted.
+      const exchanges = [...text.matchAll(/^```\S+ exchange\r?\n([\s\S]*?)\r?\n```/gm)].map((match) => match[1].replaceAll("\r", ""));
       function show(focus = false) {
         const step = steps[index];
         position.textContent = `${t("Step")} ${index + 1} / ${steps.length}`;
@@ -910,6 +965,22 @@
             full.append(command);
           }
         }
+        for (const command of body.querySelectorAll(".exchange .command")) {
+          const code = command.querySelector("code");
+          const at = exchanges.indexOf(code.textContent);
+          if (at > 0 && markChanges(code, exchanges[at - 1])) {
+            const legend = element("p", undefined, "field-message change-legend");
+            legend.append(element("mark", t("Highlighted"), "change"), document.createTextNode(t("what changes from the previous request.")));
+            command.querySelector("pre").after(legend);
+          }
+        }
+        if (tabs) {
+          tabs.hidden = !tabButtons.some((tab) => tab.stepIndex === index);
+          for (const tab of tabButtons) {
+            if (tab.stepIndex === index) tab.button.setAttribute("aria-current", "step");
+            else tab.button.removeAttribute("aria-current");
+          }
+        }
         page.replaceChildren(heading, body);
         if (focus) {
           heading.focus({ preventScroll: true });
@@ -920,10 +991,43 @@
       // On the last step, a module page sends the reader on to the next section instead of a dead end.
       next.addEventListener("click", () => { if (index < steps.length - 1) { index++; show(true); } else if (finish) finish.action(); });
       navigation.append(previous, next);
-      section.append(header, page, navigation, outline);
+      section.append(header, ...(tabs ? [tabs] : []), page, navigation, outline);
       section.goTo = (stepIndex) => { index = stepIndex; outline.open = false; show(true); };
       show();
       return section;
+    }
+    // Wraps the tokens of a request that are new compared with the previous request (an id change alone is ignored).
+    function markChanges(code, before) {
+      const split = (value) => value.match(/[A-Za-z0-9_.\/-]+|\s+|[^A-Za-z0-9_.\/\s-]/g) || [];
+      const a = split(before), b = split(code.textContent);
+      const table = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0));
+      for (let i = a.length - 1; i >= 0; i--) for (let j = b.length - 1; j >= 0; j--) {
+        table[i][j] = a[i] === b[j] ? table[i + 1][j + 1] + 1 : Math.max(table[i + 1][j], table[i][j + 1]);
+      }
+      const changed = new Array(b.length).fill(false);
+      for (let i = 0, j = 0; j < b.length;) {
+        if (i < a.length && a[i] === b[j]) { i++; j++; }
+        else if (i < a.length && table[i + 1][j] >= table[i][j + 1]) i++;
+        else { changed[j] = !/^\s+$/.test(b[j]) && !(/^\d+$/.test(b[j]) && b.slice(Math.max(0, j - 3), j).join("") === 'id":'); j++; }
+      }
+      if (!changed.some(Boolean)) return false;
+      const parts = [];
+      for (let j = 0; j < b.length; j++) {
+        // Whitespace between two changed tokens stays inside the same highlight.
+        const inside = changed[j] || (/^\s+$/.test(b[j]) && changed[j - 1] && changed.slice(j + 1).find((_, k) => !/^\s+$/.test(b[j + 1 + k])));
+        const last = parts.at(-1);
+        if (last && last.on === Boolean(inside)) last.text += b[j];
+        else parts.push({ on: Boolean(inside), text: b[j] });
+      }
+      code.replaceChildren(...parts.map((part) => {
+        if (!part.on) return document.createTextNode(part.text);
+        // Code is never translated: build the mark directly instead of through element().
+        const mark = document.createElement("mark");
+        mark.className = "change";
+        mark.textContent = part.text;
+        return mark;
+      }));
+      return true;
     }
     function hasQuestion(text) { return /^\*\*Question\s?:\*\*/m.test(text.replace(/```[\s\S]*?```/g, "")); }
     // Gathers every "Question:" with its hidden answer, so the module ends with one self-check panel.
