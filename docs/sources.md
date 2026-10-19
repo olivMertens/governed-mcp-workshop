@@ -297,6 +297,23 @@ Only offline checks ran: no plan against Azure, no apply, no resource created.
 - The per-tool role check, the JSON-RPC parsing and streaming through the gateway are policy expressions that cannot run
   offline; they are proven only by the live persona checks.
 
+### Module 04 optional part B authored implementation (not deployed)
+
+Last verified: 2026-10-19. `infra/workload/rest-mcp.tf`, `policies/rest-api.xml`, `policies/rest-mcp-server.xml`,
+`validate-rest-mcp.ps1`, `cleanup.ps1 -Scope RestDemo`. Only offline checks ran: no plan against Azure, no apply.
+
+| Source | Value and decision |
+|---|---|
+| [Expose a REST API in API Management as an MCP server](https://learn.microsoft.com/azure/api-management/export-rest-mcp-server) | Tiers Developer, Basic, Basic v2, Standard, Standard v2, Premium, Premium v2. Tools only (no MCP resources or prompts); not in workspaces; policies at MCP server scope apply to every tool; never access `context.Response.Body`; all-APIs frontend response payload bytes 0. **Decision:** reuse the module 04 Standard v2 instance and its all-APIs diagnostic; no API-scope diagnostic in part B. |
+| [Manage MCP servers programmatically](https://learn.microsoft.com/azure/api-management/manage-mcp-servers-rest-api), "ARM and Bicep templates > REST API-backed MCP server" | `Microsoft.ApiManagement/service/apis@2025-09-01-preview` with `type: mcp` and no `mcpProperties` (**Preview**), then `Microsoft.ApiManagement/service/apis/tools@2025-09-01-preview` with `displayName`, `description`, `operationId` = full resource ID of the backing operation (**Preview**). The template uses `subscriptionRequired: true` and a product; **decision:** `false`, Entra token and app roles only, no product. |
+| [mock-response policy](https://learn.microsoft.com/azure/api-management/mock-response-policy) | API scope allowed; prefers the operation's response examples for the status code and content type. Used so the backing REST API returns synthetic Contoso data without a backend. |
+
+**Open questions for the live run (not answerable offline):** whether API Management runs the backing REST API's policies
+(`validate-azure-ad-token` then `mock-response`) for an MCP tool call; whether `tools/list` uses the tool resource name or its
+`displayName` (both are set to `list_tickets` / `get_ticket`); the input-schema property name APIM derives for the
+`ticketId` template parameter; and whether the provider's embedded schema knows the `apis/tools` type (schema validation is
+disabled on that resource only).
+
 ### Module 05 authored implementation (not deployed)
 
 Last verified: 2026-10-15. [EN/FR guide](../modules/05-delegated-and-app-only/README.md), `src/FunctionsMcpServer`
@@ -427,7 +444,7 @@ references used to resolve design choices.
 | 04 | [Standard v2 outbound integration](https://learn.microsoft.com/azure/api-management/integrate-vnet-outbound), [App Service private endpoints](https://learn.microsoft.com/azure/app-service/overview-private-endpoint) | Delegated subnet + NSG, private endpoint, private DNS, public access disabled (HTTP 403). Verified 2026-10-15. |
 | 04 | [Outbound virtual network integration](https://learn.microsoft.com/azure/api-management/integrate-vnet-outbound) | Standard v2/Premium v2; dedicated subnet, delegation, network security group and permissions. |
 | 04 | [Functions networking](https://learn.microsoft.com/azure/azure-functions/functions-networking-options) | Flex inbound private endpoints versus outbound integration; direct-access protection. |
-| 04b | [Export REST to MCP](https://learn.microsoft.com/azure/api-management/export-rest-mcp-server) | Optional operation-to-tool exercise; no prompts/resources; no response-body inspection. |
+| 04b | [Export REST to MCP](https://learn.microsoft.com/azure/api-management/export-rest-mcp-server), [REST API-backed MCP server template](https://learn.microsoft.com/azure/api-management/manage-mcp-servers-rest-api) | Optional part B, authored 2026-10-19: two read-only tools mapped by `operationId`; tools only, no prompts/resources; no response-body inspection; `2025-09-01-preview` (**Preview**). |
 | 05 | [On-Behalf-Of flow](https://learn.microsoft.com/entra/identity-platform/v2-oauth2-on-behalf-of-flow) | Token A/Token B boundary and user-only delegation. Use libraries, not its client-secret example. |
 | 05 | [Application trust in managed identity](https://learn.microsoft.com/entra/workload-id/workload-identity-federation-config-app-trust-managed-identity) | Secretless client assertion, same-tenant trust and federated credential permissions. |
 | 06 | [APIM Application Insights integration](https://learn.microsoft.com/azure/api-management/api-management-howto-app-insights) | Managed-identity logger, resource-scoped Monitoring Metrics Publisher and diagnostics. Last verified 2026-10-15. |

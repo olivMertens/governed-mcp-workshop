@@ -328,7 +328,8 @@
       "azure-03-enterprise-app-properties", "terminal-03-operator", "terminal-03-alice",
       "azure-05-api-permissions", "azure-05-federated-credentials", "azure-06-kql-logs",
       "azure-06-observability-agent-answer", "azure-06-observability-agent-query",
-      "diagram-05-obo-hops-en", "diagram-05-obo-hops-fr", "diagram-05-rbac-checks-en", "diagram-05-rbac-checks-fr"];
+      "diagram-05-obo-hops-en", "diagram-05-obo-hops-fr", "diagram-05-rbac-checks-en", "diagram-05-rbac-checks-fr",
+      "azure-04-mcp-servers", "azure-04b-mcp-tools", "azure-04b-mcp-policy", "terminal-04b-operator", "terminal-04b-alice"];
     let state;
     let rawState;
     let participant = null;
@@ -500,7 +501,7 @@
         const line = lines[i];
         if (!line.trim()) { i++; continue; }
         const diagramImage = /^!\[([^\]]+)\]\(([^)]+)\)$/.exec(line);
-        const screenshot = diagramImage && /^(?:\.\.\/)+assets\/screenshots\/((?:azure|terminal|diagram)-\d{2}-[a-z0-9-]+)\.png$/.exec(diagramImage[2]);
+        const screenshot = diagramImage && /^(?:\.\.\/)+assets\/screenshots\/((?:azure|terminal|diagram)-\d{2}b?-[a-z0-9-]+)\.png$/.exec(diagramImage[2]);
         if (screenshot) {
           if (!PORTAL_SCREENSHOTS.includes(screenshot[1]) || (/^diagram-/.test(screenshot[1]) && !screenshot[1].endsWith(`-${language}`))) throw new Error("Document screenshots must be published workshop captures.");
           const figure = element("figure", undefined, "screenshot");
@@ -1299,7 +1300,7 @@
         if (language === "fr") content.prepend(notice("Note", "Original repository decisions and evidence remain in English."));
       } else if (Object.hasOwn(state.documents, documentKey)) {
         const doc = state.documents[documentKey];
-        const guided = ["deployment", "presenter", "hosting", "gettingStarted", "concepts", "governance"].includes(documentKey);
+        const guided = ["deployment", "presenter", "integration", "hosting", "gettingStarted", "concepts", "governance"].includes(documentKey);
         const body = guided ? guidedDocument(doc.content, doc.sourcePath, deep ? Number(deep[2]) : null) : markdown(doc.content, doc.sourcePath);
         if (language === "fr" && route.startsWith("#/original")) body.lang = "en";
         content.append(element("h1", doc.title), body);
@@ -1360,6 +1361,7 @@
         ]],
         ["author-group", "author-nav", "Facilitators and authors", "people", [
           ...(state?.documents.presenter ? [["presenter", "Presenter guide", "people"]] : []),
+          ...(state?.documents.integration ? [["integration", "Session 2: integrate and expose MCP", "layers"]] : []),
           // Build runbook and open decisions are authoring tools: local board only, never on the published site.
           ...(staticSite ? [] : [["runbook", "Build runbook", "route"], ["decisions", "Build decisions", "flag"]]),
           ["hosting", "Publish or host the guides", "globe"],
