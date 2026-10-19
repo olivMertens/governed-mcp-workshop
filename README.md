@@ -1,9 +1,7 @@
 # 🔐 Governed MCP on Azure — hands-on workshop
 
-> ⚠️ **Work in progress.** Modules 00 and 02 are validated live (2026-10-14 and 2026-10-16).
-> Modules 03 to 06 passed their live operator checks in a test tenant (2026-10-17 and 2026-10-18).
-> They stay *authored* until the Alice, Bob and Eve persona checks pass; Alice already passes module 03 and module 04 part B (2026-10-19).
-> Modules 01, 07 and 99 are authored and pass their offline checks. Module 01's client-approval observation is still manual.
+> ⚠️ **Work in progress.** Every module can be followed today. The **Test status** column of the modules table below
+> says how far the author has tested each one in Azure.
 > Details: [what is available](docs/IMPLEMENTATION-STATUS.md).
 
 Take one MCP server from **open** to **governed** on Azure, alone, in **your own non-production** subscription.
@@ -104,21 +102,26 @@ Module 02 deploys real Azure resources: start it only after module 00 validation
 
 ## 🗺️ Modules
 
-| # | Module | Need it? | Status | Guide |
+| # | Module | Need it? | Test status | Guide |
 |---|---|---|---|---|
-| 00 | 🧰 Prerequisites and environment | ✅ Required | 🟢 Validated (live, 2026-10-14) | [Open](modules/00-prerequisites/README.md) |
-| 01 | 🔍 Discover MCP (no Azure) | ✅ Required | 🟡 Local SDK + Inspector checks pass; manual approval pending | [Open](modules/01-discover-mcp/README.md) · [FR](modules/01-discover-mcp/README.fr.md) |
-| 02 | 🔑 Server protected by a key (level 0) | ✅ Required | 🟢 Validated (live, 2026-10-16) | [Open](modules/02-open-server/README.md) · [FR](modules/02-open-server/README.fr.md) |
-| 03 | 🪪 Microsoft Entra identity (level 1) | ✅ Required | 🟡 Authored; live operator checks pass, persona checks pending (Alice passes) | [Open](modules/03-entra-authentication/README.md) · [FR](modules/03-entra-authentication/README.fr.md) |
-| 04 | 🚪 API Management as the only entry (level 2), optional part B: a REST API exposed as MCP | ✅ Required (part B optional) | 🟡 Authored; live operator checks pass, persona checks pending (Alice passes part B) | [Open](modules/04-governed-gateway/README.md) · [FR](modules/04-governed-gateway/README.fr.md) |
-| 05 | 👤 On-Behalf-Of vs app-only (level 3) | ✅ Required | 🟡 Authored; live operator checks pass, persona checks pending | [Open](modules/05-delegated-and-app-only/README.md) · [FR](modules/05-delegated-and-app-only/README.fr.md) |
-| 06 | 📊 Observe and inventory (level 4) | ✅ Required | 🟡 Authored; live operator checks pass, persona checks pending | [Open](modules/06-observe-inventory/README.md) · [FR](modules/06-observe-inventory/README.fr.md) |
-| 07 | 🤖 Other clients (Foundry, Copilot Studio) | ➕ Optional | 🟡 Authored; offline checks pass, not deployed | [Open](modules/07-clients/README.md) · [FR](modules/07-clients/README.fr.md) |
-| 99 | 🧹 Clean up | ♻️ As soon as you create resources | 🟡 Authored; offline checks pass, not run live | [Open](modules/99-cleanup/README.md) · [FR](modules/99-cleanup/README.fr.md) |
+| 00 | 🧰 Prerequisites and environment | ✅ Required | 🟢 Fully tested in Azure (2026-10-14) | [Open](modules/00-prerequisites/README.md) |
+| 01 | 🔍 Discover MCP (no Azure) | ✅ Required | 🟢 Tested on a laptop (no Azure); the VS Code approval prompt is a manual check | [Open](modules/01-discover-mcp/README.md) · [FR](modules/01-discover-mcp/README.fr.md) |
+| 02 | 🔑 Server protected by a key (level 0) | ✅ Required | 🟢 Fully tested in Azure (2026-10-16) | [Open](modules/02-open-server/README.md) · [FR](modules/02-open-server/README.fr.md) |
+| 03 | 🪪 Microsoft Entra identity (level 1) | ✅ Required | 🟡 Tested in Azure; test users: Alice ✅, Bob and Eve to do | [Open](modules/03-entra-authentication/README.md) · [FR](modules/03-entra-authentication/README.fr.md) |
+| 04 | 🚪 API Management as the only entry (level 2), optional part B: a REST API exposed as MCP | ✅ Required (part B optional) | 🟡 Tested in Azure; test users: Alice ✅ (part B), Bob and Eve to do | [Open](modules/04-governed-gateway/README.md) · [FR](modules/04-governed-gateway/README.fr.md) |
+| 05 | 👤 On-Behalf-Of vs app-only (level 3) | ✅ Required | 🟡 Tested in Azure; test users Alice, Bob and Eve to do | [Open](modules/05-delegated-and-app-only/README.md) · [FR](modules/05-delegated-and-app-only/README.fr.md) |
+| 06 | 📊 Observe and inventory (level 4) | ✅ Required | 🟡 Tested in Azure; test users Alice, Bob and Eve to do | [Open](modules/06-observe-inventory/README.md) · [FR](modules/06-observe-inventory/README.fr.md) |
+| 07 | 🤖 Other clients (Foundry, Copilot Studio) | ➕ Optional | ⚪ Written and checked offline; not yet tried in Azure | [Open](modules/07-clients/README.md) · [FR](modules/07-clients/README.fr.md) |
+| 99 | 🧹 Clean up | ♻️ As soon as you create resources | ⚪ Written and checked offline; not yet run in Azure (each module has its own tested cleanup) | [Open](modules/99-cleanup/README.md) · [FR](modules/99-cleanup/README.fr.md) |
 
-> 💡 **Authored** means the guide and offline checks exist. **Live operator checks pass** means the author deployed the
-> module in a test tenant and the operator part of its validator passed; the test-account (persona) part is still to run.
-> Only **Validated** means the whole validator passed live.
+> 💡 **What the test status means.** It describes the author's own tests, not your work. Every module is usable.
+>
+> - 🟢 **Fully tested**: the author deployed the module in a test subscription and every check passed.
+> - 🟡 **Tested in Azure**: deployed and checked as the administrator. The checks signed in as the test users
+>   (Alice, Bob, Eve) are not all done yet.
+> - ⚪ **Checked offline**: the guide, code and offline checks are ready; it was not yet deployed in Azure.
+>
+> Whatever the colour, run the module's validator in **your** subscription: that is what proves it works for you.
 
 ## 📸 What you will see (real captures)
 
