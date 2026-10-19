@@ -422,6 +422,43 @@ unset AZURE_CONFIG_DIR
 > **Ce que cela signifie pour vous :** ce 401 n'est pas une impasse. Le challenge indique au client où lire les
 > métadonnées de ressource protégée (**Preview**) et quel scope demander : VS Code peut ainsi lancer seul la connexion Microsoft.
 
+### Retrouver le même résultat dans le portail Azure
+
+Captures réelles du portail, 2026-10-19, tenant de test de l'auteur. Les noms sont pseudonymisés et chaque ID est remplacé
+par des zéros. Ouvrez les mêmes pages dans votre tenant pour vérifier ce que Terraform a configuré. Le portail est affiché en
+anglais. Sélectionnez une image pour l'ouvrir en grand.
+
+**1. Function App → Settings → Authentication.** L'authentification App Service est activée, les requêtes non
+authentifiées reçoivent HTTP 401 et le magasin de jetons (*token store*) est désactivé : la plateforme vérifie le jeton,
+le serveur ne le conserve jamais.
+
+![Capture réelle : page Authentication de la Function App, authentification exigée, HTTP 401 pour les requêtes non authentifiées, magasin de jetons désactivé](../../assets/screenshots/azure-03-function-authentication.png)
+
+**2. App registrations → Workshop MCP API → Overview.** Une seule organisation (*My organization only*), et le lien
+« Add a certificate or secret » : l'application n'a aucun mot de passe.
+
+![Capture réelle : vue d'ensemble de l'inscription d'application, une seule organisation, aucun secret ni certificat](../../assets/screenshots/azure-03-app-registration-overview.png)
+
+**3. Même application → App roles.** `Tools.Read` et `Tools.Write` sont destinés aux utilisateurs, `Tools.Execute.All`
+aux applications. Le module 04 les applique outil par outil.
+
+![Capture réelle : page App roles avec Tools.Read et Tools.Write pour les utilisateurs et Tools.Execute.All pour les applications](../../assets/screenshots/azure-03-app-roles.png)
+
+**4. Enterprise applications → Workshop MCP API → Properties.** « Assignment required? » vaut **Yes** : seuls les
+utilisateurs affectés (Alice et Bob) obtiennent un jeton. C'est pourquoi Eve reçoit `AADSTS50105`.
+
+![Capture réelle : propriétés de l'application d'entreprise, affectation obligatoire à Yes](../../assets/screenshots/azure-03-enterprise-app-properties.png)
+
+**Question :** Eve fait partie du tenant. Quel réglage de la capture 4 l'arrête avant même le serveur MCP ?
+
+<details>
+<summary>Voir la réponse</summary>
+
+« Assignment required? » = Yes. Microsoft Entra ID refuse d'émettre un jeton pour cette API à un utilisateur sans
+affectation : Eve reçoit `AADSTS50105` dès la connexion. Le serveur MCP ne voit jamais sa requête.
+
+</details>
+
 ### Lire la documentation au moment de la démonstration
 
 Ouvrez chaque lien au moment du contrôle correspondant ci-dessus. Authentification, consentement et autorisation sont trois décisions distinctes.

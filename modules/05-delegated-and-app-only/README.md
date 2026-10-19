@@ -270,6 +270,29 @@ if ($LASTEXITCODE -ne 0) { throw 'Entra apply failed.' }
 > **What it means for you:** the MCP API now trusts the `-obo` identity and has consent for exactly two delegated scopes.
 > `whoami` and `read_report_as_user` can now exchange tokens.
 
+Check it in the Microsoft Entra admin center (real captures, 2026-10-19, author's test tenant; names pseudonymised,
+IDs replaced by zeros). Select an image to open it full size.
+
+**App registrations → Workshop MCP API → API permissions.** Exactly two delegated permissions: Azure Storage
+`user_impersonation` (for `read_report_as_user`) and Microsoft Graph `User.Read` (for `whoami`). No application permission.
+
+![Real capture: API permissions blade with two delegated permissions, Azure Storage user_impersonation and Microsoft Graph User.Read](../../assets/screenshots/azure-05-api-permissions.png)
+
+**Same app → Certificates & secrets.** Certificates (0), Client secrets (0), Federated credentials (1): the OBO exchange
+proves the API's identity with the `-obo` managed identity, never with a password.
+
+![Real capture: Certificates and secrets blade with zero certificates, zero client secrets and one federated credential named workshop-obo-p01](../../assets/screenshots/azure-05-federated-credentials.png)
+
+**Question:** the general On-Behalf-Of documentation shows a client secret. Where is it here?
+
+<details>
+<summary>Show answer</summary>
+
+There is none: the capture shows Client secrets (0). The federated identity credential lets the `-obo` managed identity sign
+the token exchange instead. Nothing secret exists to leak, rotate or commit.
+
+</details>
+
 **5. Publish the synthetic report** (Microsoft Entra authentication, no key; retries while the role propagates):
 
 ```powershell

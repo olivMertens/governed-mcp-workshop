@@ -280,6 +280,29 @@ if ($LASTEXITCODE -ne 0) { throw 'Entra apply failed.' }
 > **Ce que cela signifie pour vous :** l'API MCP fait désormais confiance à l'identité `-obo` et dispose du consentement pour
 > exactement deux scopes délégués. `whoami` et `read_report_as_user` peuvent maintenant échanger des jetons.
 
+Vérifiez-le dans le centre d'administration Microsoft Entra (captures réelles, 2026-10-19, tenant de test de l'auteur ;
+noms pseudonymisés, ID remplacés par des zéros ; portail affiché en anglais). Sélectionnez une image pour l'ouvrir en grand.
+
+**App registrations → Workshop MCP API → API permissions.** Exactement deux autorisations déléguées : Azure Storage
+`user_impersonation` (pour `read_report_as_user`) et Microsoft Graph `User.Read` (pour `whoami`). Aucune autorisation d'application.
+
+![Capture réelle : page API permissions avec deux autorisations déléguées, Azure Storage user_impersonation et Microsoft Graph User.Read](../../assets/screenshots/azure-05-api-permissions.png)
+
+**Même application → Certificates & secrets.** Certificates (0), Client secrets (0), Federated credentials (1) : l'échange
+OBO prouve l'identité de l'API avec l'identité managée `-obo`, jamais avec un mot de passe.
+
+![Capture réelle : page Certificates and secrets avec zéro certificat, zéro secret client et une information d'identification fédérée workshop-obo-p01](../../assets/screenshots/azure-05-federated-credentials.png)
+
+**Question :** la documentation générale d'On-Behalf-Of montre un secret client. Où est-il ici ?
+
+<details>
+<summary>Voir la réponse</summary>
+
+Il n'y en a pas : la capture affiche Client secrets (0). L'information d'identification fédérée permet à l'identité
+managée `-obo` de signer l'échange de jetons à sa place. Aucun secret n'existe, donc rien à divulguer, à renouveler ni à commiter.
+
+</details>
+
 **5. Publier le rapport synthétique** (authentification Microsoft Entra, sans clé ; le script réessaie pendant la propagation du rôle) :
 
 ```powershell
