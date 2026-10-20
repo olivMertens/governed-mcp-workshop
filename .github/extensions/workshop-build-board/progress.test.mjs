@@ -82,7 +82,7 @@ test("guided reading splits authored actions, never code fences or nested disclo
     assert.match(html, /content\.append\(intro, servicesList\(module\)\);/);
     assert.doesNotMatch(html, /disclosure\([^)]*servicesList/);
     // Commands and terminal checks stay in the main lesson flow, not in optional reading.
-    assert.match(html, /lesson = guidedDocument\(module\.guide \?\? module\.outline, module\.sourcePath, null, \{ validate, review, track \}\);/);
+    assert.match(html, /lesson = guidedDocument\(module\.guide \?\? module\.outline, module\.sourcePath, null, \{ validate, review \}\);/);
     assert.match(html, /if \(index === shiftedValidate\) body\.append\(validate\.render\(step\)\);/);
     // Learning aids carry an icon: questions, answers and hints, and command results.
     assert.match(html, /node\.classList\.add\("question"\);\s*node\.prepend\(symbol\("question"\)\);/);
@@ -104,7 +104,9 @@ test("guided reading splits authored actions, never code fences or nested disclo
     // Every published module guide opens on its Goal: no language link, status note or banner becomes a preliminary step.
     for (const folder of ["00-prerequisites", "01-discover-mcp", "02-open-server", "03-entra-authentication", "04-governed-gateway",
         "05-delegated-and-app-only", "06-observe-inventory", "07-clients", "99-cleanup"]) {
-        for (const [file, goal] of [["README.md", "Goal"], ["README.fr.md", "Objectif"]]) {
+        const guides = [["README.md", "Goal"], ["README.fr.md", "Objectif"],
+            ...(folder === "01-discover-mcp" ? [] : [["LOW-CODE.md", "Goal"], ["LOW-CODE.fr.md", "Objectif"]])];
+        for (const [file, goal] of guides) {
             const first = split(readFileSync(join(repository, "modules", folder, file), "utf8"))[0];
             assert.equal(first.title, goal, `${folder}/${file} must open on ${goal}, not "${first.title}"`);
             assert.match(readFileSync(join(repository, "modules", folder, file), "utf8"), /^> \[!(?:TIP|NOTE|IMPORTANT|WARNING|CAUTION)\]$/m,
@@ -112,6 +114,11 @@ test("guided reading splits authored actions, never code fences or nested disclo
             // Every command in the main flow shows attendees what their terminal should print.
             const guide = readFileSync(join(repository, "modules", folder, file), "utf8").split(/\r?\n/);
             assert.ok(guide.some((line) => /^\*\*Question\s?:\*\*/.test(line)), `${folder}/${file} needs a learning question`);
+            if (folder === "01-discover-mcp" && file === "README.fr.md") {
+                for (const label of ["Pourquoi", "Anticipez"]) {
+                    assert.ok(guide.some((line) => line.startsWith(`**${label} :**`)), `${file} preserves "${label} :"`);
+                }
+            }
             let fence = false, language = "", disclosed = 0;
             for (const [index, line] of guide.entries()) {
                 if (!fence && line === "<details>") disclosed++;
@@ -476,6 +483,12 @@ test("Markdown screenshots render only allowlisted, published portal captures", 
     const list = JSON.parse(/const PORTAL_SCREENSHOTS = (\[[^\]]+\]);/.exec(html)[1].replace(/\s+/g, " "));
     const { screenshots } = await import("../../../scripts/portal-server.mjs");
     assert.deepEqual(list, screenshots);
+    assert.equal(new Set(list).size, list.length, "Published capture names must be unique");
+    for (const name of [
+        "azure-02-function-overview", "azure-02-function-keys", "azure-04-function-networking", "terminal-00-validate",
+        "terminal-00-az-context", "terminal-02-az-runtime", "terminal-03-az-auth", "terminal-04-az-network",
+        "terminal-05-az-identities", "terminal-06-az-counts", "terminal-07-az-gateway", "terminal-99-az-inventory",
+    ]) assert.ok(list.includes(name), `Keep the shared capture allowlist entry: ${name}`);
     for (const name of list) assert.ok(existsSync(new URL(`../../../assets/screenshots/${name}.png`, import.meta.url)));
     const element = (tag, text) => ({ tag, text, children: [], append(...children) { this.children.push(...children); } });
     const render = (staticSite) => new Function("element", "state", "language", "architecture", "PORTAL_SCREENSHOTS", "staticSite",
@@ -651,12 +664,13 @@ function setup(t, content = fixture) {
     writeFileSync(join(root, "docs", "LEARNING-GUIDE.md"), "# Synthetic governance\n\n" +
         ids.map((id) => `## ${id} - Synthetic boundary\n**Diagram:** Synthetic boundary ${id}.\n`).join("\n"));
     writeFileSync(join(root, "docs", "DEPLOYMENT.md"), "# Synthetic deployment context\n");
+    writeFileSync(join(root, "docs", "LOW-CODE-DEPLOYMENT.md"), "# Synthetic low-code deployment context\n");
     writeFileSync(join(root, "docs", "GETTING-STARTED.md"), "# Synthetic workstation choices\n");
     writeFileSync(join(root, "docs", "HOSTING.md"), "# Synthetic static publication\n");
     writeFileSync(join(root, "docs", "IMPLEMENTATION-STATUS.md"), "# Synthetic implementation status\n");
     writeFileSync(join(root, "docs", "MCP-CONCEPTS.md"), "# Synthetic MCP concepts\n\n## Tools\nSynthetic discovery and execution.\n");
     mkdirSync(join(root, "docs", "fr"));
-    for (const file of ["BUILD-PLAN.md", "PRACTICE.md", "LEARNING-GUIDE.md", "DEPLOYMENT.md", "COPILOT-RUNBOOK.md", "GETTING-STARTED.md", "HOSTING.md", "IMPLEMENTATION-STATUS.md", "MCP-CONCEPTS.md"]) {
+    for (const file of ["BUILD-PLAN.md", "PRACTICE.md", "LEARNING-GUIDE.md", "DEPLOYMENT.md", "LOW-CODE-DEPLOYMENT.md", "COPILOT-RUNBOOK.md", "GETTING-STARTED.md", "HOSTING.md", "IMPLEMENTATION-STATUS.md", "MCP-CONCEPTS.md"]) {
         writeFileSync(join(root, "docs", "fr", file), readFileSync(join(root, "docs", file), "utf8").replaceAll("Synthetic module", "Module français"));
     }
     writeFileSync(join(root, "docs", "fr", "REFERENCES.md"), "# Références synthétiques\n");
@@ -819,6 +833,12 @@ test("each language requires one Mermaid graph per module and exposes implementa
 
 test("only allowlisted public assets are served, with no API or private-file exposure", async (t) => {
     const { store, root } = setup(t);
+    const { screenshots } = await import("../../../scripts/portal-server.mjs");
+    const captures = join(root, "assets", "screenshots");
+    mkdirSync(captures);
+    for (const name of screenshots) {
+        writeFileSync(join(captures, `${name}.png`), readFileSync(new URL(`../../../assets/screenshots/${name}.png`, import.meta.url)));
+    }
     const entry = await startServer(store, () => readJourney(root, store.read()), join(root, "assets"));
     t.after(() => entry.close());
     for (const path of ["?lang=fr", "?lang=en", "locale-fr.js", "assets/icons/azure.svg", "assets/architecture/00.fr.svg"]) {
@@ -826,9 +846,16 @@ test("only allowlisted public assets are served, with no API or private-file exp
         assert.equal(response.status, 200, path);
         assert.equal(response.headers.get("Cross-Origin-Resource-Policy"), "same-origin");
     }
+    for (const name of screenshots) {
+        const response = await fetch(`${entry.url}assets/screenshots/${name}.png`);
+        assert.equal(response.status, 200, name);
+        assert.equal(response.headers.get("Content-Type"), "image/png");
+        assert.deepEqual(Buffer.from(await response.arrayBuffer()), readFileSync(join(captures, `${name}.png`)));
+    }
     for (const path of ["assets/confidential/document.svg", "assets/icons/unknown.svg",
         "assets/architecture/88.fr.svg", "assets/architecture/00.de.svg",
-        "assets/architecture/00.fr.svg?path=private", "assets/icons/%2e%2e%2fprivate.svg"]) {
+        "assets/architecture/00.fr.svg?path=private", "assets/icons/%2e%2e%2fprivate.svg",
+        "assets/screenshots/terminal-99-private.png", "assets/screenshots/terminal-00-az-context.png?path=private"]) {
         assert.equal((await fetch(entry.url + path)).status, 404, path);
     }
     assert.equal((await fetch(entry.url + "assets/architecture/00.en.svg")).status, 404);
@@ -878,6 +905,12 @@ test("loopback server protects reads and writes and returns explicit errors", as
     const html = await (await fetch(entry.url)).text();
     assert.match(html, /Workshop build board/);
     assert.doesNotMatch(html, /<form\b|<input\b|<select\b|<textarea\b/i);
+    for (const query of ["lang=fr&track=low-code", "track=terraform&lang=en", "track=low-code"]) {
+        assert.equal((await fetch(`${entry.url}?${query}`)).status, 200, query);
+    }
+    for (const query of ["track=invalid", "track=low-code&track=terraform", "lang=fr&lang=en", "token=synthetic"]) {
+        assert.equal((await fetch(`${entry.url}?${query}`)).status, 403, query);
+    }
     const key = html.match(/const key = "([A-Za-z0-9_-]+)"/)[1];
     assert.equal((await fetch(`${entry.url}progress`)).status, 403);
     const headers = { "x-board-key": key, "Content-Type": "application/json" };
@@ -1108,7 +1141,7 @@ test("short sections share one page and a tiny last page joins the page before i
     assert.equal(tail[0].part, undefined);
 });
 
-test("a guide with a low-code section shows one track at a time and keeps the shared steps", () => {
+test("legacy mixed-guide splitting stays compatible while published guides use separate track files", () => {
     const html = readFileSync(new URL("./board.html", import.meta.url), "utf8");
     const start = html.indexOf("function lessonSteps(");
     const end = html.indexOf("function guidedDocument(", start);
@@ -1123,15 +1156,15 @@ test("a guide with a low-code section shows one track at a time and keeps the sh
     // In module 06 the shared steps after the low-code section belong to both tracks.
     const shared = `## Steps\n### Low-code track\n${words(200)}\n\n### Step 1 - Run the checks\n${words(200)}`;
     assert.deepEqual(split(shared, "full").map((step) => step.title), ["Step 1 - Run the checks"]);
-    assert.match(html, /preferences\.get\("track"\) === "low" \? "low" : "full"/);
-    assert.match(html, /collectQuestions\(module\.guide, track\)/);
+    assert.doesNotMatch(html, /preferences\.get\("track"\)/);
+    assert.match(html, /collectQuestions\(module\.guide\)/);
     for (const folder of ["02-open-server", "03-entra-authentication", "04-governed-gateway", "05-delegated-and-app-only", "06-observe-inventory", "99-cleanup"]) {
         for (const file of ["README.md", "README.fr.md"]) {
             const text = readFileSync(join(repository, "modules", folder, file), "utf8");
-            const full = split(text, "full"), low = split(text, "low");
-            assert.ok(low.some((step) => step.track === "low") && !low.some((step) => step.track === "full"), `${folder}/${file}: low-code path`);
-            // Module 06 has no full-code-only section: its full-code path is the shared steps.
-            assert.ok((folder === "06-observe-inventory" || full.some((step) => step.track === "full")) && !full.some((step) => step.track === "low"), `${folder}/${file}: full-code path`);
+            assert.doesNotMatch(text, /^#{2,4} (?:Low-code track|Parcours low-code)\b/m,
+                `${folder}/${file}: do not restore mixed deployment instructions`);
+            assert.ok(existsSync(join(repository, "modules", folder, file.replace("README", "LOW-CODE"))),
+                `${folder}/${file}: the portal track has its own guide`);
         }
     }
 });

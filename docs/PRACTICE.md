@@ -183,13 +183,14 @@ or export an Inspector transcript as a workaround.
 ## 07 - Reuse the boundary, not another token
 
 **What you are proving:** an optional client can use the same governed endpoint without bypassing its controls.
-This is a facilitator demo, not a prerequisite for cleanup.
+Part A is an optional participant exercise with Microsoft Foundry, not a prerequisite for cleanup.
 
 **First hint:** clarify whether the client represents a user or an application. Recheck the selected client
 feature's Preview status, licensing and callback support before connecting.
 
-**If it still fails:** defer a flow that requires a client secret. Do not substitute an undocumented identity
-passthrough pattern for a separate downstream token.
+**If it still fails:** follow the module 07 troubleshooting guide. Do not weaken controls or substitute an undocumented
+identity passthrough pattern for a separate downstream token. Part B (Copilot Studio) is a reading-only outline,
+not a live-validated exercise.
 
 ## 99 - End the bill, preserve shared resources
 

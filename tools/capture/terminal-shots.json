@@ -1,0 +1,148 @@
+[
+  {
+    "file": "terminal-00-az-context.png",
+    "module": "00",
+    "title": "Azure CLI - approved test context - read only",
+    "show": ["az account show --query '{name:name,state:state,cloud:environmentName,isDefault:isDefault}' -o json"],
+    "run": {
+      "command": "pwsh",
+      "args": ["-NoProfile", "-NonInteractive", "-Command", "az account show --query '{name:name,state:state,cloud:environmentName,isDefault:isDefault}' -o json; exit $LASTEXITCODE"]
+    },
+    "preserveLines": true,
+    "expectExit": 0,
+    "requireOutput": ["\"state\": \"Enabled\"", "\"isDefault\": true"],
+    "highlights": [{"match": "\"state\"|\"cloud\"|\"isDefault\""}]
+  },
+  {
+    "file": "terminal-02-az-runtime.png",
+    "module": "02",
+    "title": "Azure CLI - Function runtime and HTTPS - read only",
+    "show": ["az resource show -g $inspectGroup -n $inspectNames.function_app --resource-type Microsoft.Web/sites --api-version 2024-11-01 --query 'properties.{state:state,httpsOnly:httpsOnly}' -o json"],
+    "run": {
+      "command": "pwsh",
+      "args": ["-NoProfile", "-NonInteractive", "-Command", "az resource show -g '{resourceGroup}' -n '{functionApp}' --resource-type Microsoft.Web/sites --api-version 2024-11-01 --query 'properties.{state:state,httpsOnly:httpsOnly}' -o json; exit $LASTEXITCODE"]
+    },
+    "preserveLines": true,
+    "expectExit": 0,
+    "requireOutput": ["\"httpsOnly\": true", "\"state\": \"Running\""],
+    "highlights": [{"match": "\"httpsOnly\"|\"state\""}]
+  },
+  {
+    "file": "terminal-03-az-auth.png",
+    "module": "03",
+    "title": "Azure CLI - enforced Entra authentication - read only",
+    "show": ["az rest --method get --url \"https://management.azure.com$inspectFunctionId/config/authsettingsV2?api-version=2024-11-01\" --query 'properties.{enabled:platform.enabled,required:globalValidation.requireAuthentication,action:globalValidation.unauthenticatedClientAction}' -o json"],
+    "run": {
+      "command": "pwsh",
+      "args": ["-NoProfile", "-NonInteractive", "-Command", "az rest --method get --url 'https://management.azure.com/subscriptions/{subscriptionId}/resourceGroups/{resourceGroup}/providers/Microsoft.Web/sites/{functionApp}/config/authsettingsV2?api-version=2024-11-01' --query 'properties.{enabled:platform.enabled,required:globalValidation.requireAuthentication,action:globalValidation.unauthenticatedClientAction}' -o json; exit $LASTEXITCODE"]
+    },
+    "preserveLines": true,
+    "expectExit": 0,
+    "requireOutput": ["\"enabled\": true", "\"required\": true", "\"action\": \"Return401\""],
+    "highlights": [{"match": "\"enabled\"|\"required\"|\"action\""}]
+  },
+  {
+    "file": "terminal-04-az-network.png",
+    "module": "04",
+    "title": "Azure CLI - direct Function access disabled - read only",
+    "show": ["az resource show -g $inspectGroup -n $inspectNames.function_app --resource-type Microsoft.Web/sites --api-version 2024-11-01 --query 'properties.{state:state,publicNetworkAccess:publicNetworkAccess}' -o json"],
+    "run": {
+      "command": "pwsh",
+      "args": ["-NoProfile", "-NonInteractive", "-Command", "az resource show -g '{resourceGroup}' -n '{functionApp}' --resource-type Microsoft.Web/sites --api-version 2024-11-01 --query 'properties.{state:state,publicNetworkAccess:publicNetworkAccess}' -o json; exit $LASTEXITCODE"]
+    },
+    "preserveLines": true,
+    "expectExit": 0,
+    "requireOutput": ["\"publicNetworkAccess\": \"Disabled\"", "\"state\": \"Running\""],
+    "highlights": [{"match": "\"publicNetworkAccess\"|\"state\""}]
+  },
+  {
+    "file": "terminal-05-az-identities.png",
+    "module": "05",
+    "title": "Azure CLI - separate OBO and app-only identities - read only",
+    "show": ["az identity show -g $inspectGroup -n $inspectNames.obo_identity --query '{name:name,type:type}' -o json", "az identity show -g $inspectGroup -n $inspectNames.report_identity --query '{name:name,type:type}' -o json"],
+    "run": {
+      "command": "pwsh",
+      "args": ["-NoProfile", "-NonInteractive", "-Command", "az identity show -g '{resourceGroup}' -n '{oboIdentity}' --query '{name:name,type:type}' -o json; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; az identity show -g '{resourceGroup}' -n '{reportIdentity}' --query '{name:name,type:type}' -o json; exit $LASTEXITCODE"]
+    },
+    "preserveLines": true,
+    "expectExit": 0,
+    "requireOutput": ["-obo\"", "-report\""],
+    "highlights": [{"match": "\"name\""}]
+  },
+  {
+    "file": "terminal-06-az-counts.png",
+    "module": "06",
+    "title": "Azure CLI - request counts only, no bodies - read only",
+    "show": ["az monitor app-insights query -g $inspectGroup --app $inspectNames.application_insights --analytics-query 'requests | where timestamp >= ago(24h) | summarize calls=count() by resultCode | order by resultCode asc' -o json"],
+    "run": {
+      "command": "pwsh",
+      "args": ["-NoProfile", "-NonInteractive", "-Command", "az monitor app-insights query -g '{resourceGroup}' --app '{applicationInsights}' --analytics-query 'requests | where timestamp >= ago(24h) | summarize calls=count() by resultCode | order by resultCode asc' -o json; exit $LASTEXITCODE"]
+    },
+    "preserveLines": true,
+    "expectExit": 0,
+    "requireOutput": ["\"name\": \"resultCode\"", "\"name\": \"calls\""],
+    "highlights": [{"match": "\"resultCode\"|\"calls\"|\"rows\""}]
+  },
+  {
+    "file": "terminal-07-az-gateway.png",
+    "module": "07",
+    "title": "Azure CLI - same API Management gateway - read only",
+    "show": ["az apim show -g $inspectGroup -n $inspectNames.api_management --query '{name:name,sku:sku.name,provisioningState:provisioningState,gatewayUrl:gatewayUrl}' -o json"],
+    "run": {
+      "command": "pwsh",
+      "args": ["-NoProfile", "-NonInteractive", "-Command", "az apim show -g '{resourceGroup}' -n '{gateway}' --query '{name:name,sku:sku.name,provisioningState:provisioningState,gatewayUrl:gatewayUrl}' -o json; exit $LASTEXITCODE"]
+    },
+    "preserveLines": true,
+    "expectExit": 0,
+    "requireOutput": ["\"sku\": \"StandardV2\"", "\"provisioningState\": \"Succeeded\""],
+    "highlights": [{"match": "\"gatewayUrl\"|\"sku\"|\"provisioningState\""}]
+  },
+  {
+    "file": "terminal-99-az-inventory.png",
+    "module": "99",
+    "title": "Azure CLI - inventory BEFORE cleanup, nothing deleted",
+    "show": ["az resource list -g $inspectGroup --query \"[?tags.workshop=='$inspectWorkshopTag'].{name:name,resourceType:type}\" -o table"],
+    "run": {
+      "command": "pwsh",
+      "args": ["-NoProfile", "-NonInteractive", "-Command", "az resource list -g '{resourceGroup}' --query \"[?tags.workshop=='{workshopTag}'].{name:name,resourceType:type}\" -o table; exit $LASTEXITCODE"]
+    },
+    "preserveLines": true,
+    "expectExit": 0,
+    "requireOutput": ["func-mcp-", "apim-mcp-"],
+    "highlights": [{"match": "^Name|func-mcp-|apim-mcp-"}]
+  },
+  {
+    "file": "terminal-00-validate.png",
+    "module": "00",
+    "title": "PowerShell 7 - module 00 validator, live, read-only",
+    "show": ["& .\\modules\\00-prerequisites\\validate.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID"],
+    "run": {
+      "command": "pwsh",
+      "args": ["-NoProfile", "-File", "modules/00-prerequisites/validate.ps1", "-TenantId", "{tenantId}", "-SubscriptionId", "{subscriptionId}"],
+      "timeoutSeconds": 300
+    },
+    "expectExit": 0,
+    "highlights": [
+      { "match": "^PASS (git|az|terraform|dotnet|node|func|PowerShell) " },
+      { "match": "^PASS (required ARM permission grants|resource group capacity)" },
+      { "match": "^PASS module 00 foundation environment checks" }
+    ]
+  },
+  {
+    "file": "terminal-04-operator.png",
+    "module": "04",
+    "title": "PowerShell 7 - module 04 validator, operator checks, live",
+    "show": ["& .\\modules\\04-governed-gateway\\validate.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID"],
+    "run": {
+      "command": "pwsh",
+      "args": ["-NoProfile", "-File", "modules/04-governed-gateway/validate.ps1", "-TenantId", "{tenantId}", "-SubscriptionId", "{subscriptionId}", "-SkipBuild"],
+      "timeoutSeconds": 600
+    },
+    "expectExit": 0,
+    "highlights": [
+      { "match": "^PASS (gateway request without a token|gateway Protected Resource Metadata|direct call to the Function host|a valid token for another audience)" },
+      { "match": "^PASS (Function App publicNetworkAccess is Disabled|deployed diagnostics log 0 body bytes)" },
+      { "match": "^INFO persona checks skipped" }
+    ]
+  }
+]

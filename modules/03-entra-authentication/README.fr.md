@@ -1,93 +1,45 @@
-# 03 - Identité avec Microsoft Entra (niveau 1)
-
-[English](README.md)
+# 03 - Se connecter au serveur avec Microsoft Entra
 
 ## Objectif
 
-Remplacer la clé partagée du module 02 par une connexion **Microsoft Entra ID**. L'authentification intégrée de la
-Function App contrôle chaque requête avant qu'elle n'atteigne le serveur MCP. À la fin :
+[English](README.md) · [Parcours low-code, portail d'abord](LOW-CODE.fr.md)
 
-- une requête sans jeton reçoit **HTTP 401** ;
-- un jeton valide pour **une autre audience** (Microsoft Graph) reçoit **HTTP 401** ;
-- **Alice** et **Bob** (attribués) reçoivent **HTTP 200** ;
-- **Eve** (non attribuée) **ne peut même pas obtenir de jeton**.
+Au module 02, toute personne qui possède la clé peut utiliser votre serveur **Model Context Protocol (MCP)**.
+Vous allez remplacer cette clé partagée par un accès nominatif avec **Microsoft Entra ID** :
+seuls les comptes de test auxquels l'administrateur a attribué un rôle dans l'application pourront entrer.
 
-> [!WARNING]
-> Ne collez jamais un vrai jeton dans un site web, une conversation, un fichier, une capture d'écran ou un journal.
-> Utilisez les [exemples de revendications synthétiques](synthetic-claims/) pour apprendre ce que contient un jeton.
+Vous vérifierez qu'Alice et Bob peuvent accéder au serveur, mais pas Eve.
+Vous constaterez aussi une limite volontaire : le serveur ne distingue pas encore
+les outils que Bob peut consulter de ceux qui lui permettent d'écrire.
+Le module 04 ajoutera ce contrôle.
+
+### Le scénario : trois collègues, deux décisions différentes
+
+Vous utilisez trois comptes de test, Alice, Bob et Eve, dans le **même tenant** (annuaire Microsoft Entra) Contoso.
+Le compte d'Eve fonctionne : elle peut se connecter à Entra, mais elle n'a pas accès à cette application.
+
+| Compte de test | Attribution dans l'application MCP | Résultat à la fin du module 03 | Ce que vous démontrez |
+|---|---|---|---|
+| Alice | `Tools.Read` et `Tools.Write` | Obtient un jeton pour le serveur et voit les cinq outils | Une utilisatrice autorisée entre |
+| Bob | `Tools.Read` seulement | Obtient un jeton et voit les mêmes cinq outils ; il peut encore appeler `create_ticket` | Entrer dans le serveur ne suffit pas à limiter les actions |
+| Eve | Aucune | Entra refuse de lui délivrer un jeton pour cette application : `AADSTS50105` | Appartenir au tenant ne donne pas accès au serveur |
+
+**Vous avez terminé l'exercice** lorsque les contrôles du serveur et les tests des trois comptes donnent
+les résultats attendus. Un refus prévu est une réussite du test, pas une erreur à contourner.
 
 ## Pourquoi c'est important
 
-Une clé n'identifie personne. Un jeton d'accès Microsoft Entra indique **qui** appelle (`oid`), **depuis quel tenant**
-(`tid`, `iss`), **avec quelle application** (`azp`), **pour quelle API** (`aud`), **ce que l'application peut faire pour
-l'utilisateur** (`scp`) et **ce que l'utilisateur a le droit de faire** (`roles`). La plateforme vérifie tout cela ;
-le code du serveur ne lit jamais le jeton lui-même.
+Deux décisions se succèdent :
 
-| Revendication | Sens | Valeur synthétique (Alice, voir [alice.json](synthetic-claims/alice.json)) | Qui la vérifie au niveau 1 |
-|---|---|---|---|
-| `aud` | Audience : l'API à laquelle le jeton est destiné. Un jeton par appel, une audience par jeton. | `44444444-…` (ID client de l'API MCP) | Authentification intégrée : seulement l'API MCP |
-| `iss`, `tid` | Émetteur et tenant | `https://login.microsoftonline.com/00000000-…/v2.0` | Authentification intégrée : seulement le tenant de l'atelier |
-| `azp` | Application cliente appelante | `aebc6443-…` (Visual Studio Code) | Règle d'autorisation intégrée : seulement les clients autorisés |
-| `scp` | **Scope** (permission déléguée) : ce que *l'application cliente* peut faire *pour l'utilisateur* | `user_impersonation` | Pré-autorisation du client dans Entra |
-| `roles` | **Rôles d'application** : ce que *cet utilisateur* a le droit de faire | `Tools.Read`, `Tools.Write` | Entra n'émet des rôles qu'aux utilisateurs attribués ; le contrôle par outil arrive au module 04 |
-| `exp`, `nbf` | Période de validité | horodatages synthétiques | Authentification intégrée |
+1. **Qui peut accéder au serveur ?** C'est ce module : Entra exige une attribution à l'application.
+   L'authentification intégrée de la Function App vérifie ensuite le jeton avant l'exécution du code MCP.
+2. **Quels outils cette personne peut-elle utiliser ?** C'est le module 04 : la passerelle vérifiera le rôle requis
+   par chaque outil. Définir `Tools.Read` ne rend pas automatiquement le serveur « lecture seule ».
 
-### Prévoir les accès d'Alice, Bob et Eve
+### Comprendre le jeton sans en afficher un vrai
 
-Bob a les mêmes `aud` et `scp`, mais seulement `Tools.Read` ([bob.json](synthetic-claims/bob.json)).
-Eve n'obtient jamais de jeton : Entra refuse avec `AADSTS50105`, car **l'attribution est obligatoire** et elle n'a aucun rôle
-([eve.json](synthetic-claims/eve.json)). Un jeton Graph détenu par Alice est valide, mais pour une autre audience :
-le serveur MCP le refuse ([wrong-audience.json](synthetic-claims/wrong-audience.json)).
-
-> [!IMPORTANT]
-> L'authentification intégrée contrôle l'accès **au serveur**, pas à chaque outil. Au niveau 1, Bob peut encore appeler
-> `create_ticket`. Le module 04 ajoute le contrôle de rôle par outil (`create_ticket` exige `Tools.Write`).
-
-### Comprendre le changement d'authentification en deux étapes
-
-**Pourquoi la clé de fonction n'est plus le verrou.** L'authentification intégrée s'exécute devant l'hôte Functions et
-renvoie HTTP 401 avant l'exécution du moindre code MCP. Le paramètre documenté
-`AzureFunctionsJobHost__extensions__mcp__system__webhookAuthorizationLevel = Anonymous` indique alors à l'extension MCP de ne
-plus demander la clé système : une clé est un secret partagé que les clients devraient aussi détenir, et elle n'apporte
-aucune identité. Le webhook n'est anonyme *que du point de vue de l'hôte* : aucun appel anonyme ne l'atteint depuis Internet. `host.json`
-conserve `System` : un paquet déployé sans authentification intégrée reste protégé par la clé. Terraform ne définit ce paramètre
-qu'une fois l'authentification intégrée en place, et seulement lors d'un **second apply** (deux étapes). En effet, Azure écrit
-les paramètres d'application et ceux d'authentification en deux appels distincts : tout appliquer d'un coup pourrait exposer
-brièvement le webhook.
-
-## Ce que vous déployez
-
-**Microsoft Entra (`infra/entra`, exécuté une fois par un administrateur des identités) :**
-
-| Objet | Réglages |
-|---|---|
-| Inscription d'application « Workshop MCP API (mcp-&lt;préfixe&gt;-&lt;suffixe&gt;) » | Un seul tenant, jetons d'accès v2, URI d'ID d'application `api://<client-id>`, aucune URI de redirection, **aucun secret, certificat ni mot de passe** |
-| Scope délégué | `user_impersonation` |
-| Rôles d'application | `Tools.Read`, `Tools.Write` (membres : utilisateurs) ; `Tools.Execute.All` (membres : applications, non attribué ici) |
-| Application d'entreprise (principal de service) | **Attribution obligatoire** = oui |
-| Clients pré-autorisés pour `user_impersonation` | Visual Studio Code `aebc6443-996d-45c2-90f0-388ff96faa56`, Azure CLI `04b07795-8ddb-461a-bbee-02f9e1bf7b46` |
-| Attributions de rôles (comptes de test existants seulement) | Alice → `Tools.Read` + `Tools.Write` ; Bob → `Tools.Read` ; Eve → aucune |
-
-Le module ne demande encore aucune permission Microsoft Graph ou Storage : **aucun consentement administrateur** n'est
-donc nécessaire : les clients pré-autorisés obtiennent `user_impersonation` sans demande de consentement. Le module 05 ajoute les
-permissions On-Behalf-Of et la fédération d'identité pour l'identité managée (la sortie `module05_federated_credential`
-en prépare les valeurs).
-
-**Charge de travail (`infra/workload`, participant) :** une mise à jour en place de la Function App du module 02 :
-
-| Réglage | Valeur |
-|---|---|
-| Authentification intégrée (authsettingsV2) | Activée, **authentification obligatoire**, non authentifié → **HTTP 401**, HTTPS seulement, magasin de jetons désactivé |
-| Fournisseur Microsoft | ID client de l'API MCP, émetteur `https://login.microsoftonline.com/<tenant>/v2.0`, aucun paramètre de secret |
-| Audiences autorisées | `api://<client-id>` et `<client-id>` seulement (la même API, formats de jeton v1 et v2) |
-| Applications clientes autorisées | VS Code et Azure CLI |
-| `WEBSITE_AUTH_PRM_DEFAULT_WITH_SCOPES` | `api://<client-id>/user_impersonation` (**Preview** : métadonnées de ressource protégée) |
-| `WEBSITE_AUTH_AAD_ALLOWED_TENANTS` | Votre ID de tenant |
-| `AzureFunctionsJobHost__extensions__mcp__system__webhookAuthorizationLevel` | `Anonymous`, **étape 2 seulement**, une fois l'authentification intégrée appliquée |
-
-
-
-
+Un jeton d'accès est destiné à une **API** (interface de programmation), pas à tous les services Microsoft.
+Un jeton pour Microsoft Graph doit donc être refusé par votre serveur MCP, même s'il appartient à Alice.
 
 **Construisez-le étape par étape.** Cliquez sur **Suivant** pour ajouter un élément à la fois ; le schéma complet suit.
 
@@ -106,7 +58,7 @@ en prépare les valeurs).
     {"id":"entra","step":0,"x":286,"y":44,"width":188,"icon":"entra","title":"Workshop MCP API","detail":["inscription d'app","rôles : Tools.Read"]},
     {"id":"fn","step":0,"x":542,"y":164,"width":188,"icon":"functions","title":"Azure Functions","detail":["auth. intégrée","puis serveur MCP"]},
     {"id":"key","step":0,"until":2,"tone":"morning","x":542,"y":284,"width":188,"title":"Clé de fonction","detail":["module 02"]},
-    {"id":"alice","step":1,"x":30,"y":44,"width":188,"title":"Alice ou Bob","detail":["utilisateurs attribués"]},
+    {"id":"alice","step":1,"x":30,"y":44,"width":188,"title":"Alice ou Bob","detail":["comptes autorisés"]},
     {"id":"bad","step":3,"tone":"risk","x":30,"y":164,"width":188,"title":"Jeton absent ou faux","detail":["ex. audience Graph"]},
     {"id":"eve","step":4,"tone":"risk","x":30,"y":284,"width":188,"title":"Eve (non attribuée)","detail":["aucun jeton"]}
   ],
@@ -128,404 +80,383 @@ en prépare les valeurs).
 
 ![Architecture du niveau 1](../../assets/architecture/03.fr.svg)
 
-**Preview :** les métadonnées de ressource protégée (PRM, RFC 9728) de l'authentification App Service sont en **Preview** ;
-leur configuration peut changer. L'atelier n'utilise pas le bouton « authentification MCP » du portail (**Preview**) : il crée
-un secret client.
+| Champ du jeton | Question à laquelle il répond | Dans cet atelier |
+|---|---|---|
+| `aud` — audience | À quelle API ce jeton est-il destiné ? | L'API MCP seulement |
+| `iss`, `tid` — émetteur et tenant | Quel annuaire l'a émis ? | Votre tenant de test seulement |
+| `exp`, `nbf` — validité | Peut-on l'utiliser maintenant ? | Vérifié par l'authentification intégrée |
+| `azp` — application cliente | Quel logiciel appelle pour l'utilisateur ? | VS Code ou Azure CLI, autorisés dans la configuration |
+| `scp` — permission déléguée, ou *scope* | Quelle permission le client a-t-il obtenue pour agir au nom de l'utilisateur ? | `user_impersonation`, préautorisé pour les deux clients |
+| `roles` — rôles d'application | Quels droits ont été attribués à cet utilisateur dans cette application ? | Alice : lecture et écriture ; Bob : lecture ; contrôle par outil au module 04 |
+| `oid` — identifiant d'objet | Quel compte appelle ? | Identifiant du compte dans le tenant |
 
-**Coût :** aucune nouvelle ressource Azure. L'authentification intégrée et les objets Entra n'entraînent pas de frais
-supplémentaires. Toute modification des paramètres d'application redémarre l'application.
+La préautorisation du **client** évite une demande de consentement pour cette permission.
+L'attribution d'un rôle à **l'utilisateur** est une décision différente : autoriser VS Code ne donne pas accès à Eve.
+Ces rôles d'application ne sont pas les rôles Azure comme Contributeur sur un groupe de ressources.
+
+> [!WARNING]
+> Ne demandez jamais à afficher un jeton avec Azure CLI et ne le collez jamais dans un décodeur en ligne,
+> une conversation, un fichier ou une capture. Les validateurs le gardent en mémoire.
+> Comparez uniquement les [exemples fictifs Alice](synthetic-claims/alice.json) et [Bob](synthetic-claims/bob.json).
+
+### Pourquoi procéder en deux étapes ?
+
+Vous ne devez jamais retirer le verrou existant avant que le nouveau fonctionne.
+
+| Moment | Protection devant le serveur | Ce que vous faites |
+|---|---|---|
+| Départ, module 02 | Clé système MCP | Vous reprenez le serveur existant |
+| Étape 1 du déploiement | Entra **et** clé | Vous activez Entra, puis vérifiez sa configuration et le refus sans jeton |
+| Étape 2 du déploiement | Entra, sans exigence de clé | Vous retirez l'exigence de clé, puis testez les trois comptes |
+
+Azure enregistre les paramètres d'authentification et les paramètres d'application par des appels distincts.
+Les deux déploiements évitent une période où aucun verrou ne serait actif.
+
+## Ce que vous déployez
+
+Vous conservez la Function App, son code et les cinq outils du module 02.
+
+| Responsable | Changement | Pourquoi |
+|---|---|---|
+| Administrateur des identités | Inscription d'application dédiée à l'API MCP, limitée à un tenant, jetons v2, URI `api://<client-id>` | Donner au serveur sa propre audience |
+| Administrateur des identités | Permission déléguée `user_impersonation`, clients VS Code et Azure CLI préautorisés | Permettre aux clients de demander un jeton pour ce serveur |
+| Administrateur des identités | Application d'entreprise avec **Assignment required? = Yes** ; Alice : deux rôles, Bob : un, Eve : aucun | Refuser un jeton à Eve |
+| Participant | Authentification intégrée obligatoire, requêtes sans authentification → HTTP 401, tenant et audience MCP seulement, clients autorisés, magasin de jetons désactivé | Protéger les requêtes avant le code |
+| Participant | Métadonnées de ressource protégée (**PRM**, **Preview**) via `WEBSITE_AUTH_PRM_DEFAULT_WITH_SCOPES` | Indiquer à VS Code où se connecter et quelle permission demander |
+| Participant | Retrait de l'exigence de clé dans un second déploiement | Passer d'un secret partagé à l'identité |
+
+`Tools.Read` et `Tools.Write` sont des rôles utilisateur. `Tools.Execute.All`, réservé aux applications, est défini
+pour la suite mais n'est attribué à aucune application ici. Aucun utilisateur, secret ou certificat n'est créé par Terraform.
+Aucune permission Graph ou Storage n'est ajoutée dans ce module.
+
+![Architecture du niveau 1 : le client obtient un jeton auprès d'Entra puis appelle le serveur](../../assets/architecture/03.fr.svg)
+
+**Coût :** pas de nouvelle ressource Azure facturée ; les coûts du module 02 continuent.
+Les changements de paramètres peuvent redémarrer l'application.
+
+**Écart volontaire avec certains tutoriels Microsoft :** les assistants du portail peuvent créer un secret client.
+Ce parcours utilise la configuration sans secret déjà fournie dans le dépôt. N'utilisez pas l'assistant pour la remplacer.
+Les PRM App Service restent en **Preview**.
 
 ## Prérequis et rôles nécessaires
 
-- Module 02 déployé, avec les mêmes paramètres privés et le même état Terraform (`participant.tfvars.json`, `module02.tfvars.json`).
-- Terraform 1.16.6 ou version ultérieure, Azure CLI, PowerShell 7.4+. VS Code avec GitHub Copilot pour la démonstration de connexion.
-- Trois comptes de test **existants, dédiés et hors production** dans le tenant : Alice, Bob et Eve. L'administrateur des
-  identités les crée séparément (par exemple avec un Temporary Access Pass) et ne transmet que leurs ID d'objet, en privé.
-  Terraform ne crée jamais d'utilisateurs : le fournisseur AzureAD enregistrerait leur mot de passe initial dans l'état.
+- Votre module 02 est déployé et validé dans un environnement de test approuvé. Vous reprenez le **même dépôt,
+  les mêmes fichiers privés et le même état Terraform**. Si le module 04 a déjà rendu la Function privée,
+  ne rejouez pas ce module pour la rendre publique : utilisez un environnement suivant l'ordre 02 → 03 → 04.
+- Terraform 1.16.6+, PowerShell 7.4+, Azure CLI et VS Code avec GitHub Copilot.
+- Participant : droits du module 02 sur le groupe de ressources, notamment Contributeur.
+  Aucun rôle d'administration Entra n'est nécessaire pour vos manipulations Azure.
+- Administrateur des identités, dans une session distincte : Administrateur d'applications cloud
+  ou Administrateur d'applications pour l'inscription, les préautorisations et les attributions.
+  Pas besoin d'Administrateur général ni de consentement administrateur à Graph pour ce module.
+- Trois comptes de test existants, dédiés et hors production : Alice, Bob et Eve.
+  Seul l'administrateur autorisé les prépare, hors Terraform. Administrateur des utilisateurs n'est nécessaire que pour leur création.
+  Chaque compte doit pouvoir terminer l'authentification multifacteur (**MFA**) imposée par le tenant.
+  Ne désactivez pas une stratégie d'accès conditionnel.
 
-**Administrateur des identités** (personne ou session distincte, rôle activé pour une durée limitée avec Privileged Identity Management si possible) :
-
-- **Administrateur d'applications cloud** (ou Administrateur d'applications) pour créer l'inscription, l'application
-  d'entreprise, les pré-autorisations et les attributions de rôles. Pas d'Administrateur général, pas de consentement
-  administrateur pour ce module.
-- **Administrateur des utilisateurs** seulement pour créer les comptes de test, hors Terraform.
-
-**Participant :** les rôles du module 02 sur le groupe de ressources de l'atelier (Contributeur). Aucune nouvelle attribution de rôle.
-
-La demande complète à envoyer à l'administrateur des identités se trouve dans [identity-request.md](../../docs/requests/identity-request.md).
+Envoyez la [demande d'identité](../../docs/requests/identity-request.md) à l'administrateur avant l'atelier.
+Vous n'avez pas à obtenir ses droits pour poursuivre.
 
 ## Étapes
 
-> [!TIP]
-> **Deux parcours, même résultat.** Suivez le même parcours qu'au module 02 ([comment choisir](../../docs/fr/TRACKS.md)) : le **parcours low-code** ci-dessous, ou le **parcours full-code** (sections PowerShell et Bash).
-
-### Parcours low-code (portail et commandes simples)
-
-Les étapes L2 et L3 (Microsoft Entra) demandent l'administrateur des identités. Gardez un seul terminal PowerShell depuis L1.
-
-**L1. Les noms du module 02.**
-
-```powershell
-$p = Get-Content .\.workshop\participant.tfvars.json -Raw | ConvertFrom-Json
-$id = "$($p.participant_prefix)lc"; $sfx = $p.resource_suffix.Substring(0, 10)
-$rg = "rg-mcp-$id-$sfx"; $fn = "func-mcp-$id-$sfx"
-$tenant = az account show --query tenantId -o tsv; $sub = az account show --query id -o tsv
-```
-
-> **Résultat attendu** — aucune sortie.
-
-**L2. L'inscription d'application de l'API MCP : un scope et trois rôles d'application.** Portail : **Microsoft Entra ID** → **Inscriptions d'applications** → **Nouvelle inscription** (locataire unique). Puis **Exposer une API** : **Ajouter** l'URI d'ID d'application (`api://<client-id>`), **Ajouter une étendue** `user_impersonation` (administrateurs et utilisateurs). **Rôles d'application** → **Créer un rôle d'application** trois fois : `Tools.Read` et `Tools.Write` (utilisateurs), `Tools.Execute.All` (applications). **Manifeste** : `requestedAccessTokenVersion` = 2.
-
-```powershell
-$app = az ad app create --display-name "Workshop MCP API ($id-$sfx)" --sign-in-audience AzureADMyOrg --query "{appId:appId,id:id}" -o json | ConvertFrom-Json
-$body = @{
-  identifierUris = @("api://$($app.appId)")
-  api = @{ requestedAccessTokenVersion = 2; oauth2PermissionScopes = @(@{ id = [guid]::NewGuid(); value = 'user_impersonation'; type = 'User'; isEnabled = $true
-      adminConsentDisplayName = 'Access the workshop MCP server'; adminConsentDescription = 'Allow the client application to call the workshop MCP server for the signed-in user.'
-      userConsentDisplayName = 'Access the workshop MCP server'; userConsentDescription = 'Allow the application to call the workshop MCP server for you.' }) }
-  appRoles = @(
-    @{ id = [guid]::NewGuid(); value = 'Tools.Read'; displayName = 'Read workshop tools'; description = 'Call read-only workshop MCP tools.'; allowedMemberTypes = @('User'); isEnabled = $true },
-    @{ id = [guid]::NewGuid(); value = 'Tools.Write'; displayName = 'Write with workshop tools'; description = 'Call workshop MCP tools that change synthetic data.'; allowedMemberTypes = @('User'); isEnabled = $true },
-    @{ id = [guid]::NewGuid(); value = 'Tools.Execute.All'; displayName = 'Execute workshop tools as an application'; description = 'App-only access for a separately approved client.'; allowedMemberTypes = @('Application'); isEnabled = $true })
-} | ConvertTo-Json -Depth 6
-$f = New-TemporaryFile; Set-Content $f $body
-az rest --method patch --url "https://graph.microsoft.com/v1.0/applications/$($app.id)" --body "@$f" --headers 'Content-Type=application/json'; Remove-Item $f
-az ad app show --id $app.appId --query "{uri:identifierUris[0], v:api.requestedAccessTokenVersion, scopes:api.oauth2PermissionScopes[].value, roles:appRoles[].value}" -o json
-```
-
-> **Résultat réel** — parcours low-code, 2026-10-20, tenant de test de l'auteur.
->
-> ```text
-> {
->   "roles": [
->     "Tools.Execute.All",
->     "Tools.Write",
->     "Tools.Read"
->   ],
->   "scopes": [
->     "user_impersonation"
->   ],
->   "uri": "api://<api-client-id>",
->   "v": 2
-> }
-> ```
-
-**L3. Préautoriser VS Code et Azure CLI, exiger l'affectation, attribuer les rôles.** Portail : **Exposer une API** → **Ajouter une application cliente** pour Visual Studio Code et Azure CLI (ID ci-dessous). Puis **Applications d'entreprise** → votre API → **Propriétés** : *Affectation requise ?* **Oui** ; **Utilisateurs et groupes** → **Ajouter un utilisateur/groupe** : Alice avec `Tools.Read` puis avec `Tools.Write`, Bob avec `Tools.Read`. Eve ne reçoit rien.
-
-```powershell
-$scopeId = az ad app show --id $app.appId --query "api.oauth2PermissionScopes[0].id" -o tsv
-$vscode = 'aebc6443-996d-45c2-90f0-388ff96faa56'; $azcli = '04b07795-8ddb-461a-bbee-02f9e1bf7b46'
-$f = New-TemporaryFile
-@{ api = @{ preAuthorizedApplications = @(@{ appId = $vscode; delegatedPermissionIds = @($scopeId) }, @{ appId = $azcli; delegatedPermissionIds = @($scopeId) }) } } |
-    ConvertTo-Json -Depth 5 | Set-Content $f
-az rest --method patch --url "https://graph.microsoft.com/v1.0/applications/$($app.id)" --body "@$f" --headers 'Content-Type=application/json'; Remove-Item $f
-$sp = az ad sp create --id $app.appId --query id -o tsv
-az ad sp update --id $sp --set appRoleAssignmentRequired=true
-$roles = az ad app show --id $app.appId --query "appRoles[].{v:value,id:id}" -o json | ConvertFrom-Json
-$alice = az ad user show --id '<alice-upn>' --query id -o tsv; $bob = az ad user show --id '<bob-upn>' --query id -o tsv
-foreach ($a in @(@($alice, 'Tools.Read'), @($alice, 'Tools.Write'), @($bob, 'Tools.Read'))) {
-    $f = New-TemporaryFile
-    @{ principalId = $a[0]; resourceId = $sp; appRoleId = ($roles | Where-Object v -eq $a[1]).id } | ConvertTo-Json | Set-Content $f
-    az rest --method post --url "https://graph.microsoft.com/v1.0/servicePrincipals/$sp/appRoleAssignedTo" --body "@$f" --headers 'Content-Type=application/json' -o none
-    Remove-Item $f
-}
-az rest --url "https://graph.microsoft.com/v1.0/servicePrincipals/$sp/appRoleAssignedTo" --query "value[].principalDisplayName" -o tsv
-```
-
-> **Résultat réel** — parcours low-code, 2026-10-20, tenant de test de l'auteur : deux affectations pour Alice, une pour Bob.
->
-> ```text
-> Alice (MCP workshop test)
-> Alice (MCP workshop test)
-> Bob (MCP workshop test)
-> ```
-
-**L4. Étape 1 : l'authentification intégrée devant la clé.** Portail : Function App → **Paramètres** → **Authentification** → **Ajouter un fournisseur d'identité** → **Microsoft** → *Choisir une inscription d'application existante* (votre API) ; *Exigence d'application cliente* : **Autoriser les requêtes de certaines applications clientes** (les deux ID ci-dessus) ; *Requêtes non authentifiées* : **HTTP 401** ; *Magasin de jetons* désactivé. Puis **Variables d'environnement** : ajoutez les deux paramètres `WEBSITE_AUTH_*` ci-dessous.
-
-```powershell
-$f = New-TemporaryFile
-@{ properties = @{
-    platform = @{ enabled = $true; runtimeVersion = '~1' }
-    globalValidation = @{ requireAuthentication = $true; unauthenticatedClientAction = 'Return401' }
-    httpSettings = @{ requireHttps = $true; routes = @{ apiPrefix = '/.auth' }; forwardProxy = @{ convention = 'NoProxy' } }
-    login = @{ tokenStore = @{ enabled = $false } }
-    identityProviders = @{ azureActiveDirectory = @{ enabled = $true
-        registration = @{ clientId = $app.appId; openIdIssuer = "https://login.microsoftonline.com/$tenant/v2.0" }
-        validation = @{ allowedAudiences = @("api://$($app.appId)", $app.appId)
-            defaultAuthorizationPolicy = @{ allowedApplications = @($vscode, $azcli) } } } } } } | ConvertTo-Json -Depth 8 | Set-Content $f
-az rest --method put --url "https://management.azure.com/subscriptions/$sub/resourceGroups/$rg/providers/Microsoft.Web/sites/$fn/config/authsettingsV2?api-version=2024-04-01" `
-    --body "@$f" --headers 'Content-Type=application/json' -o none; Remove-Item $f
-az functionapp config appsettings set -g $rg -n $fn -o none --settings "WEBSITE_AUTH_PRM_DEFAULT_WITH_SCOPES=api://$($app.appId)/user_impersonation" "WEBSITE_AUTH_AAD_ALLOWED_TENANTS=$tenant"
-$r = Invoke-WebRequest "https://$fn.azurewebsites.net/runtime/webhooks/mcp" -Method Post -ContentType 'application/json' -SkipHttpErrorCheck `
-    -Body '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"t","version":"1"}}}'
-"no token: $($r.StatusCode)"
-```
-
-> **Résultat réel** — parcours low-code, 2026-10-20 : `no token: 401`. La réponse porte un défi `WWW-Authenticate` avec `resource_metadata` (**préversion**) : les clients MCP trouvent où se connecter.
-
-**L5. Étape 2 : retirer la clé, puis vérifier en opérateur et en tant qu'Alice, Bob et Eve.** Portail : **Variables d'environnement** → ajoutez le paramètre ci-dessous. Seulement après L4 : Entra doit déjà être devant.
-
-```powershell
-az functionapp config appsettings set -g $rg -n $fn -o none --settings "AzureFunctionsJobHost__extensions__mcp__system__webhookAuthorizationLevel=Anonymous"
-& .\modules\03-entra-authentication\validate.ps1 -TenantId $tenant -SubscriptionId $sub -ResourceGroup $rg -FunctionApp $fn -ApiClientId $app.appId
-foreach ($persona in 'Alice', 'Bob', 'Eve') {
-    $env:AZURE_CONFIG_DIR = Join-Path $PWD ".workshop\az-$($persona.ToLower())"
-    az login --tenant $tenant --allow-no-subscriptions   # sign in as $persona in the browser
-    & .\modules\03-entra-authentication\validate.ps1 -TenantId $tenant -Persona $persona -ResourceGroup $rg -FunctionApp $fn -ApiClientId $app.appId
-    az logout
-}
-Remove-Item Env:\AZURE_CONFIG_DIR
-```
-
-> **Résultat réel** — parcours low-code, 2026-10-20, tenant de test de l'auteur (extrait).
->
-> ```text
-> PASS MCP request without a token is refused by built-in authentication (expected HTTP 401).
-> PASS Protected Resource Metadata (Preview) names the tenant authorization server and the user_impersonation scope (expected HTTP 200).
-> PASS a valid token for another audience (Microsoft Graph) is refused (expected HTTP 401).
-> PASS deployed authsettingsV2: required, Return401, tenant issuer, MCP audience only, no secret setting (expected HTTP 200 from Azure Resource Manager).
-> PASS app settings: webhook key gate replaced by Entra, PRM scope set (Preview) (expected HTTP 200 from Azure Resource Manager).
-> PASS the level 0 system key alone no longer opens the server (expected HTTP 401).
-> ...
-> PASS Alice tools/list returns exactly the five workshop tools (expected HTTP 200).
-> PASS Bob tools/list returns exactly the five workshop tools (expected HTTP 200).
-> PASS Eve cannot obtain a token: she is not assigned to the enterprise application (expected HTTP 400 from the token endpoint, AADSTS50105).
-> ```
->
-> **Ce que cela signifie pour vous :** le même niveau 1 que dans le parcours full-code : sans jeton, avec une mauvaise audience ou avec la clé seule, la réponse est HTTP 401, et Eve n'obtient même pas de jeton. Continuez avec le parcours low-code du module 04.
-
 ### PowerShell
 
-Exécutez les commandes depuis la racine du dépôt. Les étapes 2 à 7 modifient Microsoft Entra ou Azure : ne les exécutez qu'après approbation.
+Exécutez toutes les commandes à la racine du dépôt et gardez le même terminal ouvert.
+Les commandes `az ... show`, `az ... list` et `az rest --method get` ci-dessous **lisent** la configuration.
+Terraform reste seul responsable des modifications : n'utilisez pas `az ... set` ou `az rest --method put`
+sur ces ressources, sinon le prochain déploiement pourrait annuler vos réglages.
 
-**1. Vérifications hors ligne (sans Azure ni Entra).**
+### 1. Retrouver votre serveur et vérifier le contexte
+
+Sélectionnez votre tenant et votre abonnement de test. Le script vérifie leur correspondance avant la suite.
+Puis lisez les noms dans l'état local, pour ne pas les deviner.
 
 ```powershell
-& .\modules\03-entra-authentication\validate.ps1 -Offline
+$ErrorActionPreference = 'Stop'
+& .\scripts\select-azure-context.ps1 -Language fr
+$rg = terraform '-chdir=infra\workload' output -raw resource_group_name
+if ($LASTEXITCODE -ne 0 -or -not $rg) { throw 'Groupe du module 02 introuvable.' }
+$fn = terraform '-chdir=infra\workload' output -raw mcp_function_app_name
+if ($LASTEXITCODE -ne 0 -or -not $fn) { throw 'Function du module 02 introuvable.' }
+az functionapp show --subscription $env:ARM_SUBSCRIPTION_ID --resource-group $rg --name $fn --query '{name:name,state:state,host:defaultHostName}' -o table
+if ($LASTEXITCODE -ne 0) { throw 'Lecture de la Function impossible. Vérifiez le contexte du module 02.' }
 ```
 
-> **Résultat attendu** — tiré des messages du validateur ; ce n'est pas encore une capture. Aucun appel à Azure ni à Entra.
->
-> ```text
-> PASS host.json keeps the level 0 System webhook level; the published package is never anonymous on its own (expected HTTP N/A).
-> PASS the key gate is removed only together with enforced built-in authentication and Return401 (expected HTTP 401 without a token).
-> PASS infra/entra: single tenant, user_impersonation, Tools.Read/Tools.Write/Tools.Execute.All, assignment required, no secret or user (expected HTTP N/A).
-> PASS no access token, key, SAS or client secret in module 03, infra/entra or workload files (expected HTTP N/A).
-> PASS synthetic claim examples use synthetic IDs only and contain no token (4 files, expected HTTP N/A).
-> PASS Terraform format, schema and mock-only plans for infra/entra and infra/workload (expected HTTP N/A; no live plan/apply).
-> NOT DEPLOYED CHECKS SKIPPED: supply -TenantId with -SubscriptionId (operator) or -Persona (test account) after an approved deployment.
-> PASS offline checks only. Module 03 is NOT deployed or Entra-validated by this result.
-> ```
->
-> **Ce que cela signifie pour vous :** le code et Terraform laissent tous les accès fermés et ne contiennent aucun secret.
-> Rien n'est encore déployé.
+> **Résultat attendu** — votre Function, son état `Running` et son domaine.
+> Retrouvez le même nom dans **Portail Azure → Function App → Overview**.
+> Les deux commandes Terraform ne déploient rien : elles relisent les noms conservés au module 02.
 
-**2. Administrateur des identités : connexion au tenant seulement.** Utilisez un terminal distinct.
-`--allow-no-subscriptions` suffit.
+### 2. Recevoir la préparation Entra de l'administrateur
 
-L'ID du tenant est celui que vous avez saisi au module 00 (`$env:ARM_TENANT_ID` dans ce terminal). Vous le trouvez aussi
-dans **Centre d'administration Microsoft Entra → Vue d'ensemble → ID de locataire (Tenant ID)**, ou avec `az account show --query tenantId -o tsv`.
+Avant de modifier la Function, obtenez ces deux fichiers privés :
 
-```powershell
-az login --tenant <tenant-id> --allow-no-subscriptions
-```
+- `.workshop\module03.tfvars.json` : configuration de l'API, avec `enable_entra_auth = true`
+  et `entra_auth_replace_key_gate = false` pour le premier déploiement ;
+- `.workshop\module03-personas.json` : identifiants d'objet des trois comptes, pour vérifier que vous testez la bonne personne.
 
-> **Résultat attendu** — forme de la sortie Azure CLI ; ce n'est pas une capture. Le navigateur ouvre une page de connexion.
-> Azure CLI liste ensuite les comptes utilisables. Un tenant où cet administrateur n'a pas d'abonnement apparaît comme
-> `N/A(tenant level account)`.
->
-> **Ce que cela signifie pour vous :** l'administrateur travaille uniquement dans le tenant et n'a besoin d'aucun rôle sur un abonnement Azure.
+Ils contiennent des identifiants, **pas de mots de passe ni de jetons**. Ne les publiez pas.
+Si l'administrateur les a déjà fournis, passez à l'étape 3.
 
-**3. Administrateur des identités : paramètres privés.** Reprenez le préfixe, le suffixe, le propriétaire et l'expiration
-du participant (reçus en privé) et les ID d'objet des trois comptes de test. Git ignore ce fichier.
+<details>
+<summary>À transmettre à l'administrateur : préparer l'application et les deux fichiers</summary>
 
-Récupérez d'abord les trois ID d'objet. Remplacez `<your-domain>` par le domaine de votre tenant (par exemple
-`contoso.onmicrosoft.com`), ou lisez chaque **ID d'objet** dans **Centre d'administration Microsoft Entra → Utilisateurs → (utilisateur) → Vue d'ensemble** :
+Utilisez un terminal et l'état `infra\entra` distincts de ceux du participant.
+Ne commencez qu'après approbation des modifications dans le tenant de test.
+Reprenez les paramètres du participant et les identifiants d'objet des comptes existants.
+Ils sont visibles dans **Microsoft Entra → Users → compte → Overview → Object ID**.
 
 ```powershell
-foreach ($name in 'alice', 'bob', 'eve') { az ad user show --id "$name@<your-domain>" --query "{user:userPrincipalName, id:id}" -o tsv }
-```
-
-> **Résultat attendu** — trois lignes : le nom d'utilisateur principal, puis son ID d'objet (un GUID). Collez chaque GUID ci-dessous.
-
-```powershell
+$ErrorActionPreference = 'Stop'
+$tenant = '<tenant-id>'
+az login --tenant $tenant --allow-no-subscriptions --output none
+if ($LASTEXITCODE -ne 0) { throw 'Connexion administrateur impossible.' }
 $p = Get-Content -LiteralPath .\.workshop\participant.tfvars.json -Raw | ConvertFrom-Json
 @{
-    tenant_id = '<tenant-id>'; participant_prefix = $p.participant_prefix; resource_suffix = $p.resource_suffix
+    tenant_id = $tenant; participant_prefix = $p.participant_prefix; resource_suffix = $p.resource_suffix
     owner = $p.owner; expiry = $p.expiry
     test_user_object_ids = @{ alice = '<alice-object-id>'; bob = '<bob-object-id>'; eve = '<eve-object-id>' }
 } | ConvertTo-Json | Set-Content -LiteralPath .\.workshop\entra.tfvars.json
-```
-
-> **Résultat attendu** — aucune sortie. En cas de réussite, la commande n'affiche rien.
-> Vérifiez avec `Test-Path .\.workshop\entra.tfvars.json`, qui affiche `True`. Le fichier ne contient que des ID, aucun secret.
-
-Pour réutiliser une application déjà créée par un administrateur, ajoutez `"create_application": false` et
-`"existing_application_client_id": "<client-id>"`. Terraform se contente alors de la lire (et de vérifier son scope,
-ses rôles et l'attribution obligatoire) ; il ne la modifie ni ne la supprime jamais.
-
-**4. Administrateur des identités : planifier, relire, appliquer.**
-
-```powershell
-terraform -chdir=infra/entra init -lockfile=readonly
-if ($LASTEXITCODE -ne 0) { throw 'Terraform init failed.' }
+terraform '-chdir=infra\entra' init -lockfile=readonly
+if ($LASTEXITCODE -ne 0) { throw 'Initialisation Entra impossible.' }
 terraform '-chdir=infra\entra' plan '-var-file=..\..\.workshop\entra.tfvars.json' '-out=..\..\.workshop\entra.tfplan'
-if ($LASTEXITCODE -ne 0) { throw 'Terraform plan failed.' }
-# Relire : 8 ajouts (application, URI, application d'entreprise, 2 pré-autorisations, 3 attributions). Puis, après approbation :
+if ($LASTEXITCODE -ne 0) { throw 'Plan Entra impossible.' }
+```
+
+**STOP — relisez et faites approuver le plan.** Pour une première création, il prévoit huit ajouts :
+application, URI, application d'entreprise, deux préautorisations et trois attributions.
+Alice reçoit `Tools.Read` et `Tools.Write`, Bob `Tools.Read`, Eve rien.
+Le plan ne doit prévoir aucune suppression ni création d'utilisateur ou de secret.
+Lors d'une nouvelle exécution, des objets déjà présents peuvent ne plus apparaître dans les ajouts.
+
+Pour une application fournie par l'administrateur, ajoutez `create_application = false` et
+`existing_application_client_id = '<client-id>'` aux paramètres **avant** le plan.
+Terraform lit alors la définition existante et gère les trois attributions, pas l'inscription elle-même.
+L'administrateur doit avoir configuré ses scopes, rôles, préautorisations et l'attribution obligatoire.
+
+```powershell
 terraform '-chdir=infra\entra' apply '..\..\.workshop\entra.tfplan'
+if ($LASTEXITCODE -ne 0) { throw 'Déploiement Entra incomplet. Ne transmettez pas les fichiers.' }
+$config = terraform '-chdir=infra\entra' output -json workload_module03_tfvars
+if ($LASTEXITCODE -ne 0) { throw 'Configuration participant indisponible.' }
+$config | Set-Content -LiteralPath .\.workshop\module03.tfvars.json
+$personas = terraform '-chdir=infra\entra' output -json persona_object_ids
+if ($LASTEXITCODE -ne 0) { throw 'Identifiants des comptes indisponibles.' }
+$personas | Set-Content -LiteralPath .\.workshop\module03-personas.json
 ```
 
-> **Résultat réel** — extrait de l'apply de création, 2026-10-17, tenant de test de l'auteur. Noms et ID masqués.
->
-> ```text
-> azuread_application.mcp[0]: Creation complete after 6s [id=/applications/<guid>]
-> ...
-> azuread_application_pre_authorized.clients["<guid>"]: Creation complete after 1s [id=<guid>/preAuthorizedApplication/<guid>]
-> azuread_service_principal.mcp[0]: Creation complete after 3s [id=/servicePrincipals/<guid>]
-> ...
-> Apply complete! Resources: 8 added, 0 changed, 0 destroyed.
->
-> Outputs:
-> ...
-> identifier_uri = "api://<guid>"
-> ...
-> persona_assignments = {
->   "alice-read" = "Tools.Read"
->   "alice-write" = "Tools.Write"
->   "bob-read" = "Tools.Read"
-> }
-> ...
-> user_impersonation_scope = "api://<guid>/user_impersonation"
-> ```
->
-> Avec `create_application = false`, Terraform se contente de lire l'application existante : attendez-vous aux trois attributions seulement.
->
-> **Ce que cela signifie pour vous :** huit objets Entra, sans mot de passe ni certificat ; Eve n'a aucune attribution.
-> Votre plan doit afficher `Plan: 8 to add, 0 to change, 0 to destroy.` Lors d'une première exécution, arrêtez-vous si
-> le plan affiche `to destroy` ou `to change`.
-
-**5. Transmettre les ID au participant (aucun secret).**
+> **Résultat attendu** — les deux fichiers sont prêts à transmettre en privé.
+> Vérifiez également l'application avec Azure CLI, sans lire de jeton :
 
 ```powershell
-terraform -chdir=infra/entra output -json workload_module03_tfvars | Set-Content -LiteralPath .\.workshop\module03.tfvars.json
-terraform -chdir=infra/entra output -json persona_object_ids | Set-Content -LiteralPath .\.workshop\module03-personas.json
+$api = ($config | ConvertFrom-Json).mcp_api_client_id
+az ad app show --id $api --query '{name:displayName,audience:signInAudience,uris:identifierUris,scopes:api.oauth2PermissionScopes[].value,roles:appRoles[].value,clients:api.preAuthorizedApplications[].appId}' -o json
+if ($LASTEXITCODE -ne 0) { throw "Lecture de l'inscription impossible." }
+az ad sp show --id $api --query '{name:displayName,assignmentRequired:appRoleAssignmentRequired}' -o json
+if ($LASTEXITCODE -ne 0) { throw "Lecture de l'application d'entreprise impossible." }
 ```
 
-> **Résultat attendu** — aucune sortie. Les deux fichiers existent maintenant dans `.workshop` (ignoré par Git) et ne
-> contiennent que des ID : ID client, ID de tenant, audience et ID d'objet. Vérifiez avec `Test-Path .\.workshop\module03.tfvars.json`.
+> **Résultat attendu** — `AzureADMyOrg`, `api://<client-id>`, `user_impersonation`, les trois rôles,
+> les clients VS Code `aebc6443-996d-45c2-90f0-388ff96faa56` et Azure CLI
+> `04b07795-8ddb-461a-bbee-02f9e1bf7b46`, puis `assignmentRequired: true`.
 
-**6. Participant, étape 1 : placer Entra devant la clé.** Sélectionnez d'abord votre contexte approuvé
-(`& .\scripts\select-azure-context.ps1`). Passez désormais toujours les trois fichiers de variables.
+L'attribution obligatoire concerne les utilisateurs ; la liste des clients autorisés concerne les logiciels.
+Dans **Enterprise applications → votre API → Users and groups**, vérifiez les trois attributions, aucune pour Eve.
 
-```powershell
-terraform '-chdir=infra\workload' plan '-var-file=..\..\.workshop\participant.tfvars.json' '-var-file=..\..\.workshop\module02.tfvars.json' '-var-file=..\..\.workshop\module03.tfvars.json' '-out=..\..\.workshop\module03.tfplan'
-if ($LASTEXITCODE -ne 0) { throw 'Terraform plan failed.' }
-# Relire : une mise à jour en place de la Function App (auth_settings_v2 et deux paramètres WEBSITE_AUTH_*). Après approbation :
-terraform '-chdir=infra\workload' apply '..\..\.workshop\module03.tfplan'
-```
+![Rôles à retrouver sur votre inscription d'application](../../assets/screenshots/azure-03-app-roles.png)
+![Attribution obligatoire à retrouver dans les propriétés de votre application d'entreprise](../../assets/screenshots/azure-03-enterprise-app-properties.png)
 
-> **Résultat réel** — extrait du plan et de l'apply de l'étape 1, 2026-10-17, tenant de test de l'auteur. Noms et ID masqués.
->
-> ```text
-> Plan: 0 to add, 2 to change, 0 to destroy.
-> ...
-> azurerm_function_app_flex_consumption.mcp[0]: Modifications complete after 53s [id=/subscriptions/<subscription-id>/resourceGroups/rg-mcp-p01-<suffix>/providers/Microsoft.Web/sites/func-mcp-p01-<suffix>]
-> ...
-> azurerm_linux_web_app.portal[0]: Modifications complete after 1m3s [id=/subscriptions/<subscription-id>/resourceGroups/rg-mcp-p01-<suffix>/providers/Microsoft.Web/sites/web-mcp-p01-<suffix>-portal]
-> Apply complete! Resources: 0 added, 2 changed, 0 destroyed.
-> ```
->
-> **Ce que cela signifie pour vous :** Terraform met à jour le serveur sans le remplacer. L'application redémarre une fois.
-> Chez l'auteur, **2** ressources ont changé, car le portail facultatif a aussi reçu l'indication de connexion
-> `WORKSHOP_MCP_SCOPE`. Sans portail, attendez-vous à `Plan: 0 to add, 1 to change, 0 to destroy.` (la Function App seule).
+Ces captures vous aident à retrouver les réglages. Leurs noms et identifiants ont été masqués ;
+vérifiez les valeurs de votre propre application.
 
-Un appelant a maintenant besoin d'un jeton **et** de la clé : rien n'est anonyme.
+</details>
 
-**7. Participant, étape 2 : Entra remplace la clé.**
+### 3. Vérifier ce que vous allez configurer
 
 ```powershell
 $v = Get-Content -LiteralPath .\.workshop\module03.tfvars.json -Raw | ConvertFrom-Json
+if (-not $v.enable_entra_auth -or $v.entra_auth_replace_key_gate -ne $false) {
+    throw 'Cette première étape exige Entra activé et le retrait de clé désactivé. Ne rejouez pas un déploiement plus avancé.'
+}
+if ($v.entra_tenant_id -ne $env:ARM_TENANT_ID) { throw 'Le tenant reçu ne correspond pas au contexte approuvé.' }
+if (-not (Test-Path -LiteralPath .\.workshop\module03-personas.json)) { throw "Demandez le fichier des trois comptes à l'administrateur." }
+$apiClientId = $v.mcp_api_client_id
+$audience = $v.mcp_api_identifier_uri
+$v | Select-Object enable_entra_auth, entra_auth_replace_key_gate, entra_tenant_id, mcp_api_client_id, mcp_api_identifier_uri
+```
+
+> **Résultat attendu** — Entra est activé et la clé reste exigée.
+> Vous retrouvez votre tenant et l'audience `api://<client-id>`.
+> L'ID client identifie **l'API MCP**, pas VS Code. Vous ne saisissez aucun secret.
+
+**Question :** Bob a `Tools.Read` et Eve n'a aucun rôle. Pourquoi Bob pourra-t-il entrer, mais pas Eve ?
+
+<details>
+<summary>Afficher la réponse</summary>
+
+L'application d'entreprise exige une attribution. Bob en a une, Eve non. Entra peut délivrer à Bob un jeton pour
+l'API MCP, mais refuse celui d'Eve avec `AADSTS50105`. Eve peut pourtant se connecter au même tenant.
+`Tools.Read` n'est pas encore contrôlé outil par outil.
+
+</details>
+
+**Question :** VS Code est préautorisé pour `user_impersonation`. Cela donne-t-il accès à Eve ?
+
+<details>
+<summary>Afficher la réponse</summary>
+
+Non. La préautorisation concerne la permission demandée par le logiciel client au nom d'un utilisateur.
+Elle ne remplace pas l'attribution à cette personne. Eve n'a toujours aucun rôle dans l'application.
+Les champs `scp` et `roles` répondent à deux questions différentes.
+
+</details>
+
+### 4. Activer Entra sans retirer la clé
+
+Terraform ajoute l'authentification intégrée et les paramètres de découverte sur la Function existante.
+Passez **les trois fichiers** pour conserver les réglages des modules précédents.
+
+```powershell
+terraform '-chdir=infra\workload' plan '-var-file=..\..\.workshop\participant.tfvars.json' '-var-file=..\..\.workshop\module02.tfvars.json' '-var-file=..\..\.workshop\module03.tfvars.json' '-out=..\..\.workshop\module03.tfplan'
+if ($LASTEXITCODE -ne 0) { throw 'Plan impossible. Ne continuez pas.' }
+```
+
+> **Résultat attendu** — Terraform affiche le plan, l'enregistre dans `.workshop` et ne modifie encore rien.
+
+**STOP — relisez le plan avant de l'appliquer.** Vous devez retrouver l'authentification obligatoire sur la Function,
+la réponse `Return401`, votre tenant et l'audience MCP. Le serveur n'est ni remplacé ni supprimé.
+Si vous avez déployé le portail facultatif, son indication de connexion peut aussi être mise à jour.
+Le nombre total de changements n'est donc pas le critère de réussite.
+Arrêtez-vous si le plan supprime une protection ou modifie une ressource sans lien avec cette étape.
+
+Après approbation :
+
+```powershell
+terraform '-chdir=infra\workload' apply '..\..\.workshop\module03.tfplan'
+if ($LASTEXITCODE -ne 0) { throw 'Déploiement incomplet. Gardez la clé en place.' }
+```
+
+> **Résultat attendu** — mise à jour terminée, aucun ajout ni retrait de serveur. Attendez son redémarrage.
+> Un client doit maintenant présenter **un jeton et la clé** ; ne testez pas encore la connexion finale de Bob.
+
+### 5. Lire la protection réellement déployée avant de continuer
+
+Cette commande Azure CLI lit la configuration d'authentification dans **Azure Resource Manager**, l'API de gestion Azure.
+Elle ne lit ni n'affiche de jeton.
+
+```powershell
+$authUrl = "https://management.azure.com/subscriptions/$env:ARM_SUBSCRIPTION_ID/resourceGroups/$rg/providers/Microsoft.Web/sites/$fn/config/authsettingsV2?api-version=2024-04-01"
+$authJson = az rest --method get --uri $authUrl --query properties -o json
+if ($LASTEXITCODE -ne 0) { throw 'Authentification illisible. Ne retirez pas la clé.' }
+$auth = $authJson | ConvertFrom-Json
+$aad = $auth.identityProviders.azureActiveDirectory
+$expectedAudiences = @($audience, $apiClientId) | Select-Object -Unique
+if ($auth.platform.enabled -ne $true -or $auth.globalValidation.requireAuthentication -ne $true -or
+    $auth.globalValidation.unauthenticatedClientAction -ne 'Return401' -or
+    $aad.registration.openIdIssuer -ne "https://login.microsoftonline.com/$env:ARM_TENANT_ID/v2.0" -or
+    $aad.registration.clientId -ne $apiClientId -or
+    (Compare-Object @($aad.validation.allowedAudiences) $expectedAudiences)) {
+    throw 'La protection Entra ne correspond pas à la configuration attendue. Ne retirez pas la clé.'
+}
+$auth.globalValidation | Select-Object requireAuthentication, unauthenticatedClientAction
+$aad.validation.allowedAudiences
+$hostName = az functionapp show --subscription $env:ARM_SUBSCRIPTION_ID --resource-group $rg --name $fn --query defaultHostName -o tsv
+if ($LASTEXITCODE -ne 0 -or -not $hostName) { throw 'Domaine de la Function introuvable.' }
+$endpoint = "https://$hostName/runtime/webhooks/mcp"
+$request = '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"workshop","version":"1"}}}'
+$r = Invoke-WebRequest -Uri $endpoint -Method Post -ContentType 'application/json' -Body $request -SkipHttpErrorCheck -TimeoutSec 60
+if ($r.StatusCode -ne 401) { throw "HTTP $($r.StatusCode) au lieu de 401. Ne retirez pas la clé." }
+$r.StatusCode
+```
+
+> **Résultat attendu** — `True`, `Return401`, les deux formes de la même audience MCP (`api://<client-id>` et `<client-id>`),
+> puis **401**. Aucune audience Graph n'est autorisée.
+> Un 401 seul ne suffirait pas : l'ancienne clé pouvait déjà le produire. C'est la lecture de la configuration
+> **et** ce refus qui vous permettent de passer à la suite.
+
+Dans **Function App → Settings → Authentication**, retrouvez l'authentification obligatoire,
+HTTP 401 et le magasin de jetons désactivé.
+
+![Repère de lecture : authentification exigée, HTTP 401 et magasin de jetons désactivé](../../assets/screenshots/azure-03-function-authentication.png)
+
+**Question :** pourquoi ne suffit-il pas d'obtenir HTTP 401 avant de retirer l'exigence de clé ?
+
+<details>
+<summary>Afficher la réponse</summary>
+
+Le serveur du module 02 renvoyait déjà HTTP 401 sans clé. Cette réponse seule ne prouve donc pas qu'Entra est actif.
+Vous devez aussi lire la configuration déployée : authentification obligatoire, `Return401`, bon tenant et audience MCP.
+Ensuite seulement, le second déploiement peut retirer l'exigence de clé sans laisser le serveur sans protection.
+
+</details>
+
+### 6. Retirer l'exigence de clé, sans retirer Entra
+
+Seulement après réussite de l'étape 5 :
+
+```powershell
 $v.entra_auth_replace_key_gate = $true
 $v | ConvertTo-Json | Set-Content -LiteralPath .\.workshop\module03.tfvars.json
 terraform '-chdir=infra\workload' plan '-var-file=..\..\.workshop\participant.tfvars.json' '-var-file=..\..\.workshop\module02.tfvars.json' '-var-file=..\..\.workshop\module03.tfvars.json' '-out=..\..\.workshop\module03.tfplan'
-# Relire : une mise à jour en place qui ajoute le paramètre du webhook. Après approbation :
-terraform '-chdir=infra\workload' apply '..\..\.workshop\module03.tfplan'
+if ($LASTEXITCODE -ne 0) { throw 'Plan impossible. Ne continuez pas.' }
 ```
 
-> **Résultat réel** — extrait du plan et de l'apply de l'étape 2, 2026-10-17, tenant de test de l'auteur. Noms et ID masqués.
->
-> ```text
-> Plan: 0 to add, 1 to change, 0 to destroy.
-> ...
-> azurerm_function_app_flex_consumption.mcp[0]: Modifications complete after 49s [id=/subscriptions/<subscription-id>/resourceGroups/rg-mcp-p01-<suffix>/providers/Microsoft.Web/sites/func-mcp-p01-<suffix>]
-> Apply complete! Resources: 0 added, 1 changed, 0 destroyed.
-> ```
->
-> **Ce que cela signifie pour vous :** la seule modification est le paramètre du webhook. Si le plan retire aussi
-> `auth_settings_v2`, arrêtez-vous : un fichier de variables manque.
+> **Résultat attendu** — Terraform affiche le plan de l'étape 2, l'enregistre dans `.workshop` et ne modifie encore rien.
 
-Inutile de republier le code : `host.json` ne change pas.
+**STOP — relisez le plan.** Il ajoute le paramètre
+`AzureFunctionsJobHost__extensions__mcp__system__webhookAuthorizationLevel = Anonymous`.
+L'authentification Entra doit rester obligatoire. Si le plan retire `auth_settings_v2`, un fichier de variables manque :
+ne l'appliquez pas.
 
-**8. Vérifications opérateur (aucun compte de test nécessaire).**
+Après approbation :
+
+```powershell
+terraform '-chdir=infra\workload' apply '..\..\.workshop\module03.tfplan'
+if ($LASTEXITCODE -ne 0) { throw 'Déploiement incomplet. Vérifiez la configuration avant les tests.' }
+az functionapp config appsettings list --subscription $env:ARM_SUBSCRIPTION_ID --resource-group $rg --name $fn --query "[?name=='WEBSITE_AUTH_PRM_DEFAULT_WITH_SCOPES' || name=='AzureFunctionsJobHost__extensions__mcp__system__webhookAuthorizationLevel'].{name:name,value:value}" -o table
+if ($LASTEXITCODE -ne 0) { throw 'Lecture des deux paramètres impossible.' }
+```
+
+> **Résultat attendu** — le scope `api://<client-id>/user_impersonation` et la valeur `Anonymous`.
+> Ce mot concerne seulement le verrou interne de l'extension MCP : **Entra protège toujours l'accès public**.
+> Le paquet conserve `System` dans `host.json`, pour ne pas devenir anonyme s'il est publié seul.
+> Vous n'avez pas à republier le code.
+
+### 7. Vérifier le serveur avec votre compte Azure habituel
+
+Gardez votre session Azure habituelle pour cette étape.
+Le validateur envoie les requêtes et affiche le résultat de chaque contrôle, sans montrer les jetons :
 
 ```powershell
 & .\modules\03-entra-authentication\validate.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID
 ```
 
-> **Résultat réel** — vérifications opérateur, 2026-10-19, tenant de test de l'auteur. Noms et ID masqués.
+> **Résultat attendu** — le validateur confirme :
 >
-> ```text
-> Module 03 validator - only Microsoft Entra tokens issued for the MCP audience open the server.
->
-> == Step 1: Offline - your copy keeps every gate closed (no Azure call) ==
->    Why: Proves the code, Terraform and examples tie access to Entra and hold no secret or token.
-> PASS host.json keeps the level 0 System webhook level; the published package is never anonymous on its own (expected HTTP N/A).
-> PASS the key gate is removed only together with enforced built-in authentication and Return401 (expected HTTP 401 without a token).
-> PASS infra/entra: single tenant, user_impersonation, Tools.Read/Tools.Write/Tools.Execute.All, assignment required, no secret or user (expected HTTP N/A).
-> PASS no access token, key, SAS or client secret in module 03, infra/entra or workload files (expected HTTP N/A).
-> PASS synthetic claim examples use synthetic IDs only and contain no token (4 files, expected HTTP N/A).
->
-> == Step 2: Live - the server refuses callers without the right token ==
->    Why: Proves no token, or a token for another audience, gets HTTP 401 while metadata guides clients.
-> PASS MCP request without a token is refused by built-in authentication (expected HTTP 401).
-> PASS Protected Resource Metadata (Preview) names the tenant authorization server and the user_impersonation scope (expected HTTP 200).
-> PASS a valid token for another audience (Microsoft Graph) is refused (expected HTTP 401).
->
-> == Step 3: Azure configuration matches Terraform ==
->    Why: Proves built-in authentication and app settings are deployed as the code describes, and the key alone fails.
-> PASS explicit Azure context matches the approved test target (expected HTTP 200 from Azure Resource Manager).
-> PASS deployed authsettingsV2: required, Return401, tenant issuer, MCP audience only, no secret setting (expected HTTP 200 from Azure Resource Manager).
-> PASS app settings: webhook key gate replaced by Entra, PRM scope set (Preview) (expected HTTP 200 from Azure Resource Manager).
-> PASS the level 0 system key alone no longer opens the server (expected HTTP 401).
-> INFO persona checks skipped. Sign in as each test account in a separate AZURE_CONFIG_DIR and rerun with -Persona Alice, Bob, then Eve.
-> PASS module 03 operator checks complete. Persona checks are still required for validation.
-> ```
->
-> **Ce que cela signifie pour vous :** la plateforme refuse désormais les appelants **avant que votre code ne s'exécute**.
-> Un vrai jeton Microsoft ne suffit pas : il doit être émis **pour ce serveur** (audience). L'ancienne clé
-> partagée, seule, ne sert plus à rien.
+> - sans jeton : **HTTP 401** ;
+> - métadonnées PRM (**Preview**) : **HTTP 200**, votre tenant et `user_impersonation` ;
+> - jeton destiné à Graph : **HTTP 401** ;
+> - configuration déployée : authentification obligatoire, `Return401`, audience MCP ;
+> - ancienne clé seule : **HTTP 401**. Si le script indique que ce test est ignoré, ne le comptez pas comme réussi.
 
-Comment lire cette sortie : chaque en-tête `== Step N ==` annonce ce qui est vérifié, et sa ligne `Why:` dit ce que
-l'étape prouve. Chaque contrôle affiche ensuite une ligne `PASS` (ou `FAIL`) avec le statut HTTP attendu. Sur la capture
-ci-dessous, les cadres numérotés indiquent ce qu'il faut regarder en premier : (1) sans le bon jeton, le serveur répond HTTP 401 ;
-(2) l'ancienne clé seule ne l'ouvre plus ; (3) la partie opérateur est terminée, mais les comptes de test doivent encore
-se connecter. Le script affiche ses messages en anglais.
+La ligne `operator checks complete` signifie « contrôles du serveur terminés ».
+`Persona checks are still required` vous demande de continuer avec les trois comptes.
+Les messages du script sont en anglais. Une ligne `PASS` hors ligne ne prouve pas que votre déploiement fonctionne.
 
-![Sortie réelle du terminal : vérifications opérateur du module 03, cadres sur les contrôles HTTP 401, sur la clé qui n'ouvre plus le serveur et sur le rappel des personas](../../assets/screenshots/terminal-03-operator.png)
-
-**Question :** Alice détient un jeton Microsoft Graph valide de votre tenant et l'envoie au serveur MCP. Est-il accepté ?
+**Question :** Alice possède un jeton Graph valide émis par votre tenant. Doit-il ouvrir le serveur MCP ?
 
 <details>
 <summary>Afficher la réponse</summary>
 
-Non, HTTP 401. Le jeton est authentique, mais son audience (`aud`) est Microsoft Graph, pas l'API MCP. Un jeton par appel,
-une audience par jeton : le serveur n'accepte que les jetons émis pour `api://<client-id>`. L'inverse vaut aussi : le serveur
-ne doit jamais transmettre le jeton d'Alice à Graph (pas de token passthrough). Le module 05 utilise On-Behalf-Of.
+Non : HTTP 401. Le jeton est destiné à Graph, pas à l'API MCP. La validité du compte et du jeton ne change pas
+son audience. Inversement, le serveur ne doit jamais transmettre le jeton MCP à Graph.
+Le module 05 obtiendra un jeton distinct pour cet appel.
 
 </details>
 
-**9. Connecter VS Code avec l'authentification Entra.** Dans votre configuration MCP **utilisateur**, remplacez le serveur
-`workshop-open` (et sa demande de clé) par une simple URL. Aucun en-tête, rien de secret.
+### 8. Vous connecter dans VS Code comme Alice
+
+Affichez l'adresse sans clé : `$endpoint`. Dans **Ctrl+Maj+P → MCP: Open User Configuration**,
+remplacez uniquement l'entrée `workshop-open` et sa demande de clé par cette entrée, en conservant vos autres serveurs :
 
 ```json
 {
@@ -535,201 +466,132 @@ ne doit jamais transmettre le jeton d'Alice à Graph (pas de token passthrough).
 }
 ```
 
-Démarrez le serveur. VS Code lit les métadonnées de ressource protégée et vous propose de vous **authentifier avec
-Microsoft**. Connectez-vous en tant qu'Alice : les cinq outils apparaissent. Connectez-vous en tant qu'Eve (autre profil
-VS Code) : Entra affiche `AADSTS50105`.
-
-En tant qu'Alice, vérifiez la connexion avec ce prompt dans Copilot Chat (mode **Agent**) :
+1. Remplacez `<function-app-host>` par le domaine lu à l'étape 5, puis enregistrez.
+2. Sélectionnez **Start** au-dessus du serveur, ou **MCP: List Servers → workshop-entra → Start Server**.
+3. Autorisez l'authentification Microsoft. Choisissez **Alice**, pas votre compte Azure habituel.
+   Enregistrez sa méthode MFA si le tenant le demande.
+4. Dans **Copilot Chat → Agent → Configure Tools**, sélectionnez uniquement `workshop-entra`.
+5. Envoyez la demande suivante. Lisez et approuvez l'appel proposé une seule fois.
 
 ```prompt
-Utilise le serveur MCP workshop-entra. Liste ses outils, puis appelle get_service_health avec service "workshop-api" et montre le résultat.
+Utilise workshop-entra. Liste ses outils, puis appelle get_service_health avec service "workshop-api".
 ```
 
-<details>
-<summary>Comment faire dans VS Code, clic par clic</summary>
+> **Résultat attendu** — serveur `Running`, `Discovered 5 tools` et réponse de santé fictive.
+> Cette réponse prouve l'appel de l'outil, pas la santé réelle d'une ressource Azure.
 
-![Capture réelle : VS Code, MCP: Open User Configuration dans la palette de commandes ; le serveur workshop-entra dans mcp.json avec Running au-dessus ; MCP: List Servers affiche workshop-entra Running et la sortie indique Discovered 5 tools](../../assets/screenshots/client-03-vscode.png)
+![Repères dans VS Code : configuration utilisateur, serveur démarré et cinq outils découverts](../../assets/screenshots/client-03-vscode.png)
 
-*Capture réelle, 2026-10-19, un VS Code vierge connecté en tant qu'Alice. A : ouvrir la configuration utilisateur (cadre 1). B : l'entrée du serveur et son état **Running** (cadres 2 et 3). C : **MCP: List Servers** et la sortie du serveur, qui se termine par **Discovered 5 tools**.*
+Pour comparer visuellement avec Bob ou Eve, utilisez un profil VS Code distinct (**Profiles: New Profile...**).
+Un profil seul ne prouve pas quel compte est connecté : vérifiez le compte choisi dans la fenêtre Microsoft.
+Les tests suivants vérifient son identifiant exact.
 
-1. Récupérez l'URL dans votre terminal : `terraform -chdir=infra/workload output -raw mcp_endpoint`.
-2. Appuyez sur **Ctrl+Maj+P** (macOS : **Cmd+Maj+P**) et lancez **MCP: Open User Configuration**. Collez le JSON
-   ci-dessus, remplacez l'espace réservé par votre URL, puis enregistrez le fichier.
-3. Sélectionnez **Start** juste au-dessus de `workshop-entra` dans ce fichier. Vous pouvez aussi lancer **MCP: List Servers**,
-   choisir `workshop-entra`, puis **Start Server**.
-4. VS Code indique que le serveur veut s'authentifier auprès de Microsoft : sélectionnez **Allow**, puis connectez-vous
-   avec votre compte de test (par exemple Alice) dans la fenêtre de navigateur qui s'ouvre.
-5. Ouvrez le Chat avec **Ctrl+Alt+I** (macOS : **Ctrl+Cmd+I**). Dans la liste des modes sous la zone de saisie, choisissez
-   **Agent**. Sélectionnez l'icône des outils (**Configure Tools**) et ne gardez que les outils de `workshop-entra`.
-6. Collez le prompt. Quand VS Code demande d'exécuter un outil, lisez son nom et ses arguments, puis sélectionnez
-   **Allow** une seule fois. Dépliez l'appel d'outil dans le Chat pour lire son entrée et sa sortie.
+### 9. Tester Alice, Bob et Eve sans perdre votre session
 
-**Autre compte de test (Bob, Eve) :** lancez **Profiles: New Profile...**, donnez-lui le nom du compte et ouvrez-le.
-Dans cette nouvelle fenêtre, refaites les étapes 2 à 6 en vous connectant avec ce compte. Votre propre profil garde sa connexion.
-
-</details>
-
-**10. Vérifications par persona.** Utilisez un profil Azure CLI distinct pour chaque compte de test afin de ne pas écraser votre session.
-
-Votre tenant peut exiger l'authentification multifacteur (MFA). À sa première connexion, chaque compte de test doit
-enregistrer une méthode (par exemple une application d'authentification). Faites-le dans le navigateur ouvert par
-`az login` ; n'assouplissez jamais une stratégie d'accès conditionnel pour l'éviter.
+Vous allez vous connecter **trois fois**, avec le compte nommé dans le terminal.
+`AZURE_CONFIG_DIR` sépare les sessions Azure CLI. Les comptes de test n'ont besoin d'aucun rôle sur l'abonnement :
+`--allow-no-subscriptions` permet leur connexion au tenant.
+Ils doivent tous réussir leur connexion au tenant ; **le refus d'Eve est attendu ensuite, lorsqu'elle demande le jeton MCP**.
 
 ```powershell
-foreach ($persona in 'Alice', 'Bob', 'Eve') {
-    $env:AZURE_CONFIG_DIR = Join-Path $PWD ".workshop\az-$($persona.ToLower())"
-    az login --tenant $env:ARM_TENANT_ID --allow-no-subscriptions   # connectez-vous en tant que $persona dans le navigateur
-    & .\modules\03-entra-authentication\validate.ps1 -TenantId $env:ARM_TENANT_ID -Persona $persona
-    az logout
+$ErrorActionPreference = 'Stop'
+$operatorConfig = $env:AZURE_CONFIG_DIR
+try {
+    foreach ($persona in 'Alice', 'Bob', 'Eve') {
+        Write-Host "Connectez-vous avec le compte $persona dans le navigateur."
+        $env:AZURE_CONFIG_DIR = Join-Path $PWD ".workshop\az-$($persona.ToLower())"
+        az login --tenant $env:ARM_TENANT_ID --allow-no-subscriptions --output none
+        if ($LASTEXITCODE -ne 0) { throw "Connexion au tenant impossible pour $persona." }
+        & .\modules\03-entra-authentication\validate.ps1 -TenantId $env:ARM_TENANT_ID -Persona $persona
+        az logout
+        if ($LASTEXITCODE -ne 0) { throw "Déconnexion impossible pour $persona." }
+    }
+} finally {
+    if ($null -eq $operatorConfig) { Remove-Item Env:\AZURE_CONFIG_DIR -ErrorAction SilentlyContinue }
+    else { $env:AZURE_CONFIG_DIR = $operatorConfig }
 }
-Remove-Item Env:\AZURE_CONFIG_DIR
 ```
 
-> **Résultat réel** — Alice, 2026-10-19, tenant de test de l'auteur, après l'enregistrement de sa MFA. Noms et ID masqués.
+> **Résultat attendu** — pour chaque compte :
 >
-> ```text
-> == Step 3: Persona - Alice signs in and lists the tools ==
->    Why: Proves an assigned user gets a token for the MCP audience and sees the five tools.
-> PASS signed-in account matches the private Alice object ID (expected HTTP 200 from Microsoft Graph).
-> PASS Alice initialize with a token for the MCP audience succeeds; negotiated protocol 2025-06-18 (expected HTTP 200).
-> PASS Alice tools/list returns exactly the five workshop tools (expected HTTP 200).
-> PASS module 03 persona checks complete for Alice. Per-tool roles (Bob cannot write) are enforced in module 04.
-> ```
+> | Compte | Ce que le validateur doit confirmer | Interprétation |
+> |---|---|---|
+> | Alice | Identifiant du compte correct ; `initialize` HTTP 200 ; `tools/list` HTTP 200, exactement cinq outils | Entra et le serveur acceptent son accès |
+> | Bob | Identifiant du compte correct ; mêmes résultats HTTP 200 et cinq outils | Son attribution de lecture lui permet d'entrer |
+> | Eve | Identifiant du compte correct ; demande de jeton refusée avec `AADSTS50105` | L'attribution obligatoire bloque son accès avant tout appel authentifié au serveur |
 
-![Sortie réelle du terminal : vérification par persona du module 03, connexion en tant qu'Alice ; le cadre 1 marque l'étape persona, le cadre 2 le jeton accepté et les cinq outils listés](../../assets/screenshots/terminal-03-alice.png)
+Le refus d'Eve vient du service Entra qui délivre les jetons (**HTTP 400**), pas d'un outil MCP (**HTTP 403**).
+Un autre code d'échec, par exemple un problème MFA, ne démontre pas le contrôle d'attribution.
+Azure CLI peut tenter une nouvelle connexion après le refus ; le validateur limite le temps d'attente.
+Ne donnez pas un rôle à Eve pour faire disparaître le refus attendu.
 
-> **Résultat réel** — Bob et Eve, 2026-10-19, tenant de test de l'auteur, après l'enregistrement de leur MFA. Noms et ID masqués.
->
-> ```text
-> == Step 4: Persona - Bob signs in and lists the tools ==
-> PASS signed-in account matches the private Bob object ID (expected HTTP 200 from Microsoft Graph).
-> PASS Bob initialize with a token for the MCP audience succeeds; negotiated protocol 2025-06-18 (expected HTTP 200).
-> PASS Bob tools/list returns exactly the five workshop tools (expected HTTP 200).
-> PASS module 03 persona checks complete for Bob. Per-tool roles (Bob cannot write) are enforced in module 04.
->
-> == Step 4: Persona - Eve is refused a token ==
-> PASS signed-in account matches the private Eve object ID (expected HTTP 200 from Microsoft Graph).
-> PASS Eve cannot obtain a token: she is not assigned to the enterprise application (expected HTTP 400 from the token endpoint, AADSTS50105).
-> PASS module 03 persona check complete for Eve.
-> ```
->
-> La vérification d'Eve dure environ deux minutes. Quand Entra refuse son jeton, les versions récentes d'Azure CLI
-> essaient d'ouvrir une fenêtre de connexion et attendent. Le validateur arrête cette demande au bout de 60 secondes et
-> ne garde que le code `AADSTS50105`. Si vous lancez vous-même `az account get-access-token` en tant qu'Eve, la même
-> fenêtre s'ouvre : fermez-la.
->
-> **Ce que cela signifie pour vous :** vous savez maintenant **qui** appelle. Entra bloque Eve dès la connexion :
-> elle n'atteint jamais le serveur. Mais Alice et Bob voient les mêmes cinq outils, **écriture comprise** : être connecté
-> ne veut pas encore dire être autorisé. Le module 04 ajoute les rôles par outil.
-
-**Question :** Bob est connecté et reçoit HTTP 200. Son jeton ne porte que `Tools.Read`. Peut-il appeler `create_ticket` au niveau 1 ?
+**Question :** Bob voit `create_ticket`. Son rôle `Tools.Read` suffit-il à empêcher cet outil d'écrire au module 03 ?
 
 <details>
 <summary>Afficher la réponse</summary>
 
-Oui. L'authentification intégrée décide qui peut atteindre le serveur, pas quel outil s'exécute. La revendication `roles`
-est bien dans le jeton de Bob, mais rien ne la contrôle encore outil par outil. Le module 04 exige `Tools.Write` pour
-`create_ticket`. L'approbation humaine dans VS Code ne remplace pas ce contrôle de rôle.
+Non. Ici, l'attribution ouvre l'accès au serveur ; aucun contrôle par outil n'exploite encore `roles`.
+Bob peut donc encore appeler `create_ticket`. Ce n'est ni le comportement final souhaité ni une raison de lui attribuer
+`Tools.Write`. Le module 04 exigera ce rôle pour l'écriture et renverra HTTP 403 à Bob.
+Une approbation humaine dans le client ne remplace pas cette autorisation côté serveur.
 
 </details>
 
 ### Bash
 
+Le déploiement reste le même en deux étapes. Pour suivre exactement les vérifications intermédiaires ci-dessus
+depuis un terminal bash, démarrez **PowerShell 7** avec `pwsh`, puis exécutez les étapes 1 à 9.
+Ne collez pas les commandes PowerShell directement dans bash.
+
+Si le déploiement est déjà terminé, les scripts bash permettent de lancer les mêmes contrôles.
+Dans le terminal où vous utilisez votre compte Azure habituel :
+
 ```bash
-bash ./modules/03-entra-authentication/validate.sh -Offline
-# Administrateur des identités, terminal séparé :
-az login --tenant "<tenant-id>" --allow-no-subscriptions
-jq -n --slurpfile p .workshop/participant.tfvars.json --arg t "<tenant-id>" \
-  '{tenant_id:$t, participant_prefix:$p[0].participant_prefix, resource_suffix:$p[0].resource_suffix, owner:$p[0].owner, expiry:$p[0].expiry,
-    test_user_object_ids:{alice:"<alice-object-id>", bob:"<bob-object-id>", eve:"<eve-object-id>"}}' > .workshop/entra.tfvars.json
-terraform -chdir=infra/entra init -lockfile=readonly &&
-terraform -chdir=infra/entra plan -var-file=../../.workshop/entra.tfvars.json -out=../../.workshop/entra.tfplan
-terraform -chdir=infra/entra apply ../../.workshop/entra.tfplan    # après relecture et approbation
-terraform -chdir=infra/entra output -json workload_module03_tfvars > .workshop/module03.tfvars.json
-terraform -chdir=infra/entra output -json persona_object_ids > .workshop/module03-personas.json
-# Participant, étape 1 puis étape 2 (relire chaque plan, appliquer après approbation) :
 source ./scripts/select-azure-context.sh
-vars="-var-file=../../.workshop/participant.tfvars.json -var-file=../../.workshop/module02.tfvars.json -var-file=../../.workshop/module03.tfvars.json"
-terraform -chdir=infra/workload plan $vars -out=../../.workshop/module03.tfplan && terraform -chdir=infra/workload apply ../../.workshop/module03.tfplan
-jq '.entra_auth_replace_key_gate = true' .workshop/module03.tfvars.json > .workshop/m03.tmp && mv .workshop/m03.tmp .workshop/module03.tfvars.json
-terraform -chdir=infra/workload plan $vars -out=../../.workshop/module03.tfplan && terraform -chdir=infra/workload apply ../../.workshop/module03.tfplan
 bash ./modules/03-entra-authentication/validate.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId "$ARM_SUBSCRIPTION_ID"
-for persona in Alice Bob Eve; do
-  export AZURE_CONFIG_DIR="$PWD/.workshop/az-${persona,,}"
-  az login --tenant "$ARM_TENANT_ID" --allow-no-subscriptions
-  bash ./modules/03-entra-authentication/validate.sh -TenantId "$ARM_TENANT_ID" -Persona "$persona"
-  az logout
-done
-unset AZURE_CONFIG_DIR
 ```
 
-> **Résultat attendu** — les mêmes lignes PASS, les mêmes résumés de plan et les mêmes fichiers écrits sans message
-> que l'exécution PowerShell ci-dessus.
+> **Résultat attendu** — les mêmes lignes `PASS` que la version PowerShell ci-dessus : `validate.sh` lance le même script.
+
+Pour tester les trois comptes, utilisez un sous-shell : à sa fermeture, vous retrouvez votre configuration initiale.
+Le fichier privé des identifiants doit être présent comme à l'étape 2.
+
+```bash
+(
+  set -e
+  for persona in Alice Bob Eve; do
+    printf 'Connectez-vous avec le compte %s dans le navigateur.\n' "$persona"
+    export AZURE_CONFIG_DIR="$PWD/.workshop/az-${persona,,}"
+    az login --tenant "$ARM_TENANT_ID" --allow-no-subscriptions --output none
+    bash ./modules/03-entra-authentication/validate.sh -TenantId "$ARM_TENANT_ID" -Persona "$persona"
+    az logout
+  done
+)
+```
+
+> **Résultat attendu** — les mêmes contrôles et refus que dans le tableau de l'étape 9.
 
 ## Ce que vous devez voir
 
-| Action | Résultat attendu | Signification |
+| Test | Résultat attendu | Contrôle démontré |
 |---|---|---|
-| Requête MCP sans jeton | HTTP 401 avec `WWW-Authenticate: Bearer … resource_metadata="…"` | L'authentification intégrée refuse la requête avant que le code MCP ne s'exécute. |
-| `GET` sur l'URL `resource_metadata` | HTTP 200, `authorization_servers` = votre tenant, `scopes_supported` = `api://…/user_impersonation` | Les PRM (**Preview**) indiquent aux clients où se connecter. |
-| Requête avec la seule clé du niveau 0 | HTTP 401 | La clé seule n'ouvre plus le serveur. |
-| Jeton Microsoft Graph d'Alice | HTTP 401 | Mauvaise audience : une audience par jeton. |
-| Alice, puis Bob, avec un jeton pour `api://<client-id>` | HTTP 200, cinq outils | Les utilisateurs attribués atteignent le serveur. |
-| Eve demande un jeton | `AADSTS50105`, aucun jeton | Attribution obligatoire : Eve n'atteint jamais le serveur. |
-| Bob appelle `create_ticket` dans VS Code | Fonctionne toujours au niveau 1 | Seul l'accès au serveur est contrôlé ; le module 04 ajoute les rôles par outil. |
+| Appel MCP sans jeton | HTTP 401 | Identité exigée avant le code |
+| Découverte PRM (**Preview**) | HTTP 200, tenant et scope de votre API | Le client sait où demander l'accès |
+| Ancienne clé seule | HTTP 401 | La possession du secret partagé ne suffit plus |
+| Jeton valide pour Graph | HTTP 401 | Audience limitée à l'API MCP |
+| Alice et Bob | HTTP 200 pour `initialize` et `tools/list`, cinq outils | Utilisateurs ayant une attribution |
+| Eve | `AADSTS50105`, aucun jeton MCP | Refus d'une utilisatrice sans attribution |
+| Bob et `create_ticket` | Encore utilisable à ce niveau | Limite à corriger au module 04, pas une preuve de lecture seule |
 
-> **Résultat réel** — requête MCP sans jeton, 2026-10-17, tenant de test de l'auteur. Noms et ID masqués.
->
-> ```text
-> HTTP 401
-> WWW-Authenticate: Bearer ... resource_metadata="https://func-mcp-p01-<suffix>.azurewebsites.net/.well-known/oauth-protected-resource/runtime/webhooks/mcp", scope="api://<guid>/user_impersonation"
-> ```
->
-> **Ce que cela signifie pour vous :** ce 401 n'est pas une impasse. L'en-tête `WWW-Authenticate` indique au client où lire les
-> métadonnées de ressource protégée (**Preview**) et quel scope demander : VS Code peut ainsi lancer seul la connexion Microsoft.
+Ne comparez pas votre nombre de changements Terraform à une ancienne exécution.
+Comparez **votre configuration et vos résultats** à ce tableau.
 
-### Retrouver le même résultat dans le portail Azure
+### Comprendre les résultats avec la documentation
 
-Captures réelles du portail, 2026-10-19, tenant de test de l'auteur. Les noms sont pseudonymisés et chaque ID est remplacé
-par des zéros. Ouvrez les mêmes pages dans votre tenant pour vérifier ce que Terraform a configuré. Le portail est affiché en
-anglais. Les cadres roses indiquent ce qu'il faut vérifier. Cliquez sur une image pour l'agrandir.
+Ces références expliquent les différences entre authentification, consentement et autorisation.
+Elles ont été vérifiées le 2026-10-16 ; les quatre sources principales ont aussi été relues le 2026-10-20.
 
-**1. Function App → Settings → Authentication.** L'authentification App Service est activée, les requêtes non
-authentifiées reçoivent HTTP 401 et le magasin de jetons (*token store*) est désactivé : la plateforme vérifie le jeton,
-le serveur ne le conserve jamais.
-
-![Capture réelle : page Authentication de la Function App, authentification exigée, HTTP 401 pour les requêtes non authentifiées, magasin de jetons désactivé](../../assets/screenshots/azure-03-function-authentication.png)
-
-**2. App registrations → Workshop MCP API → Overview.** L'application est limitée à une seule organisation (*My organization only*).
-Le lien « Add a certificate or secret » montre qu'elle n'a aucun mot de passe.
-
-![Capture réelle : vue d'ensemble de l'inscription d'application, une seule organisation, aucun secret ni certificat](../../assets/screenshots/azure-03-app-registration-overview.png)
-
-**3. Même application → App roles.** `Tools.Read` et `Tools.Write` sont destinés aux utilisateurs, `Tools.Execute.All`
-aux applications. Le module 04 les applique outil par outil.
-
-![Capture réelle : page App roles avec Tools.Read et Tools.Write pour les utilisateurs et Tools.Execute.All pour les applications](../../assets/screenshots/azure-03-app-roles.png)
-
-**4. Enterprise applications → Workshop MCP API → Properties.** « Assignment required? » vaut **Yes** : seuls les
-utilisateurs attribués (Alice et Bob) obtiennent un jeton. C'est pourquoi Eve reçoit `AADSTS50105`.
-
-![Capture réelle : propriétés de l'application d'entreprise, attribution obligatoire réglée sur Yes](../../assets/screenshots/azure-03-enterprise-app-properties.png)
-
-**Question :** Eve fait partie du tenant. Quel réglage de la capture 4 l'arrête avant même le serveur MCP ?
-
-<details>
-<summary>Afficher la réponse</summary>
-
-« Assignment required? » = Yes. Microsoft Entra ID refuse d'émettre un jeton pour cette API à un utilisateur sans
-attribution : Eve reçoit `AADSTS50105` dès la connexion. Le serveur MCP ne voit jamais sa requête.
-
-</details>
-
-### Lire la documentation au moment de la démonstration
-
-Ouvrez chaque lien au moment du contrôle correspondant ci-dessus. Authentification, consentement et autorisation sont trois décisions distinctes.
-
-| Démonstration ou choix | Ce qu'il faut comprendre dans Microsoft Learn | Référence de configuration ou d'API |
+| Résultat observé ou choix technique | Ce qu'il faut comprendre dans Microsoft Learn | Référence de configuration ou d'API |
 |---|---|---|
 | Sans jeton ou avec la seule ancienne clé : HTTP 401 | [Authentification App Service](https://learn.microsoft.com/azure/app-service/overview-authentication-authorization) : la plateforme contrôle l'identité avant l'exécution de l'outil. | [Ressource authsettingsV2](https://learn.microsoft.com/azure/templates/microsoft.web/sites/config-authsettingsv2) : `requireAuthentication`, `unauthenticatedClientAction` et `allowedAudiences`. |
 | Le client découvre où se connecter | [Autorisation MCP et métadonnées de ressource protégée (**Preview**)](https://learn.microsoft.com/azure/app-service/configure-authentication-mcp). Cela protège l'accès au serveur, pas chaque outil. | La même page décrit `WEBSITE_AUTH_PRM_DEFAULT_WITH_SCOPES` et la réponse indiquant l'URL des métadonnées. |
@@ -737,141 +599,166 @@ Ouvrez chaque lien au moment du contrôle correspondant ci-dessus. Authentificat
 | Alice et Bob accèdent au serveur ; Eve reçoit `AADSTS50105` | [Exiger une attribution utilisateur](https://learn.microsoft.com/entra/identity-platform/howto-restrict-your-app-to-a-set-of-users) : se connecter au tenant ne suffit pas. | [Attribuer des rôles d'application](https://learn.microsoft.com/entra/identity-platform/howto-add-app-roles-in-apps), utilisés pour les comptes de test existants. |
 | Scope `user_impersonation` comparé aux rôles `Tools.Read` / `Tools.Write` ; Bob peut encore écrire ici | [Scopes et consentement](https://learn.microsoft.com/entra/identity-platform/scopes-oidc) décrivent la permission déléguée accordée au client. Les [rôles d'application](https://learn.microsoft.com/entra/identity-platform/howto-add-app-roles-in-apps) expriment les droits attribués à l'utilisateur. | Le module 04 ajoute le contrôle du rôle par outil. Définir un rôle ne l'applique pas automatiquement. |
 
-Ne collez jamais de jeton de l'atelier dans un décodeur en ligne, même si un article lié l'utilise comme exemple.
-Liens vérifiés le 2026-10-16.
+### Vérifier vous-même avec Azure CLI
+
+**Pourquoi :** HTTP 401 ne suffit pas à prouver qu'Entra protège le serveur : au module 02, la clé provoquait déjà ce refus.
+Relisez la configuration réellement déployée. Dans PowerShell 7, à la racine du dépôt :
+
+```powershell
+$ErrorActionPreference = 'Stop'
+$inspectGroup = terraform '-chdir=infra\workload' output -raw resource_group_name
+if ($LASTEXITCODE -ne 0) { throw 'Groupe de ressources indisponible.' }
+$inspectNames = terraform '-chdir=infra\workload' output -json resource_names | ConvertFrom-Json
+if ($LASTEXITCODE -ne 0) { throw 'Noms des ressources indisponibles.' }
+$inspectFunctionId = az resource show -g $inspectGroup -n $inspectNames.function_app --resource-type Microsoft.Web/sites --api-version 2024-11-01 --query id -o tsv
+if ($LASTEXITCODE -ne 0 -or -not $inspectFunctionId) { throw "Identifiant de l'application indisponible." }
+```
+
+> **Résultat attendu** — aucune sortie : `$inspectFunctionId` contient l'identifiant de votre Function App.
+
+La commande suivante fait un `GET` sur l'API de gestion Azure. Elle ne lit aucun jeton utilisateur ni secret :
+
+```powershell
+az rest --method get --url "https://management.azure.com$inspectFunctionId/config/authsettingsV2?api-version=2024-11-01" --query 'properties.{enabled:platform.enabled,required:globalValidation.requireAuthentication,action:globalValidation.unauthenticatedClientAction}' -o json
+if ($LASTEXITCODE -ne 0) { throw "Lecture de la configuration d'authentification impossible." }
+```
+
+> **Résultat attendu** — `enabled` et `required` valent `true`, et `action` vaut `Return401`.
+> L'authentification est donc activée et obligatoire, sans redirection vers une page de connexion.
+
+![Lecture réelle Azure CLI : authentification activée, obligatoire, avec Return401](../../assets/screenshots/terminal-03-az-auth.png)
+
+*Capture en lecture seule du 20 octobre 2026. Comparez ces trois champs, puis contrôlez aussi l'émetteur,
+l'audience et les comptes avec le validateur. Cette capture ne prouve pas les droits d'Alice ou Bob.
+Si un champ diffère, ne retirez pas la clé et ne poursuivez pas avant d'avoir corrigé votre configuration approuvée.*
 
 ## Valider
 
-`validate.ps1` (ou `validate.sh`) exécute toujours d'abord les vérifications hors ligne : `host.json` conserve `System` ;
-le webhook anonyme n'existe qu'avec l'authentification intégrée appliquée et HTTP 401 ; `infra/entra` conserve un seul
-tenant, `user_impersonation`, les trois rôles et l'attribution obligatoire, sans secret, mot de passe, certificat ni
-utilisateur ; aucun motif de jeton ou de clé dans les fichiers du module ; les revendications synthétiques n'utilisent que
-des ID synthétiques ; format, schéma et tests Terraform simulés pour les deux modules racines.
+Pour une vérification **sans accès Azure ou Entra** :
 
-Sortie hors ligne (ce résultat **ne prouve aucun** déploiement) :
-
-```text
-PASS host.json keeps the level 0 System webhook level; the published package is never anonymous on its own (expected HTTP N/A).
-PASS the key gate is removed only together with enforced built-in authentication and Return401 (expected HTTP 401 without a token).
-PASS infra/entra: single tenant, user_impersonation, Tools.Read/Tools.Write/Tools.Execute.All, assignment required, no secret or user (expected HTTP N/A).
-PASS no access token, key, SAS or client secret in module 03, infra/entra or workload files (expected HTTP N/A).
-PASS synthetic claim examples use synthetic IDs only and contain no token (4 files, expected HTTP N/A).
-PASS Terraform format, schema and mock-only plans for infra/entra and infra/workload (expected HTTP N/A; no live plan/apply).
-PASS offline checks only. Module 03 is NOT deployed or Entra-validated by this result.
+```powershell
+& .\modules\03-entra-authentication\validate.ps1 -Offline
 ```
 
-Modes en ligne, après un déploiement approuvé :
+> **Résultat attendu** — lignes `PASS` pour les protections dans les fichiers, les exemples fictifs et les tests Terraform simulés.
+> Ce résultat vérifie votre copie du dépôt, **pas** la configuration de votre tenant.
 
-- **Opérateur** (`-TenantId -SubscriptionId`) : HTTP 401 sans jeton, métadonnées PRM, HTTP 401 pour un jeton Graph,
-  authsettingsV2 et paramètres d'application lus dans Azure Resource Manager, HTTP 401 avec la seule clé.
-- **Persona** (`-TenantId -Persona Alice|Bob|Eve`, connecté avec ce compte) : Alice et Bob obtiennent HTTP 200 pour
-  `initialize` et `tools/list` ; Eve ne doit obtenir aucun jeton (erreur `AADSTS50105`). Si `.workshop/module03-personas.json`
-  existe, le validateur vérifie aussi l'ID d'objet du compte connecté.
+Pour terminer votre exercice, vérifiez que vous avez :
 
-Les jetons et les clés restent en mémoire et ne sont jamais affichés. Le module n'est terminé que lorsque la vérification
-opérateur et les trois vérifications par persona réussissent sur un abonnement neuf, juste après les modules 00 à 02.
+- obtenu les résultats du contrôle serveur à l'étape 7, sans confondre test ignoré et test réussi ;
+- testé les trois comptes à l'étape 9, avec une correspondance d'identifiant confirmée pour chacun ;
+- obtenu HTTP 200 et cinq outils pour Alice **et** Bob ;
+- obtenu exactement `AADSTS50105` pour Eve, et non un simple échec de connexion ;
+- compris pourquoi Bob peut encore écrire ici.
 
-**Question :** tous les contrôles hors ligne passent. Pouvez-vous considérer le module 03 comme terminé ?
+Le validateur n'appelle pas `create_ticket` au module 03 : ses tests Alice/Bob prouvent la connexion et la découverte,
+pas un refus d'écriture. Les outils d'accès aux données restent des simulations jusqu'au module 05.
+
+**Question :** les contrôles du serveur passent et Eve échoue avec une erreur MFA. Le module est-il validé ?
 
 <details>
 <summary>Afficher la réponse</summary>
 
-Non, et la dernière ligne le dit : `NOT deployed or Entra-validated`. Les contrôles hors ligne prouvent que **vos fichiers**
-respectent les règles (aucun secret, affectation obligatoire, trois rôles d'application). Seuls les contrôles en conditions
-réelles, opérateur puis persona, prouvent qu'Azure et Microsoft Entra se comportent comme prévu.
+Non. Les connexions Alice et Bob doivent aussi être testées. Pour Eve, seul le refus `AADSTS50105` démontre
+l'absence d'attribution. Terminez l'enregistrement MFA demandé, puis retestez sans modifier les stratégies du tenant.
+Une capture d'un autre environnement ou un contrôle hors ligne ne remplace pas ces résultats.
 
 </details>
 
-
 ## Dépannage
 
-| Symptôme | À vérifier |
+| Symptôme | Explication et action |
 |---|---|
-| VS Code ouvre `https://<app>/authorize` au lieu de la connexion Microsoft | Les PRM manquent : vérifiez `WEBSITE_AUTH_PRM_DEFAULT_WITH_SCOPES` et attendez le redémarrage. |
-| HTTP 401 pour Alice après l'étape 1 | Normal : l'étape 1 exige encore la clé. Appliquez l'étape 2. |
-| HTTP 403 avec un jeton valide | L'application cliente n'est pas autorisée. Utilisez VS Code ou Azure CLI. |
-| `AADSTS65001` (consentement requis) | Le client n'est pas pré-autorisé pour `user_impersonation`. Vérifiez les deux pré-autorisations. |
-| `AADSTS50105` pour Alice ou Bob | L'attribution de rôle manque ou n'est pas encore propagée. Attendez quelques minutes, puis reconnectez-vous. |
-| `AADSTS500011` (ressource introuvable) | Mauvaise URI d'ID d'application ou mauvais tenant. Utilisez la sortie `mcp_auth_audience`. |
-| Le plan propose de retirer l'authentification | Vous avez oublié `-var-file=..\..\.workshop\module03.tfvars.json`. |
-| `entra_auth_replace_key_gate requires enable_entra_auth` | N'activez jamais l'étape 2 sans l'étape 1. |
+| Alice reçoit HTTP 401 entre les deux déploiements | La clé est encore exigée. Terminez la lecture de la configuration à l'étape 5, puis le second déploiement. |
+| Alice reçoit HTTP 401 après le second déploiement | Vérifiez le tenant, l'audience MCP et le paramètre du webhook. N'ajoutez pas Graph aux audiences acceptées. |
+| `AADSTS50105` pour Bob ou Alice | Faites vérifier leurs attributions par l'administrateur sur **cette** application ; attendez la propagation et reconnectez-vous. |
+| `AADSTS50105` pour Eve | C'est le résultat attendu. Ne lui attribuez pas de rôle. |
+| Autre refus pour Eve | Ce n'est pas encore la preuve attendue. Vérifiez le compte, la MFA et l'accès au tenant. |
+| Le compte ne correspond pas à Alice, Bob ou Eve | Reconnectez le bon compte dans son profil CLI. Ne modifiez pas le fichier privé pour masquer une mauvaise connexion. |
+| `AADSTS65001`, consentement demandé | Faites vérifier les clients préautorisés et leur scope par l'administrateur. |
+| HTTP 403 avec un jeton MCP | Vérifiez que le client est VS Code ou Azure CLI et figure dans les clients autorisés. |
+| VS Code ouvre `<function-host>/authorize` | Vérifiez les PRM (**Preview**), leur scope et la fin du redémarrage. |
+| Le plan retire l'authentification ou recrée le serveur | Arrêtez-vous. Vérifiez les trois fichiers de variables et le même état du module 02. |
+| Azure CLI ne peut pas lire l'application Entra | Demandez la vérification à l'administrateur ; n'élargissez pas vos droits pour ce contrôle. |
 
 ## Nettoyer
 
-Nettoyez dans l'ordre inverse. Chaque script commence par un plan et refuse toute modification hors du module 03.
-Lancez-le une première fois pour relire le plan, puis relancez-le avec `-Apply`. Les deux scripts sont idempotents.
+**Si vous continuez immédiatement au module 04, conservez les ressources et les fichiers privés.**
+Sinon, procédez dans l'ordre inverse du déploiement : rétablissez l'exigence de clé,
+retirez l'authentification Entra de la Function App, puis supprimez l'application Entra.
+Ne supprimez jamais l'application Entra tant que la Function en dépend.
+
+Le script commence par un plan. Exécutez-le sans `-Apply`, relisez son périmètre, puis appliquez après approbation :
 
 ```powershell
-# Participant : remettre la clé derrière Entra (phase 1), puis retirer l'authentification intégrée (phase 2).
 & .\modules\03-entra-authentication\cleanup.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID
-& .\modules\03-entra-authentication\cleanup.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID -Apply
-Remove-Item -LiteralPath .\.workshop\module03.tfvars.json, .\.workshop\module03-personas.json -ErrorAction SilentlyContinue
-Remove-Item -LiteralPath .\.workshop\az-alice, .\.workshop\az-bob, .\.workshop\az-eve -Recurse -ErrorAction SilentlyContinue
-# Administrateur des identités : supprimer seulement les objets Entra créés par l'atelier (jamais les applications ni utilisateurs fournis).
-& .\modules\03-entra-authentication\cleanup.ps1 -TenantId $env:ARM_TENANT_ID -Scope Entra
-& .\modules\03-entra-authentication\cleanup.ps1 -TenantId $env:ARM_TENANT_ID -Scope Entra -Apply
 ```
 
-> **Résultat attendu** — d'après les messages du script de nettoyage ; ce n'est pas encore une capture. Les lignes de l'apply Terraform sont omises.
->
-> ```text
-> PASS explicit Azure context and private participant parameters (expected HTTP 200 from Azure Resource Manager).
-> PLAN update azurerm_function_app_flex_consumption.mcp[0] (phase 1: restore the key gate behind Entra)
-> PASS 'phase 1: restore the key gate behind Entra' plan changes only 1 module 03 object(s). Review it, then rerun with -Apply.
-> ```
->
-> L'exécution avec `-Apply` affiche ensuite `PASS 'phase 1: restore the key gate behind Entra' applied (expected HTTP 200).`,
-> planifie la phase 2 (`PLAN update ... (phase 2: remove built-in authentication)`), l'applique et se termine par
-> `PASS the server is back to the level 0 key gate. Remove .workshop/module03.tfvars.json, then run modules/02-open-server/cleanup.ps1 to delete it.`
-> Les lignes `Remove-Item` n'affichent rien. Le rapport de l'administrateur des identités liste les huit objets :
->
-> ```text
-> PASS explicit tenant and interactive identity administrator sign-in (expected HTTP 200 from Microsoft Graph).
-> PLAN delete azuread_app_role_assignment.personas["alice-read"] (destroy workshop-created Entra objects)
-> PLAN delete azuread_app_role_assignment.personas["alice-write"] (destroy workshop-created Entra objects)
-> PLAN delete azuread_app_role_assignment.personas["bob-read"] (destroy workshop-created Entra objects)
-> PLAN delete azuread_application.mcp[0] (destroy workshop-created Entra objects)
-> ...
-> PASS 'destroy workshop-created Entra objects' plan changes only 8 module 03 object(s). Review it, then rerun with -Apply.
-> ```
->
-> Avec `-Apply`, il se termine par `PASS provided applications and existing test users were not touched. Deleted registrations stay restorable for 30 days in Microsoft Entra.`
->
-> **Ce que cela signifie pour vous :** la clé revient **avant** le retrait d'Entra : le serveur n'est jamais anonyme.
-> Une ligne `FAIL ... change(s) outside module 03` signifie que rien n'a été appliqué. Une seconde exécution affiche
-> `PASS '<phase>': nothing to do in this state (idempotent, expected HTTP N/A).`
+> **Résultat attendu** — plan limité au module 03. Le nettoyage remet la clé **avant** de retirer l'authentification intégrée.
+> S'il signale un changement extérieur au module, arrêtez-vous.
+
+```powershell
+& .\modules\03-entra-authentication\cleanup.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID -Apply
+```
+
+> **Résultat attendu** — la phase 1 remet la clé, la phase 2 retire l'authentification intégrée, puis le script se termine par `PASS the server is back to the level 0 key gate.`
+
+Puis demandez à l'administrateur, dans sa session et son état Entra :
+
+```powershell
+& .\modules\03-entra-authentication\cleanup.ps1 -TenantId $tenant -Scope Entra
+```
+
+> **Résultat attendu** — sans `-Apply`, le plan de suppression des objets Entra du module 03, sans rien modifier. L'administrateur relance avec `-Apply` après approbation.
+
+Après lecture et approbation du plan :
+
+```powershell
+& .\modules\03-entra-authentication\cleanup.ps1 -TenantId $tenant -Scope Entra -Apply
+```
+
+> **Résultat attendu** — seuls les objets Entra gérés pour l'atelier sont supprimés.
+> Une inscription fournie par l'administrateur et les comptes existants sont conservés.
+
+Équivalents bash pour afficher les plans, puis relancer avec `-Apply` après approbation :
 
 ```bash
-bash ./modules/03-entra-authentication/cleanup.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId "$ARM_SUBSCRIPTION_ID" -Apply
-bash ./modules/03-entra-authentication/cleanup.sh -TenantId "$ARM_TENANT_ID" -Scope Entra -Apply
+bash ./modules/03-entra-authentication/cleanup.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId "$ARM_SUBSCRIPTION_ID"
+# Dans la session de l'administrateur :
+bash ./modules/03-entra-authentication/cleanup.sh -TenantId "<tenant-id>" -Scope Entra
 ```
 
-> **Résultat attendu** — les mêmes lignes PASS et PLAN que les exécutions PowerShell avec `-Apply` ci-dessus.
+> **Résultat attendu** — les mêmes lignes `PASS` et `PLAN` que les commandes PowerShell ci-dessus.
 
-Supprimez ensuite le serveur avec le script de nettoyage du module 02, retirez le serveur `workshop-entra` de VS Code et demandez à
-l'administrateur des identités de supprimer les comptes de test s'ils n'ont été créés que pour cet atelier. Si vous
-passez directement au module 04, conservez tout.
+Ne laissez pas le serveur au niveau « clé seule » : terminez par le [nettoyage du module 02](../02-open-server/README.fr.md#nettoyer)
+ou le [module 99](../99-cleanup/README.fr.md). Retirez l'entrée `workshop-entra` de VS Code.
+Déconnectez les profils de test. Retirez les fichiers privés du module seulement après le nettoyage réussi.
 
 ## Aller plus loin
 
-- Ouvrez [alice.json](synthetic-claims/alice.json) et [bob.json](synthetic-claims/bob.json) : quelle revendication
-  diffère, et quelle couche l'utilise ?
-- En tant que Bob, appelez `create_ticket` dans VS Code. Cela fonctionne : pourquoi est-ce un problème, et quel module le corrige ?
-- Lisez les concepts [scopes et rôles d'application](../../docs/fr/concepts/scopes-and-app-roles.md) et
-  [chaîne de jetons](../../docs/fr/concepts/token-chain.md).
-- Suite : [module 04](../04-governed-gateway/README.fr.md).
+- Expliquez à un collègue pourquoi Bob et Eve n'ont pas le même résultat, puis pourquoi Bob n'est pas encore limité à la lecture.
+- Comparez les [exemples fictifs Alice](synthetic-claims/alice.json) et [Bob](synthetic-claims/bob.json), sans décoder de vrai jeton.
+- Lisez [scopes et rôles d'application](../../docs/fr/concepts/scopes-and-app-roles.md)
+  et la [chaîne de jetons](../../docs/fr/concepts/token-chain.md).
+- Continuez au [module 04](../04-governed-gateway/README.fr.md) : même serveur et mêmes comptes,
+  mais `create_ticket` exigera `Tools.Write`. Bob devra alors recevoir HTTP 403.
 
 ## Sources
 
-- [Configurer l'autorisation d'un serveur MCP (App Service et Functions)](https://learn.microsoft.com/azure/app-service/configure-authentication-mcp)
-- [Sécuriser des serveurs MCP avec Microsoft Entra et VS Code](https://learn.microsoft.com/azure/app-service/configure-authentication-mcp-server-vscode)
-- [Tutoriel : héberger un serveur MCP sur Azure Functions (authentification intégrée, paramètre du webhook, ID client VS Code)](https://learn.microsoft.com/azure/azure-functions/functions-mcp-tutorial)
-- [Métadonnées de ressource protégée (Preview) dans l'authentification App Service](https://learn.microsoft.com/azure/app-service/overview-authentication-authorization#protected-resource-metadata-preview)
-- [Ajouter des rôles d'application et les recevoir dans un jeton](https://learn.microsoft.com/entra/identity-platform/howto-add-app-roles-in-apps)
-- [Exiger l'attribution des utilisateurs pour une application d'entreprise](https://learn.microsoft.com/entra/identity/enterprise-apps/assign-user-or-group-access-portal)
-- [Référence des revendications des jetons d'accès](https://learn.microsoft.com/entra/identity-platform/access-token-claims-reference)
-- [Azure-Samples/remote-mcp-functions-dotnet au commit 468c518 (infra/app/entra.bicep, infra/app/api.bicep)](https://github.com/Azure-Samples/remote-mcp-functions-dotnet/tree/468c518c884ec318e3001b9573254c9e775409c9)
-- [Fournisseur AzureAD 3.10.0](https://registry.terraform.io/providers/hashicorp/azuread/3.10.0/docs) et [AzureRM 5.9.0 Flex Consumption `auth_settings_v2`](https://github.com/hashicorp/terraform-provider-azurerm/blob/v5.9.0/website/docs/r/function_app_flex_consumption.html.markdown)
-- [RFC 9728 OAuth 2.0 Protected Resource Metadata](https://www.rfc-editor.org/rfc/rfc9728)
+- [Lire les paramètres d'authentification V2](https://learn.microsoft.com/rest/api/appservice/web-apps/get-auth-settings-v-2?view=rest-appservice-2024-11-01), vérifié le 20 octobre 2026.
 
-Dernière vérification : 2026-10-18.
+- [Autorisation MCP intégrée et PRM (Preview)](https://learn.microsoft.com/azure/app-service/configure-authentication-mcp)
+- [Connexion VS Code et App Service](https://learn.microsoft.com/azure/app-service/configure-authentication-mcp-server-vscode)
+- [Tutoriel Functions MCP : authentification et paramètre du webhook](https://learn.microsoft.com/azure/azure-functions/functions-mcp-tutorial)
+- [Rôles d'application](https://learn.microsoft.com/entra/identity-platform/howto-add-app-roles-in-apps)
+- [Exiger une attribution](https://learn.microsoft.com/entra/identity-platform/howto-restrict-your-app-to-a-set-of-users)
+- [Azure CLI : lire une Function](https://learn.microsoft.com/cli/azure/functionapp#az-functionapp-show)
+- [Azure CLI : lire les paramètres d'application](https://learn.microsoft.com/cli/azure/functionapp/config/appsettings#az-functionapp-config-appsettings-list)
+- [Azure CLI : lire une inscription](https://learn.microsoft.com/cli/azure/ad/app#az-ad-app-show)
+- [Azure CLI : lire une application d'entreprise](https://learn.microsoft.com/cli/azure/ad/sp#az-ad-sp-show)
+- [Azure CLI : appeler une API avec az rest](https://learn.microsoft.com/cli/azure/reference-index#az-rest)
+- [Exemple Functions épinglé au commit 468c518](https://github.com/Azure-Samples/remote-mcp-functions-dotnet/tree/468c518c884ec318e3001b9573254c9e775409c9)
+- [Fournisseur AzureAD 3.10.0](https://registry.terraform.io/providers/hashicorp/azuread/3.10.0/docs)
+  et [AzureRM 5.9.0, auth_settings_v2](https://github.com/hashicorp/terraform-provider-azurerm/blob/v5.9.0/website/docs/r/function_app_flex_consumption.html.markdown)
+
+Dernière vérification : 2026-10-20 (documentation et contrôles locaux ; aucun nouveau déploiement).

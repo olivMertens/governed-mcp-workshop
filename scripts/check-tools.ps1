@@ -1,6 +1,8 @@
 #requires -Version 7.4
 [CmdletBinding()]
-param()
+param(
+    [ValidateSet('terraform', 'low-code')][string]$Track = 'terraform'
+)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -51,11 +53,13 @@ Test-WorkshopTool az @('version', '--output', 'json') {
     param($text)
     [version](($text | ConvertFrom-Json).'azure-cli') -ge [version]'2.88.0'
 } 'Azure CLI >= 2.88.0'
-Test-WorkshopTool terraform @('version', '-json') {
-    param($text)
-    $version = [version](($text | ConvertFrom-Json).terraform_version)
-    $version -ge [version]'1.16.6' -and $version.Major -eq 1
-} 'Terraform >= 1.16.6, < 2'
+if ($Track -eq 'terraform') {
+    Test-WorkshopTool terraform @('version', '-json') {
+        param($text)
+        $version = [version](($text | ConvertFrom-Json).terraform_version)
+        $version -ge [version]'1.16.6' -and $version.Major -eq 1
+    } 'Terraform >= 1.16.6, < 2'
+}
 Test-WorkshopTool dotnet @('--list-sdks') { param($text) $text -match '(?m)^10\.\d+\.\d+ ' } '.NET SDK 10'
 Test-WorkshopTool node @('--version') {
     param($text)

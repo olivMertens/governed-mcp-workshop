@@ -4,6 +4,10 @@
 
 ## Goal
 
+**Terraform + PowerShell track.** Continue with the resources managed in `infra/workload`.
+For the separate portal-first guide, choose [Low-code](LOW-CODE.md). Run commands from the repository root.
+This separated guide has not been revalidated live; dated outputs and screenshots below are historical author examples.
+
 Your MCP server is now protected by Microsoft Entra ID (module 03), reachable only through Azure API Management
 (APIM, module 04), and it calls downstream data with the right identity (module 05).
 One question remains: **can you see what happens, and can other teams find the server?**
@@ -16,7 +20,7 @@ This module answers that question in two separate parts:
   You register it in Azure API Center (**Preview**). An administrator can also list it in the Microsoft 365 admin
   center as a bring-your-own (BYO) MCP server (**Preview**).
 
-You deploy nothing new. You read the telemetry, register the server, and learn what each piece of evidence proves
+You read existing telemetry and register the server, creating a Free API center only if needed. Learn what each piece of evidence proves
 (a log line, an inventory entry, a BYO listing) and what it does not prove.
 
 ## Why it matters
@@ -35,7 +39,8 @@ Two traps to avoid:
 
 ## What you deploy
 
-This module deploys **no new Azure resources**. It reuses the API Management instance and the Application Insights component from earlier modules and adds:
+This module adds **no Terraform-managed resources**. It reuses the API Management instance and Application Insights.
+If you have no API center, step 4 creates one manually (Free plan, after approval). It adds:
 
 | Item | Type | Where | Status |
 |---|---|---|---|
@@ -45,7 +50,8 @@ This module deploys **no new Azure resources**. It reuses the API Management ins
 | BYO MCP server listing | Entry in the Microsoft 365 admin center | Microsoft 365 admin center | **Preview** |
 | Agent 365 with API Management (demo only) | Optional talk track, see "Go further" | Not built by participants | **Preview** |
 
-No Terraform is used. The module has no `infra/` folder because it adds no infrastructure. Two steps touch tenant-level settings (the BYO listing and any Agent 365 policy). Those are performed by a tenant administrator, never by a participant.
+There is no module `infra/` folder. Commands read the existing workload outputs; they do not apply new infrastructure.
+The BYO listing and any Agent 365 policy are tenant-administrator tasks, not participant tasks.
 
 ## Prerequisites and required roles
 
@@ -137,41 +143,6 @@ No. Storage can refuse Bob and the server can return an MCP tool error inside HT
 Check the client result and the available downstream evidence. An empty log query proves neither success nor absence of activity.
 
 </details>
-
-### Low-code track (portal and simple commands)
-
-Steps 1, 2 and 5 are the same in both tracks, and steps 3 and 4 already give the portal path. Only their terminal lines
-read Terraform outputs: in the low-code track, use the names below instead.
-
-```powershell
-$p = Get-Content .\.workshop\participant.tfvars.json -Raw | ConvertFrom-Json
-$id = "$($p.participant_prefix)lc"; $sfx = $p.resource_suffix.Substring(0, 10)
-$group = "rg-mcp-$id-$sfx"; $ai = "appi-mcp-$id-$sfx"; $apim = "apim-mcp-$id-$sfx"; $apic = "apic-mcp-$id-$sfx"
-# Step 3: the same KQL file, on your Application Insights component.
-az monitor app-insights query --app $ai --resource-group $group --offset 24h `
-  --analytics-query '@modules/06-observe-inventory/queries/mcp-traffic.kql' --query 'tables[0].rows' -o json
-# Step 4: the API center (Free plan) and its gateway environment; the URL to paste under Remotes.
-az apic create --resource-group $group --name $apic --location (az group show --name $group --query location --output tsv)
-az apic environment create --resource-group $group --service-name $apic --environment-id gateway --title "API Management gateway" --type development
-"https://$apim.azure-api.net/workshop-mcp/mcp"
-```
-
-> **Real result** — low-code track, 2026-10-20, author's test tenant. 7 of the 102 rows from the modules 04 and 05 checks,
-> then the API center (`"sku": { "name": "Free" }`) and the `gateway` environment.
->
-> ```text
-> [ "2026-10-20T10:27:38.6207559Z", "tools/call", "create_ticket", "200", "True", 442.5, "", "" ]
-> [ "2026-10-20T10:27:51.7341172Z", "tools/call", "create_ticket", "403", "False", 3.3805, "", "" ]
-> [ "2026-10-20T10:32:02.3050838Z", "tools/call", "list_tickets", "200", "True", 51.4503, "", "" ]
-> [ "2026-10-20T10:46:54.2387598Z", "tools/call", "whoami", "200", "True", 1566.4731, "", "" ]
-> [ "2026-10-20T10:46:56.2391415Z", "tools/call", "read_report_as_user", "200", "True", 569.971, "", "" ]
-> [ "2026-10-20T10:46:57.2408390Z", "tools/call", "read_report_as_app", "200", "True", 258.4664, "", "" ]
-> [ "2026-10-20T10:47:08.3307894Z", "tools/call", "read_report_as_user", "200", "True", 292.3766, "", "" ]
-> ```
->
-> **What it means for you:** the same metadata as in the full-code track, because the gateway policies are the same. Both
-> `read_report_as_user` rows show HTTP 200, but one of them is Bob's: Storage refused him inside the tool result. HTTP
-> success is not tool success. Bob's `create_ticket` (HTTP 403, 3 ms) never reached the Function.
 
 ### Step 1 - Run the offline checks
 
@@ -512,7 +483,7 @@ for the remote (HTTP 400), and only an SSE definition was generated. If the asse
 terminal. It uses the same names as above:
 
 ```powershell
-$server = Join-Path $env:TEMP 'apic-server.json'
+$server = Join-Path $PWD '.workshop\apic-server.json'
 @{ runtimeUri = @((terraform -chdir=infra/workload output -raw gateway_mcp_endpoint)) } | ConvertTo-Json -Compress | Set-Content $server
 az apic api deployment list --resource-group $group --service-name $apic --api-id contoso-governed-mcp-demo --query "[].name" --output tsv
 az apic api deployment create --resource-group $group --service-name $apic --api-id contoso-governed-mcp-demo --deployment-id gateway --title "API Management gateway" --environment-id /workspaces/default/environments/gateway --definition-id /workspaces/default/apis/contoso-governed-mcp-demo/versions/v1/definitions/default-sse --server "@$server"

@@ -4,6 +4,10 @@
 
 ## Goal
 
+[Portal-first low-code guide](LOW-CODE.md)
+
+**Terraform + PowerShell track.** The participant manages workload identities and the identity administrator manages application trust through their respective Terraform roots. Keep the existing private parameters and state. Use the separate low-code guide for portal-managed resources.
+
 Ask the **same question** as two different users and see **who carries the rights** downstream. At the end:
 
 - `whoami` calls Microsoft Graph **on behalf of** the signed-in user and returns only a synthetic persona label (`alice` or `bob`);
@@ -157,155 +161,6 @@ Cloud Application Administrator or Application Administrator. See the [identity 
 
 ## Steps
 
-> [!TIP]
-> **Two tracks, same result.** Keep the track you chose in modules 02 to 04 ([how to choose](../../docs/TRACKS.md)): the
-> **low-code track** below, or the **full-code track** (sections PowerShell and Bash).
-
-### Low-code track (portal and simple commands)
-
-You need the module 04 low-code gateway, and the identity administrator for step L3. One terminal from L1 to the end.
-
-**L1. Names, and the two new managed identities.** Portal: **Managed Identities** → **Create**, twice: `…-obo` signs the
-On-Behalf-Of (OBO) exchange, `…-report` reads the report as the app. Then Function App → **Identity** → **User assigned** →
-**+ Add** both.
-
-```powershell
-$p = Get-Content .\.workshop\participant.tfvars.json -Raw | ConvertFrom-Json
-$id = "$($p.participant_prefix)lc"; $sfx = $p.resource_suffix.Substring(0, 10)
-$rg = "rg-mcp-$id-$sfx"; $st = "st$id$sfx"; $fn = "func-mcp-$id-$sfx"; $apim = "apim-mcp-$id-$sfx"; $mi = "id-mcp-$id-$sfx"
-$obo = "$mi-obo"; $rep = "$mi-report"
-$tags = @('workshop=governed-mcp', "owner=$($p.owner)", "expiry=$($p.expiry)", 'track=low-code')
-$tenant = az account show --query tenantId -o tsv; $sub = az account show --query id -o tsv
-$apiClientId = az ad app list --display-name "Workshop MCP API ($id-$sfx)" --query "[0].appId" -o tsv
-az identity create -g $rg -n $obo --tags @tags -o none
-az identity create -g $rg -n $rep --tags @tags -o none
-$ids = foreach ($n in $mi, $obo, $rep) { az identity show -g $rg -n $n --query id -o tsv }
-az functionapp identity assign -g $rg -n $fn --identities @ids -o none
-(az functionapp identity show -g $rg -n $fn -o json | ConvertFrom-Json).userAssignedIdentities.PSObject.Properties.Name | ForEach-Object { ($_ -split '/')[-1] }
-```
-
-> **Real result** — low-code track, 2026-10-20, author's test tenant (names shortened).
->
-> ```text
-> id-mcp-<id>
-> id-mcp-<id>-obo
-> id-mcp-<id>-report
-> ```
-
-**L2. The `reports` container and its three roles, then the Function settings.** Portal: storage account → **Containers** →
-**+ Container** `reports`; on the container → **Access control (IAM)** → **Add role assignment**: *Storage Blob Data Reader*
-for the `…-report` identity and for Alice, *Storage Blob Data Contributor* for you (to publish). Nothing for Bob or the
-`…-obo` identity. Function App → **Environment variables**: add the seven `WORKSHOP_*` settings below.
-
-```powershell
-$u = Get-Content .\.workshop\test-users.private.json -Raw | ConvertFrom-Json
-az storage container-rm create -g $rg --storage-account $st -n reports -o none
-$cont = (az storage account show -g $rg -n $st --query id -o tsv) + '/blobServices/default/containers/reports'
-az role assignment create --assignee-object-id (az identity show -g $rg -n $rep --query principalId -o tsv) --assignee-principal-type ServicePrincipal --role 'Storage Blob Data Reader' --scope $cont -o none
-az role assignment create --assignee-object-id $u.alice.objectId --assignee-principal-type User --role 'Storage Blob Data Reader' --scope $cont -o none
-az role assignment create --assignee-object-id (az ad signed-in-user show --query id -o tsv) --assignee-principal-type User --role 'Storage Blob Data Contributor' --scope $cont -o none
-# A settings file keeps the JSON quotes intact (inline JSON loses them on Windows).
-$f = New-TemporaryFile
-@{
-    WORKSHOP_DELEGATED_ACCESS = 'enabled'; WORKSHOP_TENANT_ID = $tenant; WORKSHOP_MCP_API_CLIENT_ID = $apiClientId
-    WORKSHOP_OBO_ASSERTION_CLIENT_ID = (az identity show -g $rg -n $obo --query clientId -o tsv)
-    WORKSHOP_REPORT_IDENTITY_CLIENT_ID = (az identity show -g $rg -n $rep --query clientId -o tsv)
-    WORKSHOP_REPORT_CONTAINER_URL = "https://$st.blob.core.windows.net/reports"
-    WORKSHOP_PERSONA_OBJECT_IDS = (@{ alice = $u.alice.objectId; bob = $u.bob.objectId } | ConvertTo-Json -Compress)
-} | ConvertTo-Json | Set-Content $f
-az functionapp config appsettings set -g $rg -n $fn --settings "@$f" -o none; Remove-Item $f
-az role assignment list --scope $cont --query "[].roleDefinitionName" -o tsv
-```
-
-> **Real result** — low-code track, 2026-10-20.
->
-> ```text
-> Storage Blob Data Reader
-> Storage Blob Data Reader
-> Storage Blob Data Contributor
-> ```
->
-> **What it means for you:** two readers (the app-only identity and Alice) and one publisher (you). Bob has no role, so
-> his user-context read fails downstream. That failure is the lesson.
-
-**L3. Identity administrator: trust the OBO identity, request two delegated scopes, grant consent.** Portal: **App
-registrations** → *Workshop MCP API* → **Certificates & secrets** → **Federated credentials** → **+ Add credential** →
-*Managed identity* → the `…-obo` identity. Then **API permissions** → **+ Add a permission**: Microsoft Graph *User.Read*
-and Azure Storage *user_impersonation* (both *Delegated*) → **Grant admin consent**. The commands do the same through
-Microsoft Graph.
-
-```powershell
-$h = @{ Authorization = "Bearer $(az account get-access-token --resource-type ms-graph --query accessToken -o tsv)" }
-$g = 'https://graph.microsoft.com/v1.0'
-$app = Invoke-RestMethod "$g/applications(appId='$apiClientId')?`$select=id" -Headers $h
-$sp = (Invoke-RestMethod "$g/servicePrincipals?`$filter=appId eq '$apiClientId'&`$select=id" -Headers $h).value[0]
-$fic = @{ name = 'workshop-obo-lowcode'; issuer = "https://login.microsoftonline.com/$tenant/v2.0"; audiences = @('api://AzureADTokenExchange')
-    subject = (az identity show -g $rg -n $obo --query principalId -o tsv); description = 'Module 05: the OBO managed identity proves this API. No secret.' }
-Invoke-RestMethod -Method Post "$g/applications/$($app.id)/federatedIdentityCredentials" -Headers $h -ContentType 'application/json' -Body ($fic | ConvertTo-Json) | Out-Null
-$down = @(@{ app = '00000003-0000-0000-c000-000000000000'; scope = 'User.Read' }, @{ app = 'e406a681-f3d4-42a8-90b6-c2b029497af1'; scope = 'user_impersonation' })
-$access = foreach ($d in $down) {
-    $r = (Invoke-RestMethod "$g/servicePrincipals?`$filter=appId eq '$($d.app)'&`$select=id,oauth2PermissionScopes" -Headers $h).value[0]; $d.sp = $r.id
-    @{ resourceAppId = $d.app; resourceAccess = @(@{ id = ($r.oauth2PermissionScopes | Where-Object value -eq $d.scope).id; type = 'Scope' }) }
-}
-Invoke-RestMethod -Method Patch "$g/applications/$($app.id)" -Headers $h -ContentType 'application/json' -Body (@{ requiredResourceAccess = @($access) } | ConvertTo-Json -Depth 5) | Out-Null
-foreach ($d in $down) {
-    $grant = @{ clientId = $sp.id; consentType = 'AllPrincipals'; resourceId = $d.sp; scope = $d.scope } | ConvertTo-Json
-    (Invoke-RestMethod -Method Post "$g/oauth2PermissionGrants" -Headers $h -ContentType 'application/json' -Body $grant).scope
-}
-```
-
-> **Real result** — low-code track, 2026-10-20.
->
-> ```text
-> User.Read
-> user_impersonation
-> ```
->
-> **What it means for you:** the API registration now trusts one managed identity (no client secret) and may call Graph
-> and Storage *for* the signed-in user, nothing else. Run this block once: a second run adds duplicates.
-
-**L4. Publish the synthetic report.** If your storage account is reachable (you skipped module 02 step L4), run the
-first line. If it is private, run the second one: it uploads from a short-lived container inside the virtual network,
-then deletes it.
-
-```powershell
-& .\modules\05-delegated-and-app-only\publish-report.ps1 -TenantId $tenant -SubscriptionId $sub -StorageAccount $st
-& .\modules\05-delegated-and-app-only\publish-report.ps1 -TenantId $tenant -SubscriptionId $sub -StorageAccount $st -InsideVirtualNetwork -ResourceGroup $rg -SubnetPrefix 10.52.1.64/28
-```
-
-> **Real result** — low-code track, 2026-10-20, private storage (second line).
->
-> ```text
-> PASS explicit Azure context (expected HTTP 200 from Azure Resource Manager).
-> INFO temporary subnet, identity and container-scoped role created; waiting 60 s for the role to apply.
-> PASS synthetic report published as reports/monthly-usage.json from inside the virtual network, with a managed identity, no key or SAS (expected HTTP 201).
-> INFO temporary container, identity, role, subnet and its network security group deleted.
-> ```
-
-**L5. Check your work, then as Alice and Bob.** The same validator as the full-code track, with names instead of Terraform
-outputs. For the personas, sign in each test account in its own `AZURE_CONFIG_DIR` (see [Validate](#validate)).
-
-```powershell
-$lc = @{ ResourceGroup = $rg; FunctionApp = $fn; GatewayName = $apim; ApiClientId = $apiClientId; StorageAccount = $st; OboIdentityName = $obo }
-& .\modules\05-delegated-and-app-only\validate.ps1 -TenantId $tenant -SubscriptionId $sub @lc
-& .\modules\05-delegated-and-app-only\validate.ps1 -TenantId $tenant -Persona Alice @lc
-& .\modules\05-delegated-and-app-only\validate.ps1 -TenantId $tenant -Persona Bob @lc
-```
-
-> **Real result** — low-code track, 2026-10-20 (excerpt).
->
-> ```text
-> PASS MCP API registration: no client secret, exactly one federated credential trusting the OBO managed identity (expected HTTP 200 from Microsoft Graph).
-> PASS report container: 2 Storage Blob Data Reader assignment(s) (app-only identity, Alice), none for the OBO identity or Bob (expected HTTP 200 from Azure Resource Manager).
-> PASS module 05 operator checks complete. Persona checks are still required for validation.
-> PASS Alice whoami: On-Behalf-Of to Microsoft Graph returns the synthetic persona 'alice' and no name or email (expected HTTP 200).
-> PASS Alice read_report_as_user returns the synthetic report with her own Storage role (expected HTTP 200, isError false).
-> PASS Bob read_report_as_user: the MCP call succeeds but the tool result is an error, because Storage refuses Bob downstream (expected HTTP 200, isError true, downstream HTTP 403).
-> PASS read_report_as_app returned the same result for Alice and Bob: the managed identity, not the caller, carries the rights (expected HTTP 200).
-> ```
->
-> **What it means for you:** same token, two different answers for the user tool, one identical answer for the app-only
-> tool. Continue with module 06's low-code track.
 
 ### PowerShell
 

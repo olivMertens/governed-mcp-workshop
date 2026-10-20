@@ -2,8 +2,8 @@
 
 Ce guide sert à tester **votre serveur déjà déployé**, pas à le déployer.
 **Sans Azure :** commencez par le [module 01 local](../../modules/01-discover-mcp/README.fr.md),
-avec de vraies commandes et sans adresse distante à saisir.
-Le tableau prépare les commandes. VS Code ou MCP Inspector les exécute.
+que vous exécutez sur votre poste, sans adresse distante à saisir.
+La page de l'atelier vous indique les commandes ; vous les lancez dans votre terminal ou votre client MCP.
 Un résultat attendu décrit dans le guide ne prouve pas qu'un test a réussi.
 
 ## Commencer par un test simple
@@ -13,15 +13,16 @@ Un résultat attendu décrit dans le guide ne prouve pas qu'un test a réussi.
    et le sélecteur d'outils dans VS Code.
 3. Commencez par `get_service_health` s'il est disponible. Lisez les informations demandées par l'outil
    et utilisez seulement des données fictives. S'il n'est pas disponible, arrêtez-vous.
-4. Lancez **Call Tool** dans Inspector ou, dans VS Code, utilisez le prompt proposé dans le tableau.
+4. Lancez **Call Tool** dans Inspector ou, dans VS Code, utilisez le prompt proposé par le guide.
    Vérifiez la trace de l'exécution, pas seulement la réponse de l'assistant.
 5. Comparez le résultat avec celui qu'annonce le module. Un code HTTP 200 peut contenir une erreur MCP.
-   Lancez ensuite le script de vérification du module, s'il est publié.
+   Lancez ensuite le script de vérification du module.
 
 > [!IMPORTANT]
-> Ne collez jamais de clé ou de jeton dans ce tableau. Ne désactivez pas la confirmation manuelle.
-> `create_ticket` modifie les données de test et peut entraîner des coûts : chaque exécution
-> nécessite le rôle prévu et votre accord explicite pour cette action précise.
+> Ne collez jamais de clé ou de jeton dans la page de l'atelier. Ne désactivez pas la confirmation manuelle.
+> `create_ticket` modifie les données de test et peut entraîner des coûts : approuvez chaque appel séparément.
+> Au module 02, la clé ne distingue pas les utilisateurs. Au module 03, Bob peut encore écrire.
+> C'est au module 04 que la passerelle exige le rôle `Tools.Write` et refuse l'écriture à Bob, même s'il l'approuve dans le client.
 
 ## Se connecter au bon serveur
 
@@ -134,11 +135,16 @@ dans VS Code ou utilisez Inspector avec le [guide exécutable](../../modules/01-
 **Conseil :** utilisez la clé système MCP prévue, pas une autre clé de la Function. Un refus HTTP 401 sans clé est normal.
 **En cas de problème :** laissez la protection du point d'entrée activée. Les accès liés à l'identité sont encore simulés.
 
-## 03 - Vérifier qui se connecte et avec quels droits
+## 03 - Distinguer l'accès au serveur des droits par outil
 
-**À vérifier :** le jeton est destiné au serveur MCP ; Alice et Bob sont autorisés à se connecter, pas Eve.
-**Conseil :** vérifiez le compte réellement connecté et l'application cliente utilisée.
-**En cas de problème :** faites vérifier le consentement et les affectations. N'acceptez pas un jeton destiné à Graph.
+**À vérifier :** Alice et Bob obtiennent un jeton destiné au serveur MCP et voient les cinq outils.
+Eve peut se connecter au même tenant, mais ne peut pas obtenir ce jeton : `AADSTS50105` est attendu.
+**Conseil :** vérifiez l'identifiant du compte réellement connecté. Bob a une attribution de lecture, Eve n'en a aucune.
+Au module 03, Bob peut encore appeler `create_ticket` : le contrôle du rôle par outil arrive au module 04.
+**Ordre :** préparez Entra → activez-le en conservant la clé → lisez la configuration et vérifiez le refus sans jeton →
+retirez l'exigence de clé → testez les trois comptes.
+**En cas de problème :** faites vérifier les préautorisations du client et les attributions des utilisateurs.
+N'acceptez pas un jeton destiné à Graph et n'attribuez pas de rôle à Eve pour supprimer le refus attendu.
 
 ## 04 - Imposer le passage par API Management
 
@@ -161,14 +167,16 @@ dans VS Code ou utilisez Inspector avec le [guide exécutable](../../modules/01-
 ## 07 - Utiliser un autre client sans changer les protections
 
 **À vérifier :** le client facultatif utilise la même passerelle et une connexion officiellement prise en charge.
-**Conseil :** cette démonstration est réservée à l'animateur ; vérifiez les licences, l'identité et les fonctionnalités en **Preview**.
-**En cas de problème :** reportez tout parcours qui exige un secret client. Ne transmettez pas le jeton MCP aux API cibles.
+**Conseil :** suivez la partie A du module 07 avec Microsoft Foundry, dans votre propre environnement de test. Vérifiez les prérequis et les fonctionnalités en **Preview** avant de déployer. La partie B (Copilot Studio) est un aperçu à lire, pas un exercice validé.
+**En cas de problème :** consultez le dépannage du module 07. Ne désactivez aucun contrôle et ne transmettez pas le jeton MCP aux API cibles.
 
 ## 99 - Supprimer les ressources de l'atelier
 
 **À vérifier :** les ressources et affectations créées pour l'atelier sont supprimées ; les ressources partagées restent intactes.
 **Conseil :** nettoyez séparément les ressources Azure et les identités. Arrêtez Inspector et les codespaces inutilisés.
-**En cas de problème :** examinez l'inventaire, les durées de conservation et les suppressions récupérables.
+**En cas de problème :** comparez les ressources restantes à votre inventaire de départ.
+Vérifiez séparément le groupe Foundry et ses identités, si vous avez suivi le module 07,
+puis les ressources conservées temporairement après suppression.
 Ne lancez pas de suppression globale sans l'avoir examinée et fait approuver.
 
 ## Sources

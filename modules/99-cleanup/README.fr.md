@@ -2,16 +2,27 @@
 
 ## Objectif
 
-Supprimer tout ce que l'atelier a créé, dans l'ordre inverse de la création, et prouver qu'il ne reste rien.
+**Parcours Terraform + PowerShell.** Vous allez nettoyer les ressources gérées par Terraform.
+[English](README.md) · [Guide low-code autonome](LOW-CODE.fr.md).
+
+Vous allez supprimer les ressources et les identités créées pour votre atelier, en remontant les modules dans l'ordre
+inverse. Vous examinerez d'abord les suppressions prévues, puis les appliquerez après accord.
+Enfin, vous vérifierez ce qui reste, sans toucher aux comptes ni aux ressources fournis par un administrateur.
 
 ## Pourquoi c'est important
 
-Les ressources de l'atelier coûtent de l'argent. Elles laissent aussi des identités et des points de terminaison actifs.
-Bien nettoyer fait partie de la leçon : chaque contrôle ajouté doit être retiré volontairement, pas oublié.
+Les ressources de l'atelier peuvent continuer à être facturées après les exercices.
+Les applications et les identités de test peuvent aussi conserver des accès.
+Vous allez retirer ce qui a été créé pour l'atelier, puis vérifier qu'il ne reste ni ressource facturée inutilement
+ni accès à supprimer.
+
+Si vous avez suivi le module 07, Foundry utilise un groupe de ressources distinct de celui du serveur MCP.
+La suppression du serveur ne suffit donc pas : vérifiez aussi les ressources Foundry, leurs identités et les fiches
+du catalogue. Les ressources partagées fournies par un administrateur doivent rester en place.
 
 ## Ce que vous déployez
 
-Rien. Ce module exécute les scripts de nettoyage des modules 02 à 07 dans l'ordre inverse :
+Vous ne déployez rien. Vous exécutez les scripts de nettoyage des modules 02 à 07 dans l'ordre inverse :
 
 > [!CAUTION]
 > Supprimez uniquement les ressources et identités créées pour l'atelier.
@@ -20,8 +31,9 @@ Rien. Ce module exécute les scripts de nettoyage des modules 02 à 07 dans l'or
 <details>
 <summary>Périmètres du nettoyage (Mermaid)</summary>
 
-Ce schéma présente les périmètres, pas l'ordre exact du script. Suivez le tableau numéroté ci-dessous.
-GitHub affiche le schéma Mermaid ; le portail du présentateur affiche le même schéma avec les icônes Microsoft vérifiées.
+Ce schéma distingue les ressources Azure des identités Microsoft Entra ; il n'indique pas l'ordre exact du script.
+Pour effectuer les suppressions, suivez le tableau numéroté ci-dessous.
+Vous pouvez consulter le schéma dans GitHub ou sa version avec icônes dans le portail de l'atelier.
 [Ouvrir le SVG avec icônes](../../assets/architecture/99.fr.svg) ou le [PNG](../../assets/architecture/99.fr.png).
 
 ```mermaid
@@ -56,16 +68,17 @@ flowchart LR
 
 | Ordre | Nettoyage | Ce qui est retiré |
 |---|---|---|
-| 0 | Module 07 | Projet Foundry, application cliente et son secret de courte durée, blueprint d'identité d'agent, client autorisé |
-| 1 | Module 05, `-Scope Workload` | Paramètres du workload délégué et app-only |
+| 0 | Module 07 | Projet Foundry, application cliente et son secret de courte durée, modèle d'identité d'agent (*blueprint*), client autorisé |
+| 1 | Module 05, `-Scope Workload` | Configuration des accès délégués et applicatifs |
 | 2 | Module 05, `-Scope Entra` | Identifiant fédéré, demandes d'autorisations et consentements |
-| 3 | Module 04 | Passerelle, stratégies et chemin de la Function verrouillé |
+| 3 | Module 04 | Passerelle, stratégies et configuration de l'accès privé à la Function |
 | 4 | Module 03, `-Scope Workload` | Authentification intégrée de la Function App |
 | 5 | Module 03, `-Scope Entra` | Objets Entra créés par l'atelier (jamais ceux fournis par un administrateur) |
 | 6 | Module 02 | La Function App et son point de terminaison ouvert |
 
 > [!TIP]
-> Commencez en **mode rapport**. Le script calcule le plan de chaque étape, le compare à la liste autorisée et affiche ce qui changerait.
+> Commencez en **mode rapport**. Pour chaque étape qu'il peut planifier, le script compare les changements prévus
+> à la liste autorisée et les affiche. Certaines étapes doivent attendre les suppressions précédentes.
 >
 > - Lisez chaque plan avant de continuer.
 > - Rien n'est supprimé tant que vous n'ajoutez pas `-Apply`.
@@ -75,7 +88,7 @@ flowchart LR
 - Les mêmes rôles Azure et Microsoft Entra que dans les modules 02 à 05 (Contributor sur le groupe de ressources de l'atelier,
   et les rôles Entra utilisés pour les inscriptions d'applications).
 - PowerShell 7.4 ou plus récent (`pwsh`), Terraform 1.16.6 ou plus récent dans le `PATH`, et Azure CLI connecté au tenant.
-- Les mêmes fichiers de paramètres que lors des déploiements. Le nettoyage les lit pour retrouver les noms des ressources.
+- Les mêmes fichiers de paramètres et le même état Terraform que lors des déploiements. Le nettoyage s'appuie sur eux pour retrouver vos ressources.
 
 > [!IMPORTANT]
 > Gardez vos paramètres privés `.workshop` et votre état Terraform jusqu'à la fin du nettoyage.
@@ -88,78 +101,57 @@ flowchart LR
 > N'utilisez cette option qu'après un accord explicite et la relecture de chaque plan.
 > Arrêtez-vous si un plan contient une ressource inattendue.
 
-### Parcours low-code (portail et commandes simples)
+### Vérifier vous-même avec Azure CLI, avant de supprimer
 
-Tout ce que vous avez construit à la main tient dans **un groupe de ressources** et **deux inscriptions d'applications** :
-le nettoyage est court. Vos utilisateurs de test restent. Portail : **Groupes de ressources** → votre groupe
-`rg-mcp-<préfixe>lc-…` → **Supprimer le groupe de ressources** ; **Inscriptions d'applications** → *Workshop MCP API (…)*
-et *workshop-mcp-foundry-client-…* → **Supprimer** ; puis **Services API Management** → **Gérer les services supprimés** →
-**Purger**. Les commandes font la même chose, rapport d'abord.
+**Pourquoi :** vous devez savoir quelles ressources appartiennent à l'atelier avant d'approuver leur suppression.
+Cette étape est **en lecture seule**. Dans PowerShell 7, à la racine du dépôt :
 
 ```powershell
-$p = Get-Content .\.workshop\participant.tfvars.json -Raw | ConvertFrom-Json
-$id = "$($p.participant_prefix)lc"; $sfx = $p.resource_suffix.Substring(0, 10); $rg = "rg-mcp-$id-$sfx"; $apim = "apim-mcp-$id-$sfx"
-$tenant = az account show --query tenantId -o tsv; $sub = az account show --query id -o tsv
-# 1. Rapport : lisez la liste. Arrêtez-vous si le groupe n'a pas l'étiquette track=low-code ou contient autre chose que vos ressources.
-az group show -n $rg --query tags -o json
-az resource list -g $rg --query "[].type" -o tsv | Group-Object | ForEach-Object { "$($_.Count) $($_.Name)" }
-az ad app list --display-name "Workshop MCP API ($id-$sfx)" --query "[].displayName" -o tsv
-& .\modules\07-clients\cleanup.ps1 -TenantId $tenant -SubscriptionId $sub -LowCodeTrack   # seulement si vous avez fait le module 07
+$ErrorActionPreference = 'Stop'
+$inspectParticipant = Get-Content -LiteralPath .\.workshop\participant.tfvars.json -Raw | ConvertFrom-Json
+$inspectWorkshopTag = "mcp-$($inspectParticipant.participant_prefix)-$($inspectParticipant.resource_suffix)"
+$inspectGroup = if ($inspectParticipant.existing_resource_group_name) { $inspectParticipant.existing_resource_group_name } else { "rg-$inspectWorkshopTag" }
+az resource list -g $inspectGroup --query "[?tags.workshop=='$inspectWorkshopTag'].{name:name,resourceType:type}" -o table
+if ($LASTEXITCODE -ne 0) { throw "Inventaire indisponible. Vérifiez le contexte et l'existence du groupe." }
 ```
 
-> **Résultat réel** — parcours low-code, 2026-10-20, tenant de test de l'auteur (extrait).
->
-> ```text
->   "track": "low-code",
->   "workshop": "governed-mcp"
-> 1 Microsoft.ApiCenter/services
-> 1 Microsoft.ApiManagement/service
-> 4 Microsoft.ManagedIdentity/userAssignedIdentities
-> 3 Microsoft.Network/privateEndpoints
-> 1 Microsoft.Web/sites
-> Workshop MCP API (<id>)
-> PLAN delete the Foundry client app registration and its short-lived secret
-> DONE report only. Nothing was changed. Rerun with -Apply after reviewing every PLAN line.
-> ```
+> **Résultat attendu** — avant le nettoyage, la commande affiche les noms et types des ressources portant votre balise d'atelier.
+> La liste ne donne aucune autorisation de suppression. Les éléments sans étiquette, les objets Entra et les ressources
+> Foundry éventuelles exigent les contrôles complémentaires décrits dans ce guide.
+
+![Inventaire réel Azure CLI AVANT nettoyage : ressources encore présentes, dont la Function et API Management](../../assets/screenshots/terminal-99-az-inventory.png)
+
+*Capture en lecture seule du 20 octobre 2026 : ces ressources existent encore. Ce n'est pas une preuve de suppression.
+Si un nom vous surprend, arrêtez-vous et faites vérifier à qui appartient la ressource avant d'approuver sa suppression.*
+
+Après le nettoyage approuvé, vous pourrez vérifier l'existence du groupe avec :
 
 ```powershell
-# 2. Appliquer, après accord. Supprimer l'inscription de l'API retire aussi ses informations fédérées, préautorisations et consentements.
-& .\modules\07-clients\cleanup.ps1 -TenantId $tenant -SubscriptionId $sub -LowCodeTrack -Apply   # seulement si vous avez fait le module 07
-if ((az group show -n $rg --query tags.track -o tsv) -ne 'low-code') { throw 'Pas le groupe low-code de l''atelier : rien supprimé.' }
-$apps = @(az ad app list --display-name "Workshop MCP API ($id-$sfx)" --query "[].id" -o tsv)
-az group delete -n $rg --yes
-foreach ($a in $apps) { az ad app delete --id $a }
-# 3. API Management garde une instance supprimée 48 heures : purgez-la pour libérer le nom.
-$d = az apim deletedservice list -o json | ConvertFrom-Json | Where-Object name -eq $apim
-if ($d) { az apim deletedservice purge --service-name $d.name --location $d.location }
-"group exists: $(az group exists -n $rg); soft-deleted gateways: $((az apim deletedservice list --query '[].name' -o tsv) -join ',')"
+az group exists --name $inspectGroup -o tsv
+if ($LASTEXITCODE -ne 0) { throw "Vérification de l'existence du groupe impossible." }
 ```
 
-> **Résultat réel** — parcours low-code, 2026-10-20 (extrait ; le premier `az group delete` s'est arrêté, voir la note
-> ci-dessous).
->
-> ```text
-> PASS Foundry client app registration and secret deleted (expected HTTP 204 from Microsoft Graph).
-> DONE module 07 part A removed. Private module 07 files deleted.
-> group exists: false; soft-deleted gateways:
-> ```
->
-> **Ce que cela signifie pour vous :** il ne reste rien du parcours low-code : ni groupe de ressources, ni inscription
-> d'application, ni passerelle en suppression réversible. Seuls vos utilisateurs de test restent, volontairement.
-
-> [!NOTE]
-> Le 2026-10-20, le premier `az group delete` s'est arrêté avec `ResourceGroupDeletionBlocked` et `Server farm with name
-> ASP-… not found` : le plan Flex Consumption avait déjà disparu, mais Azure Resource Manager le listait encore. Tout le
-> reste était supprimé. La solution : recréer le plan sous le même nom, le supprimer, puis supprimer à nouveau le groupe.
->
-> ```powershell
-> $plan = az resource list -g $rg --resource-type Microsoft.Web/serverFarms --query "[0].name" -o tsv
-> $url = "https://management.azure.com/subscriptions/$sub/resourceGroups/$rg/providers/Microsoft.Web/serverFarms/$plan`?api-version=2024-04-01"
-> $f = New-TemporaryFile; '{"location":"westeurope","kind":"functionapp","sku":{"name":"FC1","tier":"FlexConsumption"},"properties":{"reserved":true}}' | Set-Content $f
-> az rest --method put --url $url --body "@$f" -o none; Remove-Item $f; az rest --method delete --url $url; az group delete -n $rg --yes
-> ```
+> **Résultat attendu** — après le nettoyage, `false` pour un groupe dédié supprimé ; `true` pour un groupe fourni et conservé.
+> Dans ce dernier cas seulement, relancez l'inventaire pour vérifier que vos ressources d'atelier ont disparu.
+> La capture précédente montre l'inventaire avant nettoyage, pas le résultat de ces suppressions.
 
 ### PowerShell
+
+À la racine du dépôt, initialisez et vérifiez le contexte du déploiement approuvé :
+
+```powershell
+$env:ARM_TENANT_ID = az account show --query tenantId -o tsv
+$env:ARM_SUBSCRIPTION_ID = az account show --query id -o tsv
+az account show --query '{subscription:name,tenant:tenantId}' -o table
+```
+
+> **Résultat attendu** — le tenant et l'abonnement approuvés pour votre atelier. Arrêtez-vous s'ils ne correspondent pas.
+
+Avant de supprimer le serveur et sa passerelle, ouvrez **API Center → votre centre → Assets**, vérifiez l'URL de votre
+passerelle, puis supprimez seulement la fiche (**asset**) de l'atelier. Ne supprimez un centre dédié que si vous l'avez créé ;
+conservez tout centre fourni et tout environnement partagé. L'administrateur Microsoft 365 retire l'entrée BYO éventuelle
+(**Préversion**). Le [nettoyage du module 06](../06-observe-inventory/README.fr.md#nettoyer) donne la commande exacte
+pour votre centre dédié.
 
 ```powershell
 # 1. Rapport seul (par défaut). Lisez chaque plan. Rien ne change.
@@ -170,7 +162,7 @@ pwsh ./modules/99-cleanup/cleanup.ps1 -TenantId $env:ARM_TENANT_ID -Subscription
 ```
 
 > **Résultat réel** — mode rapport, 2026-10-19, tenant de test de l'auteur avec les modules 02 et 03 déployés, la
-> délégation Entra du module 05 encore présente, et la charge de travail des modules 04 et 05 déjà retirée. `...` masque des
+> délégation Entra du module 05 encore présente, et les ressources Azure des modules 04 et 05 déjà retirées. `...` masque des
 > lignes semblables. Noms et identifiants masqués.
 >
 > ```text
@@ -200,12 +192,12 @@ pwsh ./modules/99-cleanup/cleanup.ps1 -TenantId $env:ARM_TENANT_ID -Subscription
 >
 > **Ce que cela signifie pour vous :** le premier mot de chaque ligne indique de quoi il s'agit.
 >
-> - `PLAN` : ce que cette étape modifierait. Lisez-les toutes.
+> - `PLAN` : ce que cette étape modifierait. Lisez chaque ligne.
 > - `nothing to do` : il ne reste rien à retirer pour cette étape.
 > - `SKIP` : un fichier privé manque. Normal pour une étape jamais déployée ; sinon, restaurez le fichier.
-> - `NOTE` : Terraform remet aussi le portail facultatif du présentateur sur son niveau validé, parce qu'un élément extérieur
->   à Terraform l'a modifié (ici, un passage nocturne en F1). Seule cette modification précise est acceptée ; le portail est
->   conservé.
+> - `NOTE` : dans cet exemple, Terraform rétablit aussi l'offre prévue pour le portail facultatif, modifiée en dehors
+>   de Terraform (passage nocturne en F1). Cette correction précise est autorisée ; le portail est conservé.
+>   Ne considérez pas ce message comme une autorisation d'appliquer d'autres changements inattendus.
 > - `WAIT` : le mode rapport n'applique rien, donc cette étape voit encore des objets qu'une étape précédente *prévoit*
 >   seulement de retirer. Ce n'est pas une erreur. Avec `-Apply`, les étapes s'exécutent dans l'ordre et chacune refait son
 >   plan après la précédente.
@@ -241,13 +233,17 @@ pwsh ./modules/99-cleanup/cleanup.ps1 -TenantId $env:ARM_TENANT_ID -Subscription
 > ```
 >
 > **Ce que cela signifie pour vous :** chaque étape n'a supprimé que ses propres objets, dans l'ordre. Après chaque étape
-> appliquée, son fichier privé d'activation part dans `.workshop/applied/` : une deuxième exécution ne prévoit donc jamais
-> de recréer ce qui vient d'être supprimé. La première exécution de l'auteur s'est arrêtée à `05 -Scope Entra` avec
-> `Authorization_RequestDenied` : le rôle temporaire de l'administrateur des identités avait expiré. Après sa réactivation,
-> la même commande a repris là où elle s'était arrêtée.
+> appliquée, son fichier privé d'activation est déplacé dans `.workshop/applied/` pour éviter de recréer les ressources
+> supprimées lors d'une nouvelle exécution. Si le script s'arrête, conservez ces fichiers et reprenez avec la même commande
+> après avoir corrigé la cause. Par exemple, `Authorization_RequestDenied` peut signaler que le rôle temporaire
+> de l'administrateur des identités a expiré : faites réactiver ce rôle avant de reprendre.
+
 ### Bash
 
 ```bash
+export ARM_TENANT_ID="$(az account show --query tenantId -o tsv)"
+export ARM_SUBSCRIPTION_ID="$(az account show --query id -o tsv)"
+az account show --query '{subscription:name,tenant:tenantId}' -o table
 # 1. Rapport seul (par défaut).
 ./modules/99-cleanup/cleanup.sh --tenant-id "$ARM_TENANT_ID" --subscription-id "$ARM_SUBSCRIPTION_ID"
 
@@ -257,15 +253,17 @@ pwsh ./modules/99-cleanup/cleanup.ps1 -TenantId $env:ARM_TENANT_ID -Subscription
 
 > **Résultat attendu** — les mêmes lignes `SKIP`, `-->`, `PLAN`, `PASS` et `DONE` que l'exécution PowerShell ci-dessus ; le script bash appelle `cleanup.ps1`.
 
-Étapes manuelles (le script ne les effectue pas) :
+### Étapes manuelles de nettoyage
+
+Le script n'effectue pas ces étapes :
 
 1. Supprimez les utilisateurs de test de l'atelier (Alice, Bob, Eve) si vous les avez créés.
 2. Retirez les attributions de rôle ajoutées à la main pour l'atelier.
-3. Si un présentateur a publié le portail facultatif, le script le conserve volontairement. Retirez-le seulement à la fin de l'atelier, avec la procédure validée de [docs/fr/HOSTING.md](../../docs/fr/HOSTING.md).
+3. Si le portail facultatif est déployé, le script le conserve volontairement. Demandez à son responsable de le retirer seulement à la fin de l'atelier, avec la procédure de [docs/fr/HOSTING.md](../../docs/fr/HOSTING.md).
 4. Supprimez ce qu'Azure a créé en dehors de Terraform, s'il existe : les groupes de sécurité réseau qu'une stratégie du
    tenant ajoute à chaque sous-réseau (`<vnet>-snet-...-nsg-<region>`) et le groupe d'actions **Application Insights Smart
    Detection** (commandes ci-dessous).
-5. Lancez la vérification des tags ci-dessous.
+5. Lancez la vérification des balises ci-dessous.
 
 ```powershell
 $p = Get-Content -LiteralPath ./.workshop/participant.tfvars.json -Raw | ConvertFrom-Json
@@ -292,15 +290,18 @@ az resource list --tag "workshop=mcp-$($p.participant_prefix)-$($p.resource_suff
 >
 > Sans portail, la commande n'affiche rien (un résultat vide ne produit pas de tableau).
 >
-> **Ce que cela signifie pour vous :** une sortie vide prouve qu'il ne reste aucune ressource portant le tag de l'atelier. Chaque ligne affichée est une ressource oubliée.
+> **Ce que cela signifie pour vous :** une sortie vide indique qu'il ne reste aucune ressource portant cette balise
+> d'atelier. Examinez chaque ligne restante : elle peut correspondre à un oubli ou à un élément conservé volontairement,
+> comme le portail de cet exemple. Cette recherche ne couvre pas les ressources sans balise ni les objets Entra.
 
 ## Résultat attendu
 
 - En mode rapport : une ligne `-->` par étape déployée, le résumé du plan, puis `DONE report only. Nothing was changed.`
   Une étape dont le fichier privé requis est absent affiche `SKIP <étape> (missing .workshop/<fichier>; ...)` : c'est normal si vous ne l'avez jamais déployée.
   Une étape qui dépend de suppressions encore prévues affiche `WAIT` en mode rapport ; `-Apply` la traite dans l'ordre.
-- En mode application : `DONE module clean-ups applied.` suivi des étapes manuelles.
-- La vérification des tags renvoie un tableau vide. Chaque ligne affichée correspond à une ressource qu'il reste à supprimer.
+- Avec `-Apply` : `DONE module clean-ups applied.` suivi des étapes manuelles.
+- La recherche par balise ne renvoie plus de ressource de l'atelier, sauf les éléments explicitement conservés.
+  Vous avez aussi vérifié les suppressions manuelles et les objets Entra ; les ressources fournies par un administrateur restent intactes.
 
 **Question :** pourquoi le module 99 lance-t-il les nettoyages des modules dans l'ordre inverse plutôt qu'un seul `terraform destroy` ?
 
@@ -308,8 +309,9 @@ az resource list --tag "workshop=mcp-$($p.participant_prefix)-$($p.resource_suff
 <summary>Afficher la réponse</summary>
 
 Les modules suivants dépendent des précédents (la passerelle et l'authentification reposent sur la Function App), et les objets
-Entra du module 05 doivent être supprimés avant ceux du module 03. Le garde-fou de chaque module vérifie que son plan ne supprime
-que ce que ce module a créé. Ainsi, aucune identité fournie par l'administrateur ni aucune ressource partagée n'est supprimée par erreur.
+Entra du module 05 doivent être supprimés avant ceux du module 03. Chaque script vérifie que son plan reste dans la liste
+des changements autorisés. Cette protection réduit le risque de supprimer un élément partagé, mais ne remplace pas
+votre vérification des ressources et de leur propriétaire avant de donner votre accord.
 
 </details>
 
@@ -325,6 +327,12 @@ privés `.workshop`, puis relancez le rapport.
 </details>
 
 ## Valider
+
+> [!NOTE]
+> **Limites de validation :** ce parcours n'a pas été revalidé de bout en bout dans sa version actuelle.
+> Les sorties datées proviennent d'exécutions antérieures dans le tenant de test de l'auteur, pas de votre abonnement.
+> Un résultat hors ligne ne prouve aucune suppression. Vérifiez les ressources, les objets Entra et les éléments
+> conservés volontairement dans votre propre environnement.
 
 Contrôles hors ligne (sans accès Azure) :
 
@@ -370,9 +378,9 @@ Chaque contrôle affiche `PASS` ou `FAIL`. La dernière ligne est `RESULT: PASS`
 <details>
 <summary>Afficher la réponse</summary>
 
-Parce que le rapport est votre filet de sécurité. Il liste exactement ce qui serait supprimé, et vous le relisez avant
-`-Apply`. Le test garantit que personne ne fait de la suppression le comportement par défaut : une seule mauvaise commande
-ne peut pas effacer des ressources que vous n'avez pas relues.
+Parce que le rapport vous permet d'examiner les suppressions prévues sans les exécuter.
+Vous le relisez avant d'ajouter `-Apply`. Le test vérifie que le script ne supprime rien par défaut. Il ne remplace pas votre relecture :
+une commande lancée avec `-Apply` peut bien supprimer les ressources prévues.
 
 </details>
 
@@ -382,24 +390,28 @@ ne peut pas effacer des ressources que vous n'avez pas relues.
 - **Une étape s'arrête avec un code d'erreur.** Le script s'arrête à la première erreur. Lisez le message, corrigez le problème, puis
   relancez le script. Grâce à leurs garde-fous, les étapes déjà appliquées ne refont rien.
 - **Un plan contient une modification inattendue.** Ne l'appliquez pas. Le garde-fou interrompt le script si une modification sort de la
-  liste autorisée, et rien n'est appliqué. Adressez-vous au formateur.
+  liste autorisée, avant l'application de cette étape. Faites examiner le plan par l'administrateur responsable
+  des ressources avant de reprendre.
 - **`Authorization_RequestDenied` dans une étape Entra.** Le rôle de l'administrateur des identités n'est pas actif (par
-  exemple un rôle PIM temporaire a expiré). Réactivez-le, attendez une minute, puis relancez la même commande : les étapes
+  exemple un rôle temporaire accordé par Privileged Identity Management, ou PIM, a expiré). Faites-le réactiver,
+  attendez une minute, puis relancez la même commande : les étapes
   déjà appliquées sont ignorées.
-- **La vérification des tags affiche encore des ressources.** Soit elles ont été créées en dehors de l'atelier, soit vous avez sauté une étape.
-  Identifiez chaque ressource dans le portail avant de la supprimer à la main.
+- **La recherche par balise affiche encore des ressources.** Vérifiez si elles ont été conservées volontairement,
+  créées en dehors de Terraform ou oubliées. Confirmez leur propriétaire et leur usage dans le portail avant toute suppression.
 
 ## Nettoyage
 
 Ce module est lui-même le nettoyage. Pour remettre l'environnement de l'atelier dans son état initial, exécutez la section
-« Étapes » en mode application, puis les étapes manuelles, puis la vérification des tags.
+« Étapes » avec `-Apply` après accord, effectuez les étapes manuelles, puis contrôlez les ressources restantes.
 
 ## Pour aller plus loin
 
 - Définissez une alerte budgétaire et une date d'expiration sur le groupe de ressources avant le prochain atelier.
-- Remplacez les utilisateurs de test par vos propres comptes et supprimez-les à la fin de l'atelier.
+- Pour un prochain atelier, préparez des comptes dédiés aux tests et supprimez uniquement ceux créés pour cet usage.
 
 ## Sources
+
+- [Lister les ressources sans les modifier](https://learn.microsoft.com/cli/azure/resource#az-resource-list) et [vérifier l'existence du groupe](https://learn.microsoft.com/cli/azure/group#az-group-exists), vérifiés le 20 octobre 2026.
 
 - Terraform destroy : https://developer.hashicorp.com/terraform/cli/commands/destroy
 - Balises de ressources Azure : https://learn.microsoft.com/azure/azure-resource-manager/management/tag-resources

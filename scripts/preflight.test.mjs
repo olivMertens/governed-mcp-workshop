@@ -19,7 +19,10 @@ $global:subscription = [guid]::NewGuid()
 $global:calls = [Collections.Generic.List[string]]::new()
 $global:pageCount = 0
 function global:git { $global:LASTEXITCODE=0; 'git version 2.53.0' }
-function global:terraform { $global:LASTEXITCODE=0; '{"terraform_version":"1.16.6"}' }
+function global:terraform {
+    if ($global:scenario -like 'low-code-*') { throw 'Low-code must not execute Terraform.' }
+    $global:LASTEXITCODE=0; '{"terraform_version":"1.16.6"}'
+}
 function global:dotnet { $global:LASTEXITCODE=0; '10.0.402 [synthetic]' }
 function global:node { $global:LASTEXITCODE=0; 'v22.22.0' }
 function global:func { $global:LASTEXITCODE=0; '4.14.0' }
@@ -31,7 +34,11 @@ function global:az {
         'cloud show' { @{ name='AzureCloud' }; break }
         'account show' { @{ id=$(if ($global:scenario -eq 'wrong-context') { [guid]::NewGuid().ToString() } else { $global:subscription.ToString() });
             tenantId=$global:tenant.ToString(); state='Enabled'; environmentName='AzureCloud'; userType='user' }; break }
-        'group show' { @{id="/subscriptions/$global:subscription/resourceGroups/rg-synthetic-admin"}; break }
+        'group show' {
+            $expected = if ($global:scenario -eq 'low-code-new-group') { 'rg-mcp-p01lc-0123456789' } else { 'rg-synthetic-admin' }
+            if ($args[3] -ne $expected) { throw "Wrong resource group lookup: $($args[3])" }
+            @{id="/subscriptions/$global:subscription/resourceGroups/$expected"}; break
+        }
         'group list' {
             if ($global:scenario -eq 'invalid-groups') { @{count=3} }
             else { @(1..$(if ($global:scenario -eq 'group-quota') { 980 } else { 3 }) | ForEach-Object { @{name="synthetic-$_"} }) }
@@ -73,13 +80,14 @@ $path = Join-Path $directory 'parameters.json'
 $reviewPath = Join-Path $directory 'capacity.json'
 foreach ($global:scenario in @('valid', 'pagination', 'wrong-context', 'override', 'permission-denied', 'group-quota',
     'missing-provider', 'cli-error', 'invalid-json', 'unsafe-pagination', 'portal-valid', 'mcp-valid', 'wrong-runtime',
-    'wrong-region', 'missing-review', 'stale-review', 'future-review', 'wrong-review-target', 'insufficient-review', 'unsafe-parameters', 'invalid-locations', 'invalid-groups')) {
+    'wrong-region', 'missing-review', 'stale-review', 'future-review', 'wrong-review-target', 'insufficient-review', 'unsafe-parameters', 'invalid-locations', 'invalid-groups',
+    'low-code-new-group', 'low-code-existing-group')) {
     $global:pageCount=0
     $global:calls.Clear()
     $stage = if ($global:scenario -in @('portal-valid','missing-provider','missing-review','stale-review','future-review','wrong-review-target','insufficient-review')) { 'portal' }
-        elseif ($global:scenario -in @('mcp-valid','wrong-runtime','wrong-region')) { 'mcp' } else { 'foundation' }
+        elseif ($global:scenario -in @('mcp-valid','wrong-runtime','wrong-region','low-code-new-group','low-code-existing-group')) { 'mcp' } else { 'foundation' }
     $parameters = @{participant_prefix='p01';resource_suffix='0123456789';location='westeurope';owner='alice';
-        expiry=[datetime]::UtcNow.AddDays(1).ToString('yyyy-MM-dd');existing_resource_group_name=$(if ($stage -ne 'foundation') { 'rg-synthetic-admin' } else { $null })}
+        expiry=[datetime]::UtcNow.AddDays(1).ToString('yyyy-MM-dd');existing_resource_group_name=$(if ($stage -ne 'foundation' -and $global:scenario -ne 'low-code-new-group') { 'rg-synthetic-admin' } else { $null })}
     if ($global:scenario -eq 'unsafe-parameters') { $parameters.resource_suffix='../../outside' }
     $parameters | ConvertTo-Json | Set-Content -LiteralPath $path
     $before = Get-Content -LiteralPath $path -Raw
@@ -91,13 +99,14 @@ foreach ($global:scenario in @('valid', 'pagination', 'wrong-context', 'override
         availableUnits=$(if ($global:scenario -eq 'insufficient-review') { 0 } else { 512000 });
         checkedAtUtc=$checked.ToString('yyyy-MM-ddTHH:mm:ssZ');costApproved=$true } | ConvertTo-Json | Set-Content -LiteralPath $reviewPath
     $arguments = @{TenantId=$global:tenant;SubscriptionId=$global:subscription;ParametersPath=$path;Stage=$stage}
+    if ($global:scenario -like 'low-code-*') { $arguments.Track='low-code' }
     if ($stage -ne 'foundation' -and $global:scenario -ne 'missing-review') { $arguments.CapacityReviewPath=$reviewPath }
     if ($global:scenario -eq 'override') { $env:ARM_CLIENT_ID='synthetic-override' }
     $failed=$false
     try { $output = & '${script}' @arguments | Out-String }
     catch { $failed=$true; $output=$_.Exception.Message + ' ' + $_.ScriptStackTrace }
     finally { Remove-Item Env:ARM_CLIENT_ID -ErrorAction SilentlyContinue }
-    $expected = $global:scenario -in @('valid','pagination','portal-valid','mcp-valid')
+    $expected = $global:scenario -in @('valid','pagination','portal-valid','mcp-valid','low-code-new-group','low-code-existing-group')
     if ($failed -eq $expected) { throw "Unexpected result for $global:scenario : $output" }
     if ($output -match 'synthetic private error must not be printed') { throw 'Private CLI error leaked.' }
     if ((Get-Content -LiteralPath $path -Raw) -cne $before) { throw 'Preflight changed participant parameters.' }
@@ -109,5 +118,5 @@ foreach ($global:scenario in @('valid', 'pagination', 'wrong-context', 'override
 }
 `], { encoding: "utf8", timeout: 60000 });
     assert.equal(result.status, 0, result.stderr + result.stdout);
-    assert.equal((result.stdout.match(/PASS synthetic /g) ?? []).length, 22);
+    assert.equal((result.stdout.match(/PASS synthetic /g) ?? []).length, 24);
 });

@@ -4,18 +4,28 @@
 
 ## Objectif
 
-Déployer le serveur Model Context Protocol (MCP) de l'atelier sur Azure Functions, protégé uniquement par une clé.
-Prouver qu'une requête sans clé reçoit HTTP 401 et qu'une requête avec la clé reçoit HTTP 200.
-Constater ensuite le risque : **toute personne qui détient la clé peut appeler l'outil d'écriture `create_ticket`.**
+[Guide low-code, portail d'abord](LOW-CODE.fr.md)
+
+**Parcours Terraform + PowerShell.** Vous créerez les ressources avec Terraform, puis publierez le code et vérifierez
+le serveur depuis PowerShell. Reprenez les fichiers privés et l'état Terraform du module 00.
+Si vous avez choisi de créer vos ressources dans le portail, suivez plutôt le guide low-code :
+ne gérez pas les mêmes ressources avec les deux méthodes.
+
+Vous allez déployer le serveur Model Context Protocol (MCP) de l'atelier sur Azure Functions et en protéger l'accès par une clé.
+Vous vérifierez qu'un appel sans clé est refusé (**HTTP 401**), puis qu'un appel avec la bonne clé réussit (**HTTP 200**).
+Vous créerez enfin un ticket fictif pour constater la limite de cette protection :
+**toute personne qui possède la clé peut appeler `create_ticket`, quels que soient ses droits.**
 
 > [!WARNING]
-> Le niveau 0 sert uniquement à montrer ce risque. Ne le laissez en place que peu de temps, ne rendez jamais le point de terminaison
-> anonyme, et passez au module 03 (Microsoft Entra ID) puis au module 04 (API Management) pour le corriger.
+> Ne laissez pas ce serveur protégé par une simple clé en service après l'exercice.
+> Passez au module 03 ou supprimez les ressources si vous vous arrêtez ici.
+> Ne désactivez jamais la protection par clé pour faciliter un test.
+> Le module 03 ajoutera une connexion Microsoft Entra ID ; le module 04 vérifiera les droits nécessaires pour chaque outil avec API Management.
 
 ## Pourquoi c'est important
 
 Une clé est un secret partagé, pas une identité. Le serveur ne fait pas la différence entre Alice, Bob et Eve.
-Il ne peut ni appliquer de rôle par utilisateur, ni appeler une API en aval « au nom de l'utilisateur ».
+Il ne peut ni appliquer de rôle par utilisateur, ni appeler une autre API « au nom de l'utilisateur ».
 Les journaux ne peuvent pas dire qui a fait quoi. Une clé peut se retrouver exposée dans une capture d'écran, une conversation, un fichier de
 configuration enregistré ou un historique de navigateur.
 
@@ -51,11 +61,11 @@ Les cinq outils (toutes les données sont synthétiques) :
 | `get_service_health` | lecture | État fixe pour `workshop-api` ou `ticket-queue` |
 | `create_ticket` | **écriture** | Vérifie `service`, `severity` et un court `summary`, puis place un ticket synthétique dans la file |
 | `whoami` | démonstration | Indique que l'appelant est inconnu : une clé n'identifie personne |
-| `read_report_as_user` | démonstration | Rapport synthétique étiqueté ; le vrai appel On-Behalf-Of arrive au module 05 |
-| `read_report_as_app` | démonstration | Rapport synthétique étiqueté ; le vrai appel par identité managée arrive au module 05 |
+| `read_report_as_user` | démonstration | Rapport fictif signalé comme tel ; l'appel réel avec On-Behalf-Of est ajouté au module 05 |
+| `read_report_as_app` | démonstration | Rapport fictif signalé comme tel ; l'appel réel avec une identité managée est ajouté au module 05 |
 
 Chaque outil refuse les arguments inconnus. `create_ticket` n'écrit rien si les arguments n'ont pas exactement la forme attendue.
-Les journaux contiennent seulement le nom de l'outil, le résultat, la durée et l'identifiant d'invocation :
+Les journaux contiennent seulement le nom de l'outil, le statut de l'appel, la durée et l'identifiant d'invocation :
 jamais les arguments, les résultats, les clés ni les jetons.
 
 
@@ -108,7 +118,7 @@ Aucune fonctionnalité en **Preview** n'est utilisée. Le code et l'infrastructu
 [Azure-Samples/remote-mcp-functions-dotnet](https://github.com/Azure-Samples/remote-mcp-functions-dotnet/tree/468c518c884ec318e3001b9573254c9e775409c9)
 (MIT) ; voir [THIRD-PARTY-NOTICES.md](../../THIRD-PARTY-NOTICES.md).
 
-**Coût :** Flex Consumption facture les exécutions et le temps de mémoire utilisé, plus les transactions de stockage et
+**Coût :** Flex Consumption facture les exécutions et la mémoire consommée pendant leur durée, auxquels s'ajoutent les transactions de stockage et
 l'ingestion de télémétrie. Le plan peut descendre à zéro instance et monter jusqu'à 10 instances, sans instance toujours prête.
 Vérifiez les prix actuels dans votre région avant de demander l'accord. Nettoyez le jour même. Le stockage privé
 facultatif ajoute deux points de terminaison privés (facturés à l'heure et au Go traité) et deux zones DNS privées.
@@ -130,191 +140,6 @@ Aucune modification Microsoft Entra n'est nécessaire dans ce module.
 
 ## Étapes
 
-> [!TIP]
-> **Deux parcours, même résultat.** Choisissez-en un pour tout l'atelier ([comment choisir](../../docs/fr/TRACKS.md)) :
-> le **parcours low-code** ci-dessous (portail Azure ou une courte commande `az` par étape), ou le **parcours full-code**
-> (Terraform et scripts, sections PowerShell et Bash). Ne les mélangez pas : Terraform ne voit pas ce que vous créez à la main.
-
-### Parcours low-code (portail et commandes simples)
-
-Chaque étape donne le chemin dans le portail, puis la commande `az` équivalente. Utilisez l'un ou l'autre. Lancez les
-commandes dans PowerShell depuis la racine du dépôt (Cloud Shell fonctionne aussi). Les noms viennent de votre fichier de
-participant, comme dans le parcours full-code, avec `lc` en plus pour que les deux parcours ne se croisent jamais.
-
-**L1. Noms et étiquettes.**
-
-```powershell
-$p = Get-Content .\.workshop\participant.tfvars.json -Raw | ConvertFrom-Json
-$id = "$($p.participant_prefix)lc"; $sfx = $p.resource_suffix.Substring(0, 10); $loc = 'westeurope'
-$rg = "rg-mcp-$id-$sfx"; $st = "st$id$sfx"; $fn = "func-mcp-$id-$sfx"; $mi = "id-mcp-$id-$sfx"
-$ai = "appi-mcp-$id-$sfx"; $law = "log-mcp-$id-$sfx"; $vn = "vnet-mcp-$id-$sfx"
-$tags = @('workshop=governed-mcp', "owner=$($p.owner)", "expiry=$($p.expiry)", 'track=low-code')
-```
-
-> **Résultat attendu** — aucune sortie. Gardez ce terminal ouvert : toutes les étapes suivantes réutilisent ces variables.
-
-**L2. Groupe de ressources, identité, stockage et supervision.** Portail : **Créer une ressource** → **Groupe de
-ressources**, puis **Identités managées**, **Compte de stockage** (onglet **Avancé** : *Autoriser l'accès par clé du
-compte de stockage* désactivé, *Autoriser l'accès anonyme* désactivé), **Espace de travail Log Analytics** et
-**Application Insights** (basé sur l'espace de travail).
-
-```powershell
-az group create -n $rg -l $loc --tags @tags -o none
-az identity create -g $rg -n $mi --tags @tags -o none
-az storage account create -g $rg -n $st -l $loc --sku Standard_LRS --kind StorageV2 --min-tls-version TLS1_2 `
-    --allow-blob-public-access false --allow-shared-key-access false --tags @tags -o none
-az monitor log-analytics workspace create -g $rg -n $law --tags @tags -o none
-az monitor app-insights component create -g $rg -a $ai -l $loc --workspace $law --tags @tags -o none
-```
-
-> **Résultat réel** — 2026-10-20, tenant de test de l'auteur : aucune sortie. La stratégie du tenant a fixé l'accès
-> réseau public du compte de stockage à **Désactivé** dès sa création : l'étape L4 devient alors obligatoire.
-
-**L3. Conteneur de déploiement, file des tickets et les trois rôles de l'identité.** Portail : compte de stockage →
-**Conteneurs** → **+ Conteneur** `app-package` ; **Files d'attente** → **+ File d'attente** `tickets` ; puis **Contrôle
-d'accès (IAM)** → **Ajouter une attribution de rôle** pour l'identité managée : *Storage Blob Data Owner* sur le compte de
-stockage, *Storage Queue Data Message Sender* sur la seule file `tickets`, *Monitoring Metrics Publisher* sur
-Application Insights.
-
-```powershell
-az storage container-rm create -g $rg --storage-account $st -n app-package -o none
-$stId = az storage account show -g $rg -n $st --query id -o tsv
-az rest --method put --url "https://management.azure.com$stId/queueServices/default/queues/tickets?api-version=2023-05-01" --body '{}' -o none
-$miPid = az identity show -g $rg -n $mi --query principalId -o tsv
-$aiId = az monitor app-insights component show -g $rg -a $ai --query id -o tsv
-az role assignment create --assignee-object-id $miPid --assignee-principal-type ServicePrincipal --role 'Storage Blob Data Owner' --scope $stId -o none
-az role assignment create --assignee-object-id $miPid --assignee-principal-type ServicePrincipal --role 'Storage Queue Data Message Sender' --scope "$stId/queueServices/default/queues/tickets" -o none
-az role assignment create --assignee-object-id $miPid --assignee-principal-type ServicePrincipal --role 'Monitoring Metrics Publisher' --scope $aiId -o none
-az role assignment list --assignee $miPid --all --query "[].roleDefinitionName" -o tsv
-```
-
-> **Résultat réel** — 2026-10-20, tenant de test de l'auteur.
->
-> ```text
-> Storage Blob Data Owner
-> Storage Queue Data Message Sender
-> Monitoring Metrics Publisher
-> ```
-
-**L4. Stockage privé (seulement si votre compte de stockage affiche un accès réseau public *Désactivé*).** Portail :
-**Réseaux virtuels** → **Créer** (deux sous-réseaux : `snet-functions` délégué à *Microsoft.App/environments*,
-`snet-private-endpoints`), puis compte de stockage → **Mise en réseau** → **Connexions de point de terminaison privé** →
-**+ Point de terminaison privé** pour `blob` et pour `queue`, chacun avec **Intégrer à une zone DNS privée** = Oui.
-
-```powershell
-az network vnet create -g $rg -n $vn --address-prefixes 10.52.0.0/23 -o none
-az network vnet subnet create -g $rg --vnet-name $vn -n snet-functions --address-prefixes 10.52.1.32/27 --delegations Microsoft.App/environments -o none
-az network vnet subnet create -g $rg --vnet-name $vn -n snet-private-endpoints --address-prefixes 10.52.1.0/27 -o none
-foreach ($svc in 'blob', 'queue') {
-    $zone = "privatelink.$svc.core.windows.net"
-    az network private-dns zone create -g $rg -n $zone -o none
-    az network private-dns link vnet create -g $rg -z $zone -n "link-$svc" -v $vn -e false -o none
-    az network private-endpoint create -g $rg -n "pe-$st-$svc" --vnet-name $vn --subnet snet-private-endpoints `
-        --private-connection-resource-id $stId --group-id $svc --connection-name "pe-$svc" -o none
-    az network private-endpoint dns-zone-group create -g $rg --endpoint-name "pe-$st-$svc" -n default --private-dns-zone $zone --zone-name $svc -o none
-}
-az network private-endpoint list -g $rg --query "[].privateLinkServiceConnections[0].privateLinkServiceConnectionState.status" -o tsv
-```
-
-> **Résultat réel** — 2026-10-20, tenant de test de l'auteur.
->
-> ```text
-> Approved
-> Approved
-> ```
-
-**L5. La Function App.** Portail : **Créer une ressource** → **Function App** → **Flex Consumption** ; runtime **.NET 10
-(isolé)**, 2048 Mo ; **Stockage** : votre compte, authentification **Identité managée affectée par l'utilisateur** (votre
-identité) ; **Mise en réseau** : votre réseau virtuel, sous-réseau `snet-functions` (si vous avez fait L4) ;
-**Supervision** : votre Application Insights. Sans L4, retirez `--vnet` et `--subnet` de la commande.
-
-```powershell
-$miId = az identity show -g $rg -n $mi --query id -o tsv
-az functionapp create -g $rg -n $fn --storage-account $st --flexconsumption-location $loc --runtime dotnet-isolated --runtime-version 10 `
-    --instance-memory 2048 --deployment-storage-name $st --deployment-storage-container-name app-package `
-    --deployment-storage-auth-type UserAssignedIdentity --deployment-storage-auth-value $miId --assign-identity $miId `
-    --app-insights $ai --https-only true --vnet $vn --subnet snet-functions --tags @tags -o none
-az functionapp show -g $rg -n $fn --query "{state:properties.state || state, https:properties.httpsOnly || httpsOnly}" -o json
-```
-
-> **Résultat réel** — 2026-10-20, tenant de test de l'auteur (l'avertissement indique seulement que le sous-réseau est
-> dans le même groupe de ressources).
->
-> ```text
-> {
->   "https": true,
->   "state": "Running"
-> }
-> ```
->
-> Sans L4, dans un tenant qui impose le stockage privé, la commande s'arrête avec *« The storage account you selected ...
-> has networking restrictions »* : faites d'abord L4.
-
-**L6. Remplacer le paramètre de stockage à clé par l'identité.** La commande de création écrit une chaîne de connexion
-`AzureWebJobsStorage` qui contient une **clé de compte** : inutilisable (les clés sont désactivées) et c'est un secret dans
-votre configuration. Portail : Function App → **Paramètres** → **Variables d'environnement** : supprimez
-`AzureWebJobsStorage`, ajoutez les paramètres ci-dessous, puis **Configuration** → **Paramètres généraux** :
-*Informations d'identification de publication SCM de base* **Désactivé**.
-
-```powershell
-$cid = az identity show -g $rg -n $mi --query clientId -o tsv
-az functionapp config appsettings delete -g $rg -n $fn --setting-names AzureWebJobsStorage -o none
-az functionapp config appsettings set -g $rg -n $fn -o none --settings "AzureWebJobsStorage__credential=managedidentity" `
-    "AzureWebJobsStorage__clientId=$cid" "AzureWebJobsStorage__blobServiceUri=https://$st.blob.core.windows.net/" `
-    "AzureWebJobsStorage__queueServiceUri=https://$st.queue.core.windows.net/" "APPLICATIONINSIGHTS_AUTHENTICATION_STRING=ClientId=$cid;Authorization=AAD" `
-    "TICKET_QUEUE_SERVICE_URI=https://$st.queue.core.windows.net/" "TICKET_QUEUE_NAME=tickets" "WORKSHOP_IDENTITY_CLIENT_ID=$cid"
-az resource update -g $rg -n scm --namespace Microsoft.Web --resource-type basicPublishingCredentialsPolicies --parent "sites/$fn" --set properties.allow=false -o none
-az functionapp config appsettings list -g $rg -n $fn --query "[].name" -o tsv
-```
-
-> **Résultat réel** — 2026-10-20, tenant de test de l'auteur : plus aucun paramètre ne contient de clé.
->
-> ```text
-> APPLICATIONINSIGHTS_CONNECTION_STRING
-> AzureWebJobsStorage__credential
-> AzureWebJobsStorage__clientId
-> AzureWebJobsStorage__blobServiceUri
-> AzureWebJobsStorage__queueServiceUri
-> APPLICATIONINSIGHTS_AUTHENTICATION_STRING
-> TICKET_QUEUE_SERVICE_URI
-> TICKET_QUEUE_NAME
-> WORKSHOP_IDENTITY_CLIENT_ID
-> ```
-
-**L7. Publier le code du serveur.** Dans VS Code avec l'extension Azure Functions : clic droit sur
-`src/FunctionsMcpServer` → **Deploy to Function App...** → votre application. Ou les trois mêmes commandes que dans le
-parcours full-code :
-
-```powershell
-dotnet publish .\src\FunctionsMcpServer --configuration Release --output .\.workshop\lowcode-publish
-Compress-Archive -Path .\.workshop\lowcode-publish\* -DestinationPath .\.workshop\lowcode.zip -Force
-az functionapp deployment source config-zip -g $rg -n $fn --src .\.workshop\lowcode.zip -o none
-```
-
-> **Résultat réel** — 2026-10-20, tenant de test de l'auteur : les lignes de compilation, puis trois avertissements
-> pendant qu'Azure termine le déploiement (`responded with status code 202`, `Waiting for sync triggers...`,
-> `Checking the health of the function app`). Code de sortie 0.
-
-**L8. Vérifier : la clé est le seul verrou.** Le validateur prend vos noms à la place des sorties Terraform :
-
-```powershell
-& .\modules\02-open-server\validate.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID -ResourceGroup $rg -FunctionApp $fn -DemonstrateWrite
-```
-
-> **Résultat réel** — parcours low-code, 2026-10-20, tenant de test de l'auteur (extrait).
->
-> ```text
-> PASS Function App is running and HTTPS-only (expected HTTP 200 from Azure Resource Manager).
-> PASS MCP request without the mcp_extension key is refused (expected HTTP 401).
-> PASS anonymous access disabled: a random wrong key is refused (expected HTTP 401).
-> PASS MCP initialize with the key succeeds; negotiated protocol 2025-06-18 (expected HTTP 200).
-> PASS tools/list with the key returns exactly the five workshop tools (expected HTTP 200).
-> PASS RISK SHOWN: create_ticket succeeds with only the key; no user or role was checked (expected HTTP 200).
-> PASS module 02 live checks complete. Rotate or remove the key after the exercise (see README).
-> ```
->
-> **Ce que cela signifie pour vous :** le même serveur et le même risque que dans le parcours full-code : toute personne
-> qui a la clé peut écrire. Le module 03 corrige cela. Continuez ensuite avec le parcours low-code du module 03.
 
 ### PowerShell
 
@@ -362,8 +187,8 @@ Les étapes 3 à 6 modifient Azure : faites-les uniquement après accord.
 > suivantes lisent `$env:ARM_TENANT_ID` et `$env:ARM_SUBSCRIPTION_ID` dans ce terminal : gardez-le ouvert pendant tout le module.
 
 **3. Activez le module en privé, puis lancez le plan.** Le fichier d'activation est ignoré par Git. Ajoutez votre plage
-IPv4 publique dans `mcp_allowed_ip_ranges` (par exemple `"203.0.113.10/32"`) pour limiter les appelants ;
-laissez la liste vide pour montrer le niveau ouvert.
+IPv4 publique dans `mcp_allowed_ip_ranges` (par exemple `"203.0.113.10/32"`) pour limiter les adresses qui peuvent appeler le serveur.
+Une liste vide désactive ce filtrage réseau, mais la clé reste obligatoire.
 
 ```powershell
 '{ "enable_mcp_server": true, "mcp_allowed_ip_ranges": [] }' | Set-Content -LiteralPath .\.workshop\module02.tfvars.json
@@ -460,10 +285,11 @@ if ($LASTEXITCODE -ne 0) { throw 'Code deployment failed.' }
 > Dans un tenant dont la stratégie désactivait l'accès public du stockage, sans `mcp_private_storage`, l'envoi a échoué avec
 > `ERROR: ... BlobUploadFailedException: Failed to upload blob to storage account: ... 403 (This request is not authorized to perform this operation.)`.
 >
-> **Ce que cela signifie pour vous :** si vous voyez cinq fonctions, le code est en ligne. Un 403 ici vient d'une règle réseau,
-> pas d'un rôle manquant (voir Dépannage).
+> **À vérifier :** la liste contient les cinq fonctions du serveur.
+> Dans l'exemple ci-dessus, l'erreur 403 provenait du réseau de stockage.
+> Si vous rencontrez ce refus, vérifiez sa cause dans votre environnement avant de modifier un rôle ou un réglage réseau.
 
-**6. Connectez VS Code sans enregistrer la clé.** Ajoutez ce serveur à votre configuration MCP **utilisateur**
+**6. Connectez VS Code sans écrire la clé dans un fichier.** Ajoutez ce serveur à votre configuration MCP **utilisateur**
 (pas à un fichier versionné). VS Code demande la clé et la garde dans son stockage de secrets.
 
 ```json
@@ -512,7 +338,7 @@ Ne mettez jamais la clé dans une URL (`?code=`), un fichier, une conversation o
 
 </details>
 
-**7. Validez et montrez le risque.**
+**7. Lancez la validation et constatez le risque.**
 
 ```powershell
 & .\modules\02-open-server\validate.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID -DemonstrateWrite
@@ -553,11 +379,12 @@ Le ticket est créé et `whoami` répond `caller: unknown`. L'appel réussit pou
 Non. HTTP 401 prouve seulement que le point de terminaison n'est pas anonyme. Toute personne qui détient la clé obtient le même
 accès complet, `create_ticket` compris. Une clé ne porte ni identité ni rôle d'application : le serveur ne distingue pas
 Alice d'Eve (`whoami` renvoie `caller: unknown`). L'autorisation par utilisateur exige un jeton Microsoft Entra et des
-rôles d'application (modules 03 et 05).
+rôles d'application : le module 03 identifie les utilisateurs autorisés à entrer,
+et le module 04 contrôle leurs droits pour chaque outil.
 
 </details>
 
-**8. Renouvelez la clé après l'exercice.** Toute copie qui aurait fuité devient alors inutilisable.
+**8. Renouvelez la clé après l'exercice.** Toute copie qui aurait été divulguée devient alors inutilisable.
 
 ```powershell
 az functionapp keys set --resource-group $group --name $app --key-type systemKeys --key-name mcp_extension --output none
@@ -607,6 +434,20 @@ Utilisez la même configuration VS Code qu'à l'étape 6.
 
 ## Ce que vous devez voir
 
+Dans le portail Azure, ouvrez votre Function App (captures réelles, 2026-10-20, tenant de test de l'auteur ; noms
+pseudonymisés, ID remplacés par des zéros ; portail en anglais ; les cadres roses indiquent ce qu'il faut vérifier).
+Cliquez sur une image pour l'agrandir.
+
+![Capture réelle : page Overview de la Function App ; le cadre 1 marque le plan Flex Consumption, le cadre 2 les cinq fonctions avec le déclencheur mcpToolTrigger](../../assets/screenshots/azure-02-function-overview.png)
+
+Cadre 1 : le plan est **Flex Consumption**. Cadre 2 : chaque outil MCP est une fonction avec le déclencheur `mcpToolTrigger`.
+
+![Capture réelle : Function App, Functions, App keys ; le cadre 1 marque la clé système mcp_extension, le cadre 2 les clés d'hôte, toutes les valeurs masquées](../../assets/screenshots/azure-02-function-keys.png)
+
+Cadre 1 : `mcp_extension` est la **clé système** qui ouvre le point de terminaison MCP à ce niveau. Cadre 2 : les clés
+d'hôte ouvrent toutes les fonctions : ne les donnez jamais à un client. Le portail masque chaque valeur tant que vous
+ne sélectionnez pas **Show value**.
+
 | Action | Résultat attendu | Signification |
 |---|---|---|
 | Requête MCP sans `x-functions-key` | HTTP 401 | Le webhook n'est pas anonyme. |
@@ -614,11 +455,11 @@ Utilisez la même configuration VS Code qu'à l'étape 6.
 | `initialize`, puis `tools/list` avec la clé | HTTP 200, cinq outils | Le serveur fonctionne en Streamable HTTP. |
 | `create_ticket` avec la clé | HTTP 200, `status: queued`, un `warning` | **Le risque :** ni utilisateur, ni rôle, ni approbation côté serveur. |
 | `whoami` | `caller: unknown` | Une clé ne porte aucune identité. |
-| `read_report_as_*` | `source: synthetic-demonstration` | Le vrai accès en aval arrive au module 05. |
+| `read_report_as_*` | `source: synthetic-demonstration` | Les appels réels aux services de données seront activés au module 05. |
 
 Les requêtes complètes et les réponses réelles des cinq outils sont dans [Le serveur MCP et ses réponses](../../docs/fr/MCP-SERVER.md).
 
-Le validateur en ligne affiche notamment :
+Après déploiement, le validateur affiche notamment :
 
 ```text
 PASS MCP request without the mcp_extension key is refused (expected HTTP 401).
@@ -628,11 +469,11 @@ PASS tools/list with the key returns exactly the five workshop tools (expected H
 PASS RISK SHOWN: create_ticket succeeds with only the key; no user or role was checked (expected HTTP 200).
 ```
 
-### Lire la documentation au moment de la démonstration
+### Comprendre les résultats avec la documentation
 
 Ouvrez ces liens au moment du contrôle correspondant ci-dessus. Ils expliquent le mécanisme, pas un résultat observé dans votre abonnement.
 
-| Démonstration | Ce qu'il faut comprendre dans Microsoft Learn | Référence API ou SDK |
+| Résultat observé | Ce qu'il faut comprendre dans Microsoft Learn | Référence API ou SDK |
 |---|---|---|
 | Sans clé ou avec une mauvaise clé : HTTP 401 ; bonne clé `mcp_extension` : HTTP 200 | [Clés d'accès Functions](https://learn.microsoft.com/azure/azure-functions/function-keys-how-to) : une clé système est un identifiant partagé, pas une identité utilisateur. | [Configuration de l'extension MCP](https://learn.microsoft.com/azure/azure-functions/functions-bindings-mcp) : `webhookAuthorizationLevel` et point de terminaison MCP. |
 | Découvrir les cinq outils, puis en appeler un | [Déclencheur d'outil MCP](https://learn.microsoft.com/azure/azure-functions/functions-bindings-mcp-tool-trigger) : comment une fonction devient un outil appelable. | La même référence décrit `McpToolTrigger` et `ToolInvocationContext`, utilisés par ce serveur. |
@@ -642,12 +483,45 @@ Ouvrez ces liens au moment du contrôle correspondant ci-dessus. Ils expliquent 
 Lire ces références n'approuve aucun déploiement, ne vous demande de divulguer aucune clé et n'active aucun accès anonyme.
 Liens documentaires vérifiés le 2026-10-16.
 
+### Vérifier vous-même avec Azure CLI
+
+**Pourquoi :** avant de tester la clé, vérifiez que l'application existe, fonctionne et exige HTTPS.
+Gardez votre compte Azure habituel. Depuis la racine du dépôt, préparez les noms de votre déploiement :
+
+```powershell
+$ErrorActionPreference = 'Stop'
+$inspectGroup = terraform '-chdir=infra\workload' output -raw resource_group_name
+if ($LASTEXITCODE -ne 0) { throw 'Groupe de ressources introuvable dans les sorties de votre déploiement.' }
+$inspectNames = terraform '-chdir=infra\workload' output -json resource_names | ConvertFrom-Json
+if ($LASTEXITCODE -ne 0) { throw 'Noms des ressources indisponibles.' }
+```
+
+> **Résultat attendu** — aucune sortie : les deux variables reçoivent les noms de votre déploiement.
+> Vérifiez avec `$inspectNames.function_app`, qui affiche le nom de votre Function App.
+
+Terraform ne fait ici que lire les noms. Copiez ensuite la commande Azure CLI ; `show` ne modifie rien :
+
+```powershell
+az resource show -g $inspectGroup -n $inspectNames.function_app --resource-type Microsoft.Web/sites --api-version 2024-11-01 --query 'properties.{state:state,httpsOnly:httpsOnly}' -o json
+if ($LASTEXITCODE -ne 0) { throw "Lecture de l'application impossible. Vérifiez le contexte et son nom." }
+```
+
+> **Résultat attendu** — `state` vaut `Running` et `httpsOnly` vaut `true`.
+> La requête lit les propriétés de l'application ; elle ne demande ni clé ni jeton MCP.
+
+![Résultat réel Azure CLI : application Running et httpsOnly à true](../../assets/screenshots/terminal-02-az-runtime.png)
+
+*Capture en lecture seule du 20 octobre 2026. Ces deux propriétés ne prouvent pas que la clé est exigée :
+le validateur doit encore vérifier HTTP 401 sans clé et HTTP 200 avec la clé.
+Si une valeur manque ou diffère, arrêtez-vous et vérifiez le déploiement ; ne désactivez aucune protection.*
+
 ## Valider
 
 `validate.ps1` (ou `validate.sh`) lance toujours d'abord les vérifications hors ligne : niveau `System` dans
-`host.json`, aucun niveau anonyme dans le code, aucun motif de clé ou de secret dans les fichiers du module,
-clés partagées désactivées et aucune clé en sortie Terraform, compilation verrouillée et tests unitaires,
-tests Terraform simulés. Avec `-Offline`, ou sans tenant ni abonnement, il s'arrête là et indique que le module
+`host.json`, aucun accès anonyme dans le code, recherche de clés ou de secrets dans les fichiers du module,
+clés de stockage partagées désactivées et aucune clé dans les sorties Terraform.
+Il restaure les versions verrouillées des dépendances, compile le code, lance les tests unitaires
+et les tests Terraform simulés. Avec `-Offline`, ou sans tenant ni abonnement, il s'arrête là et indique que le module
 n'est **ni** déployé **ni** validé.
 
 Avec `-TenantId` et `-SubscriptionId`, il vérifie le contexte, lit l'adresse depuis votre état Terraform et la clé
@@ -750,6 +624,8 @@ vous pouvez garder le serveur et sauter le nettoyage ; le module 03 remplace la 
 - Suite : [module 03](../03-entra-authentication/README.fr.md).
 
 ## Sources
+
+- [Lire une ressource Azure sans la modifier](https://learn.microsoft.com/cli/azure/resource#az-resource-show), vérifié le 20 octobre 2026.
 
 - [Liaisons MCP de Functions : host.json, point de terminaison, clé système](https://learn.microsoft.com/azure/azure-functions/functions-bindings-mcp)
 - [Déclencheur d'outil MCP](https://learn.microsoft.com/azure/azure-functions/functions-bindings-mcp-tool-trigger)

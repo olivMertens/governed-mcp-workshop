@@ -4,9 +4,18 @@
 
 ## Objectif
 
-Placer **Azure API Management** (APIM) devant le serveur MCP et en faire la **seule** porte d'entrée. À la fin :
+[Guide low-code, portail d'abord](LOW-CODE.fr.md)
 
-- une requête sans jeton reçoit **HTTP 401** de la passerelle, avec un défi qui pointe vers les métadonnées de ressource
+**Parcours Terraform + PowerShell.** Vous utiliserez Terraform pour gérer la passerelle et le réseau,
+puis PowerShell pour publier le code et vérifier le résultat. Conservez vos paramètres privés et votre état Terraform.
+Si vous avez créé vos ressources dans le portail, suivez le guide low-code : ne faites pas gérer les mêmes ressources
+par les deux parcours.
+
+Vous allez placer **Azure API Management** (APIM) devant votre serveur Model Context Protocol (MCP),
+vérifier que les appels passent par son réseau privé, puis désactiver l'accès public direct à la Function.
+Vous contrôlerez ensuite les autorisations et la limitation du débit. À la fin :
+
+- une requête sans jeton reçoit **HTTP 401** de la passerelle, avec un en-tête d'authentification qui indique où trouver les métadonnées de ressource
   protégée (PRM) de la passerelle elle-même ;
 - **Bob** (`Tools.Read`) appelle `create_ticket` → **HTTP 403** ; **Alice** (`Tools.Read` + `Tools.Write`) → **HTTP 200** ;
 - Bob appelle `get_service_health` → **HTTP 200** ;
@@ -20,36 +29,39 @@ Placer **Azure API Management** (APIM) devant le serveur MCP et en faire la **se
 
 ## Pourquoi c'est important
 
-Le niveau 1 (module 03) vérifie **qui** appelle le serveur, pas **ce qu'il a le droit de faire** : Bob peut encore créer des
-tickets, rien ne limite le débit et la Function est joignable depuis n'importe où sur Internet. Une passerelle apporte les contrôles qu'un
-serveur n'a pas à réimplémenter lui-même :
+Au niveau 1 (module 03), l'authentification vérifie **qui** appelle le serveur, mais ne contrôle pas encore les droits
+**outil par outil** : Bob peut encore créer des tickets. Aucun contrôle ne limite le débit et la Function reste
+joignable depuis Internet, avec authentification obligatoire. La passerelle ajoute les contrôles suivants sans vous
+obliger à les réécrire dans le serveur :
 
 | Contrôle | Où | Pourquoi |
 |---|---|---|
-| `validate-azure-ad-token` | Entrée de la passerelle | La plateforme valide l'émetteur, le tenant, l'expiration, l'**audience = l'API MCP seulement**, le client autorisé et le scope `user_impersonation`. Aucun code JWT écrit à la main. |
+| `validate-azure-ad-token` | Entrée de la passerelle | La plateforme valide l'émetteur, le tenant, l'expiration, l'**audience = l'API MCP seulement**, le client autorisé et l'autorisation déléguée (scope) `user_impersonation`. Vous n'écrivez pas de code de validation des jetons JSON Web Token (JWT). |
 | Contrôle de rôle par outil | Entrée de la passerelle, d'après le corps JSON-RPC | `tools/call` avec `create_ticket` exige le rôle d'application `Tools.Write` ; tout autre outil ou méthode MCP exige `Tools.Read`. La passerelle refuse les corps mal formés, les lots, les outils inconnus et les méthodes non prises en charge. |
 | `rate-limit-by-key` | Entrée de la passerelle, clé = identifiant d'objet de l'appelant (`oid`) du jeton validé | Un utilisateur qui envoie trop d'appels reçoit HTTP 429 sans gêner les autres. |
 | `ip-filter` | Entrée de la passerelle, facultatif | Limite les adresses sources autorisées si votre organisation l'exige (vide par défaut). |
-| Chemin privé | Réseau | L'**accès réseau public** de la Function est **désactivé** et elle dispose d'un **point de terminaison privé** ; seule la passerelle l'atteint, grâce à l'intégration sortante au réseau virtuel de Standard v2. |
+| Accès privé | Réseau | L'**accès réseau public** de la Function est **désactivé** et elle dispose d'un **point de terminaison privé** ; seule la passerelle l'atteint, grâce à l'intégration sortante au réseau virtuel de Standard v2. |
 | Journaux sans contenu | Application Insights | **0 octet de corps** pour les requêtes et réponses frontend/backend, aucun en-tête journalisé, et une trace limitée au libellé de l'outil et à l'`oid` de l'appelant. |
 
 ### Suivre le jeton et le chemin réseau privé
 
 **Scopes et rôles d'application.** La revendication `scp` (`user_impersonation`) indique ce que l'*application cliente* peut
 faire pour l'utilisateur. La revendication `roles` (`Tools.Read`, `Tools.Write`) indique ce que *cet utilisateur* peut faire.
-L'autorisation par outil utilise les **rôles d'application** ([concept](../../docs/fr/concepts/scopes-and-app-roles.md)).
+La passerelle utilise les **rôles d'application** pour autoriser chaque outil
+([explication](../../docs/fr/concepts/scopes-and-app-roles.md)).
 
-**Frontière du jeton.** La passerelle et la Function protègent **une seule ressource MCP logique** avec **une seule audience**
+**Audience du jeton.** La passerelle et la Function protègent **une seule ressource MCP logique** avec **une seule audience**
 (`api://<client-id>`, du module 03). La passerelle valide le jeton puis transmet la **même** requête à la Function, dont
 l'authentification intégrée le valide à nouveau (défense en profondeur). Il ne s'agit pas de token passthrough vers une API en aval :
 le jeton n'est jamais envoyé à Microsoft Graph, à Storage ni ailleurs, et la passerelle n'ajoute ni n'élargit aucune audience. Pour
-les appels en aval, le module 05 obtient des jetons distincts par On-Behalf-Of ou par une identité managée
+les appels en aval, le module 05 obtient des jetons distincts par On-Behalf-Of (« pour le compte de ») ou par une identité managée
 ([chaîne de jetons](../../docs/fr/concepts/token-chain.md)).
 
 **Choix réseau.** Standard v2 conserve une **passerelle publique** pour les clients et utilise l'**intégration sortante au réseau
-virtuel** pour appeler un **point de terminaison privé de la Function**, résolu par la zone DNS privée
+virtuel** pour appeler un **point de terminaison privé de la Function**. La résolution des noms (DNS) utilise la zone privée
 `privatelink.azurewebsites.net`. L'étape 2 désactive ensuite l'accès public de la Function. Basic v2 n'a pas d'intégration sortante,
-et l'injection complète dans un réseau virtuel (Premium v2) dépasse les besoins de l'atelier. Les règles NSG entrantes ne
+et l'injection complète dans un réseau virtuel (Premium v2) dépasse les besoins de l'atelier. Les règles entrantes du groupe
+de sécurité réseau (NSG) ne
 s'appliquent pas à l'intégration sortante : ce sont les stratégies de la passerelle qui contrôlent l'entrée.
 
 ## Ce que vous déployez
@@ -137,8 +149,8 @@ calculatrice de prix Azure pour votre région.
 
 - Modules 02 et 03 (**les deux étapes**) déployés avec les mêmes fichiers privés et le même état Terraform :
   `participant.tfvars.json`, `module02.tfvars.json`, `module03.tfvars.json` (avec `entra_auth_replace_key_gate = true`).
-- Comptes de test Alice, Bob et Eve avec leurs attributions de rôles du module 03 ; `.workshop/module03-personas.json`
-  (contrôle croisé facultatif).
+- Comptes de test du module 03 : Alice a `Tools.Read` et `Tools.Write`, Bob a seulement `Tools.Read` et Eve n'a aucune attribution.
+  Le fichier `.workshop/module03-personas.json` permet un contrôle croisé facultatif des identifiants.
 - Terraform 1.16.6+, Azure CLI, PowerShell 7.4+. Fournisseurs de ressources `Microsoft.ApiManagement`, `Microsoft.Network` et
   `Microsoft.Web` inscrits (le contrôle préalable du module 00 vérifie l'inscription).
 - La région doit proposer Standard v2 (exemple : `swedencentral`) ; vérifiez la disponibilité et les quotas avant de commencer.
@@ -150,209 +162,18 @@ Publisher, limité dans le temps). Le rôle Contributeur sur le groupe inclut d�
 
 ## Étapes
 
-> [!TIP]
-> **Deux parcours, même résultat.** Suivez le même parcours qu'aux modules 02 et 03 ([comment choisir](../../docs/fr/TRACKS.md)) : le **parcours low-code** ci-dessous, ou le **parcours full-code** (sections PowerShell et Bash).
-
-### Parcours low-code (portail et commandes simples)
-
-Standard v2 est facturé à l'heure : construisez, vérifiez et nettoyez le même jour. Un seul terminal de L1 à la fin.
-
-**L1. Les noms, l'ID client de l'API du module 03, et une fonction d'aide.**
-
-```powershell
-$p = Get-Content .\.workshop\participant.tfvars.json -Raw | ConvertFrom-Json
-$id = "$($p.participant_prefix)lc"; $sfx = $p.resource_suffix.Substring(0, 10); $loc = 'westeurope'
-$rg = "rg-mcp-$id-$sfx"; $fn = "func-mcp-$id-$sfx"; $ai = "appi-mcp-$id-$sfx"; $law = "log-mcp-$id-$sfx"; $vn = "vnet-mcp-$id-$sfx"
-$apim = "apim-mcp-$id-$sfx"; $gwmi = "id-mcp-$id-$sfx-gateway"; $nsg = "nsg-mcp-$id-$sfx-apim"
-$tags = @('workshop=governed-mcp', "owner=$($p.owner)", "expiry=$($p.expiry)", 'track=low-code')
-$tenant = az account show --query tenantId -o tsv; $sub = az account show --query id -o tsv
-$apiClientId = az ad app list --display-name "Workshop MCP API ($id-$sfx)" --query "[0].appId" -o tsv
-$svcId = "/subscriptions/$sub/resourceGroups/$rg/providers/Microsoft.ApiManagement/service/$apim"
-# One helper for the API Management calls: it writes the reply to a file (API Management answers policies in XML).
-function Put([string]$Path, $Body) {
-    $f = New-TemporaryFile; [IO.File]::WriteAllText($f, ($Body | ConvertTo-Json -Depth 12 -Compress))
-    az rest --method put --url "https://management.azure.com$svcId/$Path`?api-version=2025-09-01-preview" --body "@$f" `
-        --headers 'Content-Type=application/json' --output-file "$f.reply" 2>&1 | Out-Null
-    $code = $LASTEXITCODE; Remove-Item $f, "$f.reply" -ErrorAction SilentlyContinue; if ($code) { throw "PUT $Path failed" }
-}
-```
-
-> **Résultat attendu** — aucune sortie. `$apiClientId` contient un GUID : s'il est vide, terminez d'abord le module 03.
-
-**L2. Le réseau de la passerelle, le point de terminaison privé de la Function, l'identité de la passerelle.** Portail : réseau virtuel → **Sous-réseaux** → **+ Sous-réseau** `snet-apim` (délégué à *Microsoft.Web/serverFarms*, avec un NSG qui autorise TCP 443 sortant vers *AzureKeyVault*) ; Function App → **Mise en réseau** → **Points de terminaison privés** → **+ Ajouter** dans `snet-private-endpoints` avec DNS privé ; **Identités managées** → **Créer**, puis sur Application Insights **Contrôle d'accès (IAM)** → *Monitoring Metrics Publisher* pour elle.
-
-```powershell
-az network nsg create -g $rg -n $nsg --tags @tags -o none
-az network nsg rule create -g $rg --nsg-name $nsg -n AllowKeyVaultOutbound --priority 100 --direction Outbound --access Allow --protocol Tcp `
-    --source-address-prefixes VirtualNetwork --destination-address-prefixes AzureKeyVault --destination-port-ranges 443 -o none
-az network vnet subnet create -g $rg --vnet-name $vn -n snet-apim --address-prefixes 10.52.0.0/24 --delegations Microsoft.Web/serverFarms --network-security-group $nsg -o none
-az network private-dns zone create -g $rg -n privatelink.azurewebsites.net -o none
-az network private-dns link vnet create -g $rg -z privatelink.azurewebsites.net -n link-sites -v $vn -e false -o none
-$fnId = az functionapp show -g $rg -n $fn --query id -o tsv
-az network private-endpoint create -g $rg -n "pe-$fn" --vnet-name $vn --subnet snet-private-endpoints --private-connection-resource-id $fnId --group-id sites --connection-name pe-sites -o none
-az network private-endpoint dns-zone-group create -g $rg --endpoint-name "pe-$fn" -n default --private-dns-zone privatelink.azurewebsites.net --zone-name sites -o none
-az identity create -g $rg -n $gwmi --tags @tags -o none
-$aiId = az monitor app-insights component show -g $rg -a $ai --query id -o tsv; $gwPid = az identity show -g $rg -n $gwmi --query principalId -o tsv
-az role assignment create --assignee-object-id $gwPid --assignee-principal-type ServicePrincipal --role 'Monitoring Metrics Publisher' --scope $aiId -o none
-az network private-endpoint show -g $rg -n "pe-$fn" --query "privateLinkServiceConnections[0].privateLinkServiceConnectionState.status" -o tsv
-```
-
-> **Résultat réel** — parcours low-code, 2026-10-20, tenant de test de l'auteur.
->
-> ```text
-> Approved
-> ```
-
-**L3. API Management Standard v2.** Portail : **Créer une ressource** → **API Management** → niveau tarifaire **Standard v2** ; **Mise en réseau** : *Intégration au réseau virtuel*, sous-réseau `snet-apim` ; **Identité managée** : l'identité de la passerelle.
-
-```powershell
-$gwId = az identity show -g $rg -n $gwmi --query id -o tsv; $snet = az network vnet subnet show -g $rg --vnet-name $vn -n snet-apim --query id -o tsv
-$f = New-TemporaryFile
-@{ location = $loc; sku = @{ name = 'StandardV2'; capacity = 1 }; tags = @{ workshop = 'governed-mcp'; owner = $p.owner; expiry = $p.expiry; track = 'low-code' }
-   identity = @{ type = 'UserAssigned'; userAssignedIdentities = @{ $gwId = @{} } }
-   properties = @{ publisherName = 'Governed MCP workshop'; publisherEmail = 'mcp-workshop@example.com'; virtualNetworkType = 'External'
-                   virtualNetworkConfiguration = @{ subnetResourceId = $snet } } } | ConvertTo-Json -Depth 6 | Set-Content $f
-az rest --method put --url "https://management.azure.com$svcId`?api-version=2024-05-01" --body "@$f" --headers 'Content-Type=application/json' -o none; Remove-Item $f
-do { Start-Sleep 20; $state = az apim show -g $rg -n $apim --query provisioningState -o tsv } while ($state -notin 'Succeeded', 'Failed')
-$state
-```
-
-> **Résultat réel** — parcours low-code, 2026-10-20 : `Succeeded` après 126 secondes.
-
-**L4. Une journalisation sans contenu.** Portail : API Management → **Supervision** → **Application Insights** → **+ Ajouter** (identité managée) ; **API** → **Toutes les API** → **Paramètres** → **Journaux de diagnostic** : Application Insights, échantillonnage 100 %, *Nombre d'octets de charge utile à journaliser* **0** en frontend et en backend, aucun en-tête.
-
-```powershell
-$aiInfo = az monitor app-insights component show -g $rg -a $ai --query "{id:id,cs:connectionString}" -o json | ConvertFrom-Json
-$gwCid = az identity show -g $rg -n $gwmi --query clientId -o tsv
-Put 'loggers/appinsights' @{ properties = @{ loggerType = 'applicationInsights'; resourceId = $aiInfo.id; isBuffered = $true
-    credentials = @{ connectionString = $aiInfo.cs; identityClientId = $gwCid } } }
-$zero = @{ request = @{ headers = @(); body = @{ bytes = 0 } }; response = @{ headers = @(); body = @{ bytes = 0 } } }
-$diag = @{ properties = @{ loggerId = '/loggers/appinsights'; alwaysLog = 'allErrors'; httpCorrelationProtocol = 'W3C'; logClientIp = $false
-    verbosity = 'information'; metrics = $true; operationNameFormat = 'Name'; sampling = @{ samplingType = 'fixed'; percentage = 100 }; frontend = $zero; backend = $zero } }
-Put 'diagnostics/applicationinsights' $diag
-```
-
-> **Résultat attendu** — aucune sortie.
-
-**L5. Le serveur MCP, sa stratégie et ses métadonnées.** Portail : **MCP Servers** → **+ Create MCP server** → **Expose an existing MCP server** : URL de base `https://<function>.azurewebsites.net/runtime/webhooks`, transport **Streamable HTTP**, nom `workshop-mcp`. Puis le serveur → **Policies** → collez `.workshop/policy-mcp-server.xml` (produit par `render-policies.ps1` à partir des mêmes modèles que Terraform). La commande ci-dessous fait les deux, plus l'API de métadonnées anonyme.
-
-```powershell
-& .\modules\04-governed-gateway\render-policies.ps1 -TenantId $tenant -ApiClientId $apiClientId -GatewayName $apim
-Put 'backends/workshop-mcp-function' @{ properties = @{ description = 'Workshop MCP server on Azure Functions (private endpoint).'
-    url = "https://$fn.azurewebsites.net/runtime/webhooks"; protocol = 'http' } }
-Put 'apis/workshop-mcp' @{ properties = @{ type = 'mcp'; displayName = 'Workshop MCP server (governed)'; path = 'workshop-mcp'; protocols = @('https')
-    serviceUrl = "https://$fn.azurewebsites.net/runtime/webhooks"; backendId = 'workshop-mcp-function'; subscriptionRequired = $false
-    mcpProperties = @{ transportType = 'streamable'; endpoints = @{ message = @{ uriTemplate = '/mcp' } } } } }
-Put 'apis/workshop-mcp/policies/policy' @{ properties = @{ format = 'rawxml'; value = [IO.File]::ReadAllText("$PWD\.workshop\policy-mcp-server.xml") } }
-Put 'apis/workshop-mcp/diagnostics/applicationinsights' $diag
-Put 'apis/workshop-mcp-prm' @{ properties = @{ displayName = 'Workshop MCP protected resource metadata'; path = '.well-known/oauth-protected-resource'
-    protocols = @('https'); subscriptionRequired = $false } }
-Put 'apis/workshop-mcp-prm/operations/get-mcp-metadata' @{ properties = @{ displayName = 'Protected Resource Metadata'; method = 'GET'; urlTemplate = '/workshop-mcp/mcp' } }
-Put 'apis/workshop-mcp-prm/operations/get-mcp-metadata/policies/policy' @{ properties = @{ format = 'rawxml'; value = [IO.File]::ReadAllText("$PWD\.workshop\policy-prm.xml") } }
-$gw = "https://$apim.azure-api.net"
-$r = Invoke-WebRequest "$gw/workshop-mcp/mcp" -Method Post -ContentType 'application/json' -SkipHttpErrorCheck `
-    -Body '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"t","version":"1"}}}'
-"gateway no token: $($r.StatusCode)"; "metadata: $((Invoke-WebRequest "$gw/.well-known/oauth-protected-resource/workshop-mcp/mcp" -SkipHttpErrorCheck).StatusCode)"
-```
-
-> **Résultat réel** — parcours low-code, 2026-10-20, tenant de test de l'auteur.
->
-> ```text
-> PASS 5 policies rendered for https://apim-mcp-p01lc-<sfx>.azure-api.net with 2 allowed client(s) and 0 IP range(s) in .workshop/ ...
-> gateway no token: 401
-> metadata: 200
-> ```
->
-> Avec `az rest`, API Management répond en XML à l'écriture d'une stratégie, ce qui fait planter l'affichage d'Azure CLI sous Windows : la fonction `Put` écrit la réponse dans un fichier.
-
-**L6. Fermer la Function, puis vérifier en opérateur, en tant qu'Alice, Bob et Eve, et les journaux.** Portail : Function App → **Mise en réseau** → **Accès réseau public** → **Désactivé**.
-
-```powershell
-az resource update -g $rg -n $fn --resource-type Microsoft.Web/sites --set properties.publicNetworkAccess=Disabled -o none
-$v = @{ TenantId = $tenant; ResourceGroup = $rg; FunctionApp = $fn; GatewayName = $apim; ApiClientId = $apiClientId }
-& .\modules\04-governed-gateway\validate.ps1 @v -SubscriptionId $sub -LogAnalyticsWorkspace $law
-foreach ($persona in 'Alice', 'Bob', 'Eve') {
-    $env:AZURE_CONFIG_DIR = Join-Path $PWD ".workshop\az-$($persona.ToLower())"
-    az login --tenant $tenant --allow-no-subscriptions   # sign in as $persona in the browser
-    & .\modules\04-governed-gateway\validate.ps1 @v -Persona $persona -Burst:($persona -eq 'Bob')
-    az logout
-}
-Remove-Item Env:\AZURE_CONFIG_DIR
-Start-Sleep -Seconds 300   # telemetry ingestion delay
-& .\modules\04-governed-gateway\validate.ps1 @v -SubscriptionId $sub -LogAnalyticsWorkspace $law -CheckTelemetry
-```
-
-> **Résultat réel** — parcours low-code, 2026-10-20, tenant de test de l'auteur (extrait).
->
-> ```text
-> PASS gateway request without a token is refused with a challenge naming the gateway metadata (expected HTTP 401).
-> PASS direct call to the Function host is refused from the internet: HTTP 403 (expected HTTP 403).
-> PASS Function App publicNetworkAccess is Disabled; only its private endpoint remains (expected HTTP 200 from Azure Resource Manager).
-> PASS deployed diagnostics log 0 body bytes and no header at the all-APIs and MCP API scopes (expected HTTP 200 from Azure Resource Manager).
-> PASS Alice create_ticket is allowed with Tools.Write and queues one synthetic ticket (expected HTTP 200).
-> PASS Bob create_ticket is denied by the gateway: Tools.Write is missing (expected HTTP 403).
-> PASS Bob burst of 40 calls is throttled per caller object ID (expected HTTP 429).
-> PASS Eve cannot obtain a token, so she never reaches the gateway (expected HTTP 400 from the token endpoint, AADSTS50105).
-> PASS Application Insights: 89 gateway requests and 47 tool traces with tool label and caller oid, no body, argument or token (expected HTTP 200 from Log Analytics).
-> ```
-
-**L-B. Partie B facultative en low-code : une API REST exposée en MCP.** Portail : **API** → **+ Ajouter une API** → **HTTP**, deux opérations GET avec un exemple de réponse, stratégie depuis `.workshop/policy-rest-api.xml` ; puis **MCP Servers** → **+ Create MCP server** → **Expose an API as an MCP server**, choisissez les deux opérations, stratégie depuis `.workshop/policy-rest-mcp-server.xml`.
-
-```powershell
-$tickets = @(
-    @{ id = 'CT-1001'; title = 'VPN gateway reports intermittent timeouts'; severity = 'high'; status = 'open'; service = 'network' },
-    @{ id = 'CT-1002'; title = 'Shared drive close to its quota'; severity = 'medium'; status = 'in-progress'; service = 'storage' },
-    @{ id = 'CT-1003'; title = 'Expense app slow at month end'; severity = 'low'; status = 'resolved'; service = 'expense-app' })
-Put 'apis/contoso-tickets-api' @{ properties = @{ type = 'http'; displayName = 'Contoso Tickets REST API (synthetic, mocked)'; path = 'contoso-tickets'
-    protocols = @('https'); serviceUrl = 'https://contoso-tickets.invalid'; subscriptionRequired = $false } }
-$ops = @{
-    'list-tickets' = @{ name = 'List tickets'; desc = 'Returns the synthetic Contoso support tickets (id, title, severity, status, service). Read-only.'; url = '/tickets'; params = @(); example = $tickets }
-    'get-ticket' = @{ name = 'Get ticket'; desc = 'Returns one synthetic Contoso support ticket by its ID, for example CT-1001. Read-only.'; url = '/tickets/{ticketId}'
-        params = @(@{ name = 'ticketId'; type = 'string'; required = $true; description = 'Ticket ID, for example CT-1001.' }); example = $tickets[0] } }
-foreach ($k in $ops.Keys) {
-    $o = $ops[$k]
-    Put "apis/contoso-tickets-api/operations/$k" @{ properties = @{ displayName = $o.name; description = $o.desc; method = 'GET'; urlTemplate = $o.url; templateParameters = $o.params
-        responses = @(@{ statusCode = 200; description = 'Synthetic tickets (mocked).'
-            representations = @(@{ contentType = 'application/json'; examples = @{ default = @{ summary = 'Synthetic Contoso data'; value = $o.example } } }) }) } }
-}
-Put 'apis/contoso-tickets-api/policies/policy' @{ properties = @{ format = 'rawxml'; value = [IO.File]::ReadAllText("$PWD\.workshop\policy-rest-api.xml") } }
-Put 'apis/contoso-tickets-mcp' @{ properties = @{ type = 'mcp'; displayName = 'Contoso Tickets (REST API exposed as MCP)'; path = 'contoso-tickets-mcp'
-    protocols = @('https'); subscriptionRequired = $false } }
-foreach ($m in @(@('list_tickets', 'list-tickets'), @('get_ticket', 'get-ticket'))) {
-    Put "apis/contoso-tickets-mcp/tools/$($m[0])" @{ properties = @{ displayName = $m[0]; description = $ops[$m[1]].desc
-        operationId = "$svcId/apis/contoso-tickets-api/operations/$($m[1])" } }
-}
-Put 'apis/contoso-tickets-mcp/policies/policy' @{ properties = @{ format = 'rawxml'; value = [IO.File]::ReadAllText("$PWD\.workshop\policy-rest-mcp-server.xml") } }
-Put 'apis/workshop-mcp-prm/operations/get-rest-mcp-metadata' @{ properties = @{ displayName = 'Protected Resource Metadata (Contoso Tickets MCP)'; method = 'GET'; urlTemplate = '/contoso-tickets-mcp/mcp' } }
-Put 'apis/workshop-mcp-prm/operations/get-rest-mcp-metadata/policies/policy' @{ properties = @{ format = 'rawxml'; value = [IO.File]::ReadAllText("$PWD\.workshop\policy-rest-prm.xml") } }
-& .\modules\04-governed-gateway\validate-rest-mcp.ps1 -TenantId $tenant -SubscriptionId $sub -ResourceGroup $rg -GatewayName $apim -ApiClientId $apiClientId
-```
-
-> **Résultat réel** — parcours low-code, 2026-10-20 (extrait ; les vérifications par persona utilisent `-Persona Alice` ou `-Persona Bob` avec les mêmes paramètres).
->
-> ```text
-> PASS part B MCP request without a token is refused with a challenge naming its metadata URL (expected HTTP 401).
-> PASS the backing REST API /contoso-tickets/tickets without a token is refused (expected HTTP 401).
-> PASS the part B MCP server is type mcp, needs no subscription key and maps list_tickets and get_ticket to their REST operations (expected HTTP 200 from Azure Resource Manager).
-> PASS module 04 part B operator checks complete. Persona checks are still required for validation.
-> ...
-> PASS Alice list_tickets returns the 3 synthetic Contoso tickets, isError false (expected HTTP 200).
-> PASS Bob get_ticket CT-1001 returns the synthetic ticket, isError false (expected HTTP 200).
-> ```
->
-> **Ce que cela signifie pour vous :** la même passerelle gouvernée que dans le parcours full-code, construite à la main. Continuez avec le parcours low-code du module 05.
 
 ### PowerShell
 
 Exécutez les commandes depuis la racine du dépôt. Les étapes 2 à 4 modifient Azure : ne les exécutez qu'après approbation du plan **et du coût**.
 
-**1. Vérifications hors ligne (sans Azure).**
+**1. Vérifiez les fichiers hors ligne, sans accéder à Azure.**
 
 ```powershell
 & .\modules\04-governed-gateway\validate.ps1 -Offline
 ```
 
-> **Résultat attendu** — d'après les messages du validateur ; pas encore capturé lors de l'exécution d'un participant.
+> **Résultat attendu** — d'après les messages du validateur ; cet exemple n'est pas une capture d'exécution.
 >
 > ```text
 > PASS gateway policy: Entra token for the MCP audience only, create_ticket requires Tools.Write, other tools Tools.Read, malformed or unknown calls denied, per-oid rate limit, optional ip-filter, gateway PRM challenge (expected HTTP 401/403/429).
@@ -368,7 +189,7 @@ Exécutez les commandes depuis la racine du dépôt. Les étapes 2 à 4 modifien
 > **Ce que cela signifie pour vous :** les stratégies et le code Terraform de votre copie conservent les contrôles du module 04.
 > Rien n'a été déployé ; une ligne `FAIL` indique le fichier ou la règle à corriger avant de payer Standard v2.
 
-**2. Fichier d'activation privé (ignoré par Git).** Facultatif : ajoutez `gateway_allowed_ip_ranges` (liste CIDR) ou modifiez
+**2. Créez le fichier privé d'activation, ignoré par Git.** Si nécessaire, ajoutez `gateway_allowed_ip_ranges` (liste CIDR) ou modifiez
 `gateway_rate_limit_calls` / `gateway_rate_limit_period`. Pour `gateway_publisher_email`, utilisez une adresse d'équipe ou une
 adresse d'exemple.
 
@@ -422,16 +243,18 @@ terraform '-chdir=infra\workload' apply '..\..\.workshop\module04.tfplan'
 > Apply complete! Resources: 3 added, 2 changed, 0 destroyed.
 > ```
 >
-> **Ce que cela signifie pour vous :** la passerelle, son chemin privé et sa journalisation sans contenu sont en place.
-> La création de l'instance Standard v2 a pris environ 2 min 30. Le premier apply de l'auteur a échoué sur
-> `mcpProperties.endpoints` : le service Preview attend une table indexée par nom, et non le tableau de la référence publiée.
-> Votre copie de `infra/workload/gateway.tf` envoie déjà cette table : un seul apply doit suffire. Si vous voyez cette
-> erreur, consultez Dépannage. Le plan de l'auteur comptait 17 ajouts, car le module 02 avait déjà créé le réseau virtuel,
-> et **3** modifications : les paramètres de la Function App, plus deux sur le portail facultatif (son plan est revenu en
-> B1 et son paramètre `WORKSHOP_MCP_ENDPOINT` pointe désormais vers la passerelle). Sans portail, attendez-vous à
-> 1 modification. Si votre plan affiche aussi le plan du portail, consultez Dépannage. La mise à jour en place répétée de
-> `prm_operation_policy` est une normalisation connue des espaces dans la stratégie azapi (aucun changement fonctionnel).
-> Si le plan affiche `to destroy`, il manque un fichier de variables : n'appliquez pas.
+> **Comment lire votre plan :** attendez-vous à créer la passerelle, son chemin privé et les diagnostics sans contenu.
+> Le nombre d'ajouts dépend du réseau déjà créé au module 02. Les 17 ajouts de cet exemple réutilisent ce réseau.
+> Les **3** modifications concernent la Function App et le portail facultatif : retour du plan de service en B1
+> et mise à jour de `WORKSHOP_MCP_ENDPOINT` vers la passerelle. Sans portail, attendez-vous à 1 modification.
+> Consultez Dépannage si le plan de service du portail apparaît dans votre plan.
+>
+> **Note sur l'exécution enregistrée :** la création de Standard v2 a pris environ 2 min 30 dans cet environnement.
+> Le premier `apply` a échoué sur `mcpProperties.endpoints` : le service **Preview** attend une table indexée par nom,
+> contrairement au tableau de la référence publiée. `infra/workload/gateway.tf` utilise déjà la forme attendue.
+> Vous n'avez pas à reproduire cet échec ; consultez Dépannage s'il survient.
+> La mise à jour répétée de `prm_operation_policy` normalise les espaces sans changement fonctionnel.
+> Si votre plan affiche `to destroy`, vérifiez les fichiers de variables et n'appliquez pas.
 
 La création d'une instance Standard v2 prend plusieurs minutes. La Function est encore publique mais exige toujours un jeton
 Entra (module 03) : rien n'est anonyme pendant l'étape 1. Testez l'URL de la passerelle
@@ -464,7 +287,8 @@ terraform '-chdir=infra\workload' apply '..\..\.workshop\module04.tfplan'
 > (`public_network_access_enabled = false`). Les deux mises à jour des stratégies azapi sont une normalisation connue des
 > espaces (aucun changement fonctionnel) : votre plan peut donc afficher 1 ou 3 modifications.
 
-Publiez vos modifications de code **avant** l'étape 2 : une fois l'accès public désactivé, les points de terminaison de déploiement deviennent eux aussi privés.
+**Avant d'exécuter le bloc de verrouillage ci-dessus**, publiez vos modifications de code : une fois l'accès public
+désactivé à l'étape 2, les points de terminaison de déploiement deviennent eux aussi privés.
 Pour publier, relancez les commandes de [l'étape 5 du module 02](../02-open-server/README.fr.md#étapes) (`dotnet publish`, puis
 `az functionapp deployment source config-zip`), et attendez qu'elles réussissent avant d'appliquer l'étape 2.
 
@@ -518,7 +342,10 @@ transmettre : la Function ne le voit jamais. Approbation et rôle sont deux cont
 
 </details>
 
-**6. Contrôles opérateur, puis contrôles par persona.**
+**6. Lancez les contrôles avec votre compte habituel de déploiement, puis avec chaque compte de test.**
+
+Le script distingue le mode « opérateur », qui lit la configuration Azure, du mode « persona », qui teste
+les accès d'Alice, de Bob ou d'Eve. Ces mots désignent des modes de vérification, pas de nouveaux rôles à attribuer.
 
 ```powershell
 & .\modules\04-governed-gateway\validate.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID
@@ -553,13 +380,13 @@ Start-Sleep -Seconds 300   # délai d'ingestion de la télémétrie
 > PASS module 04 operator checks complete. Persona checks are still required for validation.
 > ```
 >
-> **Ce que cela signifie pour vous :** il n'y a plus qu'**une seule porte**, et la Function derrière elle est
-> injoignable depuis Internet. La passerelle refuse un jeton émis pour une autre audience, et les journaux
-> ne contiennent aucun octet de corps ni aucun en-tête.
+> **Comment lire vos résultats :** si ces contrôles réussissent, la passerelle est la seule entrée publique
+> et la Function n'est plus joignable directement depuis Internet. La passerelle refuse les jetons émis pour une autre
+> audience. Les diagnostics sont configurés sans corps ni en-tête ; vérifiez ensuite la télémétrie réellement ingérée.
 
-![Sortie réelle du terminal : contrôles opérateur du module 04 ; le cadre 1 marque les quatre refus et les métadonnées de la passerelle, le cadre 2 la Function privée et les diagnostics à 0 octet de corps](../../assets/screenshots/terminal-04-operator.png)
+![Résultat réel des contrôles de configuration : cadre 1, refus attendus et métadonnées ; cadre 2, Function privée et journaux sans contenu ; cadre 3, rappel des tests à lancer avec chaque compte](../../assets/screenshots/terminal-04-operator.png)
 
-> **Résultat réel** — contrôles par persona, `-Burst` et `-CheckTelemetry`, 2026-10-20, tenant de test de l'auteur ; chaque
+> **Résultat réel** — tests avec chaque compte, `-Burst` et `-CheckTelemetry`, 2026-10-20, tenant de test de l'auteur ; chaque
 > compte de test est connecté dans son propre profil Azure CLI. Noms et ID masqués (extrait).
 >
 > ```text
@@ -573,18 +400,20 @@ Start-Sleep -Seconds 300   # délai d'ingestion de la télémétrie
 > ```
 >
 > **Ce que cela signifie pour vous :** être connecté ne veut plus dire « tout faire » : Bob lit, seule Alice écrit, et
-> personne ne peut saturer le serveur. Les journaux indiquent **qui** a appelé **quel outil**, jamais ce qu'il a envoyé.
+> les appels trop nombreux sont limités. Les journaux indiquent **qui** a appelé **quel outil**, jamais ce qu'il a envoyé.
 
-![Sortie réelle du terminal : contrôle par persona du module 04, connexion en tant que Bob ; le cadre 1 marque la lecture autorisée et l'écriture refusée avec HTTP 403, le cadre 2 la rafale limitée avec HTTP 429](../../assets/screenshots/terminal-04-bob.png)
+![Résultat réel avec Bob : cadre 1, lecture autorisée et écriture refusée avec HTTP 403 ; cadre 2, appels trop nombreux refusés avec HTTP 429](../../assets/screenshots/terminal-04-bob.png)
 
 ### Partie B facultative - Exposer une API REST en serveur MCP (approche API-first)
 
-Facultative, après l'étape 6. La partie B n'ajoute **aucune ressource facturée** : elle ajoute deux API à l'instance Standard v2
+Réalisez cette partie uniquement si vous le souhaitez, après l'étape 6. Elle n'ajoute **aucune ressource facturée** :
+elle ajoute deux API à l'instance Standard v2
 que vous payez déjà. Le type de serveur MCP et la version d'API `2025-09-01-preview` sont en **Preview** (préversion).
 
 **Pourquoi.** API Management peut fournir des outils aux agents de deux façons. Dans la **partie A** (étapes 1 à 6), le serveur MCP
 existe déjà (la Function) et la passerelle se place devant lui. Dans la **partie B** (approche API-first), vous avez déjà une API
-REST gérée par API Management : la passerelle transforme elle-même certaines opérations en outils MCP. Personne n'écrit de code MCP.
+REST gérée par API Management : la passerelle transforme elle-même certaines opérations en outils MCP.
+Vous n'avez pas à écrire de code MCP pour cette partie.
 
 | | Partie A - serveur MCP existant derrière la passerelle | Partie B - API REST exposée en serveur MCP |
 |---|---|---|
@@ -664,12 +493,12 @@ terraform '-chdir=infra\workload' apply '..\..\.workshop\module04b.tfplan'
 >
 > **Ce que cela signifie pour vous :** un second serveur MCP existe maintenant sur la même passerelle. Si le plan affiche
 > `to destroy`, il manque un fichier de variables : n'appliquez pas. Tant que la partie B existe, **passez toujours**
-> `module04b.tfvars.json` à chaque plan de la charge de travail, sinon le plan la supprime.
+> `module04b.tfvars.json` à chaque plan de `infra/workload`, sinon Terraform prévoit de supprimer la partie B.
 
 En bash, créez le fichier avec `printf '%s\n' '{"enable_rest_mcp_demo": true}' > .workshop/module04b.tfvars.json`, ajoutez
 `-var-file=../../.workshop/module04b.tfvars.json` à `$vars`, puis lancez `validate-rest-mcp.sh` avec les mêmes arguments que ci-dessous.
 
-**B3. Contrôles opérateur, puis contrôles par persona.**
+**B3. Vérifier la configuration, puis les accès de chaque compte de test.**
 
 ```powershell
 & .\modules\04-governed-gateway\validate-rest-mcp.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID
@@ -695,10 +524,10 @@ Remove-Item Env:\AZURE_CONFIG_DIR
 > PASS module 04 part B operator checks complete. Persona checks are still required for validation.
 > ```
 >
-> **Ce que cela signifie pour vous :** transformer une API en outils n'a pas ouvert de nouvelle porte. Le serveur MCP et l'API REST
-> refusent tous deux une requête sans jeton et un jeton émis pour une autre audience.
+> **Comment lire vos résultats :** l'API REST reste protégée même si vous l'appelez directement.
+> Le serveur MCP et l'API REST doivent tous deux refuser une requête sans jeton ou avec un jeton émis pour une autre audience.
 
-> **Résultat réel** — contrôles par persona pour Alice, 2026-10-19, tenant de test de l'auteur, après l'enregistrement de sa MFA (extrait).
+> **Résultat réel** — tests avec Alice, 2026-10-19, tenant de test de l'auteur, après l'enregistrement de sa MFA (extrait).
 >
 > ```text
 > PASS Alice initialize on the part B MCP server succeeds; negotiated protocol 2025-06-18 (expected HTTP 200).
@@ -776,7 +605,7 @@ Dans cette nouvelle fenêtre, refaites les étapes 2 à 6 en vous connectant ave
 
 </details>
 
-**Question :** pourquoi garder un vrai serveur MCP (partie A) alors qu'API Management sait transformer n'importe quelle API REST en outils ?
+**Question :** pourquoi conserver un serveur MCP dédié (partie A) alors qu'API Management peut exposer des opérations REST sous forme d'outils ?
 
 <details>
 <summary>Afficher la réponse</summary>
@@ -786,11 +615,15 @@ logique en plusieurs étapes, une progression en streaming ou le choix d'une ide
 identité managée, module 05) demandent du code côté serveur. La conception des outils compte aussi : un point de terminaison CRUD est pensé
 pour des programmes, alors qu'un outil pensé pour un agent a un but clair, des valeurs par défaut sûres et des résultats courts et
 ciblés. Utilisez la partie B pour un accès rapide, surtout en lecture, à des API que vous gouvernez déjà ; gardez un vrai serveur
-MCP quand l'outil a besoin de sa propre logique ou de ses propres choix d'identité.
+MCP dédié quand l'outil a besoin de sa propre logique ou de ses propres choix d'identité.
 
 </details>
 
 ### Bash
+
+Suivez le même ordre qu'en PowerShell. **N'exécutez pas tout le bloc sans vous arrêter** : après le premier
+`apply`, vérifiez les appels via la passerelle et la publication du code avant de passer `gateway_lock_function` à true.
+Relisez chaque plan et obtenez l'accord avant son application.
 
 ```bash
 bash ./modules/04-governed-gateway/validate.sh -Offline
@@ -820,6 +653,14 @@ bash ./modules/04-governed-gateway/validate.sh -TenantId "$ARM_TENANT_ID" -Subsc
 
 ## Ce que vous devez voir
 
+Après l'étape 2, ouvrez votre Function App, puis **Settings → Networking** (capture réelle, 2026-10-20, tenant de test
+de l'auteur ; noms pseudonymisés, ID remplacés par des zéros ; portail en anglais).
+
+![Capture réelle : page Networking de la Function App ; le cadre 1 marque l'accès réseau public Disabled et un point de terminaison privé, le cadre 2 l'intégration au réseau virtuel en sortie](../../assets/screenshots/azure-04-function-networking.png)
+
+Cadre 1 : **Public network access** est à `Disabled` et il reste un point de terminaison privé : seul API Management
+atteint la Function App. Cadre 2 : la Function App sort par son sous-réseau d'intégration.
+
 | Action (via la passerelle, sauf mention contraire) | Résultat attendu | Signification |
 |---|---|---|
 | Requête MCP sans jeton | HTTP 401, `WWW-Authenticate: Bearer resource_metadata="https://apim-…/.well-known/oauth-protected-resource/workshop-mcp/mcp"` | La passerelle refuse en premier et renvoie vers ses propres métadonnées. |
@@ -844,11 +685,11 @@ instances de la passerelle.)
 
 </details>
 
-### Lire la documentation au moment de la démonstration
+### Comprendre les résultats avec la documentation
 
 Ouvrez chaque lien quand vous obtenez le résultat correspondant ci-dessus. C'est API Management (APIM) qui applique ces contrôles : la connexion du client ne suffit pas.
 
-| Démonstration ou choix | Ce qu'il faut comprendre dans Microsoft Learn | Référence de stratégie ou d'API |
+| Résultat observé ou choix technique | Ce qu'il faut comprendre dans Microsoft Learn | Référence de stratégie ou d'API |
 |---|---|---|
 | Sans jeton ou avec une mauvaise audience : HTTP 401 | [Sécuriser les serveurs MCP](https://learn.microsoft.com/azure/api-management/secure-mcp-servers) : protéger le point d'entrée gouverné. | [validate-azure-ad-token](https://learn.microsoft.com/azure/api-management/validate-azure-ad-token-policy) : tenant, audience, client autorisé et revendications requises. |
 | Les métadonnées indiquent la passerelle, pas la Function privée | [Autorisation MCP App Service et métadonnées de ressource protégée (**Preview**)](https://learn.microsoft.com/azure/app-service/configure-authentication-mcp) explique la découverte de la ressource. | [Gérer les serveurs MCP par programmation (**Preview**)](https://learn.microsoft.com/azure/api-management/manage-mcp-servers-rest-api) décrit l'API de gestion MCP utilisée par Terraform. Les métadonnées seules n'accordent aucun accès. |
@@ -860,7 +701,56 @@ Ouvrez chaque lien quand vous obtenez le résultat correspondant ci-dessus. C'es
 Approuver une écriture dans le client et contrôler le rôle dans la passerelle sont deux choses distinctes. Aucune ne remplace l'autre.
 Liens vérifiés le 2026-10-16.
 
+### Vérifier vous-même avec Azure CLI
+
+**Pourquoi :** une passerelle qui répond ne suffit pas : la Function ne doit plus être accessible directement.
+Effectuez ces lectures **après l'étape 2**, avec votre compte Azure habituel. À la racine du dépôt :
+
+```powershell
+$ErrorActionPreference = 'Stop'
+$inspectGroup = terraform '-chdir=infra\workload' output -raw resource_group_name
+if ($LASTEXITCODE -ne 0) { throw 'Groupe de ressources indisponible.' }
+$inspectNames = terraform '-chdir=infra\workload' output -json resource_names | ConvertFrom-Json
+if ($LASTEXITCODE -ne 0) { throw 'Noms des ressources indisponibles.' }
+```
+
+> **Résultat attendu** — aucune sortie : les variables reçoivent les noms de votre déploiement. Vérifiez avec `$inspectNames`.
+
+Lisez d'abord l'état réseau de la Function. Cette commande ne change aucun réglage :
+
+```powershell
+az resource show -g $inspectGroup -n $inspectNames.function_app --resource-type Microsoft.Web/sites --api-version 2024-11-01 --query 'properties.{state:state,publicNetworkAccess:publicNetworkAccess}' -o json
+if ($LASTEXITCODE -ne 0) { throw "Lecture du réseau de l'application impossible." }
+```
+
+> **Résultat attendu** — `state: Running` et `publicNetworkAccess: Disabled`.
+> La Function continue à fonctionner ; seul son accès public est désactivé.
+
+![Résultat réel Azure CLI : Function Running, accès réseau public Disabled](../../assets/screenshots/terminal-04-az-network.png)
+
+Vérifiez ensuite la passerelle qui doit pouvoir la joindre par le réseau privé :
+
+```powershell
+az apim show -g $inspectGroup -n $inspectNames.api_management --query '{name:name,sku:sku.name,provisioningState:provisioningState,gatewayUrl:gatewayUrl}' -o json
+if ($LASTEXITCODE -ne 0) { throw 'Lecture de la passerelle impossible.' }
+```
+
+> **Résultat attendu** — `sku: StandardV2`, `provisioningState: Succeeded` et votre URL de passerelle.
+> Utilisez cette URL, suivie du chemin MCP prévu par le guide, dans le client.
+
+![Résultat réel Azure CLI : passerelle StandardV2 disponible et URL à utiliser](../../assets/screenshots/terminal-07-az-gateway.png)
+
+*Captures en lecture seule du 20 octobre 2026 ; les noms sont masqués.
+Ces lectures ne prouvent pas la connexion réseau ni les droits par outil : le validateur doit encore obtenir
+HTTP 403 en accès direct et pour l'écriture de Bob, puis HTTP 200 pour Alice.
+Si l'accès public reste activé, reprenez le plan de l'étape 2 ; ne contournez pas la passerelle.*
+
 ## Valider
+
+> **Note de validation :** les sorties réelles de ce guide proviennent du tenant de test de l'auteur, aux dates indiquées.
+> Elles ne valident pas votre abonnement. Les sorties « attendues » et les contrôles hors ligne ne prouvent
+> aucun déploiement. La validation complète exige les deux étapes, les trois comptes de test, la limitation du débit
+> et la télémétrie sans contenu dans votre environnement approuvé.
 
 `validate.ps1` (ou `validate.sh`) commence toujours par les vérifications hors ligne. Il contrôle que la stratégie valide le jeton
 Entra pour la seule audience MCP (et non pour l'URL de la passerelle), exige `user_impersonation`, associe `create_ticket` à `Tools.Write`
@@ -868,7 +758,7 @@ et les autres outils à `Tools.Read` à partir du corps lu avec `preserveContent
 limite le débit par `oid`, n'ajoute le filtre IP que s'il est configuré, répond avec le défi PRM de la passerelle et ne lit
 jamais le corps de la réponse. Il vérifie aussi que Terraform garde Standard v2, l'intégration sortante, le point de terminaison
 privé, le verrouillage à l'étape 2 et l'absence de clé d'abonnement, et que les diagnostics gardent 0 octet de corps et aucun
-en-tête aux deux portées. Enfin, il recherche les motifs de secret et lance le format, le schéma et les tests Terraform simulés
+en-tête aux deux portées. Enfin, il recherche les motifs de secret et vérifie le formatage, le schéma et les tests Terraform simulés
 des deux modules racines.
 
 Sortie hors ligne (ce résultat ne prouve **pas** le déploiement) :
@@ -891,13 +781,14 @@ Modes en ligne, après un déploiement approuvé des deux étapes :
   HTTP 401 pour un jeton Graph, hôte direct de la Function HTTP 403, `publicNetworkAccess = Disabled` et diagnostics à 0 octet
   lus dans Azure Resource Manager. `-CheckTelemetry` interroge ensuite Log Analytics : les requêtes de la passerelle et les
   traces `mcp-request` existent, sans corps, argument ni valeur Authorization.
-- **Persona** (`-TenantId -Persona Alice|Bob|Eve`) : initialize et `tools/list` HTTP 200 ; `get_service_health` HTTP 200 ;
+- **Compte de test** (`-TenantId -Persona Alice|Bob|Eve`) : initialize et `tools/list` HTTP 200 ; `get_service_health` HTTP 200 ;
   `create_ticket` HTTP 403 pour Bob et HTTP 200 pour Alice ; outil inconnu HTTP 403 et méthode absente HTTP 400 ; Eve n'obtient
   pas de jeton (`AADSTS50105`). `-Burst` envoie 10 appels de plus que la limite et attend HTTP 429.
 
-Le module n'est `validated` que lorsque tout cela réussit sur un abonnement neuf, juste après les modules 00 à 03.
+Pour valider le module, faites réussir tous ces contrôles dans votre abonnement de test, à la suite des modules 00 à 03.
+Le statut de référence `validated` exige une exécution complète sur un abonnement neuf.
 
-**Question :** dans les contrôles persona, Bob reçoit HTTP 403 sur `create_ticket`. Le validateur affiche-t-il `PASS` ou `FAIL` ?
+**Question :** lors du test avec le compte de Bob, `create_ticket` reçoit HTTP 403. Le validateur affiche-t-il `PASS` ou `FAIL` ?
 
 <details>
 <summary>Afficher la réponse</summary>
@@ -925,12 +816,13 @@ compare chaque réponse au statut attendu : un refus prévu est une réussite. C
 | Le `tools/list` d'Alice par la passerelle est vide (`{"tools":[]}`), alors que la Function liste cinq outils en direct | Le serveur MCP n'a pas d'entité backend : API Management le traite alors comme un serveur MCP construit à partir d'une API REST et répond lui-même à `tools/list`. `infra/workload/gateway.tf` crée `azapi_resource.mcp_backend` et renseigne `backendId` (API Preview ; la référence publiée ne montre que `serviceUrl`). Dans le portail, **MCP Servers** doit afficher **Source : MCP server** pour `workshop-mcp`. |
 | Le challenge 401 indique `.../workshop-mcp/.well-known/oauth-protected-resource/workshop-mcp/mcp` | Normal en mode passthrough : API Management réécrit l'URL des métadonnées sous le chemin du serveur MCP. La stratégie du serveur MCP répond à ce GET anonyme précis avec le même document de métadonnées ; l'URL à la racine fonctionne toujours. |
 | Foundry (module 07) reçoit `Access denied ... while enumerating tools (HTTP 403)` | Les clients récents appellent `server/discover` (MCP 2026-07-28) avant `initialize`. La stratégie l'accepte avec `Tools.Read` (lecture seule : versions et capacités, aucun outil ne s'exécute). Une ancienne copie de `policies/mcp-server.xml` renvoie 403 `unsupported-method`. |
-| Le plan affiche le plan de service du portail `F1` -> `B1` | Un élément extérieur à Terraform a modifié le plan du portail facultatif (dans le tenant de l'auteur, une automatisation de réduction des coûts le fait chaque nuit). N'approuvez que si vous voulez revenir en B1 ; sinon, laissez ce changement de côté. |
+| Le plan affiche le plan de service du portail `F1` -> `B1` | La configuration du portail facultatif a été modifiée en dehors de Terraform, par exemple par une automatisation de réduction des coûts. Vérifiez l'origine de l'écart. N'approuvez le plan que si le retour en B1 est voulu et autorisé ; sinon, arrêtez-vous pour faire examiner cet écart. |
 
 ## Nettoyer
 
-Nettoyez dans l'ordre inverse. Le script commence par un plan et refuse toute modification hors du module 04.
-Lancez-le une première fois pour relire le plan, puis une seconde fois avec `-Apply`. Il est idempotent. L'auteur ne l'a pas exécuté : aucun déploiement n'existe.
+Si vous poursuivez immédiatement avec le module 05, conservez les ressources. Sinon, nettoyez les modules
+dans l'ordre inverse. Le script commence par un plan et refuse toute modification hors du module 04.
+Lancez-le une première fois pour relire le plan, puis une seconde fois avec `-Apply`. Une nouvelle exécution ne supprime pas de ressources supplémentaires si le nettoyage est déjà terminé.
 
 **Partie B seulement** (la partie A et la passerelle restent en place). La phase 0 n'accepte que la suppression des ressources de la partie B :
 
@@ -940,7 +832,7 @@ Lancez-le une première fois pour relire le plan, puis une seconde fois avec `-A
 Remove-Item -LiteralPath .\.workshop\module04b.tfvars.json -ErrorAction SilentlyContinue
 ```
 
-> **Résultat attendu** — d'après les messages du script de nettoyage ; non exécuté par l'auteur (extrait).
+> **Résultat attendu** — d'après les messages du script de nettoyage (extrait).
 >
 > ```text
 > PASS explicit Azure context and private participant parameters (expected HTTP 200 from Azure Resource Manager).
@@ -966,7 +858,7 @@ $p = Get-Content -LiteralPath .\.workshop\participant.tfvars.json -Raw | Convert
 az apim deletedservice purge --service-name "apim-mcp-$($p.participant_prefix)-$($p.resource_suffix)" --location $p.location
 ```
 
-> **Résultat attendu** — d'après les messages du script de nettoyage et la forme de sortie Terraform ; non exécuté par l'auteur (extrait).
+> **Résultat attendu** — d'après les messages du script de nettoyage et le format de sortie Terraform (extrait).
 >
 > ```text
 > PASS explicit Azure context and private participant parameters (expected HTTP 200 from Azure Resource Manager).
@@ -992,7 +884,7 @@ az apim deletedservice purge --service-name "apim-mcp-$($p.participant_prefix)-$
 > PASS the Function is back at level 1 (Entra only). Remove .workshop/module04.tfvars.json; use modules/03-entra-authentication/cleanup.ps1 next if you continue cleaning up.
 > ```
 >
-> Le nombre de `changed` inclut le retour du portail présentateur facultatif à son niveau validé (lignes `NOTE`, non montrées).
+> Le nombre de `changed` inclut le retour du portail facultatif de l'atelier à son niveau de service validé (lignes `NOTE`, non montrées).
 >
 > Avec `-Apply` après l'étape 2 (attendu, d'après les messages du script) :
 >
@@ -1036,12 +928,14 @@ et 02. Remplacez `workshop-governed` dans VS Code. Si vous enchaînez avec le mo
 - Pourquoi la passerelle transmet-elle le même jeton à la Function, et pourquoi n'est-ce pas du « token passthrough » ? Comparez
   avec le module 05.
 - Renseignez `gateway_allowed_ip_ranges` avec votre plage d'adresses sortantes, puis constatez le HTTP 403 depuis un autre réseau.
-- **04b facultatif, désormais pratique :** la partie B des Étapes expose une **API REST gérée comme serveur MCP**, où chaque
+- **Exercice 04b facultatif :** la partie B expose une **API REST gérée comme serveur MCP**, où chaque
   opération devient un outil ([Exposer une API REST comme serveur MCP](https://learn.microsoft.com/azure/api-management/export-rest-mcp-server),
   lab AI-Gateway `mcp-from-api`). Exposez une troisième opération comme outil, puis expliquez pourquoi une opération d'écriture
   exigerait `Tools.Write` et une approbation dans le client.
 
 ## Sources
+
+- [Lire les propriétés d'API Management avec Azure CLI](https://learn.microsoft.com/cli/azure/apim#az-apim-show), vérifié le 20 octobre 2026.
 
 - [Exposer et gouverner un serveur MCP existant](https://learn.microsoft.com/azure/api-management/expose-existing-mcp-server)
 - [Sécuriser l'accès aux serveurs MCP dans API Management](https://learn.microsoft.com/azure/api-management/secure-mcp-servers)

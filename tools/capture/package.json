@@ -1,0 +1,10 @@
+{
+  "name": "workshop-capture-tools",
+  "private": true,
+  "type": "module",
+  "description": "Optional author tools: real, masked and annotated captures for the module guides.",
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "playwright-core": "1.64.0"
+  }
+}

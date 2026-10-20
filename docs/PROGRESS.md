@@ -19,6 +19,233 @@ or in an approved author-owned non-production tenant.
 | 07 | Optional: other clients | validated | 2026-10-20 | Offline validator 14/14 PASS in a fresh clone (PR #13, merged `6eb049c`). Bash syntax check passed. | Part A run live 2026-10-20: Foundry project (azd starter, 3 min 21 s), dedicated client app, OAuth identity passthrough (Preview). Findings: the secretless public client failed at the credential manager's code redemption (Entra sign-in succeeded), so a one-day secret is handed to the connection via ARM without printing (rule 5 updated); Foundry calls `server/discover` (MCP 2026-07-28) first, now allowed with Tools.Read; Foundry Agent Consumer returned 403 for direct project calls, Foundry User worked; a consent link opened by another user binds that user's token. Live PASS: Alice tools/list 5 tools, approval, get_service_health healthy; Bob's approved create_ticket refused by the gateway (HTTP 403). Copilot Studio stays an outline. Clean-up script with guarded Terraform phases; module 99 runs it first. |
 | 99 | Clean up | validated | 2026-10-20 | Offline validator passes in a fresh clone at `4c8cece`: `validate.ps1 -Offline` RESULT PASS (0 failures); `validate.sh --offline` 11 PASS, exit 0 (PR #15). | Report-mode `cleanup.ps1` is not verified in a clean clone: it needs attendee state (`.workshop/participant.tfvars.json` and the module 02/03 opt-in files). Run it on a real attendee machine before validating. Open decision: skip or fail clearly when that state is absent. Live `-Apply` 2026-10-20 on modules 02 to 07 (part B included): every stage PASS in order (07, 05 workload and Entra, 04 phases 0-2, 03 workload and Entra, 02); test users kept; only the presenter portal remains. Findings fixed: applied stages now archive their var files to `.workshop/applied/` (a rerun replanned removed modules); module 05 passes the part B file; the portal's WORKSHOP_MCP_* hint refresh is accepted; an expired PIM role gave `Authorization_RequestDenied` (documented). Manual leftovers documented: policy-created NSGs, Smart Detection action group, Foundry agent identity blueprint (now deleted by module 07). |
 
+## Publication preparation from current main (2026-10-20)
+
+The user approved commit, push, merge and redeployment of the participant site.
+Prepared `publish/fr-guides-cli-20261020` from refreshed `origin/main`, in an isolated worktree;
+the original working directory and its uncommitted changes remain untouched.
+Retained the newer animated diagrams and hosting changes already merged into main.
+Resolved obsolete mixed-guide instructions in favor of the independent low-code and Terraform guides.
+Removed the old in-page track picker so the URL-based choice is the only deployment-track selector.
+Kept legacy mixed-guide parsing coverage, and updated the live-guide regression to require separate files.
+Corrected one French label in the retained module 03 animation; no topology or generated architecture asset changed.
+
+Full validation on the integrated publication tree: all 14 Node test files, 111/111 tests PASS,
+zero failures and zero skipped. Both local MCP tests pass in this clean worktree: the editor-held DLL
+and private VS Code configuration failures recorded above/below are specific to the original working directory.
+The public static export builds successfully with exactly 105 allowlisted files.
+No private participant files, Terraform state or runtime configuration are included.
+Publication uses the existing GitHub Pages workflow on merged main, not an Azure deployment.
+No Azure or Microsoft Entra resource change is authorized or performed by this publication.
+
+## Integration handoff: French result boxes and capture lists (2026-10-20)
+
+Kept the French `> **Résultat attendu** —` boxes and module 01's "Pourquoi :" and "Anticipez :" labels.
+Converted the remaining unboxed "Attendu :" after the module 03 administrator's read-only Entra inspection
+to the same box format, without changing its expected values or the following explanation.
+The module 03 regression now requires a result box after every PowerShell block, except the explicit
+plan-review STOP, which remains required before applying the Entra plan.
+
+The renderer and portal screenshot lists are identical: 48 unique names, including the four additional
+portal/validator captures and all eight `terminal-*-az-*` captures. Added explicit regression coverage
+for retaining those twelve entries and the module 01 labels. Existing counts are already correct:
+105 static-site files, 107 packaged-portal files, 105 integrity-checked public files.
+The full run verifies list equality, asset existence, export contents and HTTP access.
+Read `tools/capture/README.md`; no new capture or cloud access was needed.
+
+Ran all 14 repository Node test files after these changes: 108 tests, 106 PASS, 2 FAIL, zero skipped.
+Both failures are the previously recorded local environment problems in `scripts/local-mcp.test.mjs`:
+the editor's running MCP server locks the local server DLL during rebuild, and the private VS Code
+configuration lacks the `microsoft-learn` alias expected by the configuration test.
+No test was skipped or weakened, and no editor process or private configuration was changed.
+Scoped whitespace checks PASS.
+
+GitHub now reports PR #1 (`next-work` into `main`) merged, at 2026-10-20 19:26 UTC.
+Refreshed `origin/main` without changing the working branch or existing edits.
+The current `captures-and-deploy-map` branch does not include the refreshed main tip; no commit, push,
+merge or publication was performed. Any publication branch must be newly created from `origin/main`.
+Never push `archived-main`.
+
+## Follow-up French prose review after module 99 feedback (2026-10-20)
+
+The earlier "Complete French guide review" entry overstated the editorial result: awkward French remained,
+including in module 99. Passing structural tests and checking introductions did not establish the quality
+of every explanation. This follow-up explicitly corrects that claim.
+
+Personally read the full prose of all 17 French module guides, covering both tracks and shared module 01:
+objectives, explanations, prerequisites, instructions, tables, warnings, captions, expected results,
+troubleshooting, cleanup, review questions, hidden answers and source notes. Revised 16 guides;
+the module 03 Terraform guide needed no further wording change in this pass.
+
+Rewrote module 99 around the participant's actual cleanup order. Distinguishes the MCP resource group,
+the separate optional Foundry group, Microsoft Entra identities, catalogue entries and permanently deleting
+recoverable resources. Explains that a Foundry account is an Azure resource, not a user account.
+The question now asks whether deleting the server's group also cleans up the agent deployed in module 07.
+Ownership checks, approval and protection of shared resources remain explicit.
+Aligned the module 99 learning-guide and practice summaries.
+
+Elsewhere, replaced compressed jargon with named accounts, resources and actions; clarified deployment-account
+versus Alice/Bob checks and Eve's lack of assignment. Preserved the module 03 versus module 04 authorization
+boundary. Corrected the reader's singular review label ("1 question, réponse masquée") in French and English.
+
+Validation: 24/24 focused site/track tests PASS, including the complete module 99 assessments and singular/plural
+labels. Module 99 offline validator PASS, zero failures. All 293 fenced command, configuration, diagram and output
+blocks across the 17 guides match the pre-review baseline after line-ending normalization.
+Local browser checks of both module 99 tracks confirmed one low-code question and three Terraform questions,
+all answers reveal correctly, and no horizontal overflow at 390 and 1280 pixels. The warning title is separate
+from its text in the rendered page. These checks verify structure and rendering, not linguistic quality.
+
+No cloud calls, resource changes, cleanup execution, external-source revalidation, public deployment or
+module-status change occurred during this follow-up.
+
+## Copyable Azure CLI inspections and real result captures (2026-10-20)
+
+Added an explained hands-on inspection to all 17 French guides, covering both tracks and the shared local module.
+Each sequence gives its purpose, copyable PowerShell blocks, the fields to compare, a result image and failure guidance.
+Terraform-track setup reads the existing resource names; portal-track setup reconstructs its own `lc` names without state.
+Module 01 uses its local validator and real Inspector image, not an artificial Azure command.
+Module 99 shows a pre-cleanup inventory and explains the separate post-cleanup checks for dedicated versus shared groups.
+
+The user explicitly approved read-only access to the current CLI context and confirmed an authorized non-production
+environment. Queried existing workshop resources only; captured eight new masked, annotated CLI results for
+context, Function runtime/HTTPS, enforced Entra, private Function access, the two identities, HTTP-code counts,
+the existing APIM gateway and the inventory before cleanup. No deployment, role change, secret/key retrieval,
+MCP write or cleanup was performed. Existing Foundry screenshots remain labelled as earlier examples;
+the low-code tracks were not redeployed or live-validated.
+
+Live CLI evidence exposed null top-level Function aliases in this environment. The new commands use
+`az resource show` with `Microsoft.Web/sites`, API version 2024-11-01 and explicit `properties` projections.
+Capture specs now preserve JSON/table lines and require the expected output values, not just exit code zero.
+All eight capture runs passed those checks; all eight images were visually reviewed after masking.
+The documented Terraform inspection setup and read-only group-existence check also passed.
+
+Synchronized the renderer, static portal and author-server screenshot allowlists.
+The author server was also missing already-published capture names; every published screenshot is now tested over HTTP,
+while unknown names and query-string attempts remain rejected.
+
+Validation: 67/67 focused board/site/track/portal/masking tests PASS; new regressions parse all 33 added PowerShell
+blocks, require explicit CLI failure checks and verify exact displayed commands against capture specifications.
+Local browser checks at 390x844 passed across all 17 French guide routes: 33 copy controls preserved exact code
+using an intercepted browser clipboard, all 21 inspection image occurrences loaded, and no page overflow.
+Scoped syntax/whitespace checks PASS. Sources updated; no public deployment or module-status change.
+
+## Complete French guide review (2026-10-20)
+
+Read and revised all 17 French guides across the nine modules: both deployment tracks, with module 01 shared.
+Objectives now address participants directly. Replaced literal translations, compressed portal instructions
+and unexplained governance jargon with concrete actions, their purpose, their order and the results to check.
+Administrator handoffs and validation limits remain explicit; pending live validation is not presented as a learning objective.
+Preserved recorded-output provenance, Preview warnings, support limits and Copilot Studio's reading-only status.
+
+Aligned the French plan, learning guide and practice hints with the participant journey and both tracks.
+Clarified that Terraform state belongs to the Terraform track, not the portal track.
+Corrected French gateway prerequisites: Alice and Bob receive the planned roles; Eve receives no assignment.
+The module 03 distinction remains explicit: Bob can still write there, while Eve cannot obtain the MCP token;
+module 04 introduces per-tool role checks.
+
+Validation: 21/21 combined site/track tests PASS, including a new regression covering all 17 French objectives,
+validation/source sections and the corrected Eve prerequisite. All 260 fenced command, configuration and output
+blocks are byte-identical after line-ending normalization to the baseline captured before this editorial pass.
+Local browser checks passed for all 17 French module/track introductions at 390x844: one reading article per route,
+participant-facing objective text and no horizontal page overflow. Scoped whitespace check PASS.
+No cloud query, resource change, public deployment, external-source revalidation or module-status change.
+
+## Participant wording review (2026-10-20)
+
+Reviewed the prose in all nine French module guides (00 to 07 and 99), including low-code steps,
+expected results, troubleshooting and clean-up. Reworded literal translations and facilitator-directed
+instructions without changing fenced commands, prompts, queries or recorded output.
+Module 07 now consistently describes an optional participant exercise with Foundry; Copilot Studio
+remains a reading-only outline, not a live-validated exercise. Updated the EN/FR summaries, prerequisite
+text and navigation badges so they no longer describe the whole module as a facilitator demo.
+Recordings do not substitute for the resources needed to perform the exercise.
+
+Validation: 51/51 focused board/site/portal tests PASS, including a participant-wording regression;
+263 fenced blocks unchanged across 19 edited Markdown files compared with HEAD; `git diff --check` PASS.
+Local browser checks pass for all nine French module routes at 390 pixels, the corrected module 07
+Preview note on desktop, and its English participant badge at 1366 pixels.
+No Azure or Microsoft Entra query, resource change, public deployment, external-source revalidation
+or module-status change was performed.
+
+## French writing rule and module 02 wording (2026-10-20)
+
+Added an always-on repository writing rule: French participant content must read as original French,
+not as sentence-by-sentence English translation. Address the participant directly, explain concrete actions
+and expected observations, and keep authoring history out of learning objectives. Relevant validation limits
+remain explicit in the validation section.
+
+Rewrote the module 02 French portal guide's prose and the Terraform guide's introduction and warning.
+The exercise now states what participants deploy, test and learn from the shared key.
+Replaced literal phrases about a temporary "level" and a "governed gateway" with explicit instructions:
+keep key protection, continue to Entra or clean up, then enforce per-tool roles in module 04.
+The portal guide's pending end-to-end validation is still disclosed, outside the objective.
+
+Validation: 19/19 focused site/track tests PASS, including a new wording-rule regression;
+all 22 fenced command/example blocks in the two module 02 French guides unchanged from this task's starting point;
+scoped whitespace check PASS. No cloud query, resource change, public deployment or module-status change.
+
+## Module 03 French participant reassessment (2026-10-20)
+
+Rewrote the French Terraform guide as a participant journey rather than an author deployment report.
+The goal, three-account scenario and completion criteria precede the commands. Bob has an assignment and can
+still write at this level; Eve can sign into the tenant but cannot obtain the MCP token (AADSTS50105).
+Client preauthorization, user assignment, token audience and per-tool authorization are explained separately.
+
+The user selected Terraform mutations with read-only Azure CLI inspection, not a migration of managed resources.
+Administrator preparation is a closed handoff; participant actions follow Entra plus key, deployed configuration
+readback and HTTP 401, then key-gate replacement, server checks and three isolated account checks.
+Plans and applies are separate. CLI inspection selects only relevant app settings and never displays tokens.
+Persona testing preserves the original CLI configuration even on failure.
+Removed author apply transcripts and fixed resource-count expectations from the French participant guide.
+Aligned the French low-code scenario and the French plan, learning and practice summaries.
+Six Terraform-track review questions and four low-code questions distinguish expected refusal from unrelated failures.
+
+Validation: module 03 offline validator PASS, including Terraform format/schema/mock checks for both roots;
+18/18 focused site/track tests PASS. New regressions parse all 17 French PowerShell examples without executing
+them and exercise nine mocked pre-key-removal outcomes (one valid, eight refused).
+Local participant-preview browser checks: all 38 French Terraform reading steps at 390x844 display one article
+without page overflow; six review answers start closed and all open correctly. Static participant export PASS.
+Microsoft Learn sources reread; no live Azure/Entra query or mutation, public deployment, architecture change
+or module validation-status change. New teaching commands have not been rerun against a live subscription.
+
+## Independent participant tracks (2026-10-20)
+
+Separated the participant progression, not just the low-code paragraphs:
+
+- Modules 00, 02 to 07 and 99 now have independent `LOW-CODE.md` / `LOW-CODE.fr.md` guides.
+  Their READMEs follow Terraform + PowerShell without interleaved low-code steps. Module 01 remains shared.
+- Low-code is portal-first: exact portal actions, existing real captures with provenance, explicit variables,
+  necessary publishing/configuration commands, expected results, persona validation and cleanup.
+  Missing real captures are disclosed; no screenshot or live result was invented.
+- Module 00, the tool checker and preflight accept `-Track low-code`. That path does not execute Terraform.
+  Preflight resolves low-code group names and preserves an administrator-provided group name.
+- The selected track stays in the URL through module navigation, refresh and language changes.
+  The reader, questions, source path, validation help, PDF and inspection reference use that guide.
+  Both HTTP runtimes allow only the known language/track selectors; unknown or duplicate selectors remain refused.
+- Low-code inspection reads the private participant JSON rather than local infrastructure state.
+  Cleanup distinguishes workload groups, optional Foundry resources, identity objects and shared resources.
+
+Offline validation: `modules/00-prerequisites/validate.ps1 -Offline -Track low-code` PASS, 28/28 tests,
+with a throwing Terraform guard in the parent PowerShell process. Board regressions: 37/37 PASS.
+Together: 65/65 PASS. Tests cover all 34 bilingual guides, first-step ordering, callouts/questions,
+immediate command-result boxes, intact runnable blocks, PowerShell parsing, local links, screenshot allowlists,
+track isolation and both HTTP runtimes. Existing module validators 02 to 07, 99 and optional 04 part B
+also passed offline during guide authoring. Tests run serially after concurrent PowerShell fixture timeouts;
+no timeout or security check was weakened. `git diff --check` PASS.
+
+Local browser checks: 36 module views across both tracks and languages at 390/1366 pixels,
+correct track-specific sources and no page overflow. Refresh, language changes, previous/next navigation
+and the low-code inspection page preserve the selected track. Module 07 PDF preparation uses the selected
+guide, loads its real screenshots and contains no Terraform command in the low-code version.
+Public bundle: 95 allowlisted files, HTTP health 200 and selected-track entry URL 200.
+After the final content fixes, rebuilt the bundle and checked all 18 French module/track views again:
+each opens on Objectif (with continuation pages where needed), without horizontal page overflow.
+
+The new composition has not been followed end-to-end on a fresh subscription. Previous live dates remain
+historical evidence, not validation of the separated guides. No Azure or Microsoft Entra resource query,
+resource change, publication or module-status change was performed in this session.
+Two public documentation references for the inspection guide were reread; see `docs/sources.md`.
+
 ## Interface appearance evidence
 
 Release checks (2026-10-16): module 01's real local SDK validator passes build, negotiation, discovery,
@@ -147,6 +374,29 @@ answers, keyboard reveal and Previous/Next; two columns at 1440/1024px and one a
 Request navigation and reference reveal send no network requests. The existing six-request server guide still
 shows all six requests, without assuming local Inspector preparation. Manual client approval remains unverified;
 module 01 stays `authored`, not newly live-validated.
+
+## Real captures and deployment map (2026-10-20)
+
+`tools/capture` (new, optional author tooling, `playwright-core` 1.64.0 pinned, Edge channel, no browser download)
+produces annotated captures from the author's own test tenant. `capture-portal.mjs` masks the account, tenant,
+subscription, participant names and every GUID or 32-hex ID in every frame of the portal page, draws the pink numbered
+frames, then **refuses to save** if any private value is still visible, before and after the screenshot.
+`capture-terminal.mjs` runs a real validator, masks its output, rejoins PowerShell's console wrapping and measures the
+frames on the rendered lines. Masking rules are built at run time; nothing private is committed. Unit tests use a
+synthetic Fabrikam context. New real captures, live on `host01` (modules 02 to 05 deployed): Function App Overview
+(Flex Consumption, five `mcpToolTrigger` tools) and App keys (`mcp_extension` system key, values hidden) in module 02;
+Function App Networking (public access Disabled, one private endpoint, VNet integration) in module 04; module 00
+validator (live, read-only); module 04 operator validator refreshed (now with a third frame on the persona checks).
+Finding: the API Management MCP server blade cannot be opened by URL (the generic blade uses API version 2021 and
+returns 404) and does not react to automated clicks; part A's policy capture is therefore not included. `az rest`
+fails on Windows with the policy's `rawxml` body (cp1252 and BOM); not worked around with a manual ARM token.
+
+`docs/GETTING-STARTED.md` (EN/FR): section 4 no longer says Terraform deploys no Function, gateway or identity; new
+section 5 "Deployment map" lists, per module, the Terraform root, the private file, what appears in the tenant and the
+capture to compare with. The board's start page shows that map directly instead of inside the collapsed guide.
+`scripts/deploy-module.ps1` runs one module: context check, cumulative private files in guide order (part B kept while
+its file exists, as module 04 requires), saved plan, typed `yes`, apply, validator. Live `-PlanOnly` on `host01` for
+module 05: 8 private files, `0 to add, 6 to change, 0 to destroy` (known app-setting and tag drift), nothing applied.
 
 ## Open decisions
 

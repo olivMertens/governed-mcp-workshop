@@ -1,8 +1,10 @@
-# Préparer votre environnement Azure
+# Votre environnement Terraform : annuaire et abonnement
 
 Utilisez uniquement un environnement de test **approuvé et hors production**.
 Cette page vous aide à le sélectionner ; elle ne déploie rien et ne garantit pas vos droits.
 Si ce n'est pas déjà fait, [choisissez votre environnement de travail](GETTING-STARTED.md).
+Les commandes d'inspection de cette page lisent les sorties Terraform.
+Pour les ressources créées dans le portail, utilisez le [guide d'inspection low-code séparé](LOW-CODE-DEPLOYMENT.md).
 
 Trois notions suffisent pour commencer :
 
@@ -48,7 +50,7 @@ Il ouvre la page de connexion Azure dans le navigateur, sélectionne l'abonnemen
 Suivez les règles d'authentification multifacteur de votre organisation.
 Le script ne crée aucune ressource et n'attribue aucun rôle.
 
-**Gardez ce même terminal pour Terraform.** Lancez le script avec `&`, pas dans un nouveau processus
+**Gardez ce même terminal pour la suite du parcours Terraform.** Lancez le script avec `&`, pas dans un nouveau processus
 `pwsh -File` : les paramètres de contexte doivent rester disponibles pour la suite.
 Si le script échoue, arrêtez-vous. Ne poursuivez pas avec l'abonnement sélectionné auparavant.
 

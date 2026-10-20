@@ -8,43 +8,48 @@ import { spawnSync } from "node:child_process";
 import { runInNewContext } from "node:vm";
 import { buildSite, authorOnlyDocuments } from "./build-site.mjs";
 import { screenshots } from "./portal-server.mjs";
+import { readJourney } from "../.github/extensions/workshop-build-board/journey.mjs";
+import { parseProgress } from "../.github/extensions/workshop-build-board/progress.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 
-test("workspace setup shows clone commands before local steps, but Codespaces needs no local clone", () => {
+test("getting started offers tracks without a workspace choice and checks tools after cloning", () => {
     const html = readFileSync(join(root, ".github", "extensions", "workshop-build-board", "board.html"), "utf8");
-    const source = html.slice(html.indexOf("function showStart(mode)"), html.indexOf("function deploymentContext()"));
+    const source = html.slice(html.indexOf("function showStart()"), html.indexOf("function deploymentContext()"));
     const clone = "git clone --branch main https://github.com/olivMertens/governed-mcp-workshop.git";
     const node = (tag, text, ...children) => ({
         tag, text, children,
         append(...items) { this.children.push(...items); },
     });
-    for (const mode of [undefined, "local", "devcontainer", "codespaces"]) {
+    for (const selectedTrack of [null, "terraform", "low-code"]) {
         const content = node("main");
-        runInNewContext(`${source}\nshowStart(mode);`, {
-            mode, content, element: node, externalLink: node, link: node, notice: node,
+        runInNewContext(`${source}\nshowStart();`, {
+            selectedTrack, content, element: node, externalLink: node, link: node, notice: node,
             commandBlock: node, disclosure: (title, ...children) => node("details", title, ...children),
-            markdown: node, workspaceChoices: () => node("choices"),
+            markdown: node, trackChoices: () => node("tracks"),
             state: { environment: { tools: true }, documents: { gettingStarted: { content: "guide", sourcePath: "guide.md" } } },
         });
         const rendered = JSON.stringify(content);
-        if (mode === "codespaces") {
-            assert.ok(!rendered.includes(clone));
-            assert.match(rendered, /https:\/\/codespaces.new\/olivMertens\/governed-mcp-workshop/);
-            continue;
-        }
+        assert.equal(content.children.filter((item) => item.tag === "tracks").length, 1);
+        assert.doesNotMatch(rendered, /Choose your workspace|VS Code dev container|Codespaces/);
         const commands = content.children.flatMap((item) => [item, ...item.children])
             .filter((item) => item.tag?.startsWith("Clone repository /"));
-        assert.equal(commands.length, 2);
+        assert.equal(commands.length, 1);
         assert.equal(commands[0].text, `${clone}\nif ($LASTEXITCODE -ne 0) { throw 'Clone failed. Do not continue in another directory.' }\nSet-Location .\\governed-mcp-workshop`);
-        assert.equal(commands[1].text, `${clone} && \\\n  cd governed-mcp-workshop`);
+        assert.doesNotMatch(rendered, /bash/i);
         assert.ok(commands.every((item) => item.children[1] === false), "Shell commands must not be translated");
-        if (mode) assert.ok(rendered.indexOf(clone) < rendered.indexOf("Check tools / PowerShell"));
+        if (selectedTrack) {
+            assert.ok(rendered.indexOf(clone) < rendered.indexOf("Check tools / PowerShell"));
+            assert.ok(rendered.includes(`check-tools.ps1 -Track ${selectedTrack}`));
+        }
         else assert.ok(!rendered.includes("Check tools / PowerShell"));
         assert.match(rendered, /https:\/\/github.com\/olivMertens\/governed-mcp-workshop/);
-        assert.match(rendered, /Once the repository is public/);
+        assert.match(rendered, /The repository is public: HTTPS cloning needs no GitHub account\./);
         assert.match(rendered, /Keep your private .workshop files and Terraform state/);
     }
+    assert.doesNotMatch(html, /workspaceChoices/);
+    assert.match(html, /navLink\("start", "Get started", "terminal"\)/);
+    assert.match(html, /\["#\/start", "#\/start\/devcontainer", "#\/start\/local", "#\/start\/codespaces"\]\.includes\(route\)\) showStart\(\)/);
     for (const parts of [["docs", "GETTING-STARTED.md"], ["docs", "fr", "GETTING-STARTED.md"]]) {
         const guide = readFileSync(join(root, ...parts), "utf8").replaceAll("\r\n", "\n");
         assert.ok(guide.includes(`\`\`\`bash\n${clone} && \\\n  cd governed-mcp-workshop\n\`\`\``));
@@ -57,12 +62,113 @@ test("Git preserves SVG bytes and binary PNG provenance on Windows checkouts", (
     assert.match(attributes, /^\*\.png binary$/m);
 });
 
+test("PowerShell presentation removes bash alternatives before lesson splitting and PDF rendering without changing sources", () => {
+    const html = readFileSync(join(root, ".github", "extensions", "workshop-build-board", "board.html"), "utf8");
+    const helpers = html.slice(html.indexOf("function powershellContent("), html.indexOf("function activateLanguage("));
+    const tracks = html.slice(html.indexOf("function trackModules("), html.indexOf("let loading ="));
+    const { powershellContent, powershellPresentation } = new Function(`${tracks}\n${helpers}; return { powershellContent, powershellPresentation };`)();
+    const command = "Write-Output 'unchanged'\n# ### Bash is just code";
+    const fixture = `## Steps
+### PowerShell
+\`\`\`powershell
+${command}
+\`\`\`
+### Bash
+Alternative instructions.
+\`\`\`bash
+echo omitted
+\`\`\`
+> **Expected result** — omitted
+#### Nested bash heading
+Also omitted.
+## Validate
+Keep this result.
+<details>
+<summary>Vous utilisez bash ?</summary>
+<details>
+<summary>Nested</summary>
+Hidden.
+</details>
+\`\`\`sh
+echo omitted
+\`\`\`
+</details>
+<details>
+<summary>Keep this answer</summary>
+Keep this explanation.
+</details>
+Or, using bash in another terminal:
+\`\`\`bash
+echo omitted
+\`\`\`
+## Sources
+Keep sources.`;
+    const filtered = powershellContent(fixture);
+    assert.ok(filtered.includes(command));
+    assert.doesNotMatch(filtered, /omitted|Alternative instructions|Nested bash heading|Vous utilisez bash|Hidden|Or, using bash/);
+    assert.match(filtered, /## Validate\nKeep this result/);
+    assert.match(filtered, /<details>\n<summary>Keep this answer<\/summary>\nKeep this explanation\.\n<\/details>/);
+    assert.match(filtered, /## Sources\nKeep sources/);
+    assert.equal(powershellContent(filtered), filtered);
+    assert.equal(powershellContent(null), null);
+    const current = readJourney(root, parseProgress(readFileSync(join(root, "docs", "PROGRESS.md"), "utf8")));
+    const powershell = (text) => [...text.matchAll(/^```powershell[^\r\n]*\r?\n([\s\S]*?)^```/gm)].map((match) => match[1].replaceAll("\r\n", "\n"));
+    for (const localized of [current, current.translations.fr]) {
+        const before = JSON.stringify(localized);
+        for (const track of ["terraform", "low-code"]) {
+            const state = powershellPresentation(localized, track);
+            for (const module of state.modules) {
+                assert.doesNotMatch(module.guide, /^```(?:bash|sh)(?:\s|$)|^#{1,6} .*bash/im);
+                assert.deepEqual(powershell(module.guide), powershell(localized.modules.find((item) => item.module === module.module).guides[track].guide));
+            }
+            for (const [key, doc] of Object.entries(state.documents)) {
+                assert.doesNotMatch(doc.content, /^```(?:bash|sh)(?:\s|$)|^#{1,6} .*bash/im);
+                assert.deepEqual(powershell(doc.content), powershell(localized.documents[key].content), key);
+            }
+        }
+        assert.equal(JSON.stringify(localized), before);
+    }
+    assert.match(html, /state = powershellPresentation\(localized, selectedTrack\)/);
+    assert.doesNotMatch(html, /disclosure\("Using bash"|commandBlock\("[^"]+ \/ bash"/);
+});
+
+test("module 07 addresses participants across guides, summaries, navigation and French labels", () => {
+    const html = readFileSync(join(root, ".github", "extensions", "workshop-build-board", "board.html"), "utf8");
+    const locale = readFileSync(join(root, ".github", "extensions", "workshop-build-board", "locale-fr.js"), "utf8");
+    assert.match(html, /module\.module === "07" \? "Optional participant exercise"/);
+    assert.match(html, /module\.module === "07" \? "Optional \/ participant exercise"/);
+    assert.match(html, /Needs modules 03 to 06 deployed and validated in your own approved test environment/);
+    assert.match(locale, /"Optional participant exercise": "Exercice facultatif"/);
+    assert.match(locale, /"Optional \/ participant exercise": "Exercice facultatif"/);
+    assert.doesNotMatch(html + locale, /facilitator demo|démonstration (?:facultative )?de l'animateur|or a recording of them/i);
+    for (const language of ["en", "fr"]) {
+        const guide = readFileSync(join(root, "modules", "07-clients", language === "fr" ? "README.fr.md" : "README.md"), "utf8");
+        assert.match(guide, language === "fr" ? /votre (?:propre )?environnement de test/ : /your own test environment/);
+        assert.doesNotMatch(guide, /label them when you show them|signalez-les quand vous les montrez/);
+        assert.match(guide, language === "fr" ? /partie B.*pas un exercice à exécuter/ : /Part B.*not a hands-on exercise/);
+        for (const document of ["BUILD-PLAN.md", "LEARNING-GUIDE.md", "PRACTICE.md"]) {
+            const parts = language === "fr" ? ["docs", "fr", document] : ["docs", document];
+            const content = readFileSync(join(root, ...parts), "utf8");
+            const section = content.split(/^## 07 [^\r\n]+/m)[1]?.split(/^## /m)[0];
+            assert.ok(section, `${language}/${document}: missing module 07`);
+            assert.doesNotMatch(section, /facilitator demo|réservée à l'animateur|démonstration de l'animateur|or a recording of them/i);
+            assert.match(section, /Foundry/);
+        }
+    }
+    for (const folder of readdirSync(join(root, "modules"))) {
+        const path = join(root, "modules", folder, "README.fr.md");
+        if (!existsSync(path)) continue;
+        const guide = readFileSync(path, "utf8");
+        assert.doesNotMatch(guide, /utilisateurs attribués|Alice.*Bob.*\(attribués\)|une espace|application seule/);
+    }
+});
+
 test("public site exports only the allowlist, with no capability, root URLs, private files or API dependency", (t) => {
     const temporary = mkdtempSync(join(tmpdir(), "workshop-site-"));
     t.after(() => rmSync(temporary, { recursive: true, force: true }));
     const output = join(temporary, "public");
     const result = buildSite(root, output);
-    assert.equal(result.files, 93);
+    assert.equal(result.files, 105);
     assert.deepEqual(readdirSync(output).sort(), [".nojekyll", "assets", "index.html", "journey.json", "locale-fr.js"]);
     const html = readFileSync(join(output, "index.html"), "utf8");
     assert.match(html, /const staticSite = "true" === "true"/);
@@ -139,7 +245,7 @@ test("public site exports only the allowlist, with no capability, root URLs, pri
         for (const module of language.modules) {
             if (["02", "03", "04", "05"].includes(module.module)) {
                 assert.match(module.guide, language.language === "fr" ?
-                    /### Lire la documentation au moment de la démonstration/ : /### Read alongside the demonstration/);
+                    /### Comprendre les résultats avec la documentation/ : /### Read alongside the demonstration/);
             }
             assert.match(module.diagramSource.content, /^flowchart LR\n/);
             assert.ok(language.documents.architecture.content.replaceAll("\r\n", "\n").includes(module.diagramSource.content));
@@ -225,7 +331,7 @@ test("authentication demonstrations link matching Learn/API references in both l
         for (const language of ["en", "fr"]) {
             const guide = readFileSync(join(root, "modules", folder, language === "en" ? "README.md" : "README.fr.md"), "utf8");
             const heading = language === "en" ? "### Read alongside the demonstration" :
-                "### Lire la documentation au moment de la démonstration";
+                "### Comprendre les résultats avec la documentation";
             const start = guide.indexOf(heading);
             const results = guide.indexOf(language === "en" ? "## What you should see" : "## Ce que vous devez voir");
             const validation = guide.indexOf(language === "en" ? "\n## Validate" : "\n## Valider");
@@ -245,6 +351,270 @@ test("authentication demonstrations link matching Learn/API references in both l
         }
         assert.deepEqual(languages[0], languages[1], `${folder}: EN/FR references differ`);
     }
+});
+
+test("all 17 French module guides address participants and keep editorial status out of objectives", () => {
+    const guides = readdirSync(join(root, "modules")).flatMap((folder) =>
+        readdirSync(join(root, "modules", folder)).filter((name) => name.endsWith(".fr.md"))
+            .map((name) => ({ folder, name })));
+    assert.equal(guides.length, 17);
+    assert.equal(new Set(guides.map(({ folder }) => folder)).size, 9);
+    for (const { folder, name } of guides) {
+        const guide = readFileSync(join(root, "modules", folder, name), "utf8").replaceAll("\r\n", "\n");
+        const goal = guide.split(/^## Objectif\n/m)[1]?.split(/^## /m)[0];
+        assert.ok(goal, `${folder}/${name}: missing participant objective`);
+        assert.match(goal, /\bvous\b/i, `${folder}/${name}: address the participant`);
+        assert.doesNotMatch(goal, /nouvellement séparé|guide séparé|ce guide.*(?:validé|exécuté)|chez l'auteur|sur le poste de l'auteur/i,
+            `${folder}/${name}: editorial history belongs outside the objective`);
+        assert.doesNotMatch(guide, /Gardez ce niveau très temporaire|une identité utilisateur, ouvre le serveur|passerelle gouvernée/);
+        assert.match(guide, /^## (?:Valider|Validation|Vérifier)\b/m);
+        assert.match(guide, /^## Sources\n/m);
+    }
+    const locale = readFileSync(join(root, ".github", "extensions", "workshop-build-board", "locale-fr.js"), "utf8");
+    assert.doesNotMatch(locale, /faites attribuer les rôles d'Alice, Bob et Eve|Les rôles d'Alice, Bob et Eve doivent être attribués/);
+    assert.match(locale, /Eve ne doit avoir aucune attribution/);
+});
+
+test("French cleanup explains the separate Foundry group and preserves its participant assessment", () => {
+    const progress = parseProgress(readFileSync(join(root, "docs", "PROGRESS.md"), "utf8"));
+    const journey = readJourney(root, progress).translations.fr;
+    for (const name of ["README.fr.md", "LOW-CODE.fr.md"]) {
+        const guide = readFileSync(join(root, "modules", "99-cleanup", name), "utf8").replaceAll("\r\n", "\n");
+        assert.doesNotMatch(guide, /groupe de charge de travail|nettoyage de Foundry facultatif|résultat attendu (?:avant|après) nettoyage/);
+        assert.match(guide, /Foundry.*groupe de ressources distinct|Foundry utilise \*\*un autre groupe de ressources\*\*/);
+        assert.match(guide, /comptes.*(?:fournis|partagés)|ressources partagées/);
+    }
+    const lowCode = readFileSync(join(root, "modules", "99-cleanup", "LOW-CODE.fr.md"), "utf8");
+    assert.match(lowCode, /purger\*\*, c'est-à-dire les supprimer définitivement/);
+    assert.match(lowCode, /compte Foundry.*ressource Azure, pas le compte d'un utilisateur/);
+    const html = readFileSync(join(root, ".github", "extensions", "workshop-build-board", "board.html"), "utf8");
+    const source = html.slice(html.indexOf("function lessonSteps("), html.indexOf("function guidedDocument("));
+    const split = new Function(`${source}; return lessonSteps;`)();
+    const collect = new Function("lessonSteps",
+        `${html.slice(html.indexOf("function collectQuestions("), html.indexOf("function reviewList("))}; return collectQuestions;`)(split);
+    const module = journey.modules.find((item) => item.module === "99");
+    assert.equal(collect(module.guides.terraform.guide).length, 3);
+    const questions = collect(module.guides["low-code"].guide);
+    assert.equal(questions.length, 1);
+    assert.match(questions[0].text, /groupe de ressources du serveur MCP/);
+    assert.match(questions[0].text, /agent Foundry/);
+    assert.match(questions[0].text, /groupe de ressources de Foundry est distinct/);
+    assert.match(questions[0].text, /étape 3/);
+});
+
+test("the review card uses singular and plural question labels in English and French", () => {
+    const html = readFileSync(join(root, ".github", "extensions", "workshop-build-board", "board.html"), "utf8");
+    const source = html.slice(html.indexOf("if (lesson.reviewIndex !== -1) cards.push("),
+        html.indexOf('cards.push([t("Architecture and context")'));
+    const french = runInNewContext(`${readFileSync(join(root, ".github", "extensions", "workshop-build-board", "locale-fr.js"), "utf8")}\nfrench;`);
+    for (const language of ["en", "fr"]) {
+        for (const count of [1, 3]) {
+            const cards = [];
+            new Function("cards", "lesson", "stepWord", "language", "items", "t", source)(
+                cards, { reviewIndex: 6 }, (number) => `${language === "fr" ? "Étape" : "Step"} ${number}`,
+                language, Array(count), (key) => language === "fr" ? french[key] ?? key : key);
+            const suffix = language === "fr"
+                ? count === 1 ? "question, réponse masquée" : "questions, réponses masquées"
+                : count === 1 ? "question, answer hidden" : "questions, answers hidden";
+            assert.equal(cards[0][1], `${language === "fr" ? "Étape 7 : " : "Step 7: "}${count} ${suffix}`);
+        }
+    }
+});
+
+test("French modules pair copyable inspections with explanations and exported real result captures", () => {
+    const snippets = [];
+    const guides = readdirSync(join(root, "modules")).flatMap((folder) =>
+        readdirSync(join(root, "modules", folder)).filter((name) => name.endsWith(".fr.md"))
+            .map((name) => ({ folder, name })));
+    assert.equal(guides.length, 17);
+    for (const { folder, name } of guides) {
+        const guide = readFileSync(join(root, "modules", folder, name), "utf8").replaceAll("\r\n", "\n");
+        const section = guide.split(/^### Vérifier vous-même (?:avec Azure CLI(?:, avant de supprimer)?|dans le terminal et Inspector)\n/m)[1]
+            ?.split(/^#{1,3} /m)[0];
+        assert.ok(section, `${folder}/${name}: missing hands-on inspection`);
+        assert.match(section, /\*\*Pourquoi :\*\*/);
+        assert.match(section, /\*\*Résultat attendu/);
+        const blocks = [...section.matchAll(/^```powershell\n([\s\S]*?)^```/gm)].map((match) => match[1]);
+        assert.ok(blocks.length, `${folder}/${name}: missing copyable command`);
+        snippets.push(...blocks);
+        if (folder.startsWith("01-")) {
+            assert.match(section, /pwsh -NoProfile -File/);
+            assert.doesNotMatch(blocks.join("\n"), /^az /m);
+        } else {
+            assert.match(blocks.join("\n"), /^az /m);
+            for (const block of blocks) {
+                assert.doesNotMatch(block, /^az .*\b(?:create|update|delete|purge|register|set|get-access-token|invoke-action)\b/m);
+                for (const line of block.matchAll(/^az [^\n]+\n([^\n]+)/gm)) {
+                    assert.match(line[1], /if \(\$LASTEXITCODE -ne 0\)/, `${folder}/${name}: fail explicitly after az`);
+                }
+            }
+        }
+        const images = [...section.matchAll(/!\[[^\]]+\]\(\.\.\/\.\.\/assets\/screenshots\/([^)]+)\.png\)/g)];
+        assert.ok(images.length, `${folder}/${name}: missing result screenshot`);
+        for (const image of images) {
+            assert.ok(screenshots.includes(image[1]), `Not exported: ${image[1]}`);
+            const bytes = readFileSync(join(root, "assets", "screenshots", `${image[1]}.png`));
+            assert.equal(bytes.subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
+        }
+        if (folder.startsWith("99-")) {
+            assert.match(section, /avant nettoyage|avant de supprimer/i);
+            assert.match(section, /pas une preuve de suppression|pas d'une capture de suppression/);
+        }
+    }
+    const parse = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-Command", `
+        $ErrorActionPreference = 'Stop'
+        foreach ($snippet in ([Console]::In.ReadToEnd() | ConvertFrom-Json)) {
+            $tokens = $null; $errors = $null
+            $null = [System.Management.Automation.Language.Parser]::ParseInput($snippet, [ref]$tokens, [ref]$errors)
+            if ($errors.Count) { throw ($errors.Message -join '; ') }
+        }
+        Write-Output 'PASS copyable inspection syntax'
+    `], { input: JSON.stringify(snippets), encoding: "utf8", timeout: 30_000 });
+    assert.equal(parse.status, 0, parse.stdout + parse.stderr);
+    const captures = JSON.parse(readFileSync(join(root, "tools", "capture", "terminal-shots.json"), "utf8"))
+        .filter((shot) => shot.file.includes("-az-"));
+    assert.equal(captures.length, 8);
+    for (const shot of captures) {
+        assert.equal(shot.preserveLines, true);
+        assert.equal(shot.expectExit, 0);
+        assert.ok(shot.requireOutput.length, `${shot.file}: reject missing/null output`);
+        assert.ok(guides.some(({ folder, name }) => {
+            const guide = readFileSync(join(root, "modules", folder, name), "utf8");
+            return shot.show.every((command) => guide.includes(command));
+        }), `${shot.file}: displayed command must be copyable from a guide`);
+    }
+});
+
+test("module 02 French objectives address participants and keep authoring status in validation notes", () => {
+    const instructions = readFileSync(join(root, ".github", "copilot-instructions.md"), "utf8");
+    assert.match(instructions, /## French participant-facing writing/);
+    assert.match(instructions, /Write idiomatic French, not a sentence-by-sentence translation/);
+    assert.match(instructions, /standalone participant guide/);
+    for (const name of ["README.fr.md", "LOW-CODE.fr.md"]) {
+        const guide = readFileSync(join(root, "modules", "02-open-server", name), "utf8").replaceAll("\r\n", "\n");
+        const objective = guide.split("## Objectif\n")[1].split("\n## ")[0];
+        assert.match(objective, /Vous allez déployer/);
+        assert.match(objective, /toute personne qui (?:possède|détient) la clé/i);
+        assert.doesNotMatch(objective, /nouvellement séparé|bout en bout|guide séparé|l'auteur/);
+        assert.doesNotMatch(guide, /Gardez ce niveau très temporaire|une identité utilisateur, ouvre le serveur|passerelle gouvernée/);
+        assert.match(guide, /Ne désactivez jamais la protection par clé/);
+        assert.match(guide, /supprimez les ressources si vous vous arrêtez ici|Si vous vous arrêtez ici, suivez/);
+    }
+    const lowCode = readFileSync(join(root, "modules", "02-open-server", "LOW-CODE.fr.md"), "utf8");
+    const validation = lowCode.slice(lowCode.indexOf("## Valider"));
+    assert.match(validation, /parcours complet dans le portail n'a pas encore été testé sur un environnement neuf/);
+});
+
+test("French module 03 teaches server admission before per-tool rights and exports its complete assessment", () => {
+    const guide = readFileSync(join(root, "modules", "03-entra-authentication", "README.fr.md"), "utf8").replaceAll("\r\n", "\n");
+    const html = readFileSync(join(root, ".github", "extensions", "workshop-build-board", "board.html"), "utf8");
+    const source = html.slice(html.indexOf("function lessonSteps("), html.indexOf("function guidedDocument("));
+    const split = new Function(`${source}; return lessonSteps;`)();
+    const collect = new Function("lessonSteps",
+        `${html.slice(html.indexOf("function collectQuestions("), html.indexOf("function reviewList("))}; return collectQuestions;`)(split);
+    const steps = split(guide);
+    const questions = collect(guide);
+    assert.equal(steps[0].title, "Objectif");
+    assert.equal(questions.length, 6);
+    for (const question of questions) {
+        assert.ok(question.stepIndex >= 0 && question.stepIndex < steps.length);
+        assert.match(question.text, /<summary>Afficher la réponse<\/summary>/);
+        assert.match(question.text, /<\/details>$/);
+    }
+    for (const concept of [/Bob.*Eve/, /VS Code.*préautorisé/, /401.*clé/, /jeton Graph/, /Bob.*create_ticket/, /erreur MFA/]) {
+        assert.ok(questions.some((item) => concept.test(item.text)), `Missing assessment concept: ${concept}`);
+    }
+    assert.match(guide, /Bob.*\| `Tools.Read` seulement \|.*encore appeler `create_ticket`/);
+    assert.match(guide, /Eve.*\| Aucune \|.*AADSTS50105/);
+    assert.doesNotMatch(guide, /Résultat réel|tenant de test de l'auteur|Chez l'auteur|Plan: 0 to add/);
+    const activation = guide.indexOf("### 4. Activer Entra");
+    const verification = guide.indexOf("### 5. Lire la protection");
+    const removal = guide.indexOf("### 6. Retirer l'exigence");
+    const server = guide.indexOf("### 7. Vérifier le serveur");
+    const personas = guide.indexOf("### 9. Tester Alice");
+    assert.ok(activation < verification && verification < removal && removal < server && server < personas);
+    const fences = [...guide.matchAll(/^```powershell\n([\s\S]*?)^```/gm)];
+    assert.ok(fences.some((block) => block[1].includes("az rest --method get")));
+    for (const block of fences) {
+        assert.ok(!(/\bplan\b/.test(block[1]) && /\bapply\b/.test(block[1])), "Separate plan from approved apply");
+        assert.doesNotMatch(block[1], /az (?:rest --method (?:put|patch|delete)|.*\b(?:set|create|update)\b)/);
+        assert.doesNotMatch(block[1], /get-access-token/);
+        const next = guide.slice(block.index + block[0].length).trimStart();
+        assert.match(next, /^(?:> \*\*Résultat attendu\*\* —|\*\*STOP —)/,
+            "Keep the boxed result or the explicit plan-approval stop immediately after each command");
+    }
+    const testAccounts = guide.slice(personas, guide.indexOf("### Bash"));
+    assert.match(testAccounts, /finally/);
+    assert.match(testAccounts, /\$env:AZURE_CONFIG_DIR = \$operatorConfig/);
+    assert.match(testAccounts, /\$ErrorActionPreference = 'Stop'/);
+    const lowCode = readFileSync(join(root, "modules", "03-entra-authentication", "LOW-CODE.fr.md"), "utf8");
+    assert.match(lowCode, /Bob.*`Tools.Read` seulement.*encore appeler `create_ticket`/);
+    assert.match(lowCode, /Eve.*AADSTS50105/);
+    assert.equal(collect(lowCode).length, 4);
+});
+
+test("French module 03 PowerShell examples parse and its pre-key-removal check fails closed", () => {
+    const guide = readFileSync(join(root, "modules", "03-entra-authentication", "README.fr.md"), "utf8").replaceAll("\r\n", "\n");
+    const snippets = [...guide.matchAll(/^```powershell\n([\s\S]*?)^```/gm)].map((match) => match[1]);
+    const guard = guide.split("### 5. Lire la protection")[1].match(/^```powershell\n([\s\S]*?)^```/m)[1];
+    const script = `
+        $ErrorActionPreference = 'Stop'
+        $data = [Console]::In.ReadToEnd() | ConvertFrom-Json
+        foreach ($snippet in $data.snippets) {
+            $tokens = $null; $errors = $null
+            $null = [System.Management.Automation.Language.Parser]::ParseInput($snippet, [ref]$tokens, [ref]$errors)
+            if ($errors.Count) { throw ($errors.Message -join '; ') }
+        }
+        foreach ($scenario in @('valid','disabled','optional','redirect','issuer','client','audience','http','cli')) {
+            & {
+                $env:ARM_SUBSCRIPTION_ID = 'synthetic-subscription'
+                $env:ARM_TENANT_ID = 'synthetic-tenant'
+                $rg = 'synthetic-group'; $fn = 'synthetic-function'
+                $apiClientId = 'synthetic-api'; $audience = 'api://synthetic-api'
+                $authData = @{
+                    platform = @{ enabled = $true }
+                    globalValidation = @{ requireAuthentication = $true; unauthenticatedClientAction = 'Return401' }
+                    identityProviders = @{ azureActiveDirectory = @{
+                        registration = @{ clientId = $apiClientId; openIdIssuer = "https://login.microsoftonline.com/$env:ARM_TENANT_ID/v2.0" }
+                        validation = @{ allowedAudiences = @($audience, $apiClientId) }
+                    } }
+                }
+                switch ($scenario) {
+                    disabled { $authData.platform.enabled = $false }
+                    optional { $authData.globalValidation.requireAuthentication = $false }
+                    redirect { $authData.globalValidation.unauthenticatedClientAction = 'RedirectToLoginPage' }
+                    issuer { $authData.identityProviders.azureActiveDirectory.registration.openIdIssuer = 'https://example.invalid' }
+                    client { $authData.identityProviders.azureActiveDirectory.registration.clientId = 'wrong-api' }
+                    audience { $authData.identityProviders.azureActiveDirectory.validation.allowedAudiences += 'https://graph.microsoft.com' }
+                }
+                function az {
+                    if ($args[0] -eq 'rest') {
+                        if ($args[1] -ne '--method' -or $args[2] -ne 'get') { throw 'Only read-only az rest is allowed.' }
+                        $global:LASTEXITCODE = if ($scenario -eq 'cli') { 1 } else { 0 }
+                        return ($authData | ConvertTo-Json -Depth 10)
+                    }
+                    if ($args[0] -ne 'functionapp' -or $args[1] -ne 'show') { throw 'Unexpected CLI command.' }
+                    $global:LASTEXITCODE = 0
+                    return 'function.example.invalid'
+                }
+                function Invoke-WebRequest {
+                    param($Uri, $Method, $ContentType, $Body, [switch]$SkipHttpErrorCheck, $TimeoutSec)
+                    if ($Uri -ne 'https://function.example.invalid/runtime/webhooks/mcp') { throw 'Unexpected endpoint.' }
+                    return @{ StatusCode = $(if ($scenario -eq 'http') { 200 } else { 401 }) }
+                }
+                $rejected = $false
+                try { $null = & ([scriptblock]::Create($data.guard)) }
+                catch { $rejected = $true }
+                if ($rejected -ne ($scenario -ne 'valid')) { throw "Unexpected guard outcome: $scenario" }
+                Write-Output "PASS $scenario"
+            }
+        }
+    `;
+    const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-Command", script], {
+        input: JSON.stringify({ snippets, guard }), encoding: "utf8", timeout: 30_000,
+    });
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.equal((result.stdout.match(/^PASS /gm) ?? []).length, 9);
 });
 
 test("presenter and delegation lessons separate plan, approval and apply instead of offering one bulk paste", () => {

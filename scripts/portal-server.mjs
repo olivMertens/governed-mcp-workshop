@@ -7,6 +7,9 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const entry = fileURLToPath(import.meta.url);
 const icons = ["azure", "microsoft", "entra", "apim", "functions", "storage", "insights", "api-center", "subscription", "foundry-agent-service", "copilot-studio"];
 export const screenshots = ["azure-02-storage-public-access", "azure-02-storage-private-endpoints",
+    "terminal-00-az-context", "terminal-02-az-runtime", "terminal-03-az-auth", "terminal-04-az-network",
+    "terminal-05-az-identities", "terminal-06-az-counts", "terminal-07-az-gateway", "terminal-99-az-inventory",
+    "azure-02-function-overview", "azure-02-function-keys", "azure-04-function-networking", "terminal-00-validate",
     "azure-03-function-authentication", "azure-03-app-registration-overview", "azure-03-app-roles",
     "azure-03-enterprise-app-properties", "terminal-03-operator", "terminal-03-alice",
     "azure-05-api-permissions", "azure-05-federated-credentials", "azure-06-kql-logs",
@@ -116,8 +119,10 @@ export function startPortal({ root = dirname(entry), port = Number(process.env.P
             if (!(error instanceof TypeError)) throw error;
             return send(400, "text/plain", "Invalid request URL.");
         }
-        if ([...url.searchParams].some(([key, value]) => key !== "lang" || !["en", "fr"].includes(value))) {
-            return send(400, "text/plain", "Only the public language selector is supported.");
+        const selectors = { lang: ["en", "fr"], track: ["low-code", "terraform"] };
+        if ([...url.searchParams].some(([key, value]) => !Object.hasOwn(selectors, key) ||
+            !selectors[key].includes(value) || url.searchParams.getAll(key).length !== 1)) {
+            return send(400, "text/plain", "Only the public language and track selectors are supported.");
         }
         if (url.pathname === "/health") return send(200, "application/json", '{"status":"ok"}');
         if (url.pathname === "/participant.json") {

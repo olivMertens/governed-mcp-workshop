@@ -1,11 +1,14 @@
-# 00 - Préparer votre environnement de test
+# 00 - Préparer l'environnement Terraform + PowerShell
 
 [English](README.md)
 
 ## Objectif
 
-Choisir où travailler, vérifier les outils et confirmer que vous pouvez utiliser votre environnement Azure de test.
-Vous préparerez aussi les informations à transmettre à l'administrateur Microsoft Entra.
+Ce guide suit le parcours **Terraform + PowerShell**. Pour préparer le parcours centré sur le portail,
+ouvrez le [guide low-code séparé](LOW-CODE.fr.md).
+
+Vous allez choisir votre environnement de travail, vérifier vos outils et contrôler vos droits dans l'abonnement Azure de test.
+Vous préparerez ensuite les informations à transmettre à l'administrateur Microsoft Entra pour le module 03.
 
 ## Pourquoi c'est important
 
@@ -33,7 +36,7 @@ Commencez par [choisir votre environnement de travail](../../docs/fr/GETTING-STA
 **Raccourci facultatif :** le [Microsoft Foundry Dev Pack](https://devblogs.microsoft.com/foundry/foundry-devpack-announcement/),
 en anglais, peut installer en une seule fois Azure CLI, Azure Developer CLI (`azd`) et l'extension Foundry
 (Windows : `winget install Microsoft.FoundryDevPack`). Il n'installe **pas** Terraform, le SDK .NET, Node.js,
-PowerShell ni Functions Core Tools : gardez donc les outils de la liste de référence. Lancez ensuite `scripts/check-tools.ps1` : il doit indiquer Azure CLI 2.88.0 ou plus récent. Sinon, installez Azure CLI par la méthode habituelle.
+PowerShell ni Functions Core Tools : installez aussi les autres outils de la liste de référence. Lancez ensuite `scripts/check-tools.ps1` : il doit indiquer Azure CLI 2.88.0 ou plus récent. Sinon, installez Azure CLI par la méthode habituelle.
 Utilisez uniquement un annuaire Microsoft Entra et un abonnement Azure autorisés pour des tests hors production.
 L'annuaire contient les identités ; l'abonnement contient les ressources facturées.
 
@@ -62,7 +65,7 @@ $expiry = [datetime]::UtcNow.AddDays(1).ToString('yyyy-MM-dd')
 & .\modules\00-prerequisites\validate.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID
 ```
 
-> **Résultat réel** — `check-tools.ps1` et `validate.ps1` en direct dans l'abonnement de test de l'auteur, 2026-10-17.
+> **Résultat réel** — `check-tools.ps1` et `validate.ps1` exécutés dans l'abonnement de test de l'auteur, 2026-10-17.
 > Les lignes des scripts de préparation et de sélection du contexte sont décrites sous l'encadré. Noms et identifiants masqués.
 >
 > ```text
@@ -85,10 +88,16 @@ $expiry = [datetime]::UtcNow.AddDays(1).ToString('yyyy-MM-dd')
 > PASS module 00 foundation environment checks. Record only the verified workspace route and stage; this is not MCP runtime validation.
 > ```
 >
-> **Ce que cela signifie pour vous :** vos outils correspondent aux versions de référence et le script peut lire votre abonnement de test.
-> Rien n'a été créé. Entre les deux groupes, `prepare-workshop.ps1` affiche `PASS private participant parameters created with a
+> **Comment lire vos résultats :** si vous obtenez les mêmes lignes `PASS`, vos outils répondent aux exigences et le script peut lire votre abonnement de test.
+> Ces contrôles ne créent rien dans Azure. Entre les deux séries de contrôles, `prepare-workshop.ps1` affiche `PASS private participant parameters created with a
 > stable random suffix.` (ou `PASS existing participant parameters reused unchanged.` lors d'une relance), et le sélecteur affiche
 > `PASS contexte : tenant et abonnement vérifiés. ...`. Le script de validation répète d'abord les lignes des outils (omises ici).
+
+![Sortie réelle du terminal : validateur du module 00, en direct et en lecture seule ; le cadre 1 marque vos outils, le cadre 2 vos droits et la capacité de l'abonnement, le cadre 3 le résultat final](../../assets/screenshots/terminal-00-validate.png)
+
+Cette capture provient d'une exécution réelle dans le tenant de test de l'auteur (2026-10-20), pas de votre environnement.
+Comparez vos résultats : le cadre 1 regroupe les outils ; le cadre 2, les droits détectés et la capacité disponible pour
+un groupe de ressources ; le cadre 3, le bilan des contrôles. Ce bilan ne remplace pas l'approbation d'un déploiement.
 
 Adaptez `p01`, la région, le libellé du propriétaire et la date aux choix approuvés pour votre atelier.
 La date sert de rappel : elle ne déclenche pas de suppression automatique.
@@ -99,7 +108,8 @@ Le sélecteur vous demande les identifiants de l'annuaire et de l'abonnement, pu
 Il vous connecte à Azure, puis sélectionne l'abonnement. **Gardez le même terminal pour la suite.**
 
 > [!WARNING]
-> Ne copiez aucune clé, aucun jeton ni aucune information de compte dans le tableau, le dépôt ou la conversation.
+> Ne copiez aucune clé, aucun jeton ni aucune information sur votre compte dans le portail public de l'atelier,
+> le dépôt ou la conversation.
 
 <details>
 <summary>Vous utilisez bash ?</summary>
@@ -124,15 +134,16 @@ Chaque contrôle réussi affiche `PASS`. En cas d'erreur, corrigez le problème 
 Les lectures Azure doivent renvoyer un code HTTP 200 ; les contrôles locaux indiquent `N/A`, car ils ne font pas
 de requête réseau. Le script n'enregistre aucun fournisseur de ressources et n'attribue aucun rôle.
 
-L'auteur n'a pas encore testé le conteneur ni Codespaces en conditions réelles.
-Si vous travaillez dans l'un d'eux, lancez les contrôles à l'intérieur : un test sur votre poste ne suffit pas.
+> **Note de validation — environnements facultatifs :** le conteneur et Codespaces n'ont pas encore été testés
+> en conditions réelles. Si vous utilisez l'un de ces environnements, lancez les contrôles à l'intérieur :
+> une exécution réussie sur votre poste ne le valide pas.
 
 **Question :** toutes les lignes du contrôle préalable affichent `PASS`. Pouvez-vous maintenant déployer sans rien demander ?
 
 <details>
 <summary>Afficher la réponse</summary>
 
-Non. Le contrôle préalable lit seulement les droits, les fournisseurs et la capacité. Des refus explicites, Azure Policy et
+Non. Le contrôle préalable consulte seulement les droits, les fournisseurs et la capacité. Des refus explicites, Azure Policy et
 les quotas partagés peuvent encore bloquer un déploiement. Il faut aussi relire et faire approuver, à part, chaque plan Terraform réel.
 
 </details>
@@ -146,6 +157,25 @@ Le suffixe et l'état permettent à Terraform et aux scripts de nettoyage de ret
 laisseraient des ressources orphelines et ne remettraient aucun quota à zéro.
 
 </details>
+
+### Vérifier vous-même avec Azure CLI
+
+**Pourquoi :** une connexion réussie ne garantit pas que vous avez choisi le bon abonnement.
+Dans PowerShell 7, à la racine du dépôt, copiez ce bloc. Il consulte votre connexion sans créer de ressource :
+
+```powershell
+az account show --query '{name:name,state:state,cloud:environmentName,isDefault:isDefault}' -o json
+if ($LASTEXITCODE -ne 0) { throw 'Impossible de lire le contexte Azure. Arrêtez-vous ici.' }
+```
+
+> **Résultat attendu** — `name` est votre abonnement de test approuvé, `state` vaut `Enabled` et `isDefault` vaut `true`.
+> Le cloud public apparaît sous le nom `AzureCloud`. Ce contrôle ne vérifie pas encore vos droits de déploiement :
+> lancez ensuite le validateur ci-dessous.
+
+![Résultat réel de la commande az account show ; comparez le nom de l'abonnement, son état Enabled et isDefault à true](../../assets/screenshots/terminal-00-az-context.png)
+
+*Capture en lecture seule du 20 octobre 2026 ; le nom de l'abonnement est masqué.
+Si le nom ne correspond pas à votre cible approuvée, reprenez la sélection du contexte avant de poursuivre.*
 
 ## Vérifier avant de poursuivre
 
@@ -176,7 +206,8 @@ Passez au module 01 seulement quand chaque contrôle affiche `PASS`.
 > PASS private parameters and state preserved (expected HTTP N/A). Optional paid portal cleanup requires the reviewed Terraform destroy flow in docs/HOSTING.md.
 > ```
 >
-> **Ce que cela signifie pour vous :** il n'y a rien à supprimer pour le module 00, et vos paramètres privés restent en place pour la suite.
+> **Comment lire vos résultats :** les contrôles du module 00 n'ont créé aucune ressource à supprimer.
+> Vos paramètres privés restent en place pour la suite.
 
 Avec bash : `bash ./modules/00-prerequisites/cleanup.sh` (mêmes lignes PASS).
 Les vérifications n'ont rien créé. Ce script conserve vos paramètres privés et votre état Terraform.
@@ -233,7 +264,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Provider initialization failed.' }
 > PASS offline checks only. Module 00 is NOT Azure-validated by this result.
 > ```
 >
-> **Ce que cela signifie pour vous :** les scripts et le code Terraform se comportent comme prévu face à des réponses fictives.
+> **Comment lire vos résultats :** les tests vérifient le comportement des scripts et du code Terraform avec des réponses fictives.
 > `terraform init` affiche d'abord `Terraform has been successfully initialized!`. La dernière ligne le dit clairement : aucun contrôle Azure n'a eu lieu.
 
 ```bash
@@ -251,9 +282,9 @@ Leur réussite ne valide **ni votre abonnement Azure ni le conteneur**.
 <details>
 <summary>Préparer une étape payante ultérieure</summary>
 
-Les options `-Stage portal` et `-Stage mcp` exigent une revue privée de la capacité et du coût,
+Les options `-Stage portal` et `-Stage mcp` exigent une évaluation de la capacité disponible et du coût, conservée dans un fichier privé
 à fournir avec `-CapacityReviewPath`. Consultez le [guide d'hébergement](../../docs/fr/HOSTING.md).
-Le mode `mcp` prépare les besoins futurs : il ne valide pas les services qui restent à construire.
+Le mode `mcp` vérifie les prérequis des modules suivants ; il ne valide pas leur déploiement.
 Il vérifie aussi que des rôles peuvent être attribués. Confiez ces attributions à l'administrateur,
 dans une étape séparée, plutôt que d'élargir les droits de tous les participants.
 
@@ -263,6 +294,8 @@ Consultez aussi les [explications sur la sécurité](../../docs/fr/LEARNING-GUID
 [schéma de cette étape](../../assets/architecture/00.fr.svg).
 
 ## Sources
+
+- [Lire le contexte avec Azure CLI](https://learn.microsoft.com/cli/azure/account#az-account-show), vérifié le 20 octobre 2026.
 
 - [Installer Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli).
 - [Terraform sur Azure](https://learn.microsoft.com/azure/developer/terraform/overview).

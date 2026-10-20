@@ -1,8 +1,10 @@
-# 00 - Prepare the approved environment
+# 00 - Prepare the Terraform + PowerShell environment
 
 [Français](README.fr.md)
 
 ## Goal
+
+This is the **Terraform + PowerShell** guide. For portal-first preparation, use the separate [low-code guide](LOW-CODE.md).
 
 Choose a local terminal or Visual Studio Code dev container. Verify the tools and your explicit
 non-production Azure target. Prepare the request for the Microsoft Entra administrator.
@@ -37,7 +39,7 @@ The separate Functions command-line interface (CLI) v5 is **Preview** and is not
 **Optional shortcut:** the [Microsoft Foundry Dev Pack](https://devblogs.microsoft.com/foundry/foundry-devpack-announcement/)
 can install Azure CLI, Azure Developer CLI (`azd`) and the Foundry extension in one step
 (Windows: `winget install Microsoft.FoundryDevPack`). It does **not** install Terraform, the .NET SDK, Node.js,
-PowerShell or Functions Core Tools, so keep the baseline above. Run `scripts/check-tools.ps1` afterwards: it must still showAzure CLI 2.88.0 or later. If the Dev Pack install does not meet that minimum, use the standard Azure CLI install instead.
+PowerShell or Functions Core Tools, so keep the baseline above. Run `scripts/check-tools.ps1` afterwards: it must still show Azure CLI 2.88.0 or later. If the Dev Pack install does not meet that minimum, use the standard Azure CLI install instead.
 
 For a new group, the explicit subscription scope needs resource-group read/write/delete grants.
 For an existing group, use that group's scoped permissions; do not obtain subscription Owner just for this lab.
@@ -96,6 +98,11 @@ $expiry = [datetime]::UtcNow.AddDays(1).ToString('yyyy-MM-dd')
 > created. Between the two groups, `prepare-workshop.ps1` prints `PASS private participant parameters created with a
 > stable random suffix.` (or `PASS existing participant parameters reused unchanged.` on a rerun), and the selector prints
 > `PASS context: tenant and subscription verified. ...`. The live validator repeats the tool lines first (elided here).
+
+![Real terminal output: module 00 validator, live and read-only; frame 1 marks your tools, frame 2 your rights and capacity in the subscription, frame 3 the final result](../../assets/screenshots/terminal-00-validate.png)
+
+The same run as a real capture (2026-10-20, author's test tenant). Frame 1: your tools. Frame 2: you may deploy in this
+subscription and it has room for a resource group. Frame 3: the line that says you are ready for module 01.
 
 Use your approved region, labels and cleanup date. For an administrator-provided group, supply
 `-ExistingResourceGroupName` on the **first** preparation command. Keep the generated suffix and state.

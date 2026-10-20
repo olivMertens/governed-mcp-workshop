@@ -12,13 +12,27 @@ Build order, sources and expected results are in docs/BUILD-PLAN.md. Read it bef
 ## Content rules
 - Public repository: generic content only. No customer or employer names, no internal or confidential material,
   no tenant/subscription IDs, no real user data, no secrets. Synthetic data only; personas are Alice, Bob and Eve (Contoso).
-- English, plain language, short sentences. Define every acronym on first use.
+- Write the English and French guides in plain language, with short sentences. Define every acronym on first use.
 - Reuse official samples and documentation instead of reinventing them. Pin versions or commit SHAs,
   keep upstream license notices, link the origin.
 - Before writing code for a module, read the official pages listed for it. If they contradict this file,
   follow the docs and explain the gap in the pull request.
 - Mark every preview feature "Preview" where it is used. Never present preview behaviour as generally available.
 - Every module README ends with "Sources": links plus a "last verified" date.
+
+## French participant-facing writing
+- Write idiomatic French, not a sentence-by-sentence translation of English. Rewrite and reorder sentences
+  when needed so the text reads as if it had originally been written in French.
+- Address the participant directly with "vous". Use concrete verbs to explain what they will do, why,
+  in which order, and what they should observe. Avoid infinitive-only objectives and literal English phrasing.
+- Prefer "Ne laissez pas ce serveur en service après l'exercice" to "Gardez ce niveau très temporaire".
+  Explain the actual protection instead of vague phrases such as "une identité ouvre le serveur".
+- Keep authoring history, guide restructuring and author deployment reports out of objectives and instructions.
+  Put relevant validation limits in a clearly labelled validation note; never hide uncertainty or imply live validation.
+- Preserve commands, identifiers, API fields and quoted output. Keep official portal labels recognizable;
+  explain them in natural French rather than inventing awkward translations.
+- Before finishing, read the French prose as a standalone participant guide, not alongside its English source.
+  Rewrite any sentence that sounds translated, uses unexplained jargon or speaks to the presenter rather than the participant.
 
 ## Security invariants — never weaken them, not even to make a test pass
 1. One token per hop, one audience per token. The MCP server accepts only tokens issued for its own audience.

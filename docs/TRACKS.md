@@ -1,72 +1,84 @@
-# Choose your track: low-code or full-code
+# Choose your track
 
 [Français](fr/TRACKS.md)
 
-Every module reaches the same result in two ways. Pick **one** track for the whole workshop.
+Choose **one** deployment track before module 00. These are two separate sets of participant guides,
+not alternatives to combine inside a module. Module 01, which runs locally without Azure, is shared.
 
-| | Low-code track | Full-code track |
+In the workshop website, select a card above. The page address remembers your choice.
+Every module, its PDF, validation instructions and cleanup then use that track.
+Reading Markdown on GitHub? Use only the links in your track's table below.
+
+## Low-code: portal first
+
+Use this track to learn where the settings are in Azure and Microsoft Entra.
+Each guide gives the menu path, the values to enter, the check before continuing and relevant real screenshots.
+Captures are examples from the author's environment: use **your own** resource names.
+
+This is not a no-terminal track. Use PowerShell 7 and Azure CLI for publishing the supplied server,
+settings that the portal does not expose, and validation. The guide says when to leave the portal,
+where to run the command and what you should see. **Terraform is not required.**
+
+| Order | Your guide | Stop and check |
 |---|---|---|
-| How you build | Azure portal, or one short `az` command per step | Terraform (`infra/`) and the module scripts |
-| Best for | Administrators who prefer the portal; learning where each setting lives | Repeatable deployments; teams that already use infrastructure as code |
-| Names | Same participant file, with `lc` added (`rg-mcp-<prefix>lc-...`) | `rg-mcp-<prefix>-<suffix>` |
-| Checks | The same validators, with your resource names as parameters | The validators read Terraform outputs |
-| Clean-up | Module 99 low-code checklist: delete one resource group and the Entra objects you created | Module 99 script: guarded Terraform plans, module by module |
-| Mistakes | The portal accepts anything: the validators are your safety net | Plans are reviewed before each change |
+| 00 | [Prepare the low-code environment](../modules/00-prerequisites/LOW-CODE.md) | Tool and read-only subscription checks pass, without Terraform |
+| 01 | [Discover MCP locally](../modules/01-discover-mcp/README.md) | Inspector lists the tools |
+| 02 | [Create and publish the open server](../modules/02-open-server/LOW-CODE.md) | No key: HTTP 401; correct key: HTTP 200 |
+| 03 | [Add Microsoft Entra authentication](../modules/03-entra-authentication/LOW-CODE.md) | Alice and Bob can connect; Eve is refused |
+| 04 | [Make API Management the only entry point](../modules/04-governed-gateway/LOW-CODE.md) | Direct Function access: HTTP 403; Bob's write: HTTP 403 |
+| 05 | [Compare delegated and app-only calls](../modules/05-delegated-and-app-only/LOW-CODE.md) | Bob cannot read the report as a user; app-only results match |
+| 06 | [Inspect logs and inventory](../modules/06-observe-inventory/LOW-CODE.md) | Your queries show metadata, not message bodies |
+| 07, optional | [Connect the Foundry client](../modules/07-clients/LOW-CODE.md) | You approve a real tool invocation; Copilot Studio is reading only |
+| 99, always | [Clean up low-code resources](../modules/99-cleanup/LOW-CODE.md) | Verify all workshop-owned groups and identity objects, including optional resources |
+
+## Terraform + PowerShell
+
+Use this track to learn repeatable infrastructure deployment. Follow the PowerShell commands in order,
+review every plan, then run the module validator. Bash equivalents are optional and stay in this track.
+Portal screenshots help you inspect what was deployed; they are not a second deployment sequence.
+
+| Order | Your guide | Stop and check |
+|---|---|---|
+| 00 | [Prepare the Terraform environment](../modules/00-prerequisites/README.md) | Tools, private parameters and read-only subscription checks pass |
+| 01 | [Discover MCP locally](../modules/01-discover-mcp/README.md) | Inspector lists the tools |
+| 02 | [Deploy the open server](../modules/02-open-server/README.md) | No key: HTTP 401; correct key: HTTP 200 |
+| 03 | [Deploy Microsoft Entra authentication](../modules/03-entra-authentication/README.md) | Alice and Bob can connect; Eve is refused |
+| 04 | [Deploy the governed gateway](../modules/04-governed-gateway/README.md) | Direct Function access: HTTP 403; Bob's write: HTTP 403 |
+| 05 | [Deploy delegated and app-only access](../modules/05-delegated-and-app-only/README.md) | Bob's delegated report call is refused downstream |
+| 06 | [Inspect logs and register inventory](../modules/06-observe-inventory/README.md) | Queries show metadata; inventory contains the gateway endpoint |
+| 07, optional | [Connect the Foundry client](../modules/07-clients/README.md) | You approve a real tool invocation; Copilot Studio is reading only |
+| 99, always | [Run guarded cleanup](../modules/99-cleanup/README.md) | The cleanup report shows no workshop-owned deployed resource left |
+
+## Before you start
+
+1. Get approval for your own non-production subscription. Do not use another participant's environment.
+2. Send the [identity administrator request](requests/identity-request.md) before module 03.
+   The guides distinguish administrator actions from participant actions.
+3. Keep your private participant file. Low-code adds `lc` to the participant prefix for newly created
+   workload resources; Terraform uses the prefix unchanged. An administrator-provided group keeps its existing name.
+4. Follow the modules in order. If you will do module 05, publish its server code **before**
+   module 04 locks the Function's deployment endpoints.
+5. Reserve time for module 99, even if you stop after module 02.
 
 > [!IMPORTANT]
-> **Do not mix the tracks.** Terraform only knows what it created. A setting changed by hand in the portal is undone by
-> the next Terraform plan, and the module 99 script refuses plans that touch unknown objects. If you started with one
-> track, finish with it, or clean up and start again.
-
-> [!TIP]
-> On a workshop day with a 90-minute afternoon, pick your track here, then follow the next step:
-> **The 90-minute afternoon path**.
-
-## The 90-minute afternoon path
-
-This morning, the presenters showed an MCP server in TypeScript, protected by the `Mcp.Read` permission. This
-afternoon, you build the same levels yourself in your own non-production subscription: a .NET server on Azure
-Functions, the app roles `Tools.Read` and `Tools.Write`, and the test users Alice, Bob and Eve. Same ideas, your code.
-
-| When | What you do | Module | Done when |
-|---|---|---|---|
-| Before the day | Install the tools, sign in, choose your non-production subscription | [00](../modules/00-prerequisites/README.md) | The module 00 validator passes |
-| Before the day | Send the identity administrator request, so the module 03 objects exist or are approved | [Identity request](requests/identity-request.md) | You have the API client ID and the test users |
-| First | Call a local MCP server, with no Azure | [01](../modules/01-discover-mcp/README.md) | Inspector lists the tools |
-| Then | Deploy the open server and see the risk | [02](../modules/02-open-server/README.md) | A call without the key is refused; a call with the key works |
-| Then | Protect it with Microsoft Entra | [03](../modules/03-entra-authentication/README.md) | Alice and Bob get HTTP 200; a token for another audience is refused |
-| Stretch | Put API Management in front | [04](../modules/04-governed-gateway/README.md) | Bob's `create_ticket` gets HTTP 403; Alice's gets HTTP 200 |
-| Before you leave | Clean up everything you created | [99](../modules/99-cleanup/README.md) | The report shows no workshop resource left |
-| After the day | Module 04 part B, then 05, 06 and 07, at your own pace | [05](../modules/05-delegated-and-app-only/README.md) | Each module's validator passes |
+> Changing the selected guide does not convert resources from one track to the other.
+> Do not run Terraform against resources created through the low-code guides.
+> Clean up the first deployment before changing tracks.
 
 > [!WARNING]
-> Modules 02 and 04 create billed resources. Run module 99 before you leave, even if you stopped early.
+> Functions, Storage, API Management and optional Foundry resources can incur charges.
+> API Management provisioning can take longer than a short workshop session.
+> A resource's expiry tag does not delete it. Follow your track's module 99.
 
-No subscription, or no identity administrator approval? Join the observation plan on the prepared environment: you
-call the same levels without deploying anything.
+Both tracks keep the same security controls: one token audience per hop, no client-token forwarding
+to downstream APIs, app roles per user, explicit approval for writes and zero message-body bytes in logs.
 
-## What stays identical
+## Evidence and screenshots
 
-- The security rules: one audience per token, no token passthrough, app roles per user, no long-lived secret,
-  zero body bytes in logs.
-- The tests: the same HTTP results (401, 403, 200, 429) for Alice, Bob and Eve.
-- The order: modules 00 to 07, then 99.
+Existing live results were recorded in the author's approved test environment on 2026-10-20.
+The previous low-code Foundry rerun covered its setup substitutions, not a complete new end-to-end run.
+The separated guides and track navigation need their own participant run; earlier evidence does not prove
+that every newly composed instruction has been followed live.
+Existing screenshots are reused with that limitation. Missing captures are not invented.
 
-## Where the low-code track starts in each module
-
-In the portal, pick your track once above **Follow the guide** (**Full-code** or **Low-code**): the guide then shows only that track's steps, in every module, and remembers the choice. On GitHub, open the section **Low-code track** at the top of **Steps**. Each step shows the portal path first,
-then the equivalent `az` command, then the real result the author got. Keep the same PowerShell terminal from step L1:
-later steps reuse its variables.
-
-| Module | Low-code section |
-|---|---|
-| 00, 01 | None needed: they build nothing in Azure, so there is one path |
-| 02 to 05 | **Low-code track**, steps L1, L2 and so on (L-B for module 04 part B) |
-| 06 | **Low-code track**, before Step 1: only the terminal lines differ |
-| 07 | **A2 and A3 in the low-code track**, after step A3: the Foundry steps are the same |
-| 99 | **Low-code track**, at the top of Steps: one resource group and two app registrations |
-
-The author ran the low-code track live on 2026-10-20, from module 02 to module 99, with Alice, Bob and Eve. In module
-07, only A2 and A3 differ, so only they were rerun; the Foundry steps were run live in the full-code track the same day.
-
-Last verified: 2026-10-20.
+Last editorial update: 2026-10-20.

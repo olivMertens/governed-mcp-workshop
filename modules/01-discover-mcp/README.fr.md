@@ -4,18 +4,22 @@
 
 ## Objectif
 
-Découvrir un outil Model Context Protocol (MCP), lire ses paramètres, puis l'appeler pour de vrai.
-**Vous pouvez faire ce module dès maintenant : il ne demande ni déploiement Azure, ni portail du présentateur, ni connexion.**
+Vous allez lancer un serveur Model Context Protocol (MCP) sur votre poste, découvrir l'outil qu'il propose,
+puis l'appeler avec les paramètres attendus. Vous apprendrez à distinguer la liste des outils,
+l'exécution d'un outil et l'approbation que vous donnez dans le client.
+**Vous pouvez suivre ce module dès maintenant : il ne nécessite ni déploiement Azure, ni accès au portail de l'atelier, ni connexion Azure.**
 
 ## Pourquoi c'est important
 
-Découvrir un outil ne l'exécute pas. Une réponse du modèle ne prouve pas qu'un appel a eu lieu.
-L'approbation du client ne remplace pas l'autorisation du serveur. Ce module ne teste ni identité ni rôle.
+Afficher la liste des outils ne les exécute pas. Une réponse du modèle ne prouve pas qu'un appel a eu lieu.
+L'approbation que vous donnez dans le client ne remplace pas la vérification de vos droits par le serveur.
+Dans ce premier exercice, aucun compte utilisateur ni rôle n'est encore contrôlé.
 
 ## Ce que vous déployez
 
-Rien dans Azure. Votre client lance un processus C# et communique avec lui par ses entrées et sorties standard (stdio).
-Il expose uniquement `get_service_health`, avec des données fictives fixes, sans appeler d'autre service.
+Vous ne déployez rien dans Azure. Le client lance sur votre poste le serveur écrit en C#.
+Les deux processus échangent par leurs entrées et sorties standard, un mode de communication appelé **stdio**.
+Le serveur propose uniquement `get_service_health`, qui renvoie toujours les mêmes données fictives sans appeler d'autre service.
 Il n'y a ni adresse HTTP, ni données persistantes, ni écriture, ni journalisation du contenu des échanges.
 
 
@@ -62,8 +66,7 @@ Il n'y a ni adresse HTTP, ni données persistantes, ni écriture, ni journalisat
 
 ![Découverte locale : architecture](../../assets/architecture/01.fr.svg)
 
-Ce schéma explique le parcours ; il ne prouve pas qu'un service est déployé.
-Aucune fonctionnalité **Preview** n'est utilisée ici. Les modules suivants signalent eux-mêmes leurs préversions.
+Aucune fonctionnalité en **préversion (Preview)** n'est utilisée ici. Les modules suivants indiquent celles qu'ils utilisent.
 
 ## Prérequis et rôles nécessaires
 
@@ -83,7 +86,7 @@ Ils restent obligatoires, avec les approbations de déploiement, avant tout exer
 
 Ouvrez PowerShell 7 à la racine du dépôt. Arrêtez-vous si une commande échoue.
 
-**1. Construire et vérifier le serveur local.**
+**1. Compiler et vérifier le serveur local.**
 
 ```powershell
 & .\modules\01-discover-mcp\validate.ps1
@@ -103,9 +106,9 @@ Ouvrez PowerShell 7 à la racine du dépôt. Arrêtez-vous si une commande écho
 > MANUAL CHECK: client approval prompts are not tested by this validator.
 > ```
 >
-> **Ce que cela signifie pour vous :** votre poste sait compiler et lancer un serveur MCP, et un client peut négocier
-> une version du protocole avec lui. La ligne `MANUAL CHECK` le rappelle : un script ne peut pas prouver qu'une personne a vu
-> la demande d'approbation. L'étape 3 s'en charge.
+> **À vérifier dans votre terminal :** toutes les lignes de contrôle affichent `PASS`.
+> Votre poste peut alors compiler et lancer le serveur, et le client s'accorde avec lui sur la version du protocole.
+> La ligne `MANUAL CHECK` rappelle une vérification à faire vous-même : observer la demande d'approbation dans VS Code, à l'étape 3.
 
 Le script restaure les paquets verrouillés, compile en Release, lance son serveur, l'appelle, puis l'arrête.
 Il n'installe aucun service permanent et n'utilise pas votre connexion Azure.
@@ -114,7 +117,7 @@ Il n'installe aucun service permanent et n'utilise pas votre connexion Azure.
 
 ### Préparer Inspector dans le même terminal PowerShell
 
-**Pourquoi :** le client a besoin du chemin du serveur compilé ; les commandes suivantes réutilisent ces variables.
+**Pourquoi :** Inspector a besoin du chemin du serveur compilé. Vous allez le conserver dans une variable réutilisée par les commandes suivantes.
 Lisez la demande d'installation de npm avant de l'accepter. Les identifiants d'Inspector restent uniquement en mémoire.
 
 ```powershell
@@ -123,21 +126,23 @@ $env:MCP_INSPECTOR_SECRET_STORE = 'memory'
 $env:MCP_INSPECTOR_PERSIST_TOKENS = 'none'
 ```
 
-> **Résultat attendu** — déduit des commandes elles-mêmes ; ces lignes n'affichent rien.
-> Si tout se passe bien, rien ne s'affiche. Vérifiez avec `Test-Path $server`, qui affiche `True`.
+> **Résultat attendu** — ces commandes n'affichent rien lorsqu'elles réussissent.
+> Vérifiez avec `Test-Path $server`, qui affiche `True`.
 > Si `Resolve-Path` signale un chemin inexistant, l'étape 1 n'est pas terminée.
 
-**Observez :** aucun serveur n'a démarré. Si la DLL est absente, l'étape 1 n'est pas terminée ; arrêtez-vous.
+À ce stade, vous avez seulement préparé le terminal ; aucun serveur n'a encore démarré.
+Si le fichier compilé est absent, revenez à l'étape 1.
 
 Les quatre requêtes suivantes utilisent ce même terminal. Chaque commande lance et ferme son propre serveur local.
-Le portail montre des exemples enregistrés ou attendus, jamais votre exécution. Comparez-les avec la sortie de votre terminal.
-Ne collez ni jetons ni sortie du terminal dans la page publique.
+Les exemples affichés dans ce guide servent à lire vos propres résultats : ils ne sont pas exécutés par la page web.
+Comparez-les avec la sortie de votre terminal. Ne collez ni jeton ni sortie du terminal dans la page publique.
 
 ### Requête 1 sur 4 : Découvrir
 
-**Pourquoi :** avant de choisir un outil, le client demande au serveur ce qu'il sait faire. Il découvre un contrat, pas un état de santé.
+**Pourquoi :** avant de choisir un outil, le client demande au serveur ce qu'il propose et quels paramètres chaque outil attend.
+Cette première requête ne demande encore aucun état de santé.
 
-**Anticipez :** vous devez obtenir un seul outil, `get_service_health`, avec un argument obligatoire `service`.
+**Anticipez :** un seul outil, `get_service_health`, avec un argument obligatoire nommé `service`.
 
 ```powershell exchange
 npx @modelcontextprotocol/inspector@2.9.0 --cli dotnet $server --method tools/list
@@ -154,7 +159,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Inspector discovery failed.' }
 > ```
 >
 **Ce que cela signifie pour vous :** `description` aide le modèle à choisir l'outil. `inputSchema` lui indique comment construire les arguments.
-Vous avez découvert l'outil, pas appelé celui-ci.
+Vous avez consulté la description de l'outil, sans l'exécuter.
 
 **À repérer :** `get_service_health`, `required: ["service"]` et `readOnlyHint: true`. Aucun état de santé n'a encore été renvoyé.
 
@@ -163,16 +168,17 @@ Vous avez découvert l'outil, pas appelé celui-ci.
 <details>
 <summary>Afficher la réponse</summary>
 
-Non. Les annotations sont des indications déclarées par le serveur pour le client ; rien ne les impose. Seuls le code du
-serveur et, dans les modules suivants, ses contrôles d'authentification et de rôles d'application décident de ce qu'un appelant peut faire.
+Non. Une annotation décrit le comportement annoncé par le serveur ; elle ne bloque aucune action à elle seule.
+Le code doit respecter cette description. Dans les modules suivants, des contrôles d'authentification et de rôles
+détermineront aussi les actions autorisées.
 
 </details>
 
 ### Requête 2 sur 4 : Lire un service
 
-**Pourquoi :** vous connaissez maintenant le contrat. Utilisez-le pour demander l'état d'un service.
+**Pourquoi :** vous connaissez maintenant le nom de l'outil et son paramètre obligatoire. Utilisez-les pour demander l'état d'un service.
 
-**Anticipez :** `workshop-api` doit renvoyer `healthy` et `isError: false`, avec des données fictives.
+**Anticipez :** pour `workshop-api`, l'outil doit renvoyer `healthy` et `isError: false`, avec des données fictives.
 
 ```powershell exchange
 npx @modelcontextprotocol/inspector@2.9.0 --cli dotnet $server --method tools/call --tool-name get_service_health --tool-arg service=workshop-api
@@ -194,7 +200,8 @@ Comparez les champs, pas les espaces ni les durées.
 
 ### Requête 3 sur 4 : Changer le service
 
-**Pourquoi :** gardez le même outil et changez seulement `service`. Les arguments sélectionnent les données, sans nouvel outil.
+**Pourquoi :** gardez le même outil et changez seulement la valeur de `service`. Vous demandez les données d'un autre service,
+sans changer d'outil.
 
 **Anticipez :** `ticket-queue` renvoie `degraded`. Cela signifie-t-il que l'outil a échoué ?
 
@@ -203,7 +210,7 @@ npx @modelcontextprotocol/inspector@2.9.0 --cli dotnet $server --method tools/ca
 if ($LASTEXITCODE -ne 0) { throw 'Inspector tool call failed.' }
 ```
 
-> **Résultat attendu** — extrait de la réponse fictive fixe contrôlée par le validateur. Ce n'est pas une réponse exécutée par cette page.
+> **Résultat attendu** — extrait de la réponse fictive vérifiée par le validateur. Cette page affiche un exemple ; elle n'exécute pas l'appel.
 >
 > ```text
 > "structuredContent": { "service": "ticket-queue", "status": "degraded", "source": "synthetic", "environment": "local-only" },
@@ -216,9 +223,10 @@ if ($LASTEXITCODE -ne 0) { throw 'Inspector tool call failed.' }
 
 ### Requête 4 sur 4 : Tester un refus
 
-**Pourquoi :** un outil fiable refuse une entrée inconnue au lieu d'inventer une réponse. Testez cette limite.
+**Pourquoi :** demandez maintenant un service que l'outil ne connaît pas. Il doit refuser cette demande plutôt qu'inventer un état de santé.
 
-**Anticipez :** `billing` renvoie `isError: true`, sans état de santé inventé. Inspector 2.9.0 se termine avec le code **5** pour cette erreur d'outil, pas 0.
+**Anticipez :** pour `billing`, l'outil renvoie `isError: true`, sans inventer de données.
+Inspector 2.9.0 signale cette erreur d'outil avec le code de sortie **5**, et non 0.
 
 ```powershell exchange
 npx @modelcontextprotocol/inspector@2.9.0 --cli dotnet $server --method tools/call --tool-name get_service_health --tool-arg service=billing
@@ -234,8 +242,9 @@ if ($LASTEXITCODE -ne 5) { throw 'Expected Inspector exit code 5 for this tool e
 >
 > Inspector écrit aussi un résumé d'erreur avec `code: tool_is_error` et se termine avec le code **5**. Le contrôle ci-dessus attend ce code uniquement pour cette requête.
 
-**Ce que cela signifie pour vous :** l'échange MCP peut réussir alors que l'outil signale un échec. C'est un refus d'entrée,
-pas une panne Azure ni un contrôle d'identité. Le client a reçu le refus de l'outil et le signale par son propre code de sortie.
+**Ce que cela signifie pour vous :** l'échange MCP peut réussir alors que l'outil signale un échec.
+Ici, l'outil refuse le service demandé : il ne s'agit ni d'une panne Azure ni d'un contrôle d'identité.
+Le client a reçu ce refus et le signale par son propre code de sortie.
 Aucun service cloud n'a été contacté.
 
 **À repérer :** `isError: true`, les noms des services acceptés et le code de sortie 5 d'Inspector. Tout autre résultat doit être examiné.
@@ -245,7 +254,7 @@ Aucun service cloud n'a été contacté.
 <details>
 <summary>Afficher la réponse</summary>
 
-Non. Ici, la connexion a transporté un résultat avec `isError: true`. Inspector traduit cet échec d'outil par le code de sortie 5.
+Non. Ici, le client a bien reçu un résultat avec `isError: true`. Inspector signale cet échec de l'outil par le code de sortie 5.
 Lisez l'erreur et le résultat. D'autres clients peuvent signaler les erreurs d'outil autrement.
 
 </details>
@@ -275,8 +284,9 @@ et garde aussi le serveur Microsoft Learn. Lancez **MCP: List Servers**, choisis
 La configuration lance directement le fichier DLL compilé. Ne le démarrez pas à la main dans un autre terminal.
 Vous n'avez aucune adresse à coller.
 
-Utilisez une conversation locale avec **Manual permissions**, pas Allow all ni Autopilot.
-Avec Agent Host, choisissez l'isolation Folder ; une session worktree peut imposer Allow all.
+Utilisez une conversation locale avec **Manual permissions**, pas **Allow all** ni **Autopilot**.
+Avec Agent Host, choisissez le mode d'isolation **Folder** : une session isolée dans un worktree peut imposer **Allow all**,
+ce qui empêcherait d'observer l'approbation attendue.
 Dans **Chat: Manage Tool Approval**, désactivez la préapprobation de cet outil.
 Si la confirmation n'apparaît toujours pas, utilisez le réglage documenté
 `chat.tools.eligibleForAutoApproval` : mettez `false` pour l'identifiant réel de l'outil, tel que votre client l'affiche.
@@ -361,7 +371,7 @@ Exécutez les blocs un par un et arrêtez-vous dès que le code de sortie est in
 
 | Action | Résultat attendu | Ce que cela signifie |
 |---|---|---|
-| `tools/list` | Un seul outil, `get_service_health`, avec le paramètre texte obligatoire `service` | Vous avez découvert un contrat, pas exécuté un outil. |
+| `tools/list` | Un seul outil, `get_service_health`, avec le paramètre texte obligatoire `service` | Vous avez lu la description de l'outil et de ses paramètres, sans l'exécuter. |
 | `service=workshop-api` | `isError: false`, `status: healthy` | Un appel réel renvoie un état de santé fictif. |
 | `service=ticket-queue` | `isError: false`, `status: degraded` | Un état fictif dégradé n'est pas une erreur de protocole. |
 | Service inconnu | `isError: true` | L'outil refuse cette entrée ; il ne vérifie pas Azure. |
@@ -388,23 +398,44 @@ Sur le poste de l'auteur, le test entre le client et le serveur du SDK a négoci
 Inspector 2.9.0 a également découvert et appelé le serveur. Laissez les clients négocier ; n'écrivez pas vous-même l'échange d'initialisation.
 Ces résultats ne prouvent rien sur la compatibilité des modules suivants (Functions et passerelle).
 
+### Vérifier vous-même dans le terminal et Inspector
+
+**Pourquoi :** une réponse rédigée par l'assistant ne prouve pas qu'il a appelé votre serveur.
+Ce module est local : vous n'avez pas besoin de commande `az` ni d'abonnement Azure.
+Depuis la racine du dépôt, copiez la commande suivante dans PowerShell 7 :
+
+```powershell
+pwsh -NoProfile -File .\modules\01-discover-mcp\validate.ps1
+if ($LASTEXITCODE -ne 0) { throw 'Le serveur local ne passe pas les contrôles. Consultez le dépannage.' }
+```
+
+> **Résultat attendu** — les contrôles du serveur local affichent `PASS`.
+> Reprenez ensuite la connexion Inspector décrite dans les étapes, affichez les outils et appelez
+> `get_service_health` avec `service=workshop-api`.
+
+![Résultat réel dans Inspector : serveur connecté, outil get_service_health et réponse healthy avec données fictives](../../assets/screenshots/client-01-inspector.png)
+
+*Comparez l'état de connexion, le nom de l'outil et son résultat. Ce résultat fictif n'est pas un contrôle de santé Azure.
+Si aucun outil n'apparaît, vérifiez le démarrage du serveur et la connexion locale avant de continuer.*
+
 ## Valider
 
 Relancez `validate.ps1` ou `validate.sh`. Chaque contrôle automatique doit afficher `PASS`, avec un code de sortie 0.
-Le script vérifie le protocole, la liste exacte, le schéma, les indications de lecture seule,
+Le script vérifie le protocole, la liste exacte des outils, le schéma des paramètres, les indications de lecture seule,
 les deux résultats fictifs complets, les entrées inconnues ou manquantes et le rejet d'un nom d'outil d'écriture.
 Il ne consigne que l'issue des contrôles, jamais les paramètres, les résultats d'outil ni les échanges du protocole.
 
-Observez séparément l'approbation et le résultat dans VS Code. La réussite des contrôles automatiques ne remplace pas cette observation.
-Le module reste `in-progress` tant que l'approbation manuelle et le jalon d'environnement précédent ne sont pas consignés.
+Pour terminer l'exercice, observez aussi la demande d'approbation et le résultat de l'appel dans VS Code.
+Le script ne peut pas vérifier cette interaction à votre place.
 
 **Question :** le validateur affiche `PASS unknown service returns a tool error`. Pourquoi une entrée refusée compte-t-elle comme une réussite ?
 
 <details>
 <summary>Afficher la réponse</summary>
 
-Parce que le contrôle **attend** ce refus. Un bon test prouve une règle, pas seulement le cas où tout va bien : le serveur
-doit rejeter un service inconnu avec `isError: true` au lieu de deviner. `PASS` signifie que la règle a tenu.
+Parce que le contrôle **attend** ce refus. Le test vérifie aussi les demandes que le serveur doit rejeter,
+pas seulement celles qui doivent réussir. Pour un service inconnu, le serveur doit renvoyer `isError: true`
+au lieu d'inventer un résultat. `PASS` signifie que ce comportement a bien été observé.
 
 </details>
 
@@ -454,8 +485,9 @@ Conservez les paramètres et l'état privés du module 00. Aucun nettoyage Azure
 
 Expliquez la différence entre `degraded` avec `isError: false` et un service inconnu avec `isError: true`.
 Expliquez pourquoi une indication de lecture seule n'est pas un contrôle d'accès.
-Suite : le [module 02](../02-open-server/README.fr.md) déploie le même serveur dans Azure, protégé seulement par une clé.
-Le portail facultatif du présentateur ne fait que diffuser ces instructions.
+Au [module 02](../02-open-server/README.fr.md), vous déploierez un serveur MCP à cinq outils dans Azure,
+protégé dans un premier temps par une clé partagée.
+Le portail facultatif de l'atelier affiche ces instructions ; il n'exécute aucune commande à votre place.
 
 ## Sources
 

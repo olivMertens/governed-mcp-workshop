@@ -1,10 +1,11 @@
-# Your tenant. Your subscription. Your decision.
+# Your Terraform environment: tenant and subscription
 
 The Model Context Protocol (MCP) server belongs in your approved **non-production** environment.
 This page prepares a deployment context. It is not a deployment procedure, and it does not certify your permissions.
 Start by [choosing dev container or local tools](GETTING-STARTED.md).
-Module 00's read-only preflight, validator and identity request are available.
-Terraform contains the resource-group foundation and an optional public App Service; no MCP runtime is implemented.
+This reference uses Terraform outputs to inspect your deployment.
+For portal-created resources, use the separate [low-code inspection guide](LOW-CODE-DEPLOYMENT.md).
+Deployment, runtime validation and cleanup belong in your selected track's module guides.
 
 > [!IMPORTANT]
 > A Microsoft Entra tenant holds identities, applications and consent. An Azure subscription holds billed resources.

@@ -46,7 +46,7 @@ export function buildSite(root = repository, destination = join(root, "site-dist
     html = html.replace("<head>", `<head>
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'">
   <meta name="referrer" content="no-referrer">
-  <meta name="description" content="Learn to govern Model Context Protocol on Azure. English and French guides, architecture, workspace choices and participant-owned Terraform preparation.">`);
+  <meta name="description" content="Learn to govern Model Context Protocol on Azure. Separate portal-first and Terraform tracks, English and French guides, architecture and participant-owned preparation.">`);
     const files = new Map([
         ["index.html", html],
         ["locale-fr.js", read([...extension, "locale-fr.js"])],

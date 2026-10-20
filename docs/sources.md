@@ -7,6 +7,62 @@ Module 01 now adapts the SDK bootstrap pattern; its provenance and complete upst
 Versions below are reproducible reference selections or compatibility-test candidates, not a promise that every
 combination has been tested together.
 
+## Participant Azure CLI inspections and result captures
+
+Last verified: 2026-10-20. Official command references:
+[resource show](https://learn.microsoft.com/cli/azure/resource#az-resource-show),
+[resource list](https://learn.microsoft.com/cli/azure/resource#az-resource-list),
+[API Management show](https://learn.microsoft.com/cli/azure/apim#az-apim-show),
+[identity show](https://learn.microsoft.com/cli/azure/identity#az-identity-show),
+[Application Insights query](https://learn.microsoft.com/cli/azure/monitor/app-insights#az-monitor-app-insights-query),
+[account show](https://learn.microsoft.com/cli/azure/account#az-account-show) and
+[group exists](https://learn.microsoft.com/cli/azure/group#az-group-exists).
+Authentication readback uses the existing `authsettingsV2` GET and API version 2024-11-01;
+the [App Service V2 reference](https://learn.microsoft.com/rest/api/appservice/web-apps/get-auth-settings-v-2?view=rest-appservice-2024-11-01)
+documents a `/list` read route, while this environment also accepts the existing non-`/list` GET.
+No write operation is used.
+
+With explicit session approval, read the existing author-owned non-production workshop resources and captured eight
+new masked Azure CLI results for modules 00 and 02 through 07 and 99. Module 01 retains its real local Inspector image.
+The tested CLI returned Function state, HTTPS and network access under `properties`, not the top-level aliases.
+The new Function inspections therefore use `az resource show` with an explicit resource type and API version.
+Capture assertions require `Running`, HTTPS enabled and public access disabled where applicable; null fields are rejected.
+The telemetry query projects only HTTP codes and counts. No key, token, prompt, argument or tool result is collected.
+Module 99 captures resources that still exist before cleanup, not a successful deletion.
+No resource, identity or role was created, modified or deleted; the separate low-code paths were not redeployed or live-validated.
+
+## Independent participant tracks
+
+Module 03 French participant reassessment (last verified 2026-10-20):
+reread [MCP authorization and PRM (Preview)](https://learn.microsoft.com/azure/app-service/configure-authentication-mcp),
+[VS Code authentication](https://learn.microsoft.com/azure/app-service/configure-authentication-mcp-server-vscode),
+[Functions MCP tutorial](https://learn.microsoft.com/azure/azure-functions/functions-mcp-tutorial) and
+[app roles](https://learn.microsoft.com/entra/identity-platform/howto-add-app-roles-in-apps).
+The portal tutorials create a client secret by default; the workshop deliberately retains its existing secretless
+configuration. Server admission is distinct from per-tool authorization: Bob can still write in module 03;
+Eve signs into the tenant but cannot obtain the MCP token.
+Azure CLI inspection references:
+[Function show](https://learn.microsoft.com/cli/azure/functionapp#az-functionapp-show),
+[filtered app settings](https://learn.microsoft.com/cli/azure/functionapp/config/appsettings#az-functionapp-config-appsettings-list),
+[app registration show](https://learn.microsoft.com/cli/azure/ad/app#az-ad-app-show),
+[service principal show](https://learn.microsoft.com/cli/azure/ad/sp#az-ad-sp-show) and
+[az rest](https://learn.microsoft.com/cli/azure/reference-index#az-rest).
+Terraform remains the only mutation path for Terraform-managed resources. New read-only snippets and expected
+results are teaching instructions, not a new live deployment or a claim that the separate low-code guide is live-validated.
+
+Editorial separation (2026-10-20): each deployed module now has a Terraform + PowerShell README
+and a separate portal-first LOW-CODE guide in English and French. Module 00 also separates its tool
+baseline so low-code does not execute Terraform; module 01 remains shared.
+Deployment, identity, telemetry and cleanup instructions reuse the module sources and recorded examples below.
+Existing live evidence does not validate the newly composed end-to-end guides.
+Screenshots are existing author captures, not new low-code executions; missing captures are disclosed.
+
+The additional low-code inspection reference uses
+[az resource list](https://learn.microsoft.com/cli/azure/resource#az-resource-list)
+with an explicit subscription, resource group and participant-tag query, and
+[portal directory/subscription settings](https://learn.microsoft.com/azure/azure-portal/set-preferences).
+These two references were reread on 2026-10-20. No resource or identity API was queried or changed.
+
 ## Concept and facilitator guides
 
 Guided local exercise (last verified 2026-10-20):
@@ -570,10 +626,14 @@ identity and terms as the skill requires before reuse; this repository's own dia
 
 ## Module 07 and 99 sources
 
-Last verified: 2026-10-15. Module 07 is an optional facilitator demo with no Azure resources. Module 99 is the clean-up orchestrator. Both are checked offline only.
+Initial source review: 2026-10-15. Module 07 now provides an optional participant exercise with Microsoft Foundry
+(OAuth identity passthrough, **Preview**); Copilot Studio remains a reading-only outline. Module 99 orchestrates clean-up.
+The Foundry exercise and clean-up were validated in the author's test environment on 2026-10-20;
+see [build progress](PROGRESS.md) for evidence. Each participant still validates their own environment.
+The participant-facing wording was aligned on 2026-10-20; this editorial review did not reverify the external sources.
 
 - [Module 07 EN/FR guide](../modules/07-clients/README.md) and [Module 99 EN/FR guide](../modules/99-cleanup/README.md), with the source links in each README.
-- [Copilot Studio MCP support](https://learn.microsoft.com/microsoft-copilot-studio/agent-extend-action-mcp): fetched 2026-10-15. The page says Copilot Studio supports MCP tools and resources. It does not name a transport, so the Streamable HTTP and SSE wording in module 07 is not confirmed by this page and must be re-checked against [Copilot Studio existing MCP server](https://learn.microsoft.com/microsoft-copilot-studio/mcp-add-existing-server-to-agent) before module 07 is validated.
+- [Copilot Studio MCP support](https://learn.microsoft.com/microsoft-copilot-studio/agent-extend-action-mcp): fetched 2026-10-15. The page says Copilot Studio supports MCP tools and resources. It does not name a transport, so this page alone does not confirm the Streamable HTTP and SSE wording in module 07. Recheck [Copilot Studio existing MCP server](https://learn.microsoft.com/microsoft-copilot-studio/mcp-add-existing-server-to-agent) before attempting the Copilot Studio integration, which remains an outline rather than a validated exercise.
 
 ## Presenter App Service portal evidence
 
