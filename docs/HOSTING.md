@@ -35,7 +35,7 @@ For another build, specify a new directory with `--output`; remove only an inspe
 Serve the directory through an HTTP server, not a `file://` URL.
 The output is portable static content: HTML, locale JavaScript, public journey JSON and allowlisted diagram/icon assets.
 It does not copy the repository, `.git`, `.workshop`, credentials, Terraform state or the canvas server.
-No live canvas capability is included. Relative paths support a project site such as `/workshop-mcp/`.
+No live canvas capability is included. Relative paths support a project site such as `/governed-mcp-workshop/`.
 
 The landing route is `#/start`; French is `?lang=fr#/start`, English is `?lang=en#/start`.
 Module links use hashes, so GitHub Pages does not need an application router or catch-all server.
@@ -59,9 +59,9 @@ not resource creation in any Azure tenant.
 5. Check the deployment result and its reported URL. Open the start page, EN/FR choices, module diagrams
    and client-preparation page from the actual deployed URL before sharing it.
 
-For this repository, the expected project URL after successful publication is
-`https://olivmertens.github.io/workshop-mcp/`; this is **not a claim that the site is live**.
-GitHub reported Pages disabled during preparation. No workflow was dispatched and no repository setting changed.
+For this repository, the guides are live at `https://olivmertens.github.io/governed-mcp-workshop/`
+(Pages enabled with **GitHub Actions** as the source and the workflow run on `main`, 2026-10-20). Rerun the workflow
+after each merge you want to publish: it never publishes on its own.
 Check plan entitlement, site visibility and Actions/Pages usage limits; do not assume every organization plan is free.
 
 ## If the guides must run inside a tenant
