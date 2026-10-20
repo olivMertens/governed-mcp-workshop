@@ -85,6 +85,47 @@ en prépare les valeurs).
 | `WEBSITE_AUTH_AAD_ALLOWED_TENANTS` | Votre ID de tenant |
 | `AzureFunctionsJobHost__extensions__mcp__system__webhookAuthorizationLevel` | `Anonymous`, **étape 2 seulement**, une fois l'authentification intégrée appliquée |
 
+
+
+
+
+**Construisez-le étape par étape.** Cliquez sur **Suivant** pour ajouter un élément à la fois ; le schéma complet suit.
+
+```reveal
+{
+  "title": "D'une clé partagée à un jeton personnel",
+  "audience": "attendee",
+  "width": 760,
+  "height": 380,
+  "lanes": [
+    {"x": 8, "width": 232, "label": "Utilisateurs"},
+    {"x": 264, "width": 232, "label": "Microsoft Entra ID"},
+    {"x": 520, "width": 232, "label": "Azure Functions"}
+  ],
+  "nodes": [
+    {"id":"entra","step":0,"x":286,"y":44,"width":188,"icon":"entra","title":"Workshop MCP API","detail":["inscription d'app","rôles : Tools.Read"]},
+    {"id":"fn","step":0,"x":542,"y":164,"width":188,"icon":"functions","title":"Azure Functions","detail":["auth. intégrée","puis serveur MCP"]},
+    {"id":"key","step":0,"until":2,"tone":"morning","x":542,"y":284,"width":188,"title":"Clé de fonction","detail":["module 02"]},
+    {"id":"alice","step":1,"x":30,"y":44,"width":188,"title":"Alice ou Bob","detail":["utilisateurs attribués"]},
+    {"id":"bad","step":3,"tone":"risk","x":30,"y":164,"width":188,"title":"Jeton absent ou faux","detail":["ex. audience Graph"]},
+    {"id":"eve","step":4,"tone":"risk","x":30,"y":284,"width":188,"title":"Eve (non attribuée)","detail":["aucun jeton"]}
+  ],
+  "edges": [
+    {"from":"alice","to":"entra","step":1,"label":"connexion"},
+    {"from":"alice","to":"fn","step":2,"tone":"governed","labelDy":16,"label":"jeton → 200"},
+    {"from":"bad","to":"fn","step":3,"tone":"risk","label":"HTTP 401"},
+    {"from":"eve","to":"entra","step":4,"tone":"risk","toSide":"bottom","label":"AADSTS50105"}
+  ],
+  "steps": [
+    {"title": "Inscrire l'API dans Entra", "simple": "Le serveur MCP reçoit une identité dans Microsoft Entra ID, avec deux rôles d'application.", "say": "L'inscription définit l'audience `api://<client-id>` et les rôles `Tools.Read` et `Tools.Write`. La clé de fonction du module 02 est encore là pour l'instant."},
+    {"title": "Se connecter, recevoir un jeton", "simple": "Alice se connecte et reçoit un jeton fait pour cette API uniquement.", "say": "Le jeton désigne l'API comme audience et liste les rôles d'Alice. Le client ne voit jamais son mot de passe."},
+    {"title": "La plateforme vérifie d'abord", "simple": "Avant que votre code s'exécute, Azure vérifie le jeton. Un jeton valide obtient HTTP 200 ; la clé disparaît.", "say": "L'authentification intégrée vérifie l'émetteur, le tenant, l'audience et l'expiration. Votre code ne lit jamais un jeton lui-même."},
+    {"title": "Mauvais jeton, pas d'entrée", "simple": "Pas de jeton, ou un jeton pour une autre API : la plateforme répond HTTP 401.", "say": "Un jeton Microsoft Graph valide est quand même refusé : son audience est Graph, pas cette API. Une audience par jeton."},
+    {"title": "Eve reste dehors", "simple": "Eve n'est pas attribuée à l'application : Entra refuse de lui donner un jeton.", "say": "L'attribution est obligatoire sur l'application d'entreprise. Eve s'arrête à la connexion avec `AADSTS50105`, avant même d'atteindre Azure."}
+  ]
+}
+```
+
 ![Architecture du niveau 1](../../assets/architecture/03.fr.svg)
 
 **Preview :** les métadonnées de ressource protégée (PRM, RFC 9728) de l'authentification App Service sont en **Preview** ;

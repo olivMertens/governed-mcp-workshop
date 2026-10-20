@@ -61,6 +61,51 @@ No Terraform is used. The module has no `infra/` folder because it adds no infra
 
 ### Read the three separate flows
 
+
+
+
+
+**Build it step by step.** Select **Next** to add one piece at a time; the full diagram follows.
+
+```reveal
+{
+  "title": "What the platform records",
+  "audience": "attendee",
+  "width": 760,
+  "height": 380,
+  "lanes": [
+    {"x": 8, "width": 232, "label": "Calls"},
+    {"x": 264, "width": 232, "label": "Telemetry"},
+    {"x": 520, "width": 232, "label": "Inventory"}
+  ],
+  "nodes": [
+    {"id":"apim","step":0,"x":30,"y":44,"width":188,"icon":"apim","title":"API Management","detail":["every MCP call"]},
+    {"id":"fn","step":0,"x":30,"y":164,"width":188,"icon":"functions","title":"MCP server","detail":["one span per tool"]},
+    {"id":"ai","step":1,"x":286,"y":44,"width":188,"icon":"insights","title":"App Insights","detail":["metadata only","zero body bytes"]},
+    {"id":"kql","step":2,"x":286,"y":164,"width":188,"title":"KQL queries","detail":["mcp-traffic.kql","tool-spans.kql"]},
+    {"id":"trace","step":3,"tone":"governed","x":286,"y":284,"width":188,"title":"One call, one trace","detail":["operation ID","gateway → tool → 403"]},
+    {"id":"apic","step":4,"tone":"preview","x":542,"y":44,"width":188,"icon":"api-center","title":"API Center","detail":["Preview","gateway URL only"]},
+    {"id":"byo","step":5,"tone":"preview","x":542,"y":164,"width":188,"icon":"microsoft","title":"Microsoft 365","detail":["BYO MCP listing","Preview"]}
+  ],
+  "edges": [
+    {"from":"apim","to":"fn","step":0,"label":"private"},
+    {"from":"apim","to":"ai","step":1,"label":"requests"},
+    {"from":"fn","to":"ai","step":1,"label":"spans"},
+    {"from":"kql","to":"ai","step":2,"label":"reads"},
+    {"from":"fn","to":"trace","step":3,"tone":"governed","label":"span tree"},
+    {"from":"apim","to":"apic","step":4,"tone":"preview","fromSide":"top","toSide":"top","bend":26,"label":"gateway URL"}
+  ],
+  "steps": [
+    {"title": "Calls go through the gateway", "simple": "Every MCP call passes API Management, then reaches the server privately.", "say": "Nothing changes for the client. This module only reads what the platform already records."},
+    {"title": "Metadata goes to Application Insights", "simple": "The gateway logs each request and the server adds one span per tool call. No content, no token.", "say": "Logged: tool name, caller object ID, status, latency, correlation ID. Never logged: prompts, arguments, results, tokens."},
+    {"title": "Ask with KQL", "simple": "Two saved queries list the MCP traffic and the tool calls of the last 24 hours.", "say": "Run them in the portal (**Logs**) or from your terminal. An empty result proves neither success nor absence of activity."},
+    {"title": "Follow one call", "simple": "One operation ID links the gateway, the tool and the downstream call that refused Bob.", "say": "In **Search**, paste the operation ID, then open **View timeline**: the red rows show where the call stopped."},
+    {"title": "Register the gateway (Preview)", "simple": "API Center lists the server with the gateway URL, never the backend address.", "say": "API Center inventory is **Preview**. Registration authorizes nothing: the gateway still decides."},
+    {"title": "List it in Microsoft 365 (Preview)", "simple": "An administrator can list the same gateway URL in the Microsoft 365 admin center.", "say": "The bring-your-own MCP listing is **Preview** and belongs to a tenant administrator, never to a participant."}
+  ]
+}
+```
+
 ![Runtime requests go through API Management; metadata goes to Application Insights; API Center only inventories the gateway.](../../assets/architecture/06.en.svg)
 
 > [!NOTE]

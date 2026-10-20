@@ -58,6 +58,50 @@ Chaque outil refuse les arguments inconnus. `create_ticket` n'écrit rien si les
 Les journaux contiennent seulement le nom de l'outil, le résultat, la durée et l'identifiant d'invocation :
 jamais les arguments, les résultats, les clés ni les jetons.
 
+
+
+
+
+
+**Construisez-le étape par étape.** Cliquez sur **Suivant** pour ajouter un élément à la fois ; le schéma complet suit.
+
+```reveal
+{
+  "title": "Un serveur dans Azure, protégé par une clé",
+  "audience": "attendee",
+  "width": 760,
+  "height": 380,
+  "lanes": [
+    {"x": 8, "width": 232, "label": "Client"},
+    {"x": 264, "width": 232, "label": "Protection"},
+    {"x": 520, "width": 232, "label": "Azure"}
+  ],
+  "nodes": [
+    {"id":"fn","step":0,"x":542,"y":44,"width":188,"icon":"functions","title":"Azure Functions","detail":["extension MCP","Flex Consumption"]},
+    {"id":"st","step":0,"x":542,"y":164,"width":188,"icon":"storage","title":"Azure Storage","detail":["file : tickets","identité managée"]},
+    {"id":"c","step":1,"x":30,"y":44,"width":188,"title":"VS Code + Copilot","detail":["Alice (Contoso)"]},
+    {"id":"key","step":1,"tone":"risk","x":286,"y":44,"width":188,"title":"Clé de fonction","detail":["x-functions-key","secret partagé"]},
+    {"id":"nokey","step":2,"x":30,"y":164,"width":188,"title":"Sans clé","detail":["n'importe quel appelant"]},
+    {"id":"eve","step":3,"tone":"risk","x":30,"y":284,"width":188,"title":"Eve a la clé","detail":["create_ticket passe"]},
+    {"id":"next","step":4,"tone":"governed","x":542,"y":284,"width":188,"icon":"entra","title":"Ensuite : Entra","detail":["jeton utilisateur","au lieu d'une clé"]}
+  ],
+  "edges": [
+    {"from":"fn","to":"st","step":0,"label":"identité"},
+    {"from":"c","to":"key","step":1,"label":"en-tête"},
+    {"from":"key","to":"fn","step":1,"label":"HTTP 200"},
+    {"from":"nokey","to":"fn","step":2,"tone":"risk","toSide":"bottom","toOffset":-40,"label":"HTTP 401"},
+    {"from":"eve","to":"key","step":3,"tone":"risk","toSide":"bottom","label":"écriture"}
+  ],
+  "steps": [
+    {"title": "Le serveur tourne dans Azure", "simple": "Votre serveur MCP tourne maintenant dans Azure Functions, avec une file de stockage pour les tickets.", "say": "La Function accède au stockage avec son identité managée : ni chaîne de connexion, ni clé dans le code."},
+    {"title": "Une clé pour seul verrou", "simple": "Le client envoie une clé de fonction dans un en-tête. Avec la clé, l'appel réussit.", "say": "La clé passe dans l'en-tête `x-functions-key`. Elle n'identifie personne : c'est un secret partagé."},
+    {"title": "Sans clé, pas d'accès", "simple": "Sans la clé, le serveur répond HTTP 401. Rien n'est anonyme.", "say": "C'est le strict minimum. Ne rendez jamais le point de terminaison anonyme, même pour un test."},
+    {"title": "Qui a la clé peut écrire", "simple": "Si Eve obtient la clé, elle crée aussi des tickets : le serveur ne sait pas qui elle est.", "say": "L'outil d'écriture `create_ticket` s'exécute pour quiconque détient la clé. C'est le risque que montre ce module."},
+    {"title": "La solution arrive", "simple": "Le module 03 remplace la clé partagée par un jeton Microsoft Entra personnel.", "say": "Gardez le niveau 0 le moins longtemps possible. Le module 03 (Entra ID) et le module 04 (API Management) comblent la faille."}
+  ]
+}
+```
+
 ![Architecture du niveau 0](../../assets/architecture/02.fr.svg)
 
 Aucune fonctionnalité en **Preview** n'est utilisée. Le code et l'infrastructure sont adaptés de
