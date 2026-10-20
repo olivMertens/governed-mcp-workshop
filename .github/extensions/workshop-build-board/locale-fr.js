@@ -294,4 +294,10 @@ const french = {
   "Needs modules 00 to 05 completed, with the API Management MCP endpoint answering requests.": "Les modules 00 à 05 doivent être terminés et le point de terminaison MCP d'API Management doit répondre aux requêtes.",
   "Optional. Needs modules 03 to 06 validated, or a recording of them. Use the API Management address from module 04, never the Function address.": "Facultatif. Prérequis : les modules 03 à 06 validés, ou leur enregistrement vidéo. Utilisez l'adresse API Management du module 04, jamais celle de la Function.",
   "Run it last, even if you stopped early. Use the same private files and Terraform state as the modules you deployed. Clean up in reverse order.": "À lancer en dernier, même si vous vous êtes arrêté avant la fin. Utilisez les mêmes fichiers privés et le même état Terraform que pour les modules déployés. Nettoyez dans l'ordre inverse du déploiement.",
+  "Animated diagram": "Schéma animé",
+  "Presenter walk-through: reveal one fragment at a time with the buttons or the arrow keys. The page runs nothing.": "Déroulé présentateur : révélez un fragment à la fois avec les boutons ou les flèches du clavier. La page n'exécute rien.",
+  "Back": "Retour",
+  "Reveal next": "Révéler la suite",
+  "Show everything": "Tout afficher",
+  "Fragment": "Fragment",
 };
