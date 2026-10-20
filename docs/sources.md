@@ -357,7 +357,6 @@ Only offline checks ran: no plan against Azure or Entra, no apply, no object cre
 | [AI Gateway labs](https://github.com/Azure-Samples/AI-Gateway/tree/1679e3137d2fe7592d2a668d77ff71550d35b69e) | `1679e3137d2fe7592d2a668d77ff71550d35b69e` | README, four selected lab READMEs, PRM policies, catalog OpenAPI, registry JSON, workbook JSON and LICENSE.md | MIT, copyright Microsoft Corporation. Preserve notices when adapting policy, infrastructure, query or schema code. No notebook output or whole-repo imports. |
 | [MCP Inspector](https://github.com/modelcontextprotocol/inspector/releases/tag/2.11.0) | Published `2.11.0`; inspected main manifest snapshot `074b8108f340590268f2900741403755e923a11c` | Release metadata, package manifest and official Inspector documentation | Use the versioned package as tooling. No Inspector source is copied. Recheck its license if source is later adapted. |
 | [MCP specification](https://modelcontextprotocol.io/specification/2026-07-28) | `2026-07-28` | Architecture, transports, tools and authorization | Link and summarize requirements. Do not reproduce documentation wholesale. |
-| [Presentation skills](https://github.com/olivMertens/copilot-skills/tree/9b8be03bfa6c13b59792ae1dfa6fd55e7e7500a3/skills) | `9b8be03bfa6c13b59792ae1dfa6fd55e7e7500a3` | `reveal-slide-builder`, `build-presentation`, `architecture-diagram-author` (last verified 2026-10-20) | MIT, copyright the skill author. Copied under `.github/skills/` with the notice in `UPSTREAM.md`; showcase samples not copied. Authoring aids only; no runtime code. |
 
 The C# SDK main branch inspected at `3338e88e15c42cfc27465143c140d7d10f1a2707` includes changes
 after the selected release, including removal guidance for `McpServerFactory`. Prefer the released package and
@@ -544,7 +543,7 @@ and deploy-pages v4 to their verified release commits. No publication or Azure h
 
 ## Architecture diagram authoring skill
 
-Retrieved 2026-10-15 from [olivMertens/copilot-skills, architecture-diagram-author](https://github.com/olivMertens/copilot-skills/tree/main/skills/architecture-diagram-author).
+Retrieved 2026-10-15 from a personal skills repository by the workshop author (MIT License, notice kept with the original).
 Copied verbatim to `.github/skills/architecture-diagram-author/SKILL.md` and loaded by the module builder when a module
 changes a depicted architecture. The skill's Microsoft icon references point to
 [az-icons.com](https://az-icons.com/), [MsiconsCollections](https://aka.ms/MsiconsCollections),

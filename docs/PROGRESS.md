@@ -111,8 +111,7 @@ module 02, 03, 04, 04b var files): `48 to add, 1 to change, 0 to destroy`; part 
 the one change is the known portal `app_settings` hint refresh. No apply; the plan file was deleted. Nothing deployed.
 Browser checks: EN/FR, dark/light, all 8 fragments by keyboard and buttons, no console error. No module status changes.
 
-Imported presentation skills (`reveal-slide-builder`, `build-presentation`; `architecture-diagram-author` unchanged) are
-pinned in `.github/skills/UPSTREAM.md` with their MIT notice.
+The presentation skills used to build this page are authoring aids and stay outside the repository.
 
 Audience layer (same day): every fragment now opens with one "In plain words" sentence (front door and badge
 image), the presenter detail follows. A new step, "The whole picture", shows a repo-style architecture from a separate
