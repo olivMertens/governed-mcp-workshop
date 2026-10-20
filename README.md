@@ -112,7 +112,7 @@ Module 02 deploys real Azure resources: start it only after module 00 validation
 | 05 | 👤 On-Behalf-Of vs app-only (level 3) | ✅ Required | 🟢 Fully tested in Azure (2026-10-20): operator, Alice and Bob | [Open](modules/05-delegated-and-app-only/README.md) · [FR](modules/05-delegated-and-app-only/README.fr.md) |
 | 06 | 📊 Observe and inventory (level 4) | ✅ Required | 🟢 Fully tested in Azure (2026-10-20): KQL on Alice and Bob traffic, API Center | [Open](modules/06-observe-inventory/README.md) · [FR](modules/06-observe-inventory/README.fr.md) |
 | 07 | 🤖 Other clients (Foundry, Copilot Studio) | ➕ Optional | 🟢 Foundry tested in Azure (2026-10-20): Alice reads after approval, Bob's write refused; Copilot Studio outline only | [Open](modules/07-clients/README.md) · [FR](modules/07-clients/README.fr.md) |
-| 99 | 🧹 Clean up | ♻️ As soon as you create resources | ⚪ Written and checked offline; not yet run in Azure (each module has its own tested cleanup) | [Open](modules/99-cleanup/README.md) · [FR](modules/99-cleanup/README.fr.md) |
+| 99 | 🧹 Clean up | ♻️ As soon as you create resources | 🟢 Fully tested in Azure (2026-10-20): modules 07 to 02 removed in order, test users kept | [Open](modules/99-cleanup/README.md) · [FR](modules/99-cleanup/README.fr.md) |
 
 > 💡 **What the test status means.** It describes the author's own tests, not your work. Every module is usable.
 >
