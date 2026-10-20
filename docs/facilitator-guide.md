@@ -50,7 +50,7 @@ then one `PASS`/`FAIL` line per check with the expected HTTP status.
 | 02:10-02:45 | 04 | Prove APIM is the only entry point | Bob write 403; Alice write 200; burst 429; direct backend refused; zero body logs | Replay approved recording and inspect expected statuses |
 | 02:45-03:15 | 05 | Compare OBO and managed identity | User path: Alice allowed/Bob denied; app path: same result for both | Use the four-cell result table and module 05 real portal captures |
 | 03:15-03:40 | 06 | Query metadata and inventory | Caller, fixed tool, status, latency, correlation ID; no payload; gateway endpoint inventoried | Module 06 real KQL capture or a prepared redacted query result |
-| 03:40-03:50 | 07 optional | Explain another client without changing the boundary | Only supported secretless connection; no core dependency | Skip. Mention Foundry identity passthrough **Preview** only |
+| 03:40-03:50 | 07 optional | Explain another client without changing the boundary | Same gateway, same roles: Alice reads after approval, Bob's approved write gets HTTP 403 | Show the module 07 captures; live Foundry demo (**Preview**) only if part A is deployed |
 | 03:50-04:00 | 99 | Review cleanup and evidence | Workshop-owned resources accounted for; destroy still requires approval | Use cleanup checklist; never improvise deletion |
 
 ## Common errors and safe responses
@@ -62,7 +62,7 @@ then one `PASS`/`FAIL` line per check with the expected HTTP status.
 | HTTP 200 with `isError: true` | MCP transport succeeded; the tool or downstream resource denied the action | Read the structured tool result and correlation ID |
 | Direct Function call works | Gateway bypass remains possible | Stop the exercise; restore private/APIM-only access before continuing |
 | OBO fails for Bob | User rights are correctly enforced | Keep the denial; do not use managed identity as fallback |
-| Client asks for a secret | The documented client flow is not workshop-compatible | Defer the optional client; never add a client secret |
+| Client asks for a secret | Foundry OAuth passthrough accepts only a confidential client (verified 2026-10-20) | Use the module 07 short-lived secret (one day, dedicated client app, never printed or stored), or show the recording; never a long-lived secret |
 | Logs show body content | Diagnostic settings violate the workshop boundary | Stop traffic, remove body capture and verify zero body bytes |
 | Preview behavior differs | Preview contract or availability changed | Use the recording, label the gap and recheck Microsoft Learn |
 

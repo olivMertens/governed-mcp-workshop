@@ -49,7 +49,7 @@ puis une ligne `PASS`/`FAIL` par contrôle avec le statut HTTP attendu.
 | 02:10-02:45 | 04 | APIM comme seul point d'entrée | Bob 403 ; Alice 200 ; rafale 429 ; accès direct refusé ; journaux sans corps | Enregistrement approuvé et statuts |
 | 02:45-03:15 | 05 | OBO ou identité managée | Utilisateur : Alice oui/Bob non ; application : même résultat | Tableau des quatre résultats et captures réelles du module 05 |
 | 03:15-03:40 | 06 | Métadonnées et inventaire | Appelant, outil fixe, statut, durée, corrélation ; aucun contenu | Capture KQL réelle du module 06 ou résultat de requête préparé |
-| 03:40-03:50 | 07 facultatif | Même protection avec un autre client | Connexion sans secret prise en charge | Ignorer ; transfert Foundry **Preview** seulement |
+| 03:40-03:50 | 07 facultatif | Même protection avec un autre client | Même passerelle, mêmes rôles : Alice lit après approbation, l'écriture approuvée de Bob reçoit HTTP 403 | Montrer les captures du module 07 ; démo Foundry en direct (**Preview**) seulement si la partie A est déployée |
 | 03:50-04:00 | 99 | Nettoyage et preuves | Ressources de l'atelier recensées ; suppression encore soumise à approbation | Liste des points à vérifier |
 
 ## Erreurs fréquentes et réponses sûres
@@ -61,7 +61,7 @@ puis une ligne `PASS`/`FAIL` par contrôle avec le statut HTTP attendu.
 | HTTP 200 et `isError: true` | Transport MCP réussi, outil ou ressource aval en échec | Lire le résultat structuré et l'ID de corrélation |
 | Appel direct Functions réussi | Contournement de la passerelle | Arrêter, puis rétablir l'accès uniquement par le réseau privé et APIM |
 | OBO échoue pour Bob | Les droits de l'utilisateur s'appliquent | Conserver le refus ; aucun repli applicatif |
-| Le client exige un secret | Parcours incompatible avec l'atelier | Reporter le client facultatif ; ne pas ajouter de secret |
+| Le client exige un secret | Le relais OAuth de Foundry n'accepte qu'un client confidentiel (vérifié le 2026-10-20) | Utiliser le secret de courte durée du module 07 (un jour, application cliente dédiée, jamais affiché ni stocké) ou montrer l'enregistrement ; jamais de secret de longue durée |
 | Les journaux contiennent le corps | Paramétrage non conforme | Arrêter le trafic, supprimer la capture et vérifier l'absence de tout octet de corps |
 | Une fonctionnalité en Preview se comporte autrement | Contrat ou disponibilité modifiés | Utiliser l'enregistrement et revérifier Microsoft Learn |
 

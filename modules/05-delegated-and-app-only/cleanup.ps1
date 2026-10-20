@@ -21,6 +21,7 @@ param(
     [string]$Module02VarFile,
     [string]$Module03VarFile,
     [string]$Module04VarFile,
+    [string]$Module04bVarFile,
     [string]$Module05VarFile,
     [string]$EntraParametersPath,
     [string]$EntraModule05VarFile,
@@ -50,7 +51,8 @@ function Invoke-GuardedPhase([string]$Directory, [string[]]$Arguments, [hashtabl
             # API Management stores policies as normalised XML (tabs, entities, format 'xml'), so every plan re-sends the
             # module 04 policies unchanged. Accept that update only when the policy text is identical apart from
             # whitespace and XML entity encoding.
-            $whitespaceOnly = $address -in @('azapi_resource.mcp_api_policy', 'azapi_resource.prm_operation_policy') -and
+            $whitespaceOnly = $address -in @('azapi_resource.mcp_api_policy', 'azapi_resource.prm_operation_policy', 'azapi_resource.rest_api_policy',
+                'azapi_resource.rest_mcp_policy', 'azapi_resource.rest_mcp_prm_operation_policy') -and
                 ($_.change.actions -join ',') -eq 'update' -and
                 ([Net.WebUtility]::HtmlDecode([string]$_.change.before.body.properties.value) -replace '\s', '') -ceq
                 ([Net.WebUtility]::HtmlDecode([string]$_.change.after.body.properties.value) -replace '\s', '')
@@ -86,6 +88,7 @@ if ($Scope -eq 'Workload') {
     if (-not $Module02VarFile) { $Module02VarFile = Join-Path $private 'module02.tfvars.json' }
     if (-not $Module03VarFile) { $Module03VarFile = Join-Path $private 'module03.tfvars.json' }
     if (-not $Module04VarFile) { $Module04VarFile = Join-Path $private 'module04.tfvars.json' }
+    if (-not $Module04bVarFile) { $Module04bVarFile = Join-Path $private 'module04b.tfvars.json' }
     if (-not $Module05VarFile) { $Module05VarFile = Join-Path $private 'module05.tfvars.json' }
     $null = Read-WorkshopParameters -Path $ParametersPath
     foreach ($file in @($Module02VarFile, $Module03VarFile)) {
@@ -100,6 +103,8 @@ if ($Scope -eq 'Workload') {
     if ($LASTEXITCODE -ne 0) { throw 'FAIL Terraform init (expected HTTP N/A). Use the pinned Terraform and the locked providers.' }
     $arguments = @("-var-file=$ParametersPath", "-var-file=$Module02VarFile", "-var-file=$Module03VarFile")
     if (Test-Path -LiteralPath $Module04VarFile -PathType Leaf) { $arguments += "-var-file=$Module04VarFile" }
+    # Keep the optional module 04 part B as deployed: module 04's own clean-up removes it.
+    if (Test-Path -LiteralPath $Module04bVarFile -PathType Leaf) { $arguments += "-var-file=$Module04bVarFile" }
     if (Test-Path -LiteralPath $Module05VarFile -PathType Leaf) { $arguments += "-var-file=$Module05VarFile" }
     $arguments += '-var=enable_delegated_access=false'
     $allowed = @{ 'azurerm_function_app_flex_consumption.mcp' = 'update' }

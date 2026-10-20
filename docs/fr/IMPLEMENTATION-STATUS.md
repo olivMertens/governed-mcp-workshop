@@ -36,7 +36,7 @@ Le [guide du module 02](../../modules/02-open-server/README.fr.md) est validé e
 Les guides des modules [03](../../modules/03-entra-authentication/README.fr.md), [04](../../modules/04-governed-gateway/README.fr.md),
 [05](../../modules/05-delegated-and-app-only/README.fr.md) et [06](../../modules/06-observe-inventory/README.fr.md)
 ont réussi leurs vérifications opérateur en conditions réelles ; les vérifications par persona restent à faire.
-Le [guide du module 07](../../modules/07-clients/README.fr.md) n'a passé que les vérifications hors ligne.
+Le [guide du module 07](../../modules/07-clients/README.fr.md) : la partie A (Foundry, préversion) est validée en conditions réelles (2026-10-20) ; la partie B (Copilot Studio) reste un plan.
 Le [guide de nettoyage du module 99](../../modules/99-cleanup/README.fr.md) est rédigé ; son mode rapport n'a pas encore tourné sur un état réel.
 Chaque validateur affiche une ligne d'objectif, des en-têtes numérotés `== Step N ==` suivis d'une ligne `Why:`,
 puis une ligne `PASS`/`FAIL` par contrôle avec le statut HTTP attendu. Les modules 02, 03, 04, 05 et 06 montrent des captures

@@ -11,7 +11,7 @@ added must be removed deliberately, not forgotten.
 
 ## What you deploy
 
-Nothing. This module runs the clean-up scripts of modules 02 to 05 in reverse order:
+Nothing. This module runs the clean-up scripts of modules 02 to 07 in reverse order:
 
 > [!CAUTION]
 > Delete only workshop-owned resources and identities. Preserve administrator-provided users, applications and shared resources.
@@ -55,6 +55,7 @@ flowchart LR
 
 | Order | Clean-up | What it removes |
 |---|---|---|
+| 0 | Module 07 | Foundry project, client app and its short-lived secret, agent identity blueprint, allowed client |
 | 1 | Module 05, `-Scope Workload` | Delegated and app-only workload settings |
 | 2 | Module 05, `-Scope Entra` | Federated credential, permission requests and consent grants |
 | 3 | Module 04 | Gateway, policies and the locked-down Function path |
@@ -136,6 +137,37 @@ pwsh ./modules/99-cleanup/cleanup.ps1 -TenantId $env:ARM_TENANT_ID -Subscription
 >
 > After approval, `-Apply` ends with `DONE module clean-ups applied. Next: delete test users and role assignments, then
 > run the tag check in README.md.`
+
+> **Real result** — `-Apply`, 2026-10-20, author's test tenant with modules 02 to 07 deployed (part B included). Excerpt;
+> `...` hides similar lines. Names and IDs withheld.
+>
+> ```text
+> --> 07-clients
+> PASS Foundry resource group deleted and accounts purged (expected HTTP 200 from Azure Resource Manager).
+> DONE module 07 part A removed. Private module 07 files deleted.
+> --> 05-delegated-and-app-only -Scope Workload
+> PASS 'remove module 05 workload resources' applied (expected HTTP 200).
+> --> 05-delegated-and-app-only -Scope Entra
+> PASS 'remove module 05 Entra delegation' applied (expected HTTP 200).
+> --> 04-governed-gateway
+> PASS 'phase 0: remove optional part B (REST API exposed as MCP)' applied (expected HTTP 200).
+> PASS 'phase 1: reopen the Function behind Entra (stage 2 to stage 1)' applied (expected HTTP 200).
+> PASS 'phase 2: remove the governed gateway' applied (expected HTTP 200).
+> --> 03-entra-authentication -Scope Workload
+> PASS 'phase 2: remove built-in authentication' applied (expected HTTP 200).
+> INFO archived .workshop/module03.tfvars.json to .workshop/applied/ (stage applied).
+> --> 03-entra-authentication -Scope Entra
+> PASS provided applications and existing test users were not touched. Deleted registrations stay restorable for 30 days in Microsoft Entra.
+> --> 02-open-server
+> PASS module 02 resources deleted; the system key was deleted with the Function App (expected HTTP 200 from Azure Resource Manager).
+> INFO archived .workshop/module02.tfvars.json to .workshop/applied/ (stage applied).
+> DONE module clean-ups applied. Next: delete test users and role assignments, then run the tag check in README.md.
+> ```
+>
+> **What it means for you:** each stage deleted only its own objects, in order. After each applied stage, its private
+> opt-in file moves to `.workshop/applied/`, so a second run never plans to recreate what was just removed. The author's
+> first run stopped at `05 -Scope Entra` with `Authorization_RequestDenied`: the identity administrator's time-bound role
+> had expired. After reactivating it, the same command resumed where it stopped.
 ### Bash
 
 ```bash
@@ -153,16 +185,34 @@ Manual steps (the script does not touch these):
 1. Delete the workshop test users (Alice, Bob, Eve) if you created them.
 2. Remove any role assignment you added by hand for the workshop.
 3. If a presenter published the optional portal, it is kept on purpose. Remove it only when the workshop is over, with the reviewed flow in [docs/HOSTING.md](../../docs/HOSTING.md#clean-up).
-4. Run the tag check below.
+4. Delete what Azure created outside Terraform, if present: the network security groups that a tenant policy adds to each
+   subnet (`<vnet>-snet-...-nsg-<region>`) and the **Application Insights Smart Detection** action group (commands below).
+5. Run the tag check below.
+
+```powershell
+$p = Get-Content -LiteralPath ./.workshop/participant.tfvars.json -Raw | ConvertFrom-Json
+$group = "rg-mcp-$($p.participant_prefix)-$($p.resource_suffix)"
+az network nsg list -g $group --query "[?contains(name, '-snet-')].name" -o tsv | ForEach-Object { az network nsg delete -g $group -n $_ }
+az monitor action-group list -g $group --query "[?name=='Application Insights Smart Detection'].id" -o tsv | ForEach-Object { az monitor action-group delete --ids $_ }
+```
+
+> **Real result** — 2026-10-20: two NSGs and one action group deleted; no output on success.
 
 ```powershell
 $p = Get-Content -LiteralPath ./.workshop/participant.tfvars.json -Raw | ConvertFrom-Json
 az resource list --tag "workshop=mcp-$($p.participant_prefix)-$($p.resource_suffix)" --query "[].{name:name, type:type}" -o table
 ```
 
-> **Expected result** — from the Azure CLI table format; not a capture after a complete clean-up.
-> After a complete clean-up, the command prints nothing (an empty result has no table).
-> Before clean-up, it lists one row per workshop resource, for example `func-mcp-p01-<suffix>` or `stp01<suffix>`.
+> **Real result** — 2026-10-20, after the complete clean-up, with the optional presenter portal kept on purpose.
+>
+> ```text
+> Name
+> ---------------------------------------
+> plan-mcp-p01-<suffix>-portal
+> web-mcp-p01-<suffix>-portal
+> ```
+>
+> Without a portal, the command prints nothing (an empty result has no table).
 >
 > **What it means for you:** an empty output is your proof that no tagged workshop resource remains. Any row is a leftover.
 
@@ -253,6 +303,8 @@ test makes sure nobody turns deletion into the default, so one wrong command can
   then run the script again. Steps that already applied are skipped by their own guards.
 - **A plan lists an unexpected change.** Do not apply it. The guard aborts when a change falls outside the allow-list, and
   nothing is applied. Ask the facilitator.
+- **`Authorization_RequestDenied` in an Entra stage.** The identity administrator's role is not active (for example a
+  time-bound PIM role expired). Reactivate it, wait a minute, then run the same command again: applied stages are skipped.
 - **The tag check still lists resources.** They were created outside the workshop, or a step was skipped. Find each row in
   the portal before you delete it by hand.
 
