@@ -6,14 +6,15 @@
 # No subscription key is required or issued: Microsoft Entra tokens and app roles are the only access mechanism.
 
 locals {
-  gateway_policy_dir  = "${path.module}/../../modules/04-governed-gateway/policies"
-  gateway_url         = "https://${local.names.api_management}.azure-api.net"
-  gateway_mcp_url     = "${local.gateway_url}/${var.gateway_mcp_path}/mcp"
-  gateway_prm_url     = "${local.gateway_url}/.well-known/oauth-protected-resource/${var.gateway_mcp_path}/mcp"
-  gateway_api_name    = "workshop-mcp"
-  gateway_prm_api     = "workshop-mcp-prm"
-  gateway_ip_ranges   = [for range in var.gateway_allowed_ip_ranges : { from = cidrhost(range, 0), to = cidrhost(range, -1) }]
-  gateway_backend_url = local.mcp_enabled ? "https://${azurerm_function_app_flex_consumption.mcp[0].default_hostname}/runtime/webhooks" : null
+  gateway_policy_dir   = "${path.module}/../../modules/04-governed-gateway/policies"
+  gateway_url          = "https://${local.names.api_management}.azure-api.net"
+  gateway_mcp_url      = "${local.gateway_url}/${var.gateway_mcp_path}/mcp"
+  gateway_prm_url      = "${local.gateway_url}/.well-known/oauth-protected-resource/${var.gateway_mcp_path}/mcp"
+  gateway_api_name     = "workshop-mcp"
+  gateway_backend_name = "workshop-mcp-function"
+  gateway_prm_api      = "workshop-mcp-prm"
+  gateway_ip_ranges    = [for range in var.gateway_allowed_ip_ranges : { from = cidrhost(range, 0), to = cidrhost(range, -1) }]
+  gateway_backend_url  = local.mcp_enabled ? "https://${azurerm_function_app_flex_consumption.mcp[0].default_hostname}/runtime/webhooks" : null
 
   # Rendered here so the mock tests can assert the exact policy that would be deployed.
   gateway_mcp_policy = local.gateway_enabled ? templatefile("${local.gateway_policy_dir}/mcp-server.xml", {
@@ -24,6 +25,10 @@ locals {
     rate_limit_period     = var.gateway_rate_limit_period
     ip_ranges             = local.gateway_ip_ranges
     resource_metadata_url = local.gateway_prm_url
+    mcp_path              = var.gateway_mcp_path
+    resource              = local.gateway_mcp_url
+    issuer                = local.mcp_auth_issuer
+    scope                 = local.mcp_auth_scope
   }) : null
   gateway_prm_policy = local.gateway_enabled ? templatefile("${local.gateway_policy_dir}/protected-resource-metadata.xml", {
     resource = local.gateway_mcp_url
@@ -99,6 +104,25 @@ resource "azurerm_api_management_logger" "gateway" {
   depends_on = [azurerm_role_assignment.gateway_telemetry]
 }
 
+# The Function as an API Management backend. The MCP server below references it with backendId: without a backend,
+# the service treats the API as a REST-backed MCP server and answers tools/list itself with an empty list
+# (verified live 2026-10-19). Preview API version.
+resource "azapi_resource" "mcp_backend" {
+  count                     = local.gateway_enabled ? 1 : 0
+  type                      = "Microsoft.ApiManagement/service/backends@2025-09-01-preview" # Preview
+  name                      = local.gateway_backend_name
+  parent_id                 = azurerm_api_management.gateway[0].id
+  schema_validation_enabled = false
+
+  body = {
+    properties = {
+      description = "Workshop MCP server on Azure Functions (private endpoint)."
+      url         = local.gateway_backend_url
+      protocol    = "http"
+    }
+  }
+}
+
 # The MCP server: a passthrough to the Function's Streamable HTTP endpoint (/runtime/webhooks/mcp). Preview API version.
 resource "azapi_resource" "mcp_api" {
   count     = local.gateway_enabled ? 1 : 0
@@ -116,7 +140,8 @@ resource "azapi_resource" "mcp_api" {
       path                 = var.gateway_mcp_path
       protocols            = ["https"]
       serviceUrl           = local.gateway_backend_url
-      subscriptionRequired = false # access is decided by Entra tokens and app roles, never by subscription keys
+      backendId            = azapi_resource.mcp_backend[0].name # makes this a passthrough to the Function
+      subscriptionRequired = false                              # access is decided by Entra tokens and app roles, never by subscription keys
       mcpProperties = {
         transportType = "streamable"
         # The 2025-09-01-preview service expects a map keyed by endpoint name. The published REST reference and

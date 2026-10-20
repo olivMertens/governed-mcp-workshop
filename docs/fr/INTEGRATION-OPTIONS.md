@@ -88,7 +88,7 @@ même.
 Solution de repli si la démo en direct ne peut pas tourner : ces captures réelles viennent du même déploiement
 (2026-10-19, tenant de test de l'auteur ; noms pseudonymisés, ID remplacés par des zéros).
 
-![Capture réelle : liste MCP Servers d'API Management avec contoso-tickets-mcp, construit à partir de l'API REST, et le serveur existant workshop-mcp](../../assets/screenshots/azure-04-mcp-servers.png)
+![Capture réelle : liste MCP Servers d'API Management ; le cadre 1 marque workshop-mcp avec la source MCP server (relais vers la Function), le cadre 2 contoso-tickets-mcp avec la source API (construit à partir de l'API REST)](../../assets/screenshots/azure-04-mcp-servers.png)
 
 ![Capture réelle : page Tools du serveur MCP, avec les deux opérations REST sélectionnées comme outils](../../assets/screenshots/azure-04b-mcp-tools.png)
 

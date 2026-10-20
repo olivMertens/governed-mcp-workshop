@@ -153,7 +153,7 @@ if (Test-Path -LiteralPath $Module04VarFile -PathType Leaf) {
 
 # Phase 2: delete module 04 resources only (the module 02 app_settings diff is a known in-place update, not work).
 $gatewayDeletes = @(
-    'azapi_resource.mcp_api_diagnostic', 'azapi_resource.mcp_api_policy', 'azapi_resource.mcp_api', 'azapi_resource.prm_operation_policy',
+    'azapi_resource.mcp_api_diagnostic', 'azapi_resource.mcp_api_policy', 'azapi_resource.mcp_api', 'azapi_resource.mcp_backend', 'azapi_resource.prm_operation_policy',
     'azapi_resource.prm_operation', 'azapi_resource.prm_api', 'azurerm_api_management_diagnostic.gateway', 'azurerm_api_management_logger.gateway',
     'azurerm_api_management.gateway', 'azurerm_role_assignment.gateway_telemetry', 'azurerm_user_assigned_identity.gateway',
     'azurerm_private_endpoint.function', 'azurerm_private_dns_zone_virtual_network_link.functions', 'azurerm_private_dns_zone.functions',

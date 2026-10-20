@@ -13,12 +13,12 @@ function bundle(t) {
     const directory = mkdtempSync(join(tmpdir(), "workshop-public-portal-"));
     t.after(() => rmSync(directory, { recursive: true, force: true }));
     const destination = join(directory, "bundle");
-    assert.equal(buildPortal(root, destination).files, 81);
+    assert.equal(buildPortal(root, destination).files, 83);
     return destination;
 }
 test("public hosting verifies exact assets and refuses tampering, private extras or a changed server", (t) => {
     const directory = bundle(t);
-    assert.equal(verifyPortal(directory).size, 79);
+    assert.equal(verifyPortal(directory).size, 81);
     const server = readFileSync(join(directory, "server.mjs"));
     writeFileSync(join(directory, "server.mjs"), "throw new Error('not the reviewed server');");
     assert.throws(() => verifyPortal(directory), /reviewed runtime/);
