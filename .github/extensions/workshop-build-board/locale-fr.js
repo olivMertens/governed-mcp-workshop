@@ -121,7 +121,7 @@ const french = {
   "Follow the guide": "Suivez le guide",
   "Check your work": "Vérifiez votre travail",
   "Go further": "Pour aller plus loin",
-  "steps, one at a time": "étapes, une à la fois",
+  "steps": "étapes",
   "Run the validator: PASS or FAIL": "Lancez le script : PASS ou FAIL",
   "Review your Azure context": "Relisez votre contexte Azure",
   "question, answer hidden": "question, réponse masquée",
