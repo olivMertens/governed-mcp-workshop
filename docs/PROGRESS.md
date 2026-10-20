@@ -19,6 +19,20 @@ or in an approved author-owned non-production tenant.
 | 07 | Optional: other clients | validated | 2026-10-20 | Offline validator 14/14 PASS in a fresh clone (PR #13, merged `6eb049c`). Bash syntax check passed. | Part A run live 2026-10-20: Foundry project (azd starter, 3 min 21 s), dedicated client app, OAuth identity passthrough (Preview). Findings: the secretless public client failed at the credential manager's code redemption (Entra sign-in succeeded), so a one-day secret is handed to the connection via ARM without printing (rule 5 updated); Foundry calls `server/discover` (MCP 2026-07-28) first, now allowed with Tools.Read; Foundry Agent Consumer returned 403 for direct project calls, Foundry User worked; a consent link opened by another user binds that user's token. Live PASS: Alice tools/list 5 tools, approval, get_service_health healthy; Bob's approved create_ticket refused by the gateway (HTTP 403). Copilot Studio stays an outline. Clean-up script with guarded Terraform phases; module 99 runs it first. |
 | 99 | Clean up | validated | 2026-10-20 | Offline validator passes in a fresh clone at `4c8cece`: `validate.ps1 -Offline` RESULT PASS (0 failures); `validate.sh --offline` 11 PASS, exit 0 (PR #15). | Report-mode `cleanup.ps1` is not verified in a clean clone: it needs attendee state (`.workshop/participant.tfvars.json` and the module 02/03 opt-in files). Run it on a real attendee machine before validating. Open decision: skip or fail clearly when that state is absent. Live `-Apply` 2026-10-20 on modules 02 to 07 (part B included): every stage PASS in order (07, 05 workload and Entra, 04 phases 0-2, 03 workload and Entra, 02); test users kept; only the presenter portal remains. Findings fixed: applied stages now archive their var files to `.workshop/applied/` (a rerun replanned removed modules); module 05 passes the part B file; the portal's WORKSHOP_MCP_* hint refresh is accepted; an expired PIM role gave `Authorization_RequestDenied` (documented). Manual leftovers documented: policy-created NSGs, Smart Detection action group, Foundry agent identity blueprint (now deleted by module 07). |
 
+## Root README refresh (2026-10-20)
+
+Replaced the root README's duplicated setup instructions, obsolete workspace screenshots and
+presenter-first entry with the public GitHub Pages links and participant startup steps.
+The module table links all 34 current EN/FR guides across both tracks, with module 01 shared.
+Removed blanket "Fully tested in Azure" labels and the unimplemented Agent 365 demo from the overview.
+The README now distinguishes recorded live evidence from validation of the current guides,
+Foundry captures from the reading-only Copilot Studio outline, and documentation hosting from workload deployment.
+It also explains optional workspaces, animation coverage, costs and track-specific cleanup.
+
+Offline validation: `PASS 26/26 site and track tests`, including a new root README regression
+for every guide link, existing local link targets, public EN/FR URLs and validation caveats.
+No Azure or Microsoft Entra access, resource change or module-status change.
+
 ## Shorter reader counter and module 07 capture check (2026-10-20)
 
 The "Follow the guide" card now shows only the step count: "19 steps" / "19 étapes".
