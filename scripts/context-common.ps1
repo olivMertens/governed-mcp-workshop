@@ -3,7 +3,8 @@
 # A clean-up plan may also restore the optional presenter portal to its reviewed tier when something outside Terraform
 # downgraded it (for example a tenant automation that switches App Service plans to F1 at night). Only two exact
 # changes qualify: the portal plan's sku_name, and the portal app's site_config.always_on (F1 cannot keep it on).
-# Every other attribute must be identical, so a clean-up can never hide a real portal change.
+# A clean-up may also refresh the portal's non-secret WORKSHOP_MCP_* hints (endpoint, scope) when the module it points
+# to is removed. Every other attribute must be identical, so a clean-up can never hide a real portal change.
 function Test-WorkshopPortalTierRestore {
     param([Parameter(Mandatory)]$Change)
     try { return Test-WorkshopPortalTierRestoreCore $Change } catch { return $false }
@@ -24,6 +25,16 @@ function Test-WorkshopPortalTierRestoreCore {
     if ($address -eq 'azurerm_linux_web_app.portal') {
         $changed = $false
         foreach ($key in $keys) {
+            if ($key -eq 'app_settings') {
+                $bs = $before.app_settings; $as = $after.app_settings
+                if ($bs -isnot [System.Collections.IDictionary] -or $as -isnot [System.Collections.IDictionary]) { if ((& $json $bs) -ne (& $json $as)) { return $false }; continue }
+                foreach ($name in @(@($bs.Keys) + @($as.Keys) | Sort-Object -Unique)) {
+                    if ((& $json $bs[$name]) -eq (& $json $as[$name])) { continue }
+                    if ($name -notlike 'WORKSHOP_MCP_*') { return $false }
+                    $changed = $true
+                }
+                continue
+            }
             if ($key -ne 'site_config') { if ((& $json $before[$key]) -ne (& $json $after[$key])) { return $false }; continue }
             $b = @($before.site_config)[0]; $a = @($after.site_config)[0]
             if ($b -isnot [System.Collections.IDictionary] -or $a -isnot [System.Collections.IDictionary]) { return $false }
@@ -51,7 +62,7 @@ function Get-WorkshopPortalAttributeJson {
 function Write-WorkshopPortalTierNotes {
     param([object[]]$Changes)
     foreach ($change in @($Changes | Where-Object { Test-WorkshopPortalTierRestore $_ })) {
-        Write-Output "NOTE plan also restores $($change.address) to its reviewed tier (changed outside Terraform, for example F1 at night). Not a module change; the portal is kept."
+        Write-Output "NOTE plan also restores $($change.address) to its reviewed tier or refreshes its WORKSHOP_MCP_* hints. Not a module change; the portal is kept."
     }
 }
 

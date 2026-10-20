@@ -11,7 +11,7 @@ Bien nettoyer fait partie de la leçon : chaque contrôle ajouté doit être ret
 
 ## Ce que vous déployez
 
-Rien. Ce module exécute les scripts de nettoyage des modules 02 à 05 dans l'ordre inverse :
+Rien. Ce module exécute les scripts de nettoyage des modules 02 à 07 dans l'ordre inverse :
 
 > [!CAUTION]
 > Supprimez uniquement les ressources et identités créées pour l'atelier.
@@ -56,6 +56,7 @@ flowchart LR
 
 | Ordre | Nettoyage | Ce qui est retiré |
 |---|---|---|
+| 0 | Module 07 | Projet Foundry, application cliente et son secret de courte durée, blueprint d'identité d'agent, client autorisé |
 | 1 | Module 05, `-Scope Workload` | Paramètres du workload délégué et app-only |
 | 2 | Module 05, `-Scope Entra` | Identifiant fédéré, demandes d'autorisations et consentements |
 | 3 | Module 04 | Passerelle, stratégies et chemin de la Function verrouillé |
@@ -141,6 +142,38 @@ pwsh ./modules/99-cleanup/cleanup.ps1 -TenantId $env:ARM_TENANT_ID -Subscription
 >
 > Après accord, `-Apply` se termine par `DONE module clean-ups applied. Next: delete test users and role assignments, then
 > run the tag check in README.md.`
+
+> **Résultat réel** — `-Apply`, 2026-10-20, tenant de test de l'auteur avec les modules 02 à 07 déployés (partie B
+> comprise). Extrait ; `...` masque les lignes similaires. Noms et ID masqués.
+>
+> ```text
+> --> 07-clients
+> PASS Foundry resource group deleted and accounts purged (expected HTTP 200 from Azure Resource Manager).
+> DONE module 07 part A removed. Private module 07 files deleted.
+> --> 05-delegated-and-app-only -Scope Workload
+> PASS 'remove module 05 workload resources' applied (expected HTTP 200).
+> --> 05-delegated-and-app-only -Scope Entra
+> PASS 'remove module 05 Entra delegation' applied (expected HTTP 200).
+> --> 04-governed-gateway
+> PASS 'phase 0: remove optional part B (REST API exposed as MCP)' applied (expected HTTP 200).
+> PASS 'phase 1: reopen the Function behind Entra (stage 2 to stage 1)' applied (expected HTTP 200).
+> PASS 'phase 2: remove the governed gateway' applied (expected HTTP 200).
+> --> 03-entra-authentication -Scope Workload
+> PASS 'phase 2: remove built-in authentication' applied (expected HTTP 200).
+> INFO archived .workshop/module03.tfvars.json to .workshop/applied/ (stage applied).
+> --> 03-entra-authentication -Scope Entra
+> PASS provided applications and existing test users were not touched. Deleted registrations stay restorable for 30 days in Microsoft Entra.
+> --> 02-open-server
+> PASS module 02 resources deleted; the system key was deleted with the Function App (expected HTTP 200 from Azure Resource Manager).
+> INFO archived .workshop/module02.tfvars.json to .workshop/applied/ (stage applied).
+> DONE module clean-ups applied. Next: delete test users and role assignments, then run the tag check in README.md.
+> ```
+>
+> **Ce que cela signifie pour vous :** chaque étape n'a supprimé que ses propres objets, dans l'ordre. Après chaque étape
+> appliquée, son fichier privé d'activation part dans `.workshop/applied/` : une deuxième exécution ne prévoit donc jamais
+> de recréer ce qui vient d'être supprimé. La première exécution de l'auteur s'est arrêtée à `05 -Scope Entra` avec
+> `Authorization_RequestDenied` : le rôle temporaire de l'administrateur des identités avait expiré. Après sa réactivation,
+> la même commande a repris là où elle s'était arrêtée.
 ### Bash
 
 ```bash
@@ -158,16 +191,35 @@ pwsh ./modules/99-cleanup/cleanup.ps1 -TenantId $env:ARM_TENANT_ID -Subscription
 1. Supprimez les utilisateurs de test de l'atelier (Alice, Bob, Eve) si vous les avez créés.
 2. Retirez les attributions de rôle ajoutées à la main pour l'atelier.
 3. Si un présentateur a publié le portail facultatif, le script le conserve volontairement. Retirez-le seulement à la fin de l'atelier, avec la procédure validée de [docs/fr/HOSTING.md](../../docs/fr/HOSTING.md).
-4. Lancez la vérification des tags ci-dessous.
+4. Supprimez ce qu'Azure a créé en dehors de Terraform, s'il existe : les groupes de sécurité réseau qu'une stratégie du
+   tenant ajoute à chaque sous-réseau (`<vnet>-snet-...-nsg-<region>`) et le groupe d'actions **Application Insights Smart
+   Detection** (commandes ci-dessous).
+5. Lancez la vérification des tags ci-dessous.
+
+```powershell
+$p = Get-Content -LiteralPath ./.workshop/participant.tfvars.json -Raw | ConvertFrom-Json
+$group = "rg-mcp-$($p.participant_prefix)-$($p.resource_suffix)"
+az network nsg list -g $group --query "[?contains(name, '-snet-')].name" -o tsv | ForEach-Object { az network nsg delete -g $group -n $_ }
+az monitor action-group list -g $group --query "[?name=='Application Insights Smart Detection'].id" -o tsv | ForEach-Object { az monitor action-group delete --ids $_ }
+```
+
+> **Résultat réel** — 2026-10-20 : deux NSG et un groupe d'actions supprimés ; aucune sortie en cas de réussite.
 
 ```powershell
 $p = Get-Content -LiteralPath ./.workshop/participant.tfvars.json -Raw | ConvertFrom-Json
 az resource list --tag "workshop=mcp-$($p.participant_prefix)-$($p.resource_suffix)" --query "[].{name:name, type:type}" -o table
 ```
 
-> **Résultat attendu** — établi d'après le format tableau d'Azure CLI ; ce n'est pas une capture faite après un nettoyage complet.
-> Après un nettoyage complet, la commande n'affiche rien (un résultat vide ne produit pas de tableau).
-> Avant le nettoyage, elle affiche une ligne par ressource de l'atelier, par exemple `func-mcp-p01-<suffix>` ou `stp01<suffix>`.
+> **Résultat réel** — 2026-10-20, après le nettoyage complet, avec le portail facultatif du présentateur conservé volontairement.
+>
+> ```text
+> Name
+> ---------------------------------------
+> plan-mcp-p01-<suffix>-portal
+> web-mcp-p01-<suffix>-portal
+> ```
+>
+> Sans portail, la commande n'affiche rien (un résultat vide ne produit pas de tableau).
 >
 > **Ce que cela signifie pour vous :** une sortie vide prouve qu'il ne reste aucune ressource portant le tag de l'atelier. Chaque ligne affichée est une ressource oubliée.
 
@@ -260,6 +312,9 @@ ne peut pas effacer des ressources que vous n'avez pas relues.
   relancez le script. Grâce à leurs garde-fous, les étapes déjà appliquées ne refont rien.
 - **Un plan contient une modification inattendue.** Ne l'appliquez pas. Le garde-fou interrompt le script si une modification sort de la
   liste autorisée, et rien n'est appliqué. Adressez-vous au formateur.
+- **`Authorization_RequestDenied` dans une étape Entra.** Le rôle de l'administrateur des identités n'est pas actif (par
+  exemple un rôle PIM temporaire a expiré). Réactivez-le, attendez une minute, puis relancez la même commande : les étapes
+  déjà appliquées sont ignorées.
 - **La vérification des tags affiche encore des ressources.** Soit elles ont été créées en dehors de l'atelier, soit vous avez sauté une étape.
   Identifiez chaque ressource dans le portail avant de la supprimer à la main.
 

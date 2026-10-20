@@ -34,7 +34,7 @@ The optional container/Codespaces route remains unverified.
 Module 02's [guide](../modules/02-open-server/README.md) is validated live (2026-10-16).
 Module 03's [guide](../modules/03-entra-authentication/README.md), module 04's [guide](../modules/04-governed-gateway/README.md),
 module 05's [guide](../modules/05-delegated-and-app-only/README.md) and module 06's [guide](../modules/06-observe-inventory/README.md)
-pass their live operator checks; their persona checks are still pending. Module 07's [guide](../modules/07-clients/README.md) passes offline checks only.
+pass their live operator checks; their persona checks are still pending. Module 07's [guide](../modules/07-clients/README.md): part A (Foundry, Preview) is validated live (2026-10-20); part B (Copilot Studio) is an outline.
 Every validator prints a purpose line, numbered `== Step N ==` headers with a `Why:` line, then one `PASS`/`FAIL` line per check
 with the expected HTTP status. Modules 02, 03, 04, 05 and 06 show real annotated captures (names pseudonymised, IDs zeroed). Module 99's [cleanup guide](../modules/99-cleanup/README.md) is authored; its report mode has not been run against a live state. Cloud validation and exact deployment approvals are not waived.
 
