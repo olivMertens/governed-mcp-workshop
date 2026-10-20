@@ -3,7 +3,7 @@
 [English](../facilitator-guide.md)
 
 Ce guide vous aide à préparer l'atelier principal, qui dure 4 heures. Les modules 00 et 02 à 06 sont validés en conditions réelles,
-avec les vérifications d'Alice, Bob et Eve. Les modules 01, 07 et 99 sont rédigés (contrôles hors ligne réussis).
+avec les vérifications d'Alice, Bob et Eve. Les modules 07 (Foundry, préversion) et 99 sont validés en conditions réelles (2026-10-20) ; le module 01 est rédigé (contrôles hors ligne réussis).
 Les horaires décrivent le parcours prévu ; ils ne prouvent pas que les modules sont validés.
 
 ## Avant l'arrivée des participants - 30 minutes
