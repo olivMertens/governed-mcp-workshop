@@ -1579,7 +1579,7 @@
         if (language === "fr") content.prepend(notice("Note", "Original repository decisions and evidence remain in English."));
       } else if (Object.hasOwn(state.documents, documentKey)) {
         const doc = state.documents[documentKey];
-        const guided = ["deployment", "presenter", "integration", "mcpServer", "hosting", "gettingStarted", "concepts", "governance"].includes(documentKey);
+        const guided = ["deployment", "presenter", "integration", "mcpServer", "tracks", "hosting", "gettingStarted", "concepts", "governance"].includes(documentKey);
         const body = guided ? guidedDocument(doc.content, doc.sourcePath, deep ? Number(deep[2]) : null) : markdown(doc.content, doc.sourcePath);
         if (language === "fr" && route.startsWith("#/original")) body.lang = "en";
         content.append(element("h1", doc.title), body);
@@ -1635,6 +1635,7 @@
       for (const [group, nav, title, icon, entries] of [
         ["resource-group", "resource-nav", "Resources", "book", [
           ["practice", "Try your MCP", "terminal"],
+          ...(state?.documents.tracks ? [["tracks", "Choose your track", "layers"]] : []),
           ...(state?.documents.mcpServer ? [["mcpServer", "The MCP server and its answers", "layers"]] : []),
           ["deployment", "Your Azure context", "shield"],
           ["governance", "Understand governance", "important"], ["architecture", "Architecture, step by step", "layers"],
