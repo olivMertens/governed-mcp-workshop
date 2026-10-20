@@ -119,11 +119,11 @@ pwsh ./modules/06-observe-inventory/validate.ps1 -Offline
 > PASS Steps give PowerShell before bash (offline)
 > PASS Preview label on API Center, BYO and Agent 365 (offline)
 > PASS KQL selects no body, argument, result or token fields (offline)
-> PASS KQL filters on api.type Mcp (offline)
+> PASS KQL filters on api.type Mcp, pass-through-mcp and mcp-backend (offline)
 > PASS README does not instruct enabling payload logging (offline)
 > PASS no secrets or tokens in module files (offline)
 > PASS only placeholder GUIDs in module files (offline)
-> PASS PROGRESS row 06 is not claimed as validated before live run (offline)
+> PASS PROGRESS row 06 claims validated only with a date and a live run (offline)
 > PASS docs/sources.md has module 06 entries with last-verified dates (offline)
 > PASS no infra folder (no Azure resources added) (offline)
 > PASS README states the log rules (offline)
@@ -158,8 +158,9 @@ La requête exacte, prête à coller :
 requests
 | where timestamp > ago(24h)
 | extend apiType = tostring(customDimensions['api.type'])
-// Microsoft Learn lists 'Mcp'; a passthrough MCP server (this workshop) logs 'mcp-backend' (verified 2026-10-18).
-| where apiType in ('Mcp', 'mcp-backend')
+// Microsoft Learn lists 'Mcp'. Verified live 2026-10-20: an existing MCP server behind a backend (part A, passthrough)
+// logs 'pass-through-mcp'; a REST API exposed as an MCP server (part B) logs 'mcp-backend'.
+| where apiType in ('Mcp', 'pass-through-mcp', 'mcp-backend')
 | extend
     operation = tostring(customDimensions['gen_ai.operation.name']),
     toolName  = tostring(customDimensions['gen_ai.tool.name']),
@@ -214,17 +215,26 @@ az monitor app-insights query --app $ai --resource-group $group --offset 24h `
 > ]
 > ```
 >
-> **Résultat attendu** — quand les personas (Alice et Bob) appellent des outils via la passerelle du module 04 ; pas encore capturé. Valeurs fictives ; les colonnes suivent la requête : timestamp, operation, toolName, resultCode, success, duration, errorType, clientApp.
+> **Résultat réel** — trafic des personas des modules 04 et 05 (Alice et Bob), 2026-10-20, tenant de test de l'auteur.
+> 6 lignes sur 134 ; les colonnes suivent la requête : timestamp, operation, toolName, resultCode, success, duration (ms), errorType, clientApp.
 >
 > ```text
 > [
->   [ "<timestamp>", "tools/call", "whoami", "200", true, <ms>, "", "<client-app>" ],
->   [ "<timestamp>", "tools/list", "", "200", true, <ms>, "", "<client-app>" ],
->   [ "<timestamp>", "tools/call", "create_ticket", "403", false, <ms>, "<error-type>", "<client-app>" ]
+>   [ "2026-10-20T05:20:15.1801351Z", "tools/call", "create_ticket", "200", "True", 597.982, "", "" ],
+>   [ "2026-10-20T05:31:02.2715503Z", "tools/call", "create_ticket", "403", "False", 3.6035, "", "" ],
+>   [ "2026-10-20T06:20:18.3449395Z", "tools/call", "whoami", "200", "True", 1169.1348, "", "" ],
+>   [ "2026-10-20T06:20:19.856923Z", "tools/call", "read_report_as_user", "200", "True", 337.9462, "", "" ],
+>   [ "2026-10-20T05:31:21.3260289Z", "ping", "", "429", "False", 1.8206, "", "" ],
+>   [ "2026-10-20T05:38:27.8248234Z", "tools/call", "list_tickets", "200", "True", 10.8423, "", "" ]
 > ]
 > ```
 >
-> **Ce que cela signifie pour vous :** chaque ligne ne contient que des métadonnées : aucun corps, jeton, prompt, argument ou résultat. Les deux lignes réelles sont les appels `initialize` du validateur du module 04, refusés par la passerelle avec HTTP 401 : elles n'ont donc pas de nom d'outil. Elles apparaissent parce que la requête retient `api.type` `Mcp` ou `mcp-backend` : Microsoft Learn cite `Mcp`, mais un serveur MCP en passthrough comme celui de l'atelier journalise `mcp-backend`. Une liste vide est possible s'il n'y a pas eu de trafic MCP au cours des dernières 24 heures ou si l'ingestion est encore en retard ; elle ne prouve ni réussite ni absence d'activité.
+> **Ce que cela signifie pour vous :** chaque ligne ne contient que des métadonnées : aucun corps, jeton, prompt, argument
+> ou résultat. Le `create_ticket` d'Alice a pris environ 600 ms, car la Function l'a exécuté ; celui de Bob 3,6 ms et le
+> `ping` limité 1,8 ms : la passerelle les a refusés (HTTP 403 et 429) sans appeler la Function. La requête garde trois
+> valeurs d'`api.type` : Microsoft Learn cite `Mcp` ; le serveur existant de l'atelier (partie A) journalise `pass-through-mcp`,
+> et l'API REST exposée en MCP (partie B) journalise `mcp-backend`. Une liste vide est possible s'il n'y a pas eu de trafic
+> MCP au cours des dernières 24 heures ou si l'ingestion est encore en retard ; elle ne prouve ni réussite ni absence d'activité.
 
 La même requête dans le portail : composant Application Insights → **Logs**, passez en **KQL mode**, collez la requête,
 puis **Run** (capture réelle, 2026-10-19, tenant de test de l'auteur ; noms pseudonymisés ; portail en anglais). Le
@@ -255,7 +265,7 @@ Azure Copilot : passez cette étape, le module n'en dépend pas.
 2. Saisissez cette question (en anglais, comme le portail) :
 
    ```prompt
-   Show MCP requests from the last 7 days where customDimensions api.type is Mcp or mcp-backend: timestamp, operation (gen_ai.operation.name), resultCode, success, duration and client (user_agent.name). Metadata only, no request or response bodies.
+   Show MCP requests from the last 7 days where customDimensions api.type is Mcp, pass-through-mcp or mcp-backend: timestamp, operation (gen_ai.operation.name), resultCode, success, duration and client (user_agent.name). Metadata only, no request or response bodies.
    ```
 
 3. Dépliez **Reasoned for ...** pour voir la requête exécutée par l'agent. Comparez-la avec `queries/mcp-traffic.kql`.
@@ -270,7 +280,7 @@ Azure Copilot : passez cette étape, le module n'en dépend pas.
 
 ![Capture réelle : chat de l'Observability Agent dans Logs, avec la question et les deux lignes de métadonnées renvoyées](../../assets/screenshots/azure-06-observability-agent-answer.png)
 
-La requête générée par l'agent (encadrée) utilise le même filtre `api.type` que le fichier de l'atelier :
+La requête générée par l'agent (encadrée) utilise le filtre `api.type` de la question du 2026-10-19, avant l'ajout de `pass-through-mcp` :
 
 ![Capture réelle : requête KQL générée par l'Observability Agent, filtre api.type sur Mcp et mcp-backend](../../assets/screenshots/azure-06-observability-agent-query.png)
 
@@ -362,7 +372,7 @@ Contrôle : l'entrée affiche le nom du serveur et un état d'approbation. Cet �
 
 ## Ce que vous devriez voir
 
-- Si du trafic MCP a été ingéré, la requête KQL renvoie les lignes disponibles avec `api.type` égal à `Mcp` ou `mcp-backend`, pour `initialize`, `tools/list` et `tools/call`. Ce n'est pas un audit exhaustif.
+- Si du trafic MCP a été ingéré, la requête KQL renvoie les lignes disponibles avec `api.type` égal à `Mcp`, `pass-through-mcp` ou `mcp-backend`, pour `initialize`, `tools/list` et `tools/call`. Ce n'est pas un audit exhaustif.
 - Les colonnes contiennent des noms d'outils et des codes de statut, mais aucun corps de requête, corps de réponse, jeton, prompt ou argument d'outil.
 - L'asset API Center existe, avec une URL d'exécution et un environnement.
 - Le validateur hors ligne affiche une ligne `PASS` par vérification et se termine avec le code de sortie 0.
@@ -390,11 +400,11 @@ pwsh ./modules/06-observe-inventory/validate.ps1 -Offline
 > PASS Steps give PowerShell before bash (offline)
 > PASS Preview label on API Center, BYO and Agent 365 (offline)
 > PASS KQL selects no body, argument, result or token fields (offline)
-> PASS KQL filters on api.type Mcp (offline)
+> PASS KQL filters on api.type Mcp, pass-through-mcp and mcp-backend (offline)
 > PASS README does not instruct enabling payload logging (offline)
 > PASS no secrets or tokens in module files (offline)
 > PASS only placeholder GUIDs in module files (offline)
-> PASS PROGRESS row 06 is not claimed as validated before live run (offline)
+> PASS PROGRESS row 06 claims validated only with a date and a live run (offline)
 > PASS docs/sources.md has module 06 entries with last-verified dates (offline)
 > PASS no infra folder (no Azure resources added) (offline)
 > PASS README states the log rules (offline)

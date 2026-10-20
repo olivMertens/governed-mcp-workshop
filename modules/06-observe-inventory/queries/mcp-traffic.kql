@@ -5,8 +5,9 @@
 requests
 | where timestamp > ago(24h)
 | extend apiType = tostring(customDimensions['api.type'])
-// Microsoft Learn lists 'Mcp'; a passthrough MCP server (this workshop) logs 'mcp-backend' (verified 2026-10-18).
-| where apiType in ('Mcp', 'mcp-backend')
+// Microsoft Learn lists 'Mcp'. Verified live 2026-10-20: an existing MCP server behind a backend (part A, passthrough)
+// logs 'pass-through-mcp'; a REST API exposed as an MCP server (part B) logs 'mcp-backend'.
+| where apiType in ('Mcp', 'pass-through-mcp', 'mcp-backend')
 | extend
     operation = tostring(customDimensions['gen_ai.operation.name']),
     toolName  = tostring(customDimensions['gen_ai.tool.name']),

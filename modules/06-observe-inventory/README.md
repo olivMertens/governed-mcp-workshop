@@ -117,11 +117,11 @@ pwsh ./modules/06-observe-inventory/validate.ps1 -Offline
 > PASS Steps give PowerShell before bash (offline)
 > PASS Preview label on API Center, BYO and Agent 365 (offline)
 > PASS KQL selects no body, argument, result or token fields (offline)
-> PASS KQL filters on api.type Mcp (offline)
+> PASS KQL filters on api.type Mcp, pass-through-mcp and mcp-backend (offline)
 > PASS README does not instruct enabling payload logging (offline)
 > PASS no secrets or tokens in module files (offline)
 > PASS only placeholder GUIDs in module files (offline)
-> PASS PROGRESS row 06 is not claimed as validated before live run (offline)
+> PASS PROGRESS row 06 claims validated only with a date and a live run (offline)
 > PASS docs/sources.md has module 06 entries with last-verified dates (offline)
 > PASS no infra folder (no Azure resources added) (offline)
 > PASS README states the log rules (offline)
@@ -156,8 +156,9 @@ The exact query, ready to paste:
 requests
 | where timestamp > ago(24h)
 | extend apiType = tostring(customDimensions['api.type'])
-// Microsoft Learn lists 'Mcp'; a passthrough MCP server (this workshop) logs 'mcp-backend' (verified 2026-10-18).
-| where apiType in ('Mcp', 'mcp-backend')
+// Microsoft Learn lists 'Mcp'. Verified live 2026-10-20: an existing MCP server behind a backend (part A, passthrough)
+// logs 'pass-through-mcp'; a REST API exposed as an MCP server (part B) logs 'mcp-backend'.
+| where apiType in ('Mcp', 'pass-through-mcp', 'mcp-backend')
 | extend
     operation = tostring(customDimensions['gen_ai.operation.name']),
     toolName  = tostring(customDimensions['gen_ai.tool.name']),
@@ -212,21 +213,26 @@ az monitor app-insights query --app $ai --resource-group $group --offset 24h `
 > ]
 > ```
 >
-> **Expected result** — with persona traffic (Alice and Bob calling tools) through the module 04 gateway; not captured yet. Values are placeholders; columns follow the query: timestamp, operation, toolName, resultCode, success, duration, errorType, clientApp.
+> **Real result** — persona traffic from modules 04 and 05 (Alice and Bob), 2026-10-20, author's test tenant. 6 of the
+> 134 rows; columns follow the query: timestamp, operation, toolName, resultCode, success, duration (ms), errorType, clientApp.
 >
 > ```text
 > [
->   [ "<timestamp>", "tools/call", "whoami", "200", true, <ms>, "", "<client-app>" ],
->   [ "<timestamp>", "tools/list", "", "200", true, <ms>, "", "<client-app>" ],
->   [ "<timestamp>", "tools/call", "create_ticket", "403", false, <ms>, "<error-type>", "<client-app>" ]
+>   [ "2026-10-20T05:20:15.1801351Z", "tools/call", "create_ticket", "200", "True", 597.982, "", "" ],
+>   [ "2026-10-20T05:31:02.2715503Z", "tools/call", "create_ticket", "403", "False", 3.6035, "", "" ],
+>   [ "2026-10-20T06:20:18.3449395Z", "tools/call", "whoami", "200", "True", 1169.1348, "", "" ],
+>   [ "2026-10-20T06:20:19.856923Z", "tools/call", "read_report_as_user", "200", "True", 337.9462, "", "" ],
+>   [ "2026-10-20T05:31:21.3260289Z", "ping", "", "429", "False", 1.8206, "", "" ],
+>   [ "2026-10-20T05:38:27.8248234Z", "tools/call", "list_tickets", "200", "True", 10.8423, "", "" ]
 > ]
 > ```
 >
-> **What it means for you:** each row is metadata only: no body, token, prompt, argument or result. The two real rows are
-> the module 04 validator's `initialize` calls that the gateway refused with HTTP 401, so there is no tool name. They match
-> because the query keeps `api.type` `Mcp` or `mcp-backend`: Microsoft Learn lists
-> `Mcp`, but a passthrough MCP server such as this workshop's logs `mcp-backend`. An empty list is possible when there was no
-> MCP traffic in the last 24 hours or ingestion is still delayed; it proves neither success nor absence of activity.
+> **What it means for you:** each row is metadata only: no body, token, prompt, argument or result. Alice's `create_ticket`
+> took about 600 ms because the Function ran it; Bob's took 3.6 ms and the throttled `ping` 1.8 ms: the gateway refused them
+> (HTTP 403 and 429) without calling the Function. The query keeps three `api.type` values: Microsoft Learn lists `Mcp`; this
+> workshop's existing server (part A) logs `pass-through-mcp`, and the REST API exposed as MCP (part B) logs `mcp-backend`.
+> An empty list is possible when there was no MCP traffic in the last 24 hours or ingestion is still delayed; it proves
+> neither success nor absence of activity.
 
 The same query in the portal: Application Insights component → **Logs**, switch to **KQL mode**, paste the query, then
 **Run** (real capture, 2026-10-19, author's test tenant; names pseudonymised). Frame 1 marks the filter that keeps only MCP
@@ -256,7 +262,7 @@ depend on it.
 2. Type this question:
 
    ```prompt
-   Show MCP requests from the last 7 days where customDimensions api.type is Mcp or mcp-backend: timestamp, operation (gen_ai.operation.name), resultCode, success, duration and client (user_agent.name). Metadata only, no request or response bodies.
+   Show MCP requests from the last 7 days where customDimensions api.type is Mcp, pass-through-mcp or mcp-backend: timestamp, operation (gen_ai.operation.name), resultCode, success, duration and client (user_agent.name). Metadata only, no request or response bodies.
    ```
 
 3. Expand **Reasoned for ...** to see the query the agent ran. Compare it with `queries/mcp-traffic.kql`.
@@ -270,7 +276,7 @@ depend on it.
 
 ![Real capture: Observability Agent chat in Logs, with the question and the two metadata-only rows it returned](../../assets/screenshots/azure-06-observability-agent-answer.png)
 
-The query the agent generated (framed) uses the same `api.type` filter as the workshop file:
+The query the agent generated (framed) uses the `api.type` filter of the 2026-10-19 prompt, before `pass-through-mcp` was added:
 
 ![Real capture: the KQL query generated by the Observability Agent, filtering api.type on Mcp and mcp-backend](../../assets/screenshots/azure-06-observability-agent-query.png)
 
@@ -360,7 +366,7 @@ Check: the listing shows the server name and an approval state. An approval stat
 
 ## What you should see
 
-- With ingested MCP traffic, the KQL query returns available rows with `api.type` equal to `Mcp` or `mcp-backend`, for `initialize`, `tools/list` and `tools/call`. It is not an exhaustive audit.
+- With ingested MCP traffic, the KQL query returns available rows with `api.type` equal to `Mcp`, `pass-through-mcp` or `mcp-backend`, for `initialize`, `tools/list` and `tools/call`. It is not an exhaustive audit.
 - Columns contain tool names and status codes, and no request body, response body, token, prompt or tool argument.
 - The API Center asset exists, with a remote URL and an environment.
 - The offline validator prints one `PASS` line per check and exits with code 0.
@@ -388,11 +394,11 @@ pwsh ./modules/06-observe-inventory/validate.ps1 -Offline
 > PASS Steps give PowerShell before bash (offline)
 > PASS Preview label on API Center, BYO and Agent 365 (offline)
 > PASS KQL selects no body, argument, result or token fields (offline)
-> PASS KQL filters on api.type Mcp (offline)
+> PASS KQL filters on api.type Mcp, pass-through-mcp and mcp-backend (offline)
 > PASS README does not instruct enabling payload logging (offline)
 > PASS no secrets or tokens in module files (offline)
 > PASS only placeholder GUIDs in module files (offline)
-> PASS PROGRESS row 06 is not claimed as validated before live run (offline)
+> PASS PROGRESS row 06 claims validated only with a date and a live run (offline)
 > PASS docs/sources.md has module 06 entries with last-verified dates (offline)
 > PASS no infra folder (no Azure resources added) (offline)
 > PASS README states the log rules (offline)

@@ -109,8 +109,8 @@ Module 02 deploys real Azure resources: start it only after module 00 validation
 | 02 | 🔑 Server protected by a key (level 0) | ✅ Required | 🟢 Fully tested in Azure (2026-10-16) | [Open](modules/02-open-server/README.md) · [FR](modules/02-open-server/README.fr.md) |
 | 03 | 🪪 Microsoft Entra identity (level 1) | ✅ Required | 🟢 Fully tested in Azure (2026-10-19): operator, Alice, Bob and Eve | [Open](modules/03-entra-authentication/README.md) · [FR](modules/03-entra-authentication/README.fr.md) |
 | 04 | 🚪 API Management as the only entry (level 2), optional part B: a REST API exposed as MCP | ✅ Required (part B optional) | 🟢 Fully tested in Azure (2026-10-20): operator, Alice, Bob and Eve; part B: Alice and Bob | [Open](modules/04-governed-gateway/README.md) · [FR](modules/04-governed-gateway/README.fr.md) |
-| 05 | 👤 On-Behalf-Of vs app-only (level 3) | ✅ Required | 🟡 Tested in Azure; test users Alice, Bob and Eve to do | [Open](modules/05-delegated-and-app-only/README.md) · [FR](modules/05-delegated-and-app-only/README.fr.md) |
-| 06 | 📊 Observe and inventory (level 4) | ✅ Required | 🟡 Tested in Azure; test users Alice, Bob and Eve to do | [Open](modules/06-observe-inventory/README.md) · [FR](modules/06-observe-inventory/README.fr.md) |
+| 05 | 👤 On-Behalf-Of vs app-only (level 3) | ✅ Required | 🟢 Fully tested in Azure (2026-10-20): operator, Alice and Bob | [Open](modules/05-delegated-and-app-only/README.md) · [FR](modules/05-delegated-and-app-only/README.fr.md) |
+| 06 | 📊 Observe and inventory (level 4) | ✅ Required | 🟢 Fully tested in Azure (2026-10-20): KQL on Alice and Bob traffic, API Center | [Open](modules/06-observe-inventory/README.md) · [FR](modules/06-observe-inventory/README.fr.md) |
 | 07 | 🤖 Other clients (Foundry, Copilot Studio) | ➕ Optional | ⚪ Written and checked offline; not yet tried in Azure | [Open](modules/07-clients/README.md) · [FR](modules/07-clients/README.fr.md) |
 | 99 | 🧹 Clean up | ♻️ As soon as you create resources | ⚪ Written and checked offline; not yet run in Azure (each module has its own tested cleanup) | [Open](modules/99-cleanup/README.md) · [FR](modules/99-cleanup/README.fr.md) |
 
