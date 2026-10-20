@@ -82,7 +82,7 @@ validator, and keep the real captures ready as a fallback. Delete API Management
 Fallback if the live demo cannot run: these real captures come from the same deployment (2026-10-19, author's test
 tenant; names pseudonymised, IDs replaced by zeros).
 
-![Real capture: API Management MCP Servers list with the REST-backed contoso-tickets-mcp and the existing workshop-mcp server](../assets/screenshots/azure-04-mcp-servers.png)
+![Real capture: API Management MCP Servers list; frame 1 marks workshop-mcp with Source MCP server (passthrough to the Function), frame 2 contoso-tickets-mcp with Source API (built from the REST API)](../assets/screenshots/azure-04-mcp-servers.png)
 
 ![Real capture: MCP server Tools blade with the two REST operations selected as tools](../assets/screenshots/azure-04b-mcp-tools.png)
 
