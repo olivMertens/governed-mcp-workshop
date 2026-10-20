@@ -100,6 +100,198 @@ Contributor on the group. **No Microsoft Entra change** in this module.
 
 ## Steps
 
+> [!TIP]
+> **Two tracks, same result.** Follow the same track as in modules 02 and 03 ([how to choose](../../docs/TRACKS.md)): the **low-code track** below, or the **full-code track** (sections PowerShell and Bash).
+
+### Low-code track (portal and simple commands)
+
+Standard v2 is billed per hour: build, check and clean up the same day. One terminal from L1 to the end.
+
+**L1. Names, the API client ID from module 03, and one helper.**
+
+```powershell
+$p = Get-Content .\.workshop\participant.tfvars.json -Raw | ConvertFrom-Json
+$id = "$($p.participant_prefix)lc"; $sfx = $p.resource_suffix.Substring(0, 10); $loc = 'westeurope'
+$rg = "rg-mcp-$id-$sfx"; $fn = "func-mcp-$id-$sfx"; $ai = "appi-mcp-$id-$sfx"; $law = "log-mcp-$id-$sfx"; $vn = "vnet-mcp-$id-$sfx"
+$apim = "apim-mcp-$id-$sfx"; $gwmi = "id-mcp-$id-$sfx-gateway"; $nsg = "nsg-mcp-$id-$sfx-apim"
+$tags = @('workshop=governed-mcp', "owner=$($p.owner)", "expiry=$($p.expiry)", 'track=low-code')
+$tenant = az account show --query tenantId -o tsv; $sub = az account show --query id -o tsv
+$apiClientId = az ad app list --display-name "Workshop MCP API ($id-$sfx)" --query "[0].appId" -o tsv
+$svcId = "/subscriptions/$sub/resourceGroups/$rg/providers/Microsoft.ApiManagement/service/$apim"
+# One helper for the API Management calls: it writes the reply to a file (API Management answers policies in XML).
+function Put([string]$Path, $Body) {
+    $f = New-TemporaryFile; [IO.File]::WriteAllText($f, ($Body | ConvertTo-Json -Depth 12 -Compress))
+    az rest --method put --url "https://management.azure.com$svcId/$Path`?api-version=2025-09-01-preview" --body "@$f" `
+        --headers 'Content-Type=application/json' --output-file "$f.reply" 2>&1 | Out-Null
+    $code = $LASTEXITCODE; Remove-Item $f, "$f.reply" -ErrorAction SilentlyContinue; if ($code) { throw "PUT $Path failed" }
+}
+```
+
+> **Expected result** — no output. `$apiClientId` holds a GUID: if it is empty, finish module 03 first.
+
+**L2. Network for the gateway, private endpoint for the Function, gateway identity.** Portal: virtual network → **Subnets** → **+ Subnet** `snet-apim` (delegated to *Microsoft.Web/serverFarms*, with an NSG allowing TCP 443 outbound to *AzureKeyVault*); Function App → **Networking** → **Private endpoints** → **+ Add** in `snet-private-endpoints` with private DNS; **Managed Identities** → **Create**, then on Application Insights **Access control (IAM)** → *Monitoring Metrics Publisher* for it.
+
+```powershell
+az network nsg create -g $rg -n $nsg --tags @tags -o none
+az network nsg rule create -g $rg --nsg-name $nsg -n AllowKeyVaultOutbound --priority 100 --direction Outbound --access Allow --protocol Tcp `
+    --source-address-prefixes VirtualNetwork --destination-address-prefixes AzureKeyVault --destination-port-ranges 443 -o none
+az network vnet subnet create -g $rg --vnet-name $vn -n snet-apim --address-prefixes 10.52.0.0/24 --delegations Microsoft.Web/serverFarms --network-security-group $nsg -o none
+az network private-dns zone create -g $rg -n privatelink.azurewebsites.net -o none
+az network private-dns link vnet create -g $rg -z privatelink.azurewebsites.net -n link-sites -v $vn -e false -o none
+$fnId = az functionapp show -g $rg -n $fn --query id -o tsv
+az network private-endpoint create -g $rg -n "pe-$fn" --vnet-name $vn --subnet snet-private-endpoints --private-connection-resource-id $fnId --group-id sites --connection-name pe-sites -o none
+az network private-endpoint dns-zone-group create -g $rg --endpoint-name "pe-$fn" -n default --private-dns-zone privatelink.azurewebsites.net --zone-name sites -o none
+az identity create -g $rg -n $gwmi --tags @tags -o none
+$aiId = az monitor app-insights component show -g $rg -a $ai --query id -o tsv; $gwPid = az identity show -g $rg -n $gwmi --query principalId -o tsv
+az role assignment create --assignee-object-id $gwPid --assignee-principal-type ServicePrincipal --role 'Monitoring Metrics Publisher' --scope $aiId -o none
+az network private-endpoint show -g $rg -n "pe-$fn" --query "privateLinkServiceConnections[0].privateLinkServiceConnectionState.status" -o tsv
+```
+
+> **Real result** — low-code track, 2026-10-20, author's test tenant.
+>
+> ```text
+> Approved
+> ```
+
+**L3. API Management Standard v2.** Portal: **Create a resource** → **API Management** → pricing tier **Standard v2**; **Networking**: *Virtual network integration*, subnet `snet-apim`; **Managed identity**: the gateway identity.
+
+```powershell
+$gwId = az identity show -g $rg -n $gwmi --query id -o tsv; $snet = az network vnet subnet show -g $rg --vnet-name $vn -n snet-apim --query id -o tsv
+$f = New-TemporaryFile
+@{ location = $loc; sku = @{ name = 'StandardV2'; capacity = 1 }; tags = @{ workshop = 'governed-mcp'; owner = $p.owner; expiry = $p.expiry; track = 'low-code' }
+   identity = @{ type = 'UserAssigned'; userAssignedIdentities = @{ $gwId = @{} } }
+   properties = @{ publisherName = 'Governed MCP workshop'; publisherEmail = 'mcp-workshop@example.com'; virtualNetworkType = 'External'
+                   virtualNetworkConfiguration = @{ subnetResourceId = $snet } } } | ConvertTo-Json -Depth 6 | Set-Content $f
+az rest --method put --url "https://management.azure.com$svcId`?api-version=2024-05-01" --body "@$f" --headers 'Content-Type=application/json' -o none; Remove-Item $f
+do { Start-Sleep 20; $state = az apim show -g $rg -n $apim --query provisioningState -o tsv } while ($state -notin 'Succeeded', 'Failed')
+$state
+```
+
+> **Real result** — low-code track, 2026-10-20: `Succeeded` after 126 seconds.
+
+**L4. Payload-free logging.** Portal: API Management → **Monitoring** → **Application Insights** → **+ Add** (managed identity); **APIs** → **All APIs** → **Settings** → **Diagnostics Logs**: Application Insights, sampling 100 %, *Number of payload bytes to log* **0** for frontend and backend, no header.
+
+```powershell
+$aiInfo = az monitor app-insights component show -g $rg -a $ai --query "{id:id,cs:connectionString}" -o json | ConvertFrom-Json
+$gwCid = az identity show -g $rg -n $gwmi --query clientId -o tsv
+Put 'loggers/appinsights' @{ properties = @{ loggerType = 'applicationInsights'; resourceId = $aiInfo.id; isBuffered = $true
+    credentials = @{ connectionString = $aiInfo.cs; identityClientId = $gwCid } } }
+$zero = @{ request = @{ headers = @(); body = @{ bytes = 0 } }; response = @{ headers = @(); body = @{ bytes = 0 } } }
+$diag = @{ properties = @{ loggerId = '/loggers/appinsights'; alwaysLog = 'allErrors'; httpCorrelationProtocol = 'W3C'; logClientIp = $false
+    verbosity = 'information'; metrics = $true; operationNameFormat = 'Name'; sampling = @{ samplingType = 'fixed'; percentage = 100 }; frontend = $zero; backend = $zero } }
+Put 'diagnostics/applicationinsights' $diag
+```
+
+> **Expected result** — no output.
+
+**L5. The MCP server, its policy and its metadata.** Portal: **MCP Servers** → **+ Create MCP server** → **Expose an existing MCP server**: base URL `https://<function>.azurewebsites.net/runtime/webhooks`, transport **Streamable HTTP**, name `workshop-mcp`. Then the server → **Policies** → paste `.workshop/policy-mcp-server.xml` (made by `render-policies.ps1` from the same templates as Terraform). The command below does both, plus the anonymous metadata API.
+
+```powershell
+& .\modules\04-governed-gateway\render-policies.ps1 -TenantId $tenant -ApiClientId $apiClientId -GatewayName $apim
+Put 'backends/workshop-mcp-function' @{ properties = @{ description = 'Workshop MCP server on Azure Functions (private endpoint).'
+    url = "https://$fn.azurewebsites.net/runtime/webhooks"; protocol = 'http' } }
+Put 'apis/workshop-mcp' @{ properties = @{ type = 'mcp'; displayName = 'Workshop MCP server (governed)'; path = 'workshop-mcp'; protocols = @('https')
+    serviceUrl = "https://$fn.azurewebsites.net/runtime/webhooks"; backendId = 'workshop-mcp-function'; subscriptionRequired = $false
+    mcpProperties = @{ transportType = 'streamable'; endpoints = @{ message = @{ uriTemplate = '/mcp' } } } } }
+Put 'apis/workshop-mcp/policies/policy' @{ properties = @{ format = 'rawxml'; value = [IO.File]::ReadAllText("$PWD\.workshop\policy-mcp-server.xml") } }
+Put 'apis/workshop-mcp/diagnostics/applicationinsights' $diag
+Put 'apis/workshop-mcp-prm' @{ properties = @{ displayName = 'Workshop MCP protected resource metadata'; path = '.well-known/oauth-protected-resource'
+    protocols = @('https'); subscriptionRequired = $false } }
+Put 'apis/workshop-mcp-prm/operations/get-mcp-metadata' @{ properties = @{ displayName = 'Protected Resource Metadata'; method = 'GET'; urlTemplate = '/workshop-mcp/mcp' } }
+Put 'apis/workshop-mcp-prm/operations/get-mcp-metadata/policies/policy' @{ properties = @{ format = 'rawxml'; value = [IO.File]::ReadAllText("$PWD\.workshop\policy-prm.xml") } }
+$gw = "https://$apim.azure-api.net"
+$r = Invoke-WebRequest "$gw/workshop-mcp/mcp" -Method Post -ContentType 'application/json' -SkipHttpErrorCheck `
+    -Body '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"t","version":"1"}}}'
+"gateway no token: $($r.StatusCode)"; "metadata: $((Invoke-WebRequest "$gw/.well-known/oauth-protected-resource/workshop-mcp/mcp" -SkipHttpErrorCheck).StatusCode)"
+```
+
+> **Real result** — low-code track, 2026-10-20, author's test tenant.
+>
+> ```text
+> PASS 5 policies rendered for https://apim-mcp-p01lc-<sfx>.azure-api.net with 2 allowed client(s) and 0 IP range(s) in .workshop/ ...
+> gateway no token: 401
+> metadata: 200
+> ```
+>
+> With `az rest`, API Management answers a policy write in XML, which makes Azure CLI crash while printing it on Windows: the `Put` helper writes the reply to a file instead.
+
+**L6. Lock the Function, then check as operator, Alice, Bob and Eve, and the logs.** Portal: Function App → **Networking** → **Public network access** → **Disabled**.
+
+```powershell
+az resource update -g $rg -n $fn --resource-type Microsoft.Web/sites --set properties.publicNetworkAccess=Disabled -o none
+$v = @{ TenantId = $tenant; ResourceGroup = $rg; FunctionApp = $fn; GatewayName = $apim; ApiClientId = $apiClientId }
+& .\modules\04-governed-gateway\validate.ps1 @v -SubscriptionId $sub -LogAnalyticsWorkspace $law
+foreach ($persona in 'Alice', 'Bob', 'Eve') {
+    $env:AZURE_CONFIG_DIR = Join-Path $PWD ".workshop\az-$($persona.ToLower())"
+    az login --tenant $tenant --allow-no-subscriptions   # sign in as $persona in the browser
+    & .\modules\04-governed-gateway\validate.ps1 @v -Persona $persona -Burst:($persona -eq 'Bob')
+    az logout
+}
+Remove-Item Env:\AZURE_CONFIG_DIR
+Start-Sleep -Seconds 300   # telemetry ingestion delay
+& .\modules\04-governed-gateway\validate.ps1 @v -SubscriptionId $sub -LogAnalyticsWorkspace $law -CheckTelemetry
+```
+
+> **Real result** — low-code track, 2026-10-20, author's test tenant (excerpt).
+>
+> ```text
+> PASS gateway request without a token is refused with a challenge naming the gateway metadata (expected HTTP 401).
+> PASS direct call to the Function host is refused from the internet: HTTP 403 (expected HTTP 403).
+> PASS Function App publicNetworkAccess is Disabled; only its private endpoint remains (expected HTTP 200 from Azure Resource Manager).
+> PASS deployed diagnostics log 0 body bytes and no header at the all-APIs and MCP API scopes (expected HTTP 200 from Azure Resource Manager).
+> PASS Alice create_ticket is allowed with Tools.Write and queues one synthetic ticket (expected HTTP 200).
+> PASS Bob create_ticket is denied by the gateway: Tools.Write is missing (expected HTTP 403).
+> PASS Bob burst of 40 calls is throttled per caller object ID (expected HTTP 429).
+> PASS Eve cannot obtain a token, so she never reaches the gateway (expected HTTP 400 from the token endpoint, AADSTS50105).
+> PASS Application Insights: 89 gateway requests and 47 tool traces with tool label and caller oid, no body, argument or token (expected HTTP 200 from Log Analytics).
+> ```
+
+**L-B. Optional part B in low-code: a REST API exposed as MCP.** Portal: **APIs** → **+ Add API** → **HTTP**, two GET operations with a sample response, policy from `.workshop/policy-rest-api.xml`; then **MCP Servers** → **+ Create MCP server** → **Expose an API as an MCP server**, pick the two operations, policy from `.workshop/policy-rest-mcp-server.xml`.
+
+```powershell
+$tickets = @(
+    @{ id = 'CT-1001'; title = 'VPN gateway reports intermittent timeouts'; severity = 'high'; status = 'open'; service = 'network' },
+    @{ id = 'CT-1002'; title = 'Shared drive close to its quota'; severity = 'medium'; status = 'in-progress'; service = 'storage' },
+    @{ id = 'CT-1003'; title = 'Expense app slow at month end'; severity = 'low'; status = 'resolved'; service = 'expense-app' })
+Put 'apis/contoso-tickets-api' @{ properties = @{ type = 'http'; displayName = 'Contoso Tickets REST API (synthetic, mocked)'; path = 'contoso-tickets'
+    protocols = @('https'); serviceUrl = 'https://contoso-tickets.invalid'; subscriptionRequired = $false } }
+$ops = @{
+    'list-tickets' = @{ name = 'List tickets'; desc = 'Returns the synthetic Contoso support tickets (id, title, severity, status, service). Read-only.'; url = '/tickets'; params = @(); example = $tickets }
+    'get-ticket' = @{ name = 'Get ticket'; desc = 'Returns one synthetic Contoso support ticket by its ID, for example CT-1001. Read-only.'; url = '/tickets/{ticketId}'
+        params = @(@{ name = 'ticketId'; type = 'string'; required = $true; description = 'Ticket ID, for example CT-1001.' }); example = $tickets[0] } }
+foreach ($k in $ops.Keys) {
+    $o = $ops[$k]
+    Put "apis/contoso-tickets-api/operations/$k" @{ properties = @{ displayName = $o.name; description = $o.desc; method = 'GET'; urlTemplate = $o.url; templateParameters = $o.params
+        responses = @(@{ statusCode = 200; description = 'Synthetic tickets (mocked).'
+            representations = @(@{ contentType = 'application/json'; examples = @{ default = @{ summary = 'Synthetic Contoso data'; value = $o.example } } }) }) } }
+}
+Put 'apis/contoso-tickets-api/policies/policy' @{ properties = @{ format = 'rawxml'; value = [IO.File]::ReadAllText("$PWD\.workshop\policy-rest-api.xml") } }
+Put 'apis/contoso-tickets-mcp' @{ properties = @{ type = 'mcp'; displayName = 'Contoso Tickets (REST API exposed as MCP)'; path = 'contoso-tickets-mcp'
+    protocols = @('https'); subscriptionRequired = $false } }
+foreach ($m in @(@('list_tickets', 'list-tickets'), @('get_ticket', 'get-ticket'))) {
+    Put "apis/contoso-tickets-mcp/tools/$($m[0])" @{ properties = @{ displayName = $m[0]; description = $ops[$m[1]].desc
+        operationId = "$svcId/apis/contoso-tickets-api/operations/$($m[1])" } }
+}
+Put 'apis/contoso-tickets-mcp/policies/policy' @{ properties = @{ format = 'rawxml'; value = [IO.File]::ReadAllText("$PWD\.workshop\policy-rest-mcp-server.xml") } }
+Put 'apis/workshop-mcp-prm/operations/get-rest-mcp-metadata' @{ properties = @{ displayName = 'Protected Resource Metadata (Contoso Tickets MCP)'; method = 'GET'; urlTemplate = '/contoso-tickets-mcp/mcp' } }
+Put 'apis/workshop-mcp-prm/operations/get-rest-mcp-metadata/policies/policy' @{ properties = @{ format = 'rawxml'; value = [IO.File]::ReadAllText("$PWD\.workshop\policy-rest-prm.xml") } }
+& .\modules\04-governed-gateway\validate-rest-mcp.ps1 -TenantId $tenant -SubscriptionId $sub -ResourceGroup $rg -GatewayName $apim -ApiClientId $apiClientId
+```
+
+> **Real result** — low-code track, 2026-10-20 (excerpt; the persona runs use `-Persona Alice` or `-Persona Bob` with the same parameters).
+>
+> ```text
+> PASS part B MCP request without a token is refused with a challenge naming its metadata URL (expected HTTP 401).
+> PASS the backing REST API /contoso-tickets/tickets without a token is refused (expected HTTP 401).
+> PASS the part B MCP server is type mcp, needs no subscription key and maps list_tickets and get_ticket to their REST operations (expected HTTP 200 from Azure Resource Manager).
+> PASS module 04 part B operator checks complete. Persona checks are still required for validation.
+> ...
+> PASS Alice list_tickets returns the 3 synthetic Contoso tickets, isError false (expected HTTP 200).
+> PASS Bob get_ticket CT-1001 returns the synthetic ticket, isError false (expected HTTP 200).
+> ```
+>
+> **What it means for you:** the same governed gateway as the full-code track, built by hand. Continue with module 05's low-code track.
+
 ### PowerShell
 
 Run from the repository root. Steps 2 to 4 change Azure: do them only after approval of the plan **and of the cost**.
