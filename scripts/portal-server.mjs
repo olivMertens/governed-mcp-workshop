@@ -10,7 +10,7 @@ export const screenshots = ["azure-02-storage-public-access", "azure-02-storage-
     "azure-03-function-authentication", "azure-03-app-registration-overview", "azure-03-app-roles",
     "azure-03-enterprise-app-properties", "terminal-03-operator", "terminal-03-alice",
     "azure-05-api-permissions", "azure-05-federated-credentials", "azure-06-kql-logs",
-    "azure-06-observability-agent-answer", "azure-06-observability-agent-query",
+    "azure-06-observability-agent-answer", "azure-06-observability-agent-query", "azure-06-trace-span-attributes", "azure-06-trace-waterfall",
     "diagram-05-obo-hops-en", "diagram-05-obo-hops-fr", "diagram-05-rbac-checks-en", "diagram-05-rbac-checks-fr",
     "diagram-02-server-levels-en", "diagram-02-server-levels-fr",
     "client-01-inspector", "client-03-vscode", "azure-06-apic-register",

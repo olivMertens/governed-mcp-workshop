@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;
@@ -42,13 +43,20 @@ public sealed class AzureDownstreamClients(DelegatedAccessSettings settings, Htt
     public async Task<string> GetSignedInObjectIdAsync(TokenCredential credential, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(credential);
+        using var step = ToolTelemetry.StartStep("Microsoft Graph GET /me", "signed-in user (On-Behalf-Of)");
         // A separate On-Behalf-Of token whose audience is Microsoft Graph; the MCP token never goes to Graph.
-        var token = await credential.GetTokenAsync(new TokenRequestContext([GraphScope]), cancellationToken).ConfigureAwait(false);
+        AccessToken token;
+        using (ToolTelemetry.StartStep("On-Behalf-Of token exchange (Microsoft Graph)", "signed-in user (On-Behalf-Of)"))
+        {
+            token = await credential.GetTokenAsync(new TokenRequestContext([GraphScope]), cancellationToken).ConfigureAwait(false);
+        }
+
         using var request = new HttpRequestMessage(HttpMethod.Get, GraphMe);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.Token);
         using var response = await graph.SendAsync(request, cancellationToken).ConfigureAwait(false);
         if (response.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.Unauthorized)
         {
+            step?.SetStatus(ActivityStatusCode.Error, $"HTTP {(int)response.StatusCode}");
             throw new DownstreamAccessDeniedException("Microsoft Graph", (int)response.StatusCode);
         }
 
@@ -68,6 +76,8 @@ public sealed class AzureDownstreamClients(DelegatedAccessSettings settings, Htt
     {
         ArgumentNullException.ThrowIfNull(credential);
         var blob = CreateBlobClient(settings, credential, storageScope, blobName);
+        using var step = ToolTelemetry.StartStep("Azure Storage read report",
+            storageScope == StorageUserScope ? "signed-in user (On-Behalf-Of)" : "app-only managed identity");
         try
         {
             var content = (await blob.DownloadContentAsync(cancellationToken).ConfigureAwait(false)).Value.Content;
@@ -80,6 +90,7 @@ public sealed class AzureDownstreamClients(DelegatedAccessSettings settings, Htt
         }
         catch (RequestFailedException exception) when (exception.Status == 403)
         {
+            step?.SetStatus(ActivityStatusCode.Error, "HTTP 403");
             throw new DownstreamAccessDeniedException("Azure Storage", 403);
         }
         catch (RequestFailedException exception) when (exception.Status == 404)
