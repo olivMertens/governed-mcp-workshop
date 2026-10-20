@@ -82,6 +82,48 @@ federated credential (the `module05_federated_credential` output reserves its va
 | `WEBSITE_AUTH_AAD_ALLOWED_TENANTS` | Your tenant ID |
 | `AzureFunctionsJobHost__extensions__mcp__system__webhookAuthorizationLevel` | `Anonymous`, **stage 2 only**, after built-in authentication is enforced |
 
+
+
+
+
+
+**Build it step by step.** Select **Next** to add one piece at a time; the full diagram follows.
+
+```reveal
+{
+  "title": "From a shared key to a personal token",
+  "audience": "attendee",
+  "width": 760,
+  "height": 380,
+  "lanes": [
+    {"x": 8, "width": 232, "label": "Users"},
+    {"x": 264, "width": 232, "label": "Microsoft Entra ID"},
+    {"x": 520, "width": 232, "label": "Azure Functions"}
+  ],
+  "nodes": [
+    {"id":"entra","step":0,"x":286,"y":44,"width":188,"icon":"entra","title":"Workshop MCP API","detail":["app registration","roles: Tools.Read"]},
+    {"id":"fn","step":0,"x":542,"y":164,"width":188,"icon":"functions","title":"Azure Functions","detail":["built-in auth first","then the MCP server"]},
+    {"id":"key","step":0,"until":2,"tone":"morning","x":542,"y":284,"width":188,"title":"Function key","detail":["module 02"]},
+    {"id":"alice","step":1,"x":30,"y":44,"width":188,"title":"Alice or Bob","detail":["assigned users"]},
+    {"id":"bad","step":3,"tone":"risk","x":30,"y":164,"width":188,"title":"No or wrong token","detail":["e.g. Graph audience"]},
+    {"id":"eve","step":4,"tone":"risk","x":30,"y":284,"width":188,"title":"Eve (not assigned)","detail":["no token at all"]}
+  ],
+  "edges": [
+    {"from":"alice","to":"entra","step":1,"label":"sign in"},
+    {"from":"alice","to":"fn","step":2,"tone":"governed","labelDy":16,"label":"token → 200"},
+    {"from":"bad","to":"fn","step":3,"tone":"risk","label":"HTTP 401"},
+    {"from":"eve","to":"entra","step":4,"tone":"risk","toSide":"bottom","label":"AADSTS50105"}
+  ],
+  "steps": [
+    {"title": "Register the API in Entra", "simple": "The MCP server gets an identity in Microsoft Entra ID, with two app roles.", "say": "The app registration defines the audience `api://<client-id>` and the roles `Tools.Read` and `Tools.Write`. The function key from module 02 is still there for now."},
+    {"title": "Sign in, get a token", "simple": "Alice signs in and receives a token made for this API only.", "say": "The token names the API as its audience and lists Alice's roles. The client never sees her password."},
+    {"title": "The platform checks first", "simple": "Before your code runs, Azure checks the token. A valid token gets HTTP 200, and the key is gone.", "say": "Built-in authentication checks issuer, tenant, audience and expiry. Your code never parses a token."},
+    {"title": "Wrong token, no entry", "simple": "No token, or a token for another API: the platform answers HTTP 401.", "say": "A valid Microsoft Graph token is still refused: its audience is Graph, not this API. One audience per token."},
+    {"title": "Eve stays outside", "simple": "Eve is not assigned to the app, so Entra refuses to give her a token at all.", "say": "Assignment is required on the enterprise app. Eve stops at sign-in with `AADSTS50105`, before reaching Azure."}
+  ]
+}
+```
+
 ![Level 1 architecture](../../assets/architecture/03.en.svg)
 
 **Preview:** Protected Resource Metadata (PRM, RFC 9728) in App Service authentication is **Preview**; its configuration may

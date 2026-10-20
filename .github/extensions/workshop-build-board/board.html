@@ -190,6 +190,13 @@
     .services img, .services svg { flex-shrink: 0; }
     .toolbar-actions, .languages { display: flex; align-items: center; gap: 8px; }
     .languages button { padding: 5px 9px; border: 1px solid var(--line); border-radius: 5px; color: var(--ink); background: var(--surface); font-size: 12px; }
+    .track-picker { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0 0 18px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+    .track-picker .track-label { font-weight: 700; }
+    .track-picker button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 14px; border: 1px solid var(--line); border-radius: 10px; background: transparent; color: var(--ink); cursor: pointer; text-align: left; }
+    .track-picker button small { color: var(--muted); font-size: 12px; }
+    .track-picker button[aria-pressed="true"] { border: 2px solid var(--blue); background: var(--wash); }
+    .track-picker button[aria-pressed="true"] strong::before { content: "\2713  "; color: var(--blue); }
+    .track-picker .track-note { flex-basis: 100%; margin: 0; }
     .languages button[aria-pressed="true"] { background: var(--wash); color: var(--blue); border-color: var(--blue); font-weight: 650; }
     .symbol { width: 19px; height: 19px; flex-shrink: 0; vertical-align: middle; }
     .notice.warning { border-left-color: #896300; }
@@ -325,7 +332,7 @@
     .reveal-diagram > h3 { margin: 0 0 4px; }
     .reveal-diagram > .reveal-hint { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
     .reveal-canvas { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
-    .reveal-canvas svg { display: block; width: 100%; min-width: 760px; height: auto; font-family: inherit; }
+    .reveal-canvas svg { display: block; width: 100%; height: auto; font-family: inherit; }
     .reveal-canvas .lane rect { fill: var(--wash); opacity: .55; }
     .reveal-canvas .lane text { fill: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
     .reveal-canvas .node rect.box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; transition: stroke .4s ease, stroke-width .4s ease; }
@@ -351,15 +358,36 @@
     .reveal-canvas .frag.past.tone-risk text { text-decoration: line-through; }
     .reveal-canvas .frag.past .strike { opacity: 1; }
     .reveal-canvas .strike { stroke: var(--error); stroke-width: 3; opacity: 0; transition: opacity .4s ease; }
-    .reveal-canvas .node.current rect.box { stroke: var(--gold); stroke-width: 4; }
-    :root[data-theme="light"] .reveal-canvas .node.current rect.box { stroke: #b58100; }
+    .reveal-canvas .node.current rect.box { stroke: var(--ink); stroke-width: 3.5; }
+    .reveal-canvas .badge { display: none; }
+    .reveal-canvas .node.current .badge { display: inline; }
+    .reveal-canvas .badge rect { fill: var(--gold); }
+    .reveal-canvas .badge text { fill: #1b1b1b; font-size: 11px; font-weight: 800; letter-spacing: .04em; }
+    :root[data-theme="light"] .reveal-canvas .badge rect { fill: #b58100; }
+    :root[data-theme="light"] .reveal-canvas .badge text { fill: #fff; }
     :root[data-theme="light"] .reveal-step .reveal-show { border-left-color: #b58100; }
     .reveal-canvas .edge.current path { stroke-width: 3.5; }
     .reveal-canvas .node.current { animation: reveal-pulse .9s ease 1; }
     @keyframes reveal-pulse { 0% { transform: scale(.96); } 60% { transform: scale(1.03); } 100% { transform: scale(1); } }
     .reveal-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 14px 0 6px; }
+    .reveal-controls button:disabled { opacity: .4; cursor: not-allowed; filter: grayscale(.6); }
     .reveal-controls .reveal-count { color: var(--muted); font-size: 13px; margin-right: auto; }
     .reveal-dots { display: flex; gap: 6px; }
+    .reveal-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 10px 2px 0; color: var(--muted); font-size: 12.5px; list-style: none; padding: 0; }
+    .reveal-legend li { display: inline-flex; align-items: center; gap: 6px; }
+    .reveal-legend .swatch { display: inline-block; width: 22px; height: 0; border-top: 3px solid var(--muted); }
+    .reveal-legend .swatch.tone-governed { border-top-color: var(--blue); }
+    .reveal-legend .swatch.tone-morning { border-top-color: var(--success); }
+    .reveal-legend .swatch.tone-risk { border-top: 3px dashed var(--error); }
+    .reveal-legend .swatch.tone-preview { border-top: 3px dotted var(--tip); }
+    .reveal-legend .swatch.past { opacity: .35; }
+    .reveal-legend .chip { background: var(--gold); color: #1b1b1b; font-size: 10.5px; font-weight: 800; border-radius: 4px; padding: 1px 5px; }
+    :root[data-theme="light"] .reveal-legend .chip { background: #b58100; color: #fff; }
+    .reveal-dots button.reveal-number { width: 28px; height: 28px; font-size: 12.5px; font-weight: 700; line-height: 1; color: var(--muted); border-color: var(--line); }
+    .reveal-dots button.reveal-number.seen { background: var(--wash); color: var(--ink); border-color: var(--blue); }
+    .reveal-dots button.reveal-number[aria-current="step"] { background: var(--blue); color: var(--paper); border-color: var(--blue); }
+    .reveal-diagram:fullscreen { overflow: auto; padding: 28px 40px; }
+    .reveal-diagram:fullscreen .reveal-canvas svg { max-height: 68vh; }
     .reveal-dots button { width: 14px; height: 14px; padding: 0; border-radius: 50%; border: 1px solid var(--blue); background: transparent; cursor: pointer; }
     .reveal-dots button[aria-current="step"], .reveal-dots button.seen { background: var(--blue); }
     .reveal-step { margin-top: 8px; animation: reveal-fade-up .5s ease 1; }
@@ -878,8 +906,10 @@
     function revealDiagram(source, path) {
       let spec;
       try { spec = JSON.parse(source); } catch { throw new Error("A reveal diagram must be valid JSON."); }
-      const { title = "", width = 1000, height = 460, lanes = [], nodes = [], edges = [], steps = [] } = spec;
+      const { title = "", width = 1000, height = 460, lanes = [], nodes = [], edges = [], steps = [], audience = "presenter" } = spec;
       if (!Array.isArray(steps) || !steps.length) throw new Error("A reveal diagram needs at least one step.");
+      if (!["presenter", "attendee"].includes(audience)) throw new Error("A reveal diagram audience is presenter or attendee.");
+      const attendee = audience === "attendee";
       const icons = ["azure", "microsoft", "entra", "apim", "functions", "storage", "insights", "api-center", "foundry-agent-service", "copilot-studio"];
       const byId = new Map();
       for (const node of nodes) {
@@ -902,9 +932,13 @@
       figure.tabIndex = 0;
       figure.setAttribute("aria-roledescription", t("Animated diagram"));
       if (title) figure.append(element("h3", title));
-      figure.append(element("p", "Presenter walk-through: reveal one fragment at a time with the buttons or the arrow keys. The page runs nothing.", "reveal-hint"));
+      figure.append(element("p", attendee
+        ? "Build the diagram one step at a time: select Next, or click the diagram and use the arrow keys."
+        : "Presenter walk-through: reveal one fragment at a time with the buttons or the arrow keys. The page runs nothing.", "reveal-hint"));
       const canvas = element("div", undefined, "reveal-canvas");
       const svg = make("svg", { viewBox: `0 0 ${width} ${height}`, role: "img", "aria-label": title || t("Animated diagram") });
+      // Shrink to the page width, but never so far that the text becomes unreadable: wider diagrams scroll instead.
+      svg.style.minWidth = `${Math.round(Math.min(width * 0.7, 760))}px`;
       const defs = make("defs");
       const marker = make("marker", { id: `reveal-arrow-${Math.random().toString(36).slice(2, 8)}`, viewBox: "0 0 10 10", refX: "9", refY: "5",
         markerUnits: "userSpaceOnUse", markerWidth: "11", markerHeight: "11", orient: "auto-start-reverse" });
@@ -939,6 +973,13 @@
         group.append(make("text", { class: "title", x: textX, y: node.y + 26 }, node.title));
         (node.detail || []).forEach((line, index) => group.append(make("text", { class: "detail", x: textX, y: node.y + 44 + index * 15 }, line)));
         if (node.tone === "risk") group.append(make("line", { class: "strike", x1: node.x + 6, y1: node.y + h - 6, x2: node.x + node.box.w - 6, y2: node.y + 6 }));
+        // "New" badge: only visible on the nodes the current step adds.
+        const label = t("New").toUpperCase();
+        const badgeWidth = 12 + label.length * 7.5;
+        const badge = make("g", { class: "badge", "aria-hidden": "true" });
+        badge.append(make("rect", { x: node.x + node.box.w - badgeWidth - 6, y: node.y - 9, width: badgeWidth, height: 18, rx: 4 }),
+          make("text", { x: node.x + node.box.w - 6 - badgeWidth / 2, y: node.y + 4, "text-anchor": "middle" }, label));
+        group.append(badge);
         nodeLayer.append(group);
       }
       const side = (box, name, shift) => ({
@@ -963,21 +1004,46 @@
         edgeLayer.append(group);
       }
       canvas.append(svg);
+      // Legend: only the line styles this diagram uses, plus the "New" badge and the faded state.
+      const legend = element("ul", undefined, "reveal-legend");
+      legend.setAttribute("aria-label", t("Legend"));
+      const used = new Set([...nodes, ...edges].map((item) => item.tone).filter(Boolean));
+      const legendText = { governed: "Governed path", morning: "Seen earlier", risk: "Risk or refused", preview: "Preview feature" };
+      const legendItem = (swatch, text) => { const item = element("li"); item.append(swatch, element("span", text)); legend.append(item); };
+      legendItem(element("span", "New", "chip"), "Added at this step");
+      for (const tone of ["governed", "morning", "risk", "preview"]) {
+        if (used.has(tone)) legendItem(element("span", undefined, `swatch tone-${tone}`), legendText[tone]);
+      }
+      if ([...nodes, ...edges].some((item) => Number.isInteger(item.until))) legendItem(element("span", undefined, "swatch past"), "Faded: replaced later");
       const controls = element("div", undefined, "reveal-controls");
       const count = element("span", undefined, "reveal-count");
       count.setAttribute("aria-live", "polite");
       const dots = element("div", undefined, "reveal-dots");
       const back = element("button", undefined, "secondary");
       const next = element("button", undefined, "primary");
-      const all = element("button", "Show everything", "secondary");
+      const all = element("button", undefined, "secondary");
+      const allLabel = element("span", "Show everything");
+      all.append(allLabel);
       for (const button of [back, next, all]) button.type = "button";
-      back.append(symbol("arrowLeft"), element("span", "Back"));
-      next.append(element("span", "Reveal next"), symbol("arrowRight"));
+      back.append(symbol("arrowLeft"), element("span", attendee ? "Previous" : "Back"));
+      next.append(element("span", attendee ? "Next" : "Reveal next"), symbol("arrowRight"));
       controls.append(count, dots, back, next, all);
+      if (document.fullscreenEnabled && figure.requestFullscreen) {
+        const full = element("button", "Full screen", "secondary");
+        full.type = "button";
+        full.addEventListener("click", () => {
+          if (document.fullscreenElement === figure) document.exitFullscreen();
+          else figure.requestFullscreen().catch(() => {});
+        });
+        document.addEventListener("fullscreenchange", () => {
+          full.textContent = t(document.fullscreenElement === figure ? "Exit full screen" : "Full screen");
+        });
+        controls.append(full);
+      }
       const titles = { powershell: "PowerShell", bash: "Bash", json: "JSON", text: "Text", prompt: "Prompt to paste in the chat" };
       const panels = steps.map((step, index) => {
         const panel = element("section", undefined, "reveal-step");
-        panel.append(element("h4", step.title));
+        panel.append(element("h4", attendee ? `${index + 1}. ${step.title}` : step.title));
         if (step.simple) {
           const simple = element("p", undefined, "reveal-simple");
           simple.append(element("strong", language === "fr" ? "En clair : " : "In plain words: "));
@@ -986,13 +1052,13 @@
         }
         if (step.say) {
           const say = element("p", undefined, "reveal-say");
-          say.append(element("strong", language === "fr" ? "Pour le présentateur : " : "For the presenter: "));
+          if (!attendee) say.append(element("strong", language === "fr" ? "Pour le présentateur : " : "For the presenter: "));
           inline(say, step.say, path);
           panel.append(say);
         }
         if (step.show) {
           const show = element("p", undefined, "reveal-show");
-          show.append(element("strong", language === "fr" ? "À montrer : " : "Show: "));
+          show.append(element("strong", attendee ? (language === "fr" ? "À essayer : " : "Try it: ") : (language === "fr" ? "À montrer : " : "Show: ")));
           inline(show, step.show, path);
           panel.append(show);
         }
@@ -1007,7 +1073,8 @@
           }
           panel.append(node);
         }
-        const dot = element("button");
+        const dot = element("button", undefined, "reveal-number");
+        dot.textContent = String(index + 1);
         dot.type = "button";
         dot.setAttribute("aria-label", `${index + 1}. ${step.title}`);
         dot.title = step.title;
@@ -1031,13 +1098,16 @@
           dot.classList.toggle("seen", index < current);
           if (index === current) dot.setAttribute("aria-current", "step"); else dot.removeAttribute("aria-current");
         });
-        count.textContent = `${t("Fragment")} ${current + 1} / ${steps.length}`;
+        count.textContent = attendee ? `${current + 1} / ${steps.length}` : `${t("Fragment")} ${current + 1} / ${steps.length}`;
+        count.setAttribute("aria-label", `${current + 1} / ${steps.length}: ${steps[current].title}`);
         back.disabled = current === 0;
-        next.disabled = all.disabled = current === steps.length - 1;
+        next.disabled = current === steps.length - 1;
+        // At the end, the same button starts over, so the reader never meets a dead button.
+        allLabel.textContent = t(current === steps.length - 1 ? "Start over" : "Show everything");
       }
       back.addEventListener("click", () => show(current - 1));
       next.addEventListener("click", () => show(current + 1));
-      all.addEventListener("click", () => show(steps.length - 1));
+      all.addEventListener("click", () => show(current === steps.length - 1 ? 0 : steps.length - 1));
       figure.addEventListener("keydown", (event) => {
         const moves = { ArrowRight: 1, PageDown: 1, " ": 1, ArrowLeft: -1, PageUp: -1 };
         if (event.target !== figure) return;
@@ -1048,7 +1118,7 @@
         event.preventDefault();
         event.stopPropagation();
       });
-      figure.append(canvas, controls, ...panels);
+      figure.append(canvas, legend, controls, ...panels);
       show(0);
       return figure;
     }
@@ -1083,9 +1153,23 @@
       row.append(button, element("span", "Opens the print dialog: choose \"Save as PDF\". The PDF holds the whole guide, answers and captures included.", "field-message"));
       return row;
     }
-    function lessonSteps(text) {
+    // Splits a guide into reading steps. track = "full" or "low" keeps the shared steps and that track's own steps only.
+    function lessonSteps(text, track = null) {
       const steps = [];
+      const budget = 260;
+      // Visible reading load of a page: words, plus a fixed weight for diagrams and screenshots. Long commands and
+      // disclosures are closed references, not visible reading load.
+      function readingWeight(text) {
+        let extra = 0;
+        const rest = text
+          .replace(/^<details>[\s\S]*?^<\/details>$/gm, "")
+          .replace(/```reveal\n[\s\S]*?\n```/g, () => { extra += 200; return ""; })
+          .replace(/```[^\n]*\n([\s\S]*?)\n```/g, (fence, code) => code.split("\n").length > 12 || code.length > 1200 ? "" : fence)
+          .replace(/^!\[[^\]]*\]\(([^)]+)\)$/gm, (image, source) => { extra += /assets\/screenshots\//.test(source) ? 90 : 160; return ""; });
+        return extra + (rest.match(/\S+/g)?.length || 0);
+      }
       let title = "Before you begin", section = null, lines = [], fenced = false, depth = 0;
+      let trackState = null, stepTrack = null, stepLevel = 2;
       function flush() {
         const blocks = [];
         let block = [], code = false, details = 0;
@@ -1095,7 +1179,7 @@
               const header = block.slice(0, 2);
               let rows = [...header];
               for (const row of block.slice(2)) {
-                if (rows.length > 2 && [...rows, row].join("\n").split(/\s+/).length > 180) {
+                if (rows.length > 2 && [...rows, row].join("\n").split(/\s+/).length > 240) {
                   blocks.push(rows.join("\n"));
                   rows = [...header];
                 }
@@ -1129,23 +1213,24 @@
         const join = (items) => items.reduce((text, block, at) =>
           at === 0 ? block : text + (kind(block) && kind(block) === kind(items[at - 1]) ? "\n" : "\n\n") + block, "");
         for (const block of blocks) {
-          // Long commands and disclosures are closed references, not visible reading load.
-          const visible = block.startsWith("<details>") ? "" :
-            block.replace(/```[^\n]*\n([\s\S]*?)\n```/g, (fence, code) =>
-              code.split("\n").length > 12 || code.length > 1200 ? "" : fence);
-          const count = visible.match(/\S+/g)?.length || 0;
+          const count = readingWeight(block);
           // A result box explains the command just above it: never separate them across pages.
           const isResult = /^> \*\*(?:Real result|Expected result|Résultat réel|Résultat attendu)\b/.test(block);
           const requestStep = /^(?:Request|Requête) \d+ (?:of|sur) \d+\s*:/.test(title);
-          if (page.length && words + count > 180 && !isResult && !requestStep) {
-            pages.push(join(page));
+          // The next piece of a split table always starts a new page, under its repeated header.
+          const tableContinues = page.length && /^\|/.test(block) && page.at(-1).startsWith(block.split("\n").slice(0, 2).join("\n"));
+          if (page.length && (words + count > budget || tableContinues) && !isResult && !requestStep) {
+            pages.push(page);
             page = []; words = 0;
           }
           page.push(block); words += count;
         }
-        if (page.length) pages.push(join(page));
-        pages.forEach((content, index) => steps.push({
-          title, content, ...(section ? { section } : {}), ...(pages.length > 1 ? { part: index + 1, parts: pages.length } : {}),
+        if (page.length) pages.push(page);
+        // A last page with a few lines only joins the page before it.
+        if (pages.length > 1 && readingWeight(join(pages.at(-1))) < 70) pages.splice(-2, 2, [...pages.at(-2), ...pages.at(-1)]);
+        pages.map(join).forEach((content, index, all) => steps.push({
+          title, content, level: stepLevel, ...(section ? { section } : {}), ...(stepTrack ? { track: stepTrack } : {}),
+          ...(all.length > 1 ? { part: index + 1, parts: all.length } : {}),
         }));
         lines = [];
       }
@@ -1154,9 +1239,20 @@
         if (!fenced && depth === 0) {
           if (/^# /.test(line) || /^\[(?:Français|English)\]\([^)]+\)$/.test(line)) continue;
           const heading = /^#{2,4} (.+)$/.exec(line);
-          const action = /^\*\*(\d+[.)]\s+[^*]+)\*\*(.*)$/.exec(line);
+          // "**1. Do this.**", and the low-code "**L1.**" or Foundry "**A1.**" steps, each open a step of their own.
+          const action = /^\*\*((?:\d+|[LA]\d+|L-[A-Z])[.)]\s+[^*]+)\*\*(.*)$/.exec(line);
           if (heading || action) {
             flush();
+            if (heading) {
+              // Track of the steps that follow: "Low-code track" until the next heading; "PowerShell" or "Bash" (the
+              // full-code track) until the next level-2 heading. Everything else is shared by both tracks.
+              const level = /^#+/.exec(line)[0].length;
+              if (level === 2) trackState = null;
+              if (/^(?:Low-code track|Parcours low-code)\b/.test(heading[1])) trackState = "low";
+              else if (/^(?:PowerShell|Bash)$/.test(heading[1])) trackState = "full";
+              else if (trackState === "low") trackState = null;
+            }
+            stepTrack = trackState;
             title = (heading ? heading[1] : action[1]).replace(/^\d+[.)]\s+/, "");
             // A numbered "## 10. Title" section can be opened directly, for example #/concepts/10.
             if (heading && /^## /.test(line)) section = Number(/^(\d+)[.)]\s/.exec(heading[1])?.[1]) || null;
@@ -1170,11 +1266,29 @@
       }
       flush();
       if (!steps.length) throw new Error("A guided document needs at least one step.");
-      return steps;
+      const chosen = track ? steps.filter((step) => !step.track || step.track === track) : steps;
+      // Short neighbouring sections share one page; the second keeps its title as a subheading. Validation, review,
+      // clean-up, sources, numbered sections and request series stay on their own steps.
+      const alone = /^(?:Validate|Valider|Vérifier avant de poursuivre|Go further|Pour aller plus loin|Aller plus loin|Clean up|Nettoyer|Nettoyage|Sources|Troubleshooting|Dépannage|(?:Request|Requête) \d)/;
+      const merged = [];
+      for (const step of chosen) {
+        const last = merged.at(-1);
+        const near = last && last.section === step.section && last.track === step.track;
+        const further = near && /^(?:Go further|Aller plus loin|Pour aller plus loin)$/.test(last.title) && step.title === "Sources" && !last.parts && !step.parts;
+        if (further || (near && !last.parts && !step.parts && !alone.test(last.title) && !alone.test(step.title) &&
+            readingWeight(last.content) + readingWeight(step.content) <= budget)) {
+          last.content = `${last.content}\n\n### ${step.title}\n\n${step.content}`;
+        } else if (near && last.level >= 3 && !last.parts && step.part === 1 && !alone.test(last.title) && !alone.test(step.title) &&
+            readingWeight(last.content) < 70) {
+          // A short introduction (for example "PowerShell: run from the repository root") opens the next section.
+          merged[merged.length - 1] = { ...step, content: `${last.content}\n\n${step.content}` };
+        } else merged.push({ ...step });
+      }
+      return merged;
     }
     function guidedDocument(text, path, startSection = null, extras = {}) {
-      const { finish = null, validate = null, review = null } = extras;
-      const steps = lessonSteps(text);
+      const { finish = null, validate = null, review = null, track = null } = extras;
+      const steps = lessonSteps(text, track);
       // The module validator is shown inside the guide's own "Validate" step, where the README asks for it.
       const validateIndex = validate ? steps.findLastIndex((step) => /^(?:Validate|Valider|Vérifier avant de poursuivre)$/.test(step.title)) : -1;
       // Review questions become one step near the end of the guide, before the optional "Go further" reading.
@@ -1385,9 +1499,9 @@
     }
     function hasQuestion(text) { return /^\*\*Question\s?:\*\*/m.test(text.replace(/```[\s\S]*?```/g, "")); }
     // Gathers every "Question:" with its hidden answer, for the review step at the end of a module guide.
-    function collectQuestions(text) {
+    function collectQuestions(text, track = null) {
       const items = [];
-      lessonSteps(text).forEach((step, stepIndex) => {
+      lessonSteps(text, track).forEach((step, stepIndex) => {
         const lines = step.content.split("\n");
         let fenced = false;
         for (let i = 0; i < lines.length; i++) {
@@ -1844,11 +1958,14 @@
         return block;
       } };
       // Module 00 checks the environment: no review questions there.
-      const items = module.guide !== null && module.module !== "00" ? collectQuestions(module.guide) : [];
+      // A module with a low-code section shows one track at a time; the reader picks it, and the choice is remembered.
+      const tracked = module.guide !== null && /^#{2,4} (?:Low-code track|Parcours low-code)\b/m.test(module.guide);
+      const track = tracked ? (preferences.get("track") === "low" ? "low" : "full") : null;
+      const items = module.guide !== null && module.module !== "00" ? collectQuestions(module.guide, track) : [];
       let lesson = null;
       const review = items.length ? { render: (jump) => reviewList(items, module.sourcePath, jump,
         (original) => (original >= lesson.reviewIndex ? original + 2 : original + 1)) } : null;
-      lesson = guidedDocument(module.guide ?? module.outline, module.sourcePath, null, { validate, review });
+      lesson = guidedDocument(module.guide ?? module.outline, module.sourcePath, null, { validate, review, track });
       // A short map tells a first-time reader what to do on this page, in which order.
       const map = element("nav", undefined, "page-map");
       map.setAttribute("aria-label", t("How this page works"));
@@ -1871,7 +1988,27 @@
       });
       map.append(stops);
       content.insertBefore(map, content.children[2] || null);
-      content.append(guideTitle, lesson);
+      content.append(guideTitle);
+      if (tracked) {
+        const picker = element("div", undefined, "track-picker");
+        picker.setAttribute("role", "group");
+        picker.setAttribute("aria-label", t("Your track"));
+        picker.append(element("span", "Your track:", "track-label"));
+        for (const [value, name, detail] of [["full", "Full-code", "Terraform and scripts"], ["low", "Low-code", "Azure portal and short commands"]]) {
+          const button = element("button");
+          button.type = "button";
+          button.setAttribute("aria-pressed", String(track === value));
+          button.append(element("strong", name), element("small", detail));
+          button.addEventListener("click", () => { if (track !== value) { preferences.set("track", value); render(true); } });
+          picker.append(button);
+        }
+        const note = element("p", undefined, "field-message track-note");
+        note.append(document.createTextNode(`${t("The guide shows only the steps of this track. Keep the same track for every module.")} `),
+          link("How to choose", "#/tracks"));
+        picker.append(note);
+        content.append(picker);
+      }
+      content.append(lesson);
       // Optional material comes after the lesson, so the main path reads strictly top to bottom.
       content.append(furtherTitle,
         disclosure("Architecture and security flow", architecture(module)));

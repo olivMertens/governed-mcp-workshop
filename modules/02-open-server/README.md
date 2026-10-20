@@ -56,6 +56,50 @@ The five tools (all data is synthetic):
 Every tool refuses unknown arguments. `create_ticket` writes nothing unless the exact argument shape is valid.
 Logs contain the tool name, outcome, latency and invocation ID only: never arguments, results, keys or tokens.
 
+
+
+
+
+
+**Build it step by step.** Select **Next** to add one piece at a time; the full diagram follows.
+
+```reveal
+{
+  "title": "A server in Azure, protected by a key",
+  "audience": "attendee",
+  "width": 760,
+  "height": 380,
+  "lanes": [
+    {"x": 8, "width": 232, "label": "Client"},
+    {"x": 264, "width": 232, "label": "Protection"},
+    {"x": 520, "width": 232, "label": "Azure"}
+  ],
+  "nodes": [
+    {"id":"fn","step":0,"x":542,"y":44,"width":188,"icon":"functions","title":"Azure Functions","detail":["MCP extension","Flex Consumption"]},
+    {"id":"st","step":0,"x":542,"y":164,"width":188,"icon":"storage","title":"Azure Storage","detail":["queue: tickets","managed identity"]},
+    {"id":"c","step":1,"x":30,"y":44,"width":188,"title":"VS Code + Copilot","detail":["Alice (Contoso)"]},
+    {"id":"key","step":1,"tone":"risk","x":286,"y":44,"width":188,"title":"Function key","detail":["x-functions-key","shared secret"]},
+    {"id":"nokey","step":2,"x":30,"y":164,"width":188,"title":"No key","detail":["any caller"]},
+    {"id":"eve","step":3,"tone":"risk","x":30,"y":284,"width":188,"title":"Eve has the key","detail":["create_ticket works"]},
+    {"id":"next","step":4,"tone":"governed","x":542,"y":284,"width":188,"icon":"entra","title":"Next: Entra ID","detail":["user token","instead of a key"]}
+  ],
+  "edges": [
+    {"from":"fn","to":"st","step":0,"label":"identity"},
+    {"from":"c","to":"key","step":1,"label":"header"},
+    {"from":"key","to":"fn","step":1,"label":"HTTP 200"},
+    {"from":"nokey","to":"fn","step":2,"tone":"risk","toSide":"bottom","toOffset":-40,"label":"HTTP 401"},
+    {"from":"eve","to":"key","step":3,"tone":"risk","toSide":"bottom","label":"write"}
+  ],
+  "steps": [
+    {"title": "The server runs in Azure", "simple": "Your MCP server now runs in Azure Functions, with a storage queue for tickets.", "say": "The Function reaches Storage with its managed identity: no connection string, no key in the code."},
+    {"title": "A key is the only lock", "simple": "The client sends a function key in a header. With the key, the call succeeds.", "say": "The key goes in the `x-functions-key` header. It identifies nobody: it is a shared secret."},
+    {"title": "No key, no access", "simple": "Without the key, the server answers HTTP 401. Nothing is anonymous.", "say": "This is the bare minimum. Never make the endpoint anonymous, even for a test."},
+    {"title": "Anyone with the key can write", "simple": "If Eve gets the key, she can create tickets too: the server cannot tell who she is.", "say": "The write tool `create_ticket` runs for whoever holds the key. That is the risk this module shows."},
+    {"title": "The fix comes next", "simple": "Module 03 replaces the shared key with a personal Microsoft Entra token.", "say": "Keep level 0 short-lived. Module 03 (Entra ID) and module 04 (API Management) close the gap."}
+  ]
+}
+```
+
 ![Level 0 architecture](../../assets/architecture/02.en.svg)
 
 No **Preview** feature is used. Code and infrastructure adapt

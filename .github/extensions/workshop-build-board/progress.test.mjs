@@ -66,9 +66,11 @@ test("guided reading splits authored actions, never code fences or nested disclo
     const start = html.indexOf("function lessonSteps(");
     const end = html.indexOf("function guidedDocument(", start);
     const split = new Function(`${html.slice(start, end)}; return lessonSteps;`)();
-    const source = "# Title\nIntro.\n\n## Steps\n### PowerShell\nUse one terminal.\n\n" +
-        "**1. Predict.** No cloud change.\n\n```powershell\n## Not a heading\n**2. Not an action.**\n```\n\n" +
-        "**2. Observe.** Check the result.\n\n<details>\n<summary>Advanced</summary>\n\n" +
+    // Each section carries a realistic amount of text, so short-section merging does not hide the split under test.
+    const filler = "word ".repeat(150).trim();
+    const source = "# Title\nIntro.\n\n## Steps\n### PowerShell\nUse one terminal. " + filler + "\n\n" +
+        "**1. Predict.** No cloud change. " + filler + "\n\n```powershell\n## Not a heading\n**2. Not an action.**\n```\n\n" +
+        "**2. Observe.** Check the result. " + filler + "\n\n<details>\n<summary>Advanced</summary>\n\n" +
         "## Kept inside\n<details>\n<summary>Nested</summary>\n\n### Also inside\n\n</details>\n</details>\n";
     const steps = split(source);
     assert.deepEqual(steps.map((step) => step.title), ["Before you begin", "PowerShell", "Predict.", "Observe."]);
@@ -80,7 +82,7 @@ test("guided reading splits authored actions, never code fences or nested disclo
     assert.match(html, /content\.append\(intro, servicesList\(module\)\);/);
     assert.doesNotMatch(html, /disclosure\([^)]*servicesList/);
     // Commands and terminal checks stay in the main lesson flow, not in optional reading.
-    assert.match(html, /lesson = guidedDocument\(module\.guide \?\? module\.outline, module\.sourcePath, null, \{ validate, review \}\);/);
+    assert.match(html, /lesson = guidedDocument\(module\.guide \?\? module\.outline, module\.sourcePath, null, \{ validate, review, track \}\);/);
     assert.match(html, /if \(index === shiftedValidate\) body\.append\(validate\.render\(step\)\);/);
     // Learning aids carry an icon: questions, answers and hints, and command results.
     assert.match(html, /node\.classList\.add\("question"\);\s*node\.prepend\(symbol\("question"\)\);/);
@@ -150,7 +152,7 @@ test("long lessons paginate at intact content elements and label their continuat
     const start = html.indexOf("function lessonSteps(");
     const end = html.indexOf("function guidedDocument(", start);
     const split = new Function(`${html.slice(start, end)}; return lessonSteps;`)();
-    const paragraph = (name) => `${name} ${"word ".repeat(69).trim()}`;
+    const paragraph = (name) => `${name} ${"word ".repeat(99).trim()}`;
     const fenced = "```powershell\n# Keep checks together\nGet-Location\n\nif ($LASTEXITCODE) { throw 'Stop' }\n```";
     const details = "<details>\n<summary>Reference</summary>\n\n## Not a new page\n\n<details>\n<summary>Nested</summary>\n\nText\n\n</details>\n</details>";
     const long = `# Lesson\n[Français](fr/MCP-CONCEPTS.md)\n\n## Observe\n${paragraph("First")}\n\n${paragraph("Second")}\n\n${paragraph("Third")}\n\n${fenced}\n\n${details}\n\n#### Check\nOne short question.`;
@@ -164,13 +166,13 @@ test("long lessons paginate at intact content elements and label their continuat
     assert.ok(pages[1].content.includes(paragraph("Third")));
     assert.ok(pages[1].content.includes(fenced));
     assert.ok(pages[1].content.includes(details));
-    const list = split(`## List\n${Array.from({ length: 6 }, (_, i) => `- Item ${i} ${"word ".repeat(49).trim()}\n  - Nested child stays with item ${i}`).join("\n")}`);
+    const list = split(`## List\n${Array.from({ length: 8 }, (_, i) => `- Item ${i} ${"word ".repeat(49).trim()}\n  - Nested child stays with item ${i}`).join("\n")}`);
     assert.ok(list.length > 1);
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 8; i++) {
         assert.equal(list.filter((page) => page.content.includes(`- Item ${i}`) &&
             page.content.includes(`Nested child stays with item ${i}`)).length, 1);
     }
-    assert.ok(list.every((page) => page.content.split(/\s+/).length <= 180));
+    assert.ok(list.every((page) => page.content.split(/\s+/).length <= 260));
     const command = "```powershell\nGet-Location\n```";
     const result = "> **Expected result** — synthetic.\n>\n> ```text\n> PASS done\n> ```\n>\n> **What it means for you:** one line.";
     const kept = split(`## Run\n${paragraph("Intro")}\n\n${paragraph("More")}\n\n${command}\n\n${paragraph("Long")}\n\n${command.replace("Get-Location", "Get-Date")}\n\n${result}\n\n${paragraph("After")}`);
@@ -185,7 +187,8 @@ test("long lessons paginate at intact content elements and label their continuat
     const rows = Array.from({ length: 8 }, (_, i) => `| Row ${i} | ${"word ".repeat(39).trim()} |`);
     const tables = split(`## Compare\n${header}\n${rows.join("\n")}`);
     assert.ok(tables.length > 1);
-    assert.ok(tables.every((page) => page.content.startsWith(header) && page.content.split(/\s+/).length <= 180));
+    assert.ok(tables.every((page) => page.content.startsWith(header) && page.content.split(/\s+/).length <= 260 &&
+        page.content.split("|---|").length === 2));
     for (const row of rows) assert.equal(tables.filter((page) => page.content.includes(row)).length, 1);
 });
 
@@ -348,7 +351,8 @@ test("guided controls show one page, preserve commands and require opening long 
         `${html.slice(start, end)}; return guidedDocument;`)(element, (text) => text, markdown, disclosure, symbol);
     const long = Array(13).fill("synthetic").join("\n");
     const wide = "x".repeat(1201);
-    const lesson = render(`## Predict\n\`\`\`powershell\nGet-Location\n\`\`\`\n## Review\n\`\`\`text\n${long}\n\`\`\`\n## Compare\n\`\`\`text\n${wide}\n\`\`\``, "synthetic.md");
+    const filler = "word ".repeat(150).trim();
+    const lesson = render(`## Predict\n${filler}\n\n\`\`\`powershell\nGet-Location\n\`\`\`\n## Review\n${filler}\n\n\`\`\`text\n${long}\n\`\`\`\n## Compare\n${filler}\n\n\`\`\`text\n${wide}\n\`\`\``, "synthetic.md");
     const [header, page, navigation, outline] = lesson.children;
     const position = header.children[0];
     const [previous, next] = navigation.children;
@@ -1046,6 +1050,90 @@ test("the Session 2 reveal diagram matches in both languages and only shows comm
         }
     }
     assert.ok(en.steps.some((step) => /\*\*Preview\*\*/.test(step.say)), "Preview features stay labelled");
+});
+
+test("every module from 01 to 07 builds its architecture step by step for attendees, identically in both languages", () => {
+    const folders = ["01-discover-mcp", "02-open-server", "03-entra-authentication", "04-governed-gateway",
+        "05-delegated-and-app-only", "06-observe-inventory", "07-clients"];
+    const html = readFileSync(new URL("./board.html", import.meta.url), "utf8");
+    const start = html.indexOf("function revealDiagram(");
+    const end = html.indexOf("function disclosure(", start);
+    const render = new Function(`${html.slice(start, end)}; return revealDiagram;`)();
+    assert.throws(() => render(JSON.stringify({ audience: "everyone", steps: [{ title: "One" }] }), "docs/X.md"), /presenter or attendee/);
+    const shape = (spec) => ({
+        size: [spec.width, spec.height, spec.audience, spec.lanes.map((lane) => [lane.x, lane.width])],
+        nodes: spec.nodes.map(({ id, step, until, tone, x, y, width, icon, detail }) => [id, step, until, tone, x, y, width, icon, detail?.length]),
+        edges: spec.edges.map(({ from, to, step, until, tone, fromSide, toSide }) => [from, to, step, until, tone, fromSide, toSide]),
+        steps: spec.steps.length,
+    });
+    for (const folder of folders) {
+        const specs = {};
+        for (const [language, name] of [["en", "README.md"], ["fr", "README.fr.md"]]) {
+            const text = readFileSync(join(repository, "modules", folder, name), "utf8").replaceAll("\r\n", "\n");
+            const blocks = [...text.matchAll(/^```reveal\n([\s\S]*?)\n```$/gm)];
+            assert.equal(blocks.length, 1, `${folder}/${name} needs exactly one reveal block`);
+            const spec = JSON.parse(blocks[0][1]);
+            assert.equal(spec.audience, "attendee", `${folder}/${name}: module diagrams speak to attendees`);
+            assert.ok(spec.width <= 760, `${folder}/${name}: keep module diagrams narrow enough to read without scrolling`);
+            const image = text.indexOf(`assets/architecture/${folder.slice(0, 2)}.${language}.svg`);
+            assert.ok(image > blocks[0].index, `${folder}/${name}: the step-by-step diagram comes before the full diagram`);
+            for (const node of spec.nodes) {
+                const [title, detail] = node.icon ? [18, 20] : [22, 24];
+                assert.ok(node.title.length <= title, `${folder}/${name}: "${node.title}" fits its box`);
+                for (const line of node.detail || []) assert.ok(line.length <= detail, `${folder}/${name}: "${line}" fits its box`);
+            }
+            for (const step of spec.steps) {
+                assert.ok(typeof step.simple === "string" && step.simple.length <= 120 && !/`/.test(step.simple),
+                    `${folder}/${name}: "${step.title}" needs one short plain-language line without code`);
+                assert.ok(!step.blocks && !step.show, `${folder}/${name}: module diagrams explain; the guide steps hold the commands`);
+            }
+            specs[language] = spec;
+        }
+        assert.deepEqual(shape(specs.fr), shape(specs.en), `${folder}: the French diagram has the same shape as the English one`);
+    }
+});
+
+test("short sections share one page and a tiny last page joins the page before it", () => {
+    const html = readFileSync(new URL("./board.html", import.meta.url), "utf8");
+    const start = html.indexOf("function lessonSteps(");
+    const end = html.indexOf("function guidedDocument(", start);
+    const split = new Function(`${html.slice(start, end)}; return lessonSteps;`)();
+    const words = (count) => "word ".repeat(count).trim();
+    const steps = split(`## Goal\n${words(40)}\n\n## Why it matters\n${words(60)}\n\n## What you deploy\n${words(240)}\n\n## Validate\n${words(20)}\n\n## Sources\n${words(20)}`);
+    assert.deepEqual(steps.map((step) => step.title), ["Goal", "What you deploy", "Validate", "Sources"]);
+    assert.match(steps[0].content, /\n\n### Why it matters\n\n/, "The merged section keeps its title as a subheading");
+    // A last page of a few lines is not a step of its own.
+    const tail = split(`## Observe\n${words(250)}\n\n${words(30)}`);
+    assert.equal(tail.length, 1 + 0, "the 30-word tail joins the previous page");
+    assert.equal(tail[0].part, undefined);
+});
+
+test("a guide with a low-code section shows one track at a time and keeps the shared steps", () => {
+    const html = readFileSync(new URL("./board.html", import.meta.url), "utf8");
+    const start = html.indexOf("function lessonSteps(");
+    const end = html.indexOf("function guidedDocument(", start);
+    const split = new Function(`${html.slice(start, end)}; return lessonSteps;`)();
+    const words = (count) => "word ".repeat(count).trim();
+    const source = `## Steps\n${words(200)}\n\n### Low-code track (portal)\n${words(200)}\n\n### PowerShell\n${words(200)}\n\n` +
+        `### Optional part B\n${words(200)}\n\n### Bash\n${words(200)}\n\n## Validate\n${words(200)}`;
+    const titles = (track) => split(source, track).map((step) => step.title);
+    assert.deepEqual(titles("full"), ["Steps", "PowerShell", "Optional part B", "Bash", "Validate"]);
+    assert.deepEqual(titles("low"), ["Steps", "Low-code track (portal)", "Validate"]);
+    assert.equal(titles(null).length, 6, "without a choice, every step stays");
+    // In module 06 the shared steps after the low-code section belong to both tracks.
+    const shared = `## Steps\n### Low-code track\n${words(200)}\n\n### Step 1 - Run the checks\n${words(200)}`;
+    assert.deepEqual(split(shared, "full").map((step) => step.title), ["Step 1 - Run the checks"]);
+    assert.match(html, /preferences\.get\("track"\) === "low" \? "low" : "full"/);
+    assert.match(html, /collectQuestions\(module\.guide, track\)/);
+    for (const folder of ["02-open-server", "03-entra-authentication", "04-governed-gateway", "05-delegated-and-app-only", "06-observe-inventory", "99-cleanup"]) {
+        for (const file of ["README.md", "README.fr.md"]) {
+            const text = readFileSync(join(repository, "modules", folder, file), "utf8");
+            const full = split(text, "full"), low = split(text, "low");
+            assert.ok(low.some((step) => step.track === "low") && !low.some((step) => step.track === "full"), `${folder}/${file}: low-code path`);
+            // Module 06 has no full-code-only section: its full-code path is the shared steps.
+            assert.ok((folder === "06-observe-inventory" || full.some((step) => step.track === "full")) && !full.some((step) => step.track === "low"), `${folder}/${file}: full-code path`);
+        }
+    }
 });
 
 test("the Session 2 overview diagram renders like a module diagram, only in the current language", () => {

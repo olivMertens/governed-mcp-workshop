@@ -54,7 +54,7 @@ call the same levels without deploying anything.
 
 ## Where the low-code track starts in each module
 
-Open the module, then the section **Low-code track** at the top of **Steps**. Each step shows the portal path first,
+In the portal, pick your track once above **Follow the guide** (**Full-code** or **Low-code**): the guide then shows only that track's steps, in every module, and remembers the choice. On GitHub, open the section **Low-code track** at the top of **Steps**. Each step shows the portal path first,
 then the equivalent `az` command, then the real result the author got. Keep the same PowerShell terminal from step L1:
 later steps reuse its variables.
 

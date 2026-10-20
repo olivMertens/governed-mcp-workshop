@@ -18,6 +18,48 @@ Nothing in Azure. Your client starts one C# process using standard input/output 
 It exposes only `get_service_health`. It returns fixed synthetic data and makes no downstream calls.
 The server has no HTTP listener, persistent data, write tool or payload logging.
 
+
+
+
+
+
+
+**Build it step by step.** Select **Next** to add one piece at a time; the full diagram follows.
+
+```reveal
+{
+  "title": "One tool call, on your machine",
+  "audience": "attendee",
+  "width": 760,
+  "height": 380,
+  "lanes": [
+    {"x": 8, "width": 232, "label": "Client"},
+    {"x": 264, "width": 232, "label": "Messages (stdio)"},
+    {"x": 520, "width": 232, "label": "Local server"}
+  ],
+  "nodes": [
+    {"id":"c","step":0,"x":30,"y":44,"width":188,"title":"VS Code or Inspector","detail":["starts the server","as a child process"]},
+    {"id":"s","step":0,"x":542,"y":44,"width":188,"title":"Local MCP server","detail":["Workshop.LocalMcp","stdio, no network"]},
+    {"id":"tool","step":1,"x":542,"y":164,"width":188,"title":"get_service_health","detail":["read-only","input: service"]},
+    {"id":"human","step":2,"tone":"governed","x":30,"y":164,"width":188,"title":"You approve the call","detail":["Manual permissions","arguments shown"]},
+    {"id":"limit","step":4,"tone":"risk","x":286,"y":284,"width":188,"title":"Only you, only here","detail":["no network","no identity"]}
+  ],
+  "edges": [
+    {"from":"c","to":"s","step":0,"label":"initialize"},
+    {"from":"c","to":"tool","step":1,"label":"tools/list"},
+    {"from":"human","to":"tool","step":2,"offset":-10,"label":"tools/call"},
+    {"from":"tool","to":"human","step":3,"offset":10,"label":"result"}
+  ],
+  "steps": [
+    {"title": "The client starts the server", "simple": "No Azure: the client launches the server on your machine, and they talk over stdio.", "say": "They exchange JSON-RPC messages. `initialize` agrees on the protocol version first."},
+    {"title": "Discover the tool", "simple": "The client asks which tools exist and reads what each one expects.", "say": "`tools/list` returns one read-only tool, `get_service_health`, and its input schema: a required `service` text. Nothing runs yet."},
+    {"title": "You approve the call", "simple": "Nothing runs until you say yes in the client.", "say": "With **Manual permissions**, the client shows the tool and its arguments, then sends `tools/call` only after your approval."},
+    {"title": "Read the result", "simple": "The server answers with synthetic data. Check the result itself, not only the exit code.", "say": "`structuredContent` holds `status: healthy` and `source: synthetic`. An unknown service returns a tool error (`isError: true`)."},
+    {"title": "See the limit", "simple": "Nobody else can use this server: there is no network and no identity.", "say": "Module 02 moves the same tools to Azure. Then the real questions start: who may call, and with which rights?"}
+  ]
+}
+```
+
 ![Local discovery architecture](../../assets/architecture/01.en.svg)
 
 The diagram is a learning view, not evidence of a deployed service.

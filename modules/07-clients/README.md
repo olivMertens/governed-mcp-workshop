@@ -46,6 +46,49 @@ Part A only (optional, billed). Part B and part C create nothing.
 
 ### Keep the same authorization boundary
 
+
+
+
+
+**Build it step by step.** Select **Next** to add one piece at a time; the full diagram follows.
+
+```reveal
+{
+  "title": "Another client, the same rules",
+  "audience": "attendee",
+  "width": 760,
+  "height": 380,
+  "lanes": [
+    {"x": 8, "width": 232, "label": "Clients"},
+    {"x": 264, "width": 232, "label": "Entra and gateway"},
+    {"x": 520, "width": 232, "label": "MCP server"}
+  ],
+  "nodes": [
+    {"id":"vscode","step":0,"tone":"morning","x":30,"y":44,"width":188,"title":"VS Code + Copilot","detail":["modules 03 to 06"]},
+    {"id":"apim","step":0,"tone":"governed","x":286,"y":164,"width":188,"icon":"apim","title":"API Management","detail":["same URL","same policies"]},
+    {"id":"fn","step":0,"x":542,"y":164,"width":188,"icon":"functions","title":"MCP server","detail":["same tools, roles"]},
+    {"id":"entra","step":1,"x":286,"y":44,"width":188,"icon":"entra","title":"Microsoft Entra ID","detail":["new client app","pre-authorized"]},
+    {"id":"foundry","step":2,"tone":"preview","x":30,"y":164,"width":188,"icon":"foundry-agent-service","title":"Foundry agent","detail":["Preview","OAuth passthrough"]},
+    {"id":"approve","step":3,"tone":"governed","x":286,"y":284,"width":188,"title":"Human approval","detail":["in the Foundry agent","then the role check"]},
+    {"id":"studio","step":4,"x":30,"y":284,"width":188,"icon":"copilot-studio","title":"Copilot Studio","detail":["outline only"]}
+  ],
+  "edges": [
+    {"from":"apim","to":"fn","step":0,"tone":"governed","label":"private"},
+    {"from":"foundry","to":"entra","step":2,"label":"sign-in"},
+    {"from":"foundry","to":"apim","step":2,"tone":"governed","label":"token"},
+    {"from":"approve","to":"apim","step":3,"label":"then"},
+    {"from":"studio","to":"apim","step":4,"label":""}
+  ],
+  "steps": [
+    {"title": "Same server, same gateway", "simple": "Nothing changes on the server side: the new client uses the same gateway URL.", "say": "The app roles, the rate limit and the logs from modules 03 to 06 apply to every client."},
+    {"title": "Register the new client", "simple": "The new client gets its own app registration, allowed in three places.", "say": "Pre-authorized on the API in Entra, allowed by the Function's built-in authentication, and listed in the gateway policies. Missing from one list: refused at that gate."},
+    {"title": "The agent acts as the user (Preview)", "simple": "The Foundry agent signs the user in and calls the gateway with that user's token.", "say": "OAuth identity passthrough is **Preview**. The user consents once; never share a consent link."},
+    {"title": "A person approves writes", "simple": "Before a write tool runs, a person approves it. The role check still applies after that.", "say": "Approval grants no rights: Bob's approved `create_ticket` still gets HTTP 403 from the gateway."},
+    {"title": "Copilot Studio, same rules", "simple": "Copilot Studio would connect to the same URL and meet the same controls.", "say": "Part B is an outline only. The same checklist applies to every client: token audience, app roles, approval, logs."}
+  ]
+}
+```
+
 ![Optional clients use the same API Management authorization boundary and private Function.](../../assets/architecture/07.en.svg)
 
 The product changes; the server's authorization does not.
@@ -153,6 +196,9 @@ terraform '-chdir=infra\workload' apply '..\..\.workshop\module07.tfplan'
 > Apply complete! Resources: 0 added, 6 changed, 0 destroyed.
 > ```
 
+<details>
+<summary>Low-code track: A2 and A3 without Terraform (open only if you chose the low-code track)</summary>
+
 **A2 and A3 in the low-code track** ([how to choose](../../docs/TRACKS.md)). A1 and A4 to A7 are the same in both tracks.
 Run A2 with the first two lines below instead of its `terraform` line. Then, instead of the A3 Terraform plans, add the
 Foundry client to the three gates by hand: the API's pre-authorized clients (Entra), the Function's allowed applications
@@ -197,6 +243,8 @@ foreach ($m in @(@('workshop-mcp', 'mcp-server'), @('contoso-tickets-api', 'rest
 > **What it means for you:** three lists, three IDs each (VS Code, Azure CLI, Foundry client). A client missing from any
 > one of them is refused at that gate. In A4, use `https://<apim>.azure-api.net/workshop-mcp/mcp` as the endpoint and
 > `api://<mcpApp>/user_impersonation offline_access` as the scopes.
+
+</details>
 
 **A4. Add the MCP tool in the Foundry portal.** Open [Foundry](https://ai.azure.com/nextgen), select your project, then
 **Build** → **Tools** → **Connect a tool** → **Custom** → **Model Context Protocol (MCP)** → **Create**. Fill in:

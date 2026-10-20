@@ -56,7 +56,7 @@ l'environnement préparé : vous appelez les mêmes niveaux sans rien déployer.
 
 ## Où commence le parcours low-code dans chaque module
 
-Ouvrez le module, puis la section **Parcours low-code** au début des **Étapes**. Chaque étape montre d'abord le chemin
+Dans le portail, choisissez votre parcours une fois au-dessus de **Suivez le guide** (**Full-code** ou **Low-code**) : le guide n'affiche alors que les étapes de ce parcours, dans tous les modules, et retient ce choix. Sur GitHub, ouvrez la section **Parcours low-code** au début des **Étapes**. Chaque étape montre d'abord le chemin
 dans le portail, puis la commande `az` équivalente, puis le résultat réel obtenu par l'auteur. Gardez le même terminal
 PowerShell depuis l'étape L1 : les étapes suivantes réutilisent ses variables.
 
