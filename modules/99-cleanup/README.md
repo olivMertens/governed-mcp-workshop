@@ -86,6 +86,75 @@ flowchart LR
 > `-Apply` (PowerShell) or `--apply` (bash) deletes resources. Use it only after explicit approval and review of every plan.
 > Stop if a plan includes an unexpected resource.
 
+### Low-code track (portal and simple commands)
+
+Everything you built by hand sits in **one resource group** plus **two app registrations**, so the clean-up is short.
+Your test users stay. Portal: **Resource groups** → your `rg-mcp-<prefix>lc-…` group → **Delete resource group**; **App
+registrations** → *Workshop MCP API (…)* and *workshop-mcp-foundry-client-…* → **Delete**; then **API Management
+services** → **Manage deleted services** → **Purge**. The commands do the same, report first.
+
+```powershell
+$p = Get-Content .\.workshop\participant.tfvars.json -Raw | ConvertFrom-Json
+$id = "$($p.participant_prefix)lc"; $sfx = $p.resource_suffix.Substring(0, 10); $rg = "rg-mcp-$id-$sfx"; $apim = "apim-mcp-$id-$sfx"
+$tenant = az account show --query tenantId -o tsv; $sub = az account show --query id -o tsv
+# 1. Report: read the list. Stop if the group is not tagged track=low-code or holds something you did not create.
+az group show -n $rg --query tags -o json
+az resource list -g $rg --query "[].type" -o tsv | Group-Object | ForEach-Object { "$($_.Count) $($_.Name)" }
+az ad app list --display-name "Workshop MCP API ($id-$sfx)" --query "[].displayName" -o tsv
+& .\modules\07-clients\cleanup.ps1 -TenantId $tenant -SubscriptionId $sub -LowCodeTrack   # only if you did module 07
+```
+
+> **Real result** — low-code track, 2026-10-20, author's test tenant (excerpt).
+>
+> ```text
+>   "track": "low-code",
+>   "workshop": "governed-mcp"
+> 1 Microsoft.ApiCenter/services
+> 1 Microsoft.ApiManagement/service
+> 4 Microsoft.ManagedIdentity/userAssignedIdentities
+> 3 Microsoft.Network/privateEndpoints
+> 1 Microsoft.Web/sites
+> Workshop MCP API (<id>)
+> PLAN delete the Foundry client app registration and its short-lived secret
+> DONE report only. Nothing was changed. Rerun with -Apply after reviewing every PLAN line.
+> ```
+
+```powershell
+# 2. Apply, after approval. Deleting the API registration also removes its federated credential, pre-authorizations and consents.
+& .\modules\07-clients\cleanup.ps1 -TenantId $tenant -SubscriptionId $sub -LowCodeTrack -Apply   # only if you did module 07
+if ((az group show -n $rg --query tags.track -o tsv) -ne 'low-code') { throw 'Not the low-code workshop group: nothing deleted.' }
+$apps = @(az ad app list --display-name "Workshop MCP API ($id-$sfx)" --query "[].id" -o tsv)
+az group delete -n $rg --yes
+foreach ($a in $apps) { az ad app delete --id $a }
+# 3. API Management keeps a deleted instance for 48 hours: purge it to free the name.
+$d = az apim deletedservice list -o json | ConvertFrom-Json | Where-Object name -eq $apim
+if ($d) { az apim deletedservice purge --service-name $d.name --location $d.location }
+"group exists: $(az group exists -n $rg); soft-deleted gateways: $((az apim deletedservice list --query '[].name' -o tsv) -join ',')"
+```
+
+> **Real result** — low-code track, 2026-10-20 (excerpt; the first `az group delete` stopped, see the note below).
+>
+> ```text
+> PASS Foundry client app registration and secret deleted (expected HTTP 204 from Microsoft Graph).
+> DONE module 07 part A removed. Private module 07 files deleted.
+> group exists: false; soft-deleted gateways:
+> ```
+>
+> **What it means for you:** nothing from the low-code track remains: no resource group, no app registration, no
+> soft-deleted gateway. Only your test users remain, on purpose.
+
+> [!NOTE]
+> On 2026-10-20 the first `az group delete` stopped with `ResourceGroupDeletionBlocked` and `Server farm with name ASP-…
+> not found`: the Flex Consumption plan was already gone, but Azure Resource Manager still listed it. Everything else was
+> deleted. The fix: recreate the plan with the same name, delete it, then delete the group again.
+>
+> ```powershell
+> $plan = az resource list -g $rg --resource-type Microsoft.Web/serverFarms --query "[0].name" -o tsv
+> $url = "https://management.azure.com/subscriptions/$sub/resourceGroups/$rg/providers/Microsoft.Web/serverFarms/$plan`?api-version=2024-04-01"
+> $f = New-TemporaryFile; '{"location":"westeurope","kind":"functionapp","sku":{"name":"FC1","tier":"FlexConsumption"},"properties":{"reserved":true}}' | Set-Content $f
+> az rest --method put --url $url --body "@$f" -o none; Remove-Item $f; az rest --method delete --url $url; az group delete -n $rg --yes
+> ```
+
 ### PowerShell
 
 ```powershell

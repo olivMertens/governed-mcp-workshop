@@ -94,6 +94,42 @@ Vérifiez le résultat dans le client et les traces disponibles en aval. Une req
 
 </details>
 
+### Parcours low-code (portail et commandes simples)
+
+Les étapes 1, 2 et 5 sont les mêmes dans les deux parcours, et les étapes 3 et 4 donnent déjà le chemin du portail. Seules
+leurs lignes de terminal lisent les sorties Terraform : dans le parcours low-code, utilisez plutôt les noms ci-dessous.
+
+```powershell
+$p = Get-Content .\.workshop\participant.tfvars.json -Raw | ConvertFrom-Json
+$id = "$($p.participant_prefix)lc"; $sfx = $p.resource_suffix.Substring(0, 10)
+$group = "rg-mcp-$id-$sfx"; $ai = "appi-mcp-$id-$sfx"; $apim = "apim-mcp-$id-$sfx"; $apic = "apic-mcp-$id-$sfx"
+# Étape 3 : le même fichier KQL, sur votre composant Application Insights.
+az monitor app-insights query --app $ai --resource-group $group --offset 24h `
+  --analytics-query '@modules/06-observe-inventory/queries/mcp-traffic.kql' --query 'tables[0].rows' -o json
+# Étape 4 : le centre d'API (plan Free) et son environnement gateway ; l'URL à coller sous Remotes.
+az apic create --resource-group $group --name $apic --location (az group show --name $group --query location --output tsv)
+az apic environment create --resource-group $group --service-name $apic --environment-id gateway --title "API Management gateway" --type development
+"https://$apim.azure-api.net/workshop-mcp/mcp"
+```
+
+> **Résultat réel** — parcours low-code, 2026-10-20, tenant de test de l'auteur. 7 des 102 lignes issues des vérifications
+> des modules 04 et 05, puis le centre d'API (`"sku": { "name": "Free" }`) et l'environnement `gateway`.
+>
+> ```text
+> [ "2026-10-20T10:27:38.6207559Z", "tools/call", "create_ticket", "200", "True", 442.5, "", "" ]
+> [ "2026-10-20T10:27:51.7341172Z", "tools/call", "create_ticket", "403", "False", 3.3805, "", "" ]
+> [ "2026-10-20T10:32:02.3050838Z", "tools/call", "list_tickets", "200", "True", 51.4503, "", "" ]
+> [ "2026-10-20T10:46:54.2387598Z", "tools/call", "whoami", "200", "True", 1566.4731, "", "" ]
+> [ "2026-10-20T10:46:56.2391415Z", "tools/call", "read_report_as_user", "200", "True", 569.971, "", "" ]
+> [ "2026-10-20T10:46:57.2408390Z", "tools/call", "read_report_as_app", "200", "True", 258.4664, "", "" ]
+> [ "2026-10-20T10:47:08.3307894Z", "tools/call", "read_report_as_user", "200", "True", 292.3766, "", "" ]
+> ```
+>
+> **Ce que cela signifie pour vous :** les mêmes métadonnées que dans le parcours full-code, car les stratégies de la
+> passerelle sont les mêmes. Les deux lignes `read_report_as_user` affichent HTTP 200, mais l'une est celle de Bob : Storage
+> l'a refusé dans le résultat de l'outil. Un succès HTTP n'est pas un succès de l'outil. Le `create_ticket` de Bob
+> (HTTP 403, 3 ms) n'a jamais atteint la Function.
+
 ### Étape 1 - Exécuter les vérifications hors ligne
 
 Vérifiez les fichiers du module, la requête KQL et les règles de journalisation avant de lancer la moindre requête.
