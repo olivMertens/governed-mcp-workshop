@@ -2006,7 +2006,7 @@
       map.append(element("p", "How this page works"));
       const stops = element("ol");
       const stepWord = (number) => `${t("Step")} ${number}`;
-      const cards = [[t("Follow the guide"), `${lesson.stepCount} ${t("steps, one at a time")}`, () => { lesson.goTo(0); }]];
+      const cards = [[t("Follow the guide"), `${lesson.stepCount} ${t("steps")}`, () => { lesson.goTo(0); }]];
       if (lesson.exerciseIndex !== -1) cards.push([t("Your turn"), t("Server built and Inspector ready? Start the guided requests."), () => lesson.goTo(lesson.exerciseIndex)]);
       if (lesson.validateIndex !== -1) cards.push([t("Check your work"), `${stepWord(lesson.validateIndex + 1)}${language === "fr" ? " : " : ": "}${module.module === "00" ? t("Review your Azure context") : t("Run the validator: PASS or FAIL")}`, () => lesson.goTo(lesson.validateIndex)]);
       if (lesson.reviewIndex !== -1) cards.push([t("Review questions"), `${stepWord(lesson.reviewIndex + 1)}${language === "fr" ? " : " : ": "}${items.length} ${t(items.length === 1 ? "question, answer hidden" : "questions, answers hidden")}`, () => lesson.goTo(lesson.reviewIndex)]);

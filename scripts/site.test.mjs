@@ -146,6 +146,13 @@ test("module 07 addresses participants across guides, summaries, navigation and 
         assert.match(guide, language === "fr" ? /votre (?:propre )?environnement de test/ : /your own test environment/);
         assert.doesNotMatch(guide, /label them when you show them|signalez-les quand vous les montrez/);
         assert.match(guide, language === "fr" ? /partie B.*pas un exercice à exécuter/ : /Part B.*not a hands-on exercise/);
+        for (const track of ["README", "LOW-CODE"]) {
+            const file = `${track}${language === "fr" ? ".fr" : ""}.md`;
+            const content = readFileSync(join(root, "modules", "07-clients", file), "utf8");
+            for (const shot of ["azure-07-foundry-tool", "azure-07-foundry-approve", "azure-07-foundry-result"]) {
+                assert.ok(content.includes(`../../assets/screenshots/${shot}.png`), `${file}: preserve the Foundry capture ${shot}`);
+            }
+        }
         for (const document of ["BUILD-PLAN.md", "LEARNING-GUIDE.md", "PRACTICE.md"]) {
             const parts = language === "fr" ? ["docs", "fr", document] : ["docs", document];
             const content = readFileSync(join(root, ...parts), "utf8");
@@ -400,6 +407,23 @@ test("French cleanup explains the separate Foundry group and preserves its parti
     assert.match(questions[0].text, /agent Foundry/);
     assert.match(questions[0].text, /groupe de ressources de Foundry est distinct/);
     assert.match(questions[0].text, /étape 3/);
+});
+
+test("the guide card shows only the step count in English and French", () => {
+    const html = readFileSync(join(root, ".github", "extensions", "workshop-build-board", "board.html"), "utf8");
+    const source = html.slice(html.indexOf('const cards = [[t("Follow the guide")'),
+        html.indexOf("if (lesson.exerciseIndex !== -1) cards.push("));
+    const french = runInNewContext(`${readFileSync(join(root, ".github", "extensions", "workshop-build-board", "locale-fr.js"), "utf8")}\nfrench;`);
+    for (const language of ["en", "fr"]) {
+        const jumps = [];
+        const cards = new Function("lesson", "t", `${source}; return cards;`)(
+            { stepCount: 19, goTo: (index) => jumps.push(index) },
+            (key) => language === "fr" ? french[key] ?? key : key);
+        assert.equal(cards[0][0], language === "fr" ? "Suivez le guide" : "Follow the guide");
+        assert.equal(cards[0][1], language === "fr" ? "19 étapes" : "19 steps");
+        cards[0][2]();
+        assert.deepEqual(jumps, [0]);
+    }
 });
 
 test("the review card uses singular and plural question labels in English and French", () => {
