@@ -115,6 +115,144 @@ La demande complète à envoyer à l'administrateur des identités se trouve dan
 
 ## Étapes
 
+> [!TIP]
+> **Deux parcours, même résultat.** Suivez le même parcours qu'au module 02 ([comment choisir](../../docs/fr/TRACKS.md)) : le **parcours low-code** ci-dessous, ou le **parcours full-code** (sections PowerShell et Bash).
+
+### Parcours low-code (portail et commandes simples)
+
+Les étapes L2 et L3 (Microsoft Entra) demandent l'administrateur des identités. Gardez un seul terminal PowerShell depuis L1.
+
+**L1. Les noms du module 02.**
+
+```powershell
+$p = Get-Content .\.workshop\participant.tfvars.json -Raw | ConvertFrom-Json
+$id = "$($p.participant_prefix)lc"; $sfx = $p.resource_suffix.Substring(0, 10)
+$rg = "rg-mcp-$id-$sfx"; $fn = "func-mcp-$id-$sfx"
+$tenant = az account show --query tenantId -o tsv; $sub = az account show --query id -o tsv
+```
+
+> **Résultat attendu** — aucune sortie.
+
+**L2. L'inscription d'application de l'API MCP : un scope et trois rôles d'application.** Portail : **Microsoft Entra ID** → **Inscriptions d'applications** → **Nouvelle inscription** (locataire unique). Puis **Exposer une API** : **Ajouter** l'URI d'ID d'application (`api://<client-id>`), **Ajouter une étendue** `user_impersonation` (administrateurs et utilisateurs). **Rôles d'application** → **Créer un rôle d'application** trois fois : `Tools.Read` et `Tools.Write` (utilisateurs), `Tools.Execute.All` (applications). **Manifeste** : `requestedAccessTokenVersion` = 2.
+
+```powershell
+$app = az ad app create --display-name "Workshop MCP API ($id-$sfx)" --sign-in-audience AzureADMyOrg --query "{appId:appId,id:id}" -o json | ConvertFrom-Json
+$body = @{
+  identifierUris = @("api://$($app.appId)")
+  api = @{ requestedAccessTokenVersion = 2; oauth2PermissionScopes = @(@{ id = [guid]::NewGuid(); value = 'user_impersonation'; type = 'User'; isEnabled = $true
+      adminConsentDisplayName = 'Access the workshop MCP server'; adminConsentDescription = 'Allow the client application to call the workshop MCP server for the signed-in user.'
+      userConsentDisplayName = 'Access the workshop MCP server'; userConsentDescription = 'Allow the application to call the workshop MCP server for you.' }) }
+  appRoles = @(
+    @{ id = [guid]::NewGuid(); value = 'Tools.Read'; displayName = 'Read workshop tools'; description = 'Call read-only workshop MCP tools.'; allowedMemberTypes = @('User'); isEnabled = $true },
+    @{ id = [guid]::NewGuid(); value = 'Tools.Write'; displayName = 'Write with workshop tools'; description = 'Call workshop MCP tools that change synthetic data.'; allowedMemberTypes = @('User'); isEnabled = $true },
+    @{ id = [guid]::NewGuid(); value = 'Tools.Execute.All'; displayName = 'Execute workshop tools as an application'; description = 'App-only access for a separately approved client.'; allowedMemberTypes = @('Application'); isEnabled = $true })
+} | ConvertTo-Json -Depth 6
+$f = New-TemporaryFile; Set-Content $f $body
+az rest --method patch --url "https://graph.microsoft.com/v1.0/applications/$($app.id)" --body "@$f" --headers 'Content-Type=application/json'; Remove-Item $f
+az ad app show --id $app.appId --query "{uri:identifierUris[0], v:api.requestedAccessTokenVersion, scopes:api.oauth2PermissionScopes[].value, roles:appRoles[].value}" -o json
+```
+
+> **Résultat réel** — parcours low-code, 2026-10-20, tenant de test de l'auteur.
+>
+> ```text
+> {
+>   "roles": [
+>     "Tools.Execute.All",
+>     "Tools.Write",
+>     "Tools.Read"
+>   ],
+>   "scopes": [
+>     "user_impersonation"
+>   ],
+>   "uri": "api://<api-client-id>",
+>   "v": 2
+> }
+> ```
+
+**L3. Préautoriser VS Code et Azure CLI, exiger l'affectation, attribuer les rôles.** Portail : **Exposer une API** → **Ajouter une application cliente** pour Visual Studio Code et Azure CLI (ID ci-dessous). Puis **Applications d'entreprise** → votre API → **Propriétés** : *Affectation requise ?* **Oui** ; **Utilisateurs et groupes** → **Ajouter un utilisateur/groupe** : Alice avec `Tools.Read` puis avec `Tools.Write`, Bob avec `Tools.Read`. Eve ne reçoit rien.
+
+```powershell
+$scopeId = az ad app show --id $app.appId --query "api.oauth2PermissionScopes[0].id" -o tsv
+$vscode = 'aebc6443-996d-45c2-90f0-388ff96faa56'; $azcli = '04b07795-8ddb-461a-bbee-02f9e1bf7b46'
+$f = New-TemporaryFile
+@{ api = @{ preAuthorizedApplications = @(@{ appId = $vscode; delegatedPermissionIds = @($scopeId) }, @{ appId = $azcli; delegatedPermissionIds = @($scopeId) }) } } |
+    ConvertTo-Json -Depth 5 | Set-Content $f
+az rest --method patch --url "https://graph.microsoft.com/v1.0/applications/$($app.id)" --body "@$f" --headers 'Content-Type=application/json'; Remove-Item $f
+$sp = az ad sp create --id $app.appId --query id -o tsv
+az ad sp update --id $sp --set appRoleAssignmentRequired=true
+$roles = az ad app show --id $app.appId --query "appRoles[].{v:value,id:id}" -o json | ConvertFrom-Json
+$alice = az ad user show --id '<alice-upn>' --query id -o tsv; $bob = az ad user show --id '<bob-upn>' --query id -o tsv
+foreach ($a in @(@($alice, 'Tools.Read'), @($alice, 'Tools.Write'), @($bob, 'Tools.Read'))) {
+    $f = New-TemporaryFile
+    @{ principalId = $a[0]; resourceId = $sp; appRoleId = ($roles | Where-Object v -eq $a[1]).id } | ConvertTo-Json | Set-Content $f
+    az rest --method post --url "https://graph.microsoft.com/v1.0/servicePrincipals/$sp/appRoleAssignedTo" --body "@$f" --headers 'Content-Type=application/json' -o none
+    Remove-Item $f
+}
+az rest --url "https://graph.microsoft.com/v1.0/servicePrincipals/$sp/appRoleAssignedTo" --query "value[].principalDisplayName" -o tsv
+```
+
+> **Résultat réel** — parcours low-code, 2026-10-20, tenant de test de l'auteur : deux affectations pour Alice, une pour Bob.
+>
+> ```text
+> Alice (MCP workshop test)
+> Alice (MCP workshop test)
+> Bob (MCP workshop test)
+> ```
+
+**L4. Étape 1 : l'authentification intégrée devant la clé.** Portail : Function App → **Paramètres** → **Authentification** → **Ajouter un fournisseur d'identité** → **Microsoft** → *Choisir une inscription d'application existante* (votre API) ; *Exigence d'application cliente* : **Autoriser les requêtes de certaines applications clientes** (les deux ID ci-dessus) ; *Requêtes non authentifiées* : **HTTP 401** ; *Magasin de jetons* désactivé. Puis **Variables d'environnement** : ajoutez les deux paramètres `WEBSITE_AUTH_*` ci-dessous.
+
+```powershell
+$f = New-TemporaryFile
+@{ properties = @{
+    platform = @{ enabled = $true; runtimeVersion = '~1' }
+    globalValidation = @{ requireAuthentication = $true; unauthenticatedClientAction = 'Return401' }
+    httpSettings = @{ requireHttps = $true; routes = @{ apiPrefix = '/.auth' }; forwardProxy = @{ convention = 'NoProxy' } }
+    login = @{ tokenStore = @{ enabled = $false } }
+    identityProviders = @{ azureActiveDirectory = @{ enabled = $true
+        registration = @{ clientId = $app.appId; openIdIssuer = "https://login.microsoftonline.com/$tenant/v2.0" }
+        validation = @{ allowedAudiences = @("api://$($app.appId)", $app.appId)
+            defaultAuthorizationPolicy = @{ allowedApplications = @($vscode, $azcli) } } } } } } | ConvertTo-Json -Depth 8 | Set-Content $f
+az rest --method put --url "https://management.azure.com/subscriptions/$sub/resourceGroups/$rg/providers/Microsoft.Web/sites/$fn/config/authsettingsV2?api-version=2024-04-01" `
+    --body "@$f" --headers 'Content-Type=application/json' -o none; Remove-Item $f
+az functionapp config appsettings set -g $rg -n $fn -o none --settings "WEBSITE_AUTH_PRM_DEFAULT_WITH_SCOPES=api://$($app.appId)/user_impersonation" "WEBSITE_AUTH_AAD_ALLOWED_TENANTS=$tenant"
+$r = Invoke-WebRequest "https://$fn.azurewebsites.net/runtime/webhooks/mcp" -Method Post -ContentType 'application/json' -SkipHttpErrorCheck `
+    -Body '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"t","version":"1"}}}'
+"no token: $($r.StatusCode)"
+```
+
+> **Résultat réel** — parcours low-code, 2026-10-20 : `no token: 401`. La réponse porte un défi `WWW-Authenticate` avec `resource_metadata` (**préversion**) : les clients MCP trouvent où se connecter.
+
+**L5. Étape 2 : retirer la clé, puis vérifier en opérateur et en tant qu'Alice, Bob et Eve.** Portail : **Variables d'environnement** → ajoutez le paramètre ci-dessous. Seulement après L4 : Entra doit déjà être devant.
+
+```powershell
+az functionapp config appsettings set -g $rg -n $fn -o none --settings "AzureFunctionsJobHost__extensions__mcp__system__webhookAuthorizationLevel=Anonymous"
+& .\modules\03-entra-authentication\validate.ps1 -TenantId $tenant -SubscriptionId $sub -ResourceGroup $rg -FunctionApp $fn -ApiClientId $app.appId
+foreach ($persona in 'Alice', 'Bob', 'Eve') {
+    $env:AZURE_CONFIG_DIR = Join-Path $PWD ".workshop\az-$($persona.ToLower())"
+    az login --tenant $tenant --allow-no-subscriptions   # sign in as $persona in the browser
+    & .\modules\03-entra-authentication\validate.ps1 -TenantId $tenant -Persona $persona -ResourceGroup $rg -FunctionApp $fn -ApiClientId $app.appId
+    az logout
+}
+Remove-Item Env:\AZURE_CONFIG_DIR
+```
+
+> **Résultat réel** — parcours low-code, 2026-10-20, tenant de test de l'auteur (extrait).
+>
+> ```text
+> PASS MCP request without a token is refused by built-in authentication (expected HTTP 401).
+> PASS Protected Resource Metadata (Preview) names the tenant authorization server and the user_impersonation scope (expected HTTP 200).
+> PASS a valid token for another audience (Microsoft Graph) is refused (expected HTTP 401).
+> PASS deployed authsettingsV2: required, Return401, tenant issuer, MCP audience only, no secret setting (expected HTTP 200 from Azure Resource Manager).
+> PASS app settings: webhook key gate replaced by Entra, PRM scope set (Preview) (expected HTTP 200 from Azure Resource Manager).
+> PASS the level 0 system key alone no longer opens the server (expected HTTP 401).
+> ...
+> PASS Alice tools/list returns exactly the five workshop tools (expected HTTP 200).
+> PASS Bob tools/list returns exactly the five workshop tools (expected HTTP 200).
+> PASS Eve cannot obtain a token: she is not assigned to the enterprise application (expected HTTP 400 from the token endpoint, AADSTS50105).
+> ```
+>
+> **Ce que cela signifie pour vous :** le même niveau 1 que dans le parcours full-code : sans jeton, avec une mauvaise audience ou avec la clé seule, la réponse est HTTP 401, et Eve n'obtient même pas de jeton. Continuez avec le parcours low-code du module 04.
+
 ### PowerShell
 
 Exécutez les commandes depuis la racine du dépôt. Les étapes 2 à 7 modifient Microsoft Entra ou Azure : ne les exécutez qu'après approbation.

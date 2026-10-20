@@ -18,7 +18,11 @@ param(
     [guid]$SubscriptionId,
     [ValidateSet('Alice', 'Bob', 'Eve')][string]$Persona,
     [string]$PersonaObjectIdsPath,
-    [switch]$SkipBuild
+    [switch]$SkipBuild,
+    # Low-code track: name what you created in the portal instead of reading Terraform outputs.
+    [string]$ResourceGroup,
+    [string]$FunctionApp,
+    [string]$ApiClientId
 )
 
 Set-StrictMode -Version Latest
@@ -144,8 +148,29 @@ if ($Offline -or -not $TenantId -or $TenantId -eq [guid]::Empty) {
 
 . (Join-Path $root 'scripts' 'context-common.ps1')
 Assert-WorkshopInteractiveEnvironment
-$outputs = & terraform "-chdir=$workload" output -json | ConvertFrom-Json -AsHashtable
-if ($LASTEXITCODE -ne 0 -or $null -eq $outputs) { Fail 'Terraform outputs unavailable; use the same private workload state as the deployment (expected HTTP N/A).' }
+if ($ResourceGroup -or $FunctionApp -or $ApiClientId) {
+    if (-not ($ResourceGroup -and $FunctionApp -and $ApiClientId)) { Fail 'low-code track: pass -ResourceGroup, -FunctionApp and -ApiClientId together (expected HTTP N/A).' }
+    if ($Persona) {
+        # A test account has no Azure role: it cannot read the app through Azure Resource Manager. The operator run
+        # already checked the configuration; the persona run only needs the URL and the audience.
+        $lowHost = "$FunctionApp.azurewebsites.net"; $lowAuth = 'true'
+        $lowSettings = @([pscustomobject]@{ n = 'AzureFunctionsJobHost__extensions__mcp__system__webhookAuthorizationLevel'; v = 'Anonymous' })
+    } else {
+        $lowHost = (& az functionapp show -g $ResourceGroup -n $FunctionApp --query 'properties.defaultHostName || defaultHostName' -o tsv --only-show-errors | Out-String).Trim()
+        $lowSettings = @(& az functionapp config appsettings list -g $ResourceGroup -n $FunctionApp --query '[].{n:name,v:value}' -o json --only-show-errors | ConvertFrom-Json)
+        $lowAuth = & az rest --method get --uri "/subscriptions/$(az account show --query id -o tsv)/resourceGroups/$ResourceGroup/providers/Microsoft.Web/sites/$FunctionApp/config/authsettingsV2?api-version=2024-04-01" --query 'properties.platform.enabled' -o tsv --only-show-errors
+    }
+    $outputs = @{
+        mcp_endpoint = @{ value = $(if ($lowHost) { "https://$lowHost/runtime/webhooks/mcp" } else { $null }) }
+        mcp_auth_audience = @{ value = "api://$ApiClientId" }; mcp_auth_scope = @{ value = "api://$ApiClientId/user_impersonation" }
+        mcp_auth_issuer = @{ value = "https://login.microsoftonline.com/$TenantId/v2.0" }; mcp_auth_enabled = @{ value = ($lowAuth -eq 'true') }
+        mcp_key_gate_replaced = @{ value = [bool]($lowSettings | Where-Object { $_.n -eq 'AzureFunctionsJobHost__extensions__mcp__system__webhookAuthorizationLevel' -and $_.v -eq 'Anonymous' }) }
+        resource_group_name = @{ value = $ResourceGroup }; mcp_function_app_name = @{ value = $FunctionApp }
+    }
+} else {
+    $outputs = & terraform "-chdir=$workload" output -json | ConvertFrom-Json -AsHashtable
+    if ($LASTEXITCODE -ne 0 -or $null -eq $outputs) { Fail 'Terraform outputs unavailable; use the same private workload state as the deployment, or the low-code parameters (expected HTTP N/A).' }
+}
 $endpoint = $outputs.mcp_endpoint?.value
 $audience = $outputs.mcp_auth_audience?.value
 $scope = $outputs.mcp_auth_scope?.value
