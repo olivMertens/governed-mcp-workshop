@@ -3,8 +3,10 @@
 Pour comprendre une étape, consultez d'abord le schéma de son module.
 Cette page s'adresse aux personnes qui modifient ou republient les schémas.
 
-`workshop.drawio` est le fichier source commun : neuf modules, chacun avec une page anglaise et une page française.
+`workshop.drawio` est le fichier source commun des modules : neuf modules, chacun avec une page anglaise et une page française.
 Les fichiers `NN.en.svg` / `NN.fr.svg` et PNG correspondants sont générés et ne sont jamais retouchés séparément.
+`session2.drawio` est la source distincte de la vue d'ensemble de la séquence 2 (pages `session2.en` et `session2.fr`).
+Le même script et les mêmes contrôles produisent `session2.en.svg` / `session2.fr.svg` et leurs PNG ; il n'a pas de guide Mermaid.
 Les guides `STEPS.md` et `STEPS.fr.md` reprennent les mêmes composants, liens et périmètres en Mermaid.
 Pour suivre l'atelier, ouvrez les [schémas étape par étape](STEPS.fr.md).
 Tous montrent une **cible prévue**, pas une infrastructure déjà déployée.
