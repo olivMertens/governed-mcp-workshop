@@ -124,6 +124,30 @@ no passthrough, private backend, PRM challenge, no subscription keys, inventory,
 The board, local server, static site and portal serve the five new assets (static site 91 files, portal 93/91);
 French module links in the walk-through now use `../../`. Suites 48/48 PASS.
 
+## Guided exercise UI (2026-10-20)
+
+Module 01's English and French guides now have four explicit requests: discover the contract, read `workshop-api`,
+change to `ticket-queue`, then reject `billing`. Each keeps its purpose, prediction, command, output provenance,
+interpretation and observation together. Bash offers the same four calls with a result after every command.
+The shared reader never splits an authored request by word count. It shows request-local progress, numbered
+navigation, a terminal command beside a deliberately revealed recorded/expected answer, and highlighted evidence.
+The module page has a direct "Your turn" entry after the reader has built the server and prepared Inspector.
+Reference examples are not personal execution or completion evidence. No browser execution, output collection,
+token input, new dependency, resource change, cost or architecture change was introduced.
+
+Offline checks: board, static-site and portal regression suites (46 tests); real module 01 SDK validator PASS in an
+isolated copy of the unchanged server sources (locked restore/build, both exact synthetic results, rejected inputs,
+no writes and no payload logging). Pinned Inspector 2.9.0 CLI: all four requests checked against that server, including
+its `tool_is_error` summary and exit code 5 for the intentional refusal (not code 0); EN/FR guards and explanation corrected.
+The direct local test runner could not rebuild the editor-held DLL; its separate
+VS Code config assertion also expects a `microsoft-learn` alias absent from the local configuration. No existing
+editor process or configuration was changed to bypass those failures.
+Browser checks: all four requests EN/FR, 25/50/75/100% request progress, unchanged command text, closed reference
+answers, keyboard reveal and Previous/Next; two columns at 1440/1024px and one at 390px with no horizontal overflow.
+Request navigation and reference reveal send no network requests. The existing six-request server guide still
+shows all six requests, without assuming local Inspector preparation. Manual client approval remains unverified;
+module 01 stays `authored`, not newly live-validated.
+
 ## Open decisions
 
 - Network (module 04): implemented as recommended (Standard v2 outbound virtual network integration, Function private

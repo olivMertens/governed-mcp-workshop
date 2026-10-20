@@ -41,6 +41,13 @@ if ($LASTEXITCODE -ne 0) { throw 'Clone failed. Do not continue in another direc
 Set-Location .\governed-mcp-workshop
 ```
 
+Or, using bash in a folder where you keep projects:
+
+```bash
+git clone --branch main https://github.com/olivMertens/governed-mcp-workshop.git && \
+  cd governed-mcp-workshop
+```
+
 **Expected:** `README.md`, `scripts` and `infra` are in the current folder.
 Run the following commands from this folder. If VS Code is installed, open it with `code .`.
 Each participant needs their own checkout. The repository is public: cloning needs no GitHub account or GitHub CLI.

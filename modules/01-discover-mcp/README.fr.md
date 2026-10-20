@@ -87,7 +87,13 @@ $env:MCP_INSPECTOR_PERSIST_TOKENS = 'none'
 
 **Observez :** aucun serveur n'a démarré. Si la DLL est absente, l'étape 1 n'est pas terminée ; arrêtez-vous.
 
-### Découvrir le contrat sans exécuter d'outil
+Les quatre requêtes suivantes utilisent ce même terminal. Chaque commande lance et ferme son propre serveur local.
+Le portail montre des exemples enregistrés ou attendus, jamais votre exécution. Comparez-les avec la sortie de votre terminal.
+Ne collez ni jetons ni sortie du terminal dans la page publique.
+
+### Requête 1 sur 4 : Découvrir
+
+**Pourquoi :** avant de choisir un outil, le client demande au serveur ce qu'il sait faire. Il découvre un contrat, pas un état de santé.
 
 **Anticipez :** vous devez obtenir un seul outil, `get_service_health`, avec un argument obligatoire `service`.
 
@@ -105,15 +111,12 @@ if ($LASTEXITCODE -ne 0) { throw 'Inspector discovery failed.' }
 > "annotations": { "readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false }
 > ```
 >
-> **Ce que cela signifie pour vous :** c'est le **contrat** qu'un agent lit avant de choisir un outil. Le modèle
-> s'appuie sur `description` pour décider et sur `inputSchema` pour construire les arguments. Les `annotations` sont
-> des indications pour le client, pas un contrôle de sécurité : un serveur pourrait mentir. Rien ne s'est encore exécuté.
+**Ce que cela signifie pour vous :** `description` aide le modèle à choisir l'outil. `inputSchema` lui indique comment construire les arguments.
+Vous avez découvert l'outil, pas appelé celui-ci.
 
-**Observez :** le nom et le schéma de l'outil, pas un état de santé.
+**À repérer :** `get_service_health`, `required: ["service"]` et `readOnlyHint: true`. Aucun état de santé n'a encore été renvoyé.
 
-**Avant de continuer :** expliquez la différence entre lister un outil et l'appeler.
-
-**Question :** les `annotations` indiquent `readOnlyHint: true`. Cela suffit-il à empêcher cet outil d'écrire ?
+**Question :** `readOnlyHint: true` suffit-il à empêcher un outil d'écrire ?
 
 <details>
 <summary>Afficher la réponse</summary>
@@ -123,7 +126,9 @@ serveur et, dans les modules suivants, ses contrôles d'authentification et de r
 
 </details>
 
-### Faire un appel explicite en lecture seule
+### Requête 2 sur 4 : Lire un service
+
+**Pourquoi :** vous connaissez maintenant le contrat. Utilisez-le pour demander l'état d'un service.
 
 **Anticipez :** `workshop-api` doit renvoyer `healthy` et `isError: false`, avec des données fictives.
 
@@ -139,34 +144,73 @@ if ($LASTEXITCODE -ne 0) { throw 'Inspector tool call failed.' }
 > "isError": false
 > ```
 >
-> Avec une valeur non prise en charge (`service=billing`), la même commande renvoie :
+**Ce que cela signifie pour vous :** le client a réellement appelé l'outil. `healthy` est l'état fictif du service.
+`isError: false` indique la réussite de l'outil ; `source: synthetic` rappelle qu'il ne s'agit pas de supervision réelle.
+
+**À repérer :** `service: workshop-api`, `status: healthy`, `source: synthetic` et `isError: false` dans votre terminal.
+Comparez les champs, pas les espaces ni les durées.
+
+### Requête 3 sur 4 : Changer le service
+
+**Pourquoi :** gardez le même outil et changez seulement `service`. Les arguments sélectionnent les données, sans nouvel outil.
+
+**Anticipez :** `ticket-queue` renvoie `degraded`. Cela signifie-t-il que l'outil a échoué ?
+
+```powershell exchange
+npx @modelcontextprotocol/inspector@2.9.0 --cli dotnet $server --method tools/call --tool-name get_service_health --tool-arg service=ticket-queue
+if ($LASTEXITCODE -ne 0) { throw 'Inspector tool call failed.' }
+```
+
+> **Résultat attendu** — extrait de la réponse fictive fixe contrôlée par le validateur. Ce n'est pas une réponse exécutée par cette page.
+>
+> ```text
+> "structuredContent": { "service": "ticket-queue", "status": "degraded", "source": "synthetic", "environment": "local-only" },
+> "isError": false
+> ```
+
+**Ce que cela signifie pour vous :** un état dégradé est une donnée, pas un échec de l'outil. Celui-ci a correctement renvoyé cet état.
+
+**À repérer :** seuls le service et son état changent dans le résultat. `isError` reste à `false`.
+
+### Requête 4 sur 4 : Tester un refus
+
+**Pourquoi :** un outil fiable refuse une entrée inconnue au lieu d'inventer une réponse. Testez cette limite.
+
+**Anticipez :** `billing` renvoie `isError: true`, sans état de santé inventé. Inspector 2.9.0 se termine avec le code **5** pour cette erreur d'outil, pas 0.
+
+```powershell exchange
+npx @modelcontextprotocol/inspector@2.9.0 --cli dotnet $server --method tools/call --tool-name get_service_health --tool-arg service=billing
+if ($LASTEXITCODE -ne 5) { throw 'Expected Inspector exit code 5 for this tool error.' }
+```
+
+> **Résultat réel** — capture locale avec Inspector 2.9.0, 2026-10-20 (extrait). Données fictives.
 >
 > ```text
 > "text": "An error occurred invoking 'get_service_health': Unknown synthetic service. Use workshop-api or ticket-queue."
 > "isError": true
 > ```
 >
-> **Ce que cela signifie pour vous :** un outil peut échouer **à l'intérieur d'un échange MCP réussi**. Lisez toujours
-> `isError` : il ne suffit pas que la commande se soit exécutée. Le serveur refuse une entrée inconnue au lieu de deviner :
-> c'est ce que l'on attend de chaque outil, et plus encore quand viendront les outils d'écriture.
+> Inspector écrit aussi un résumé d'erreur avec `code: tool_is_error` et se termine avec le code **5**. Le contrôle ci-dessus attend ce code uniquement pour cette requête.
 
-Lisez la demande d'installation de npm avant de l'accepter. Chaque commande lance et ferme son propre serveur.
-Ces commandes affichent des résultats fictifs, pas des identifiants cloud.
-Ne conservez pas la sortie du terminal pour la réutiliser dans les modules suivants.
+**Ce que cela signifie pour vous :** l'échange MCP peut réussir alors que l'outil signale un échec. C'est un refus d'entrée,
+pas une panne Azure ni un contrôle d'identité. Le client a reçu le refus de l'outil et le signale par son propre code de sortie.
+Aucun service cloud n'a été contacté.
 
-**Observez :** un vrai appel d'outil en local, et non une réponse inventée par un modèle. Aucun service Azure n'a été contacté.
+**À repérer :** `isError: true`, les noms des services acceptés et le code de sortie 5 d'Inspector. Tout autre résultat doit être examiné.
 
-**Question :** la commande Inspector se termine avec le code de sortie 0. Cela prouve-t-il que l'outil a réussi ?
+**Question :** Inspector se termine avec le code 5. Cela signifie-t-il forcément que la connexion a échoué ?
 
 <details>
 <summary>Afficher la réponse</summary>
 
-Non. L'échange MCP peut réussir alors que l'outil signale une erreur. Lisez `isError` (et le contenu du résultat) :
-un service inconnu renvoie `isError: true` dans un appel réussi.
+Non. Ici, la connexion a transporté un résultat avec `isError: true`. Inspector traduit cet échec d'outil par le code de sortie 5.
+Lisez l'erreur et le résultat. D'autres clients peuvent signaler les erreurs d'outil autrement.
 
 </details>
 
-**Facultatif : les mêmes appels dans la page web de l'Inspector.** Vous préférez cliquer plutôt que taper ? Lancez l'Inspector sans `--cli` :
+### Facultatif : utiliser la page web de l'Inspector
+
+Vous préférez cliquer plutôt que taper ? Lancez l'Inspector sans `--cli` :
 
 ```powershell
 npx @modelcontextprotocol/inspector@2.9.0 dotnet $server
@@ -235,14 +279,41 @@ La version bash appelle le même script PowerShell 7. Il n'existe pas de seconde
 bash ./modules/01-discover-mcp/validate.sh
 server="$PWD/modules/01-discover-mcp/server/bin/Release/net10.0/Workshop.LocalMcp.dll"
 export MCP_INSPECTOR_SECRET_STORE=memory MCP_INSPECTOR_PERSIST_TOKENS=none
+```
+
+> **Résultat attendu** — le validateur affiche ses contrôles PASS, puis la préparation ne produit aucune sortie. Arrêtez-vous si la compilation échoue.
+
+Suivez ensuite les quatre mêmes requêtes. Exécutez chaque bloc séparément. Les trois premières requêtes attendent le code 0 ;
+le dernier refus attend volontairement le code 5.
+
+```bash
 npx @modelcontextprotocol/inspector@2.9.0 --cli dotnet "$server" --method tools/list
+```
+
+> **Résultat attendu** — l'exemple de la requête 1 : un outil avec son argument obligatoire `service`, pas un état de santé.
+
+```bash
 npx @modelcontextprotocol/inspector@2.9.0 --cli dotnet "$server" --method tools/call --tool-name get_service_health --tool-arg service=workshop-api
 ```
 
-> **Résultat attendu** — les mêmes lignes PASS et la même sortie d'Inspector que les exécutions PowerShell ci-dessus ; `validate.sh` appelle le même `validate.ps1`.
+> **Résultat attendu** — requête 2 : `workshop-api`, `healthy`, `source: synthetic` et `isError: false`.
+
+```bash
+npx @modelcontextprotocol/inspector@2.9.0 --cli dotnet "$server" --method tools/call --tool-name get_service_health --tool-arg service=ticket-queue
+```
+
+> **Résultat attendu** — requête 3 : `ticket-queue`, `degraded` et `isError: false`.
+
+```bash
+code=0
+npx @modelcontextprotocol/inspector@2.9.0 --cli dotnet "$server" --method tools/call --tool-name get_service_health --tool-arg service=billing || code=$?
+if [ "$code" -ne 5 ]; then printf '%s\n' 'Expected Inspector exit code 5 for this tool error.' >&2; false; fi
+```
+
+> **Résultat attendu** — requête 4 : l'erreur nomme les services autorisés, avec `isError: true` et `tool_is_error`. Le contrôle accepte uniquement le code de sortie 5 d'Inspector.
 
 Faites ensuite l'exercice VS Code ci-dessus dans la même copie.
-Exécutez les commandes une par une et arrêtez-vous dès que l'une d'elles renvoie un code de sortie non nul.
+Exécutez les blocs un par un et arrêtez-vous dès que le code de sortie est inattendu.
 
 ## Ce que vous devez voir
 
@@ -339,7 +410,8 @@ Conservez les paramètres et l'état privés du module 00. Aucun nettoyage Azure
 
 ## Aller plus loin
 
-Essayez `ticket-queue` après avoir prédit le résultat. Expliquez pourquoi une indication de lecture seule n'est pas un contrôle d'accès.
+Expliquez la différence entre `degraded` avec `isError: false` et un service inconnu avec `isError: true`.
+Expliquez pourquoi une indication de lecture seule n'est pas un contrôle d'accès.
 Suite : le [module 02](../02-open-server/README.fr.md) déploie le même serveur dans Azure, protégé seulement par une clé.
 Le portail facultatif du présentateur ne fait que diffuser ces instructions.
 
@@ -349,6 +421,7 @@ Le portail facultatif du présentateur ne fait que diffuser ces instructions.
 - [Réutilisation et licences, en anglais](UPSTREAM.md).
 - [Transports MCP](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports) et [outils](https://modelcontextprotocol.io/specification/2026-07-28/server/tools).
 - [MCP Inspector](https://modelcontextprotocol.io/docs/tools/inspector).
+- [Sorties et codes de retour de l'Inspector CLI](https://modelcontextprotocol.io/docs/2026-07-28/tools/inspector/cli).
 - [Configuration MCP de VS Code](https://code.visualstudio.com/docs/agent-customization/mcp-servers) et [approbations](https://code.visualstudio.com/docs/agents/run/approvals).
 
-Dernière vérification : 2026-10-14.
+Dernière vérification : 2026-10-20 (exercice guidé et références publiques outils/Inspector ; aucune modification cloud).

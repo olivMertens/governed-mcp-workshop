@@ -5,10 +5,51 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
+import { runInNewContext } from "node:vm";
 import { buildSite, authorOnlyDocuments } from "./build-site.mjs";
 import { screenshots } from "./portal-server.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
+
+test("workspace setup shows clone commands before local steps, but Codespaces needs no local clone", () => {
+    const html = readFileSync(join(root, ".github", "extensions", "workshop-build-board", "board.html"), "utf8");
+    const source = html.slice(html.indexOf("function showStart(mode)"), html.indexOf("function deploymentContext()"));
+    const clone = "git clone --branch main https://github.com/olivMertens/governed-mcp-workshop.git";
+    const node = (tag, text, ...children) => ({
+        tag, text, children,
+        append(...items) { this.children.push(...items); },
+    });
+    for (const mode of [undefined, "local", "devcontainer", "codespaces"]) {
+        const content = node("main");
+        runInNewContext(`${source}\nshowStart(mode);`, {
+            mode, content, element: node, externalLink: node, link: node, notice: node,
+            commandBlock: node, disclosure: (title, ...children) => node("details", title, ...children),
+            markdown: node, workspaceChoices: () => node("choices"),
+            state: { environment: { tools: true }, documents: { gettingStarted: { content: "guide", sourcePath: "guide.md" } } },
+        });
+        const rendered = JSON.stringify(content);
+        if (mode === "codespaces") {
+            assert.ok(!rendered.includes(clone));
+            assert.match(rendered, /https:\/\/codespaces.new\/olivMertens\/governed-mcp-workshop/);
+            continue;
+        }
+        const commands = content.children.flatMap((item) => [item, ...item.children])
+            .filter((item) => item.tag?.startsWith("Clone repository /"));
+        assert.equal(commands.length, 2);
+        assert.equal(commands[0].text, `${clone}\nif ($LASTEXITCODE -ne 0) { throw 'Clone failed. Do not continue in another directory.' }\nSet-Location .\\governed-mcp-workshop`);
+        assert.equal(commands[1].text, `${clone} && \\\n  cd governed-mcp-workshop`);
+        assert.ok(commands.every((item) => item.children[1] === false), "Shell commands must not be translated");
+        if (mode) assert.ok(rendered.indexOf(clone) < rendered.indexOf("Check tools / PowerShell"));
+        else assert.ok(!rendered.includes("Check tools / PowerShell"));
+        assert.match(rendered, /https:\/\/github.com\/olivMertens\/governed-mcp-workshop/);
+        assert.match(rendered, /Once the repository is public/);
+        assert.match(rendered, /Keep your private .workshop files and Terraform state/);
+    }
+    for (const parts of [["docs", "GETTING-STARTED.md"], ["docs", "fr", "GETTING-STARTED.md"]]) {
+        const guide = readFileSync(join(root, ...parts), "utf8").replaceAll("\r\n", "\n");
+        assert.ok(guide.includes(`\`\`\`bash\n${clone} && \\\n  cd governed-mcp-workshop\n\`\`\``));
+    }
+});
 
 test("Git preserves SVG bytes and binary PNG provenance on Windows checkouts", () => {
     const attributes = readFileSync(join(root, ".gitattributes"), "utf8");

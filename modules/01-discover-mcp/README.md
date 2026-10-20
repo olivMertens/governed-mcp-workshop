@@ -86,7 +86,13 @@ $env:MCP_INSPECTOR_PERSIST_TOKENS = 'none'
 
 **Observe:** no server has started. A missing DLL means step 1 did not finish; stop.
 
-### Discover the contract without invoking a tool
+The next four requests use this same terminal. Each command starts and closes its own local server.
+The portal shows recorded or expected examples, never your own execution. Compare your terminal output with them.
+Do not paste tokens or terminal output into the public page.
+
+### Request 1 of 4: Discover
+
+**Why:** before choosing a tool, a client asks the server what it can do. This lists a contract; it does not check service health.
 
 **Predict:** one tool, `get_service_health`, with a required `service` argument.
 
@@ -104,15 +110,12 @@ if ($LASTEXITCODE -ne 0) { throw 'Inspector discovery failed.' }
 > "annotations": { "readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false }
 > ```
 >
-> **What it means for you:** this is the **contract** an agent reads before choosing a tool. The model relies on the
-> `description` to decide, and on `inputSchema` to build arguments. The `annotations` are hints for the client, not
-> a security control: a server could lie. Nothing has run yet.
+**What it means for you:** `description` helps the model choose a tool. `inputSchema` tells it how to build the arguments.
+You have discovered the tool, not called it.
 
-**Observe:** the tool name and input schema, not a service-health result.
+**Look for:** `get_service_health`, `required: ["service"]` and `readOnlyHint: true`. There is no health result yet.
 
-**Before continuing:** explain the difference between listing a tool and calling it.
-
-**Question:** the `annotations` say `readOnlyHint: true`. Does that prevent this tool from writing anything?
+**Question:** does `readOnlyHint: true` prevent a tool from writing?
 
 <details>
 <summary>Show answer</summary>
@@ -122,7 +125,9 @@ in later modules, its authentication and app-role checks decide what a caller ma
 
 </details>
 
-### Make one explicit read-only call
+### Request 2 of 4: Read a service
+
+**Why:** discovery gave you the contract. Now use it to ask for one service's health.
 
 **Predict:** `workshop-api` returns `healthy` and `isError: false`, with synthetic data.
 
@@ -138,33 +143,73 @@ if ($LASTEXITCODE -ne 0) { throw 'Inspector tool call failed.' }
 > "isError": false
 > ```
 >
-> With an unsupported value (`service=billing`), the same command returns:
+**What it means for you:** the client actually invoked the tool. `healthy` is the synthetic service's state.
+`isError: false` means the tool succeeded; `source: synthetic` means this is not real monitoring.
+
+**Look for:** `service: workshop-api`, `status: healthy`, `source: synthetic` and `isError: false` in your terminal.
+Compare the fields, not spacing or timings.
+
+### Request 3 of 4: Change the service
+
+**Why:** keep the tool, change only `service`. This shows how arguments select data without adding a new tool.
+
+**Predict:** `ticket-queue` returns `degraded`. Decide whether that means the tool itself failed.
+
+```powershell exchange
+npx @modelcontextprotocol/inspector@2.9.0 --cli dotnet $server --method tools/call --tool-name get_service_health --tool-arg service=ticket-queue
+if ($LASTEXITCODE -ne 0) { throw 'Inspector tool call failed.' }
+```
+
+> **Expected result** — excerpt of the fixed synthetic response checked by the module validator. Not a live response from this page.
+>
+> ```text
+> "structuredContent": { "service": "ticket-queue", "status": "degraded", "source": "synthetic", "environment": "local-only" },
+> "isError": false
+> ```
+
+**What it means for you:** a degraded service is data, not a failed tool call. The tool successfully reported that state.
+
+**Look for:** only the service and status change in the result. `isError` stays `false`.
+
+### Request 4 of 4: Test a refusal
+
+**Why:** a reliable tool rejects unsupported input instead of inventing an answer. Test that boundary.
+
+**Predict:** `billing` returns `isError: true`, with no invented service health. Inspector 2.9.0 exits with code **5** for this tool error, not 0.
+
+```powershell exchange
+npx @modelcontextprotocol/inspector@2.9.0 --cli dotnet $server --method tools/call --tool-name get_service_health --tool-arg service=billing
+if ($LASTEXITCODE -ne 5) { throw 'Expected Inspector exit code 5 for this tool error.' }
+```
+
+> **Real result** — local Inspector 2.9.0 capture, 2026-10-20 (excerpt). Synthetic data.
 >
 > ```text
 > "text": "An error occurred invoking 'get_service_health': Unknown synthetic service. Use workshop-api or ticket-queue."
 > "isError": true
 > ```
 >
-> **What it means for you:** a tool can fail **inside a successful MCP exchange**. Always read `isError`, not only
-> whether the command ran. The server rejects unknown input instead of guessing: that is the behavior you want
-> from every tool, especially before writes exist.
+> Inspector also writes an error summary with `code: tool_is_error` and exits with code **5**. The guard above expects that code for this request only.
 
-Review npm's package-install prompt. Each command starts and closes its own server.
-These commands print synthetic results, not cloud credentials. Do not reuse transcript recording for later modules.
+**What it means for you:** an MCP exchange can succeed while the tool reports failure. This is an input refusal,
+not an Azure outage or an identity check. The client received the tool's refusal and reports it with its own exit code.
+No cloud service was contacted.
 
-**Observe:** a real local tool invocation, not a model's invented answer. No Azure service was contacted.
+**Look for:** `isError: true`, the allowed service names and Inspector exit code 5. Any other result needs investigation.
 
-**Question:** the Inspector command exited with code 0. Does that prove the tool succeeded?
+**Question:** Inspector exits with code 5. Does that necessarily mean the connection failed?
 
 <details>
 <summary>Show answer</summary>
 
-No. The MCP exchange can succeed while the tool itself reports an error. Read `isError` (and the result content);
-an unknown service returns `isError: true` inside a successful call.
+No. Here, the connection delivered a tool result with `isError: true`. Inspector maps that tool failure to exit code 5.
+Read the error and the result content. Other clients may report tool errors differently.
 
 </details>
 
-**Optional: the same calls in the Inspector web page.** Prefer clicking to typing? Start the Inspector without `--cli`:
+### Optional: use the Inspector web page
+
+Prefer clicking to typing? Start the Inspector without `--cli`:
 
 ```powershell
 npx @modelcontextprotocol/inspector@2.9.0 dotnet $server
@@ -233,14 +278,41 @@ The same validator runs through PowerShell 7; no separate server implementation:
 bash ./modules/01-discover-mcp/validate.sh
 server="$PWD/modules/01-discover-mcp/server/bin/Release/net10.0/Workshop.LocalMcp.dll"
 export MCP_INSPECTOR_SECRET_STORE=memory MCP_INSPECTOR_PERSIST_TOKENS=none
+```
+
+> **Expected result** — the validator prints PASS checks, then the setup lines return silently. Stop if the build fails.
+
+Then follow the same four requests. Run each block separately. The first three requests expect exit code 0;
+the final refusal deliberately expects code 5.
+
+```bash
 npx @modelcontextprotocol/inspector@2.9.0 --cli dotnet "$server" --method tools/list
+```
+
+> **Expected result** — the discovery example in request 1: one tool and its required `service` argument, not a health result.
+
+```bash
 npx @modelcontextprotocol/inspector@2.9.0 --cli dotnet "$server" --method tools/call --tool-name get_service_health --tool-arg service=workshop-api
 ```
 
-> **Expected result** — the same PASS lines and Inspector output as the PowerShell runs above; `validate.sh` calls the same `validate.ps1`.
+> **Expected result** — request 2: `workshop-api`, `healthy`, `source: synthetic` and `isError: false`.
+
+```bash
+npx @modelcontextprotocol/inspector@2.9.0 --cli dotnet "$server" --method tools/call --tool-name get_service_health --tool-arg service=ticket-queue
+```
+
+> **Expected result** — request 3: `ticket-queue`, `degraded` and `isError: false`.
+
+```bash
+code=0
+npx @modelcontextprotocol/inspector@2.9.0 --cli dotnet "$server" --method tools/call --tool-name get_service_health --tool-arg service=billing || code=$?
+if [ "$code" -ne 5 ]; then printf '%s\n' 'Expected Inspector exit code 5 for this tool error.' >&2; false; fi
+```
+
+> **Expected result** — request 4: the error names the allowed services, with `isError: true` and `tool_is_error`. The guard accepts only Inspector exit code 5.
 
 Run the VS Code exercise above from the same checkout.
-Keep each command separate and stop if its exit code is nonzero.
+Keep each block separate and stop on an unexpected exit code.
 
 ## What you should see
 
@@ -338,7 +410,8 @@ Keep module 00's private parameters/state. No Azure teardown is needed for modul
 
 ## Go further
 
-Try `ticket-queue` and predict its result first. Explain why a read-only annotation is a hint, not an access check.
+Explain why `degraded` with `isError: false` differs from an unsupported service with `isError: true`.
+Explain why a read-only annotation is a hint, not an access check.
 Next: [module 02](../02-open-server/README.md) deploys the same server to Azure, protected only by a key.
 The presenter's optional portal hosts these instructions only.
 
@@ -348,6 +421,7 @@ The presenter's optional portal hosts these instructions only.
 - [Reuse and license notices](UPSTREAM.md).
 - [MCP transports](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports) and [tools](https://modelcontextprotocol.io/specification/2026-07-28/server/tools).
 - [MCP Inspector](https://modelcontextprotocol.io/docs/tools/inspector).
+- [Inspector CLI output and exit codes](https://modelcontextprotocol.io/docs/2026-07-28/tools/inspector/cli).
 - [VS Code MCP configuration](https://code.visualstudio.com/docs/agent-customization/mcp-servers) and [tool approvals](https://code.visualstudio.com/docs/agents/run/approvals).
 
-Last verified: 2026-10-14.
+Last verified: 2026-10-20 (guided exercise and public tool/Inspector references; no cloud changes).
