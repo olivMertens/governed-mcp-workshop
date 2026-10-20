@@ -4,6 +4,7 @@ param(
     [Parameter(Mandatory)][guid]$TenantId,
     [Parameter(Mandatory)][guid]$SubscriptionId,
     [ValidateSet('foundation', 'portal', 'mcp')][string]$Stage = 'foundation',
+    [ValidateSet('terraform', 'low-code')][string]$Track = 'terraform',
     [string]$ParametersPath = (Join-Path (Split-Path $PSScriptRoot -Parent) '.workshop/participant.tfvars.json'),
     [string]$CapacityReviewPath,
     [ValidateSet(512, 2048, 4096)][int]$FlexMemoryMB = 2048,
@@ -15,14 +16,15 @@ $ErrorActionPreference = 'Stop'
 $dynamicInstall = $env:AZURE_EXTENSION_USE_DYNAMIC_INSTALL
 $env:AZURE_EXTENSION_USE_DYNAMIC_INSTALL = 'no'
 try {
-    & (Join-Path $PSScriptRoot 'check-tools.ps1')
+    & (Join-Path $PSScriptRoot 'check-tools.ps1') -Track $Track
     $parameters = Read-WorkshopParameters -Path $ParametersPath
     Assert-WorkshopAzureContext -TenantId $TenantId -SubscriptionId $SubscriptionId
     Write-Output 'PASS explicit interactive context (expected HTTP N/A; no sign-in, token output or context change)'
 
     $subscription = $SubscriptionId.ToString()
     $scope = "/subscriptions/$subscription"
-    $stem = "mcp-$($parameters.participant_prefix)-$($parameters.resource_suffix)"
+    $prefix = if ($Track -eq 'low-code') { "$($parameters.participant_prefix)lc" } else { $parameters.participant_prefix }
+    $stem = "mcp-$prefix-$($parameters.resource_suffix)"
     $group = if ($parameters.existing_resource_group_name) { $parameters.existing_resource_group_name } else { "rg-$stem" }
     $groupScope = "$scope/resourceGroups/$group"
     if ($Stage -ne 'foundation' -or $parameters.existing_resource_group_name) {

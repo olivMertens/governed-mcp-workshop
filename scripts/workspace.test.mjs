@@ -176,20 +176,21 @@ Write-Output 'PASS legacy stability, invalid suffix rejection and six missing-pa
 
 test("shared tool checks accept working tools and reject incompatible versions without Azure login", (t) => {
     const script = join(root, "scripts", "check-tools.ps1").replaceAll("'", "''");
-    for (const compatible of [true, false]) {
+    for (const [compatible, track] of [[true, "terraform"], [false, "terraform"], [true, "low-code"], [false, "low-code"]]) {
         const result = powershell(`
 function global:git { $global:LASTEXITCODE=0; 'git version 2.53.0' }
 function global:az { if ($args[0] -ne 'version') { throw 'Unexpected Azure access.' }; $global:LASTEXITCODE=0; '{"azure-cli":"2.88.0"}' }
-function global:terraform { $global:LASTEXITCODE=0; '{"terraform_version":"1.16.6"}' }
+function global:terraform { ${track === "low-code" ? "throw 'Low-code must not execute Terraform.'" : "$global:LASTEXITCODE=0; '{\"terraform_version\":\"1.16.6\"}'"} }
 function global:dotnet { $global:LASTEXITCODE=0; '${compatible ? "10.0.402" : "9.0.319"} [synthetic]' }
 function global:node { $global:LASTEXITCODE=0; 'v22.22.0' }
 function global:func { $global:LASTEXITCODE=0; '4.14.0' }
-& '${script}'
+& '${script}' -Track '${track}'
 `, t);
         if (!result) return;
         if (compatible) {
             assert.equal(result.status, 0, result.stderr);
             assert.match(result.stdout, /PASS local tools only/);
+            if (track === "low-code") assert.doesNotMatch(result.stdout, /PASS terraform/);
         } else {
             assert.notEqual(result.status, 0);
             assert.match(result.stdout, /FAIL dotnet/);

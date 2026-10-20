@@ -76,9 +76,17 @@ export function readJourney(root, progress) {
                 const original = readDocument(root, parts, true);
                 const translated = french ? readDocument(root, [...parts.slice(0, -1), "README.fr.md"], true) : original;
                 const guide = original === null ? null : translated;
+                const lowCodeParts = [...parts.slice(0, -1), french ? "LOW-CODE.fr.md" : "LOW-CODE.md"];
+                const lowCode = readDocument(root, lowCodeParts, true);
+                const guides = {
+                    terraform: { guide, sourcePath: [...parts.slice(0, -1), french ? "README.fr.md" : "README.md"].join("/") },
+                    "low-code": module.module === "01" ? {
+                        guide, sourcePath: [...parts.slice(0, -1), french ? "README.fr.md" : "README.md"].join("/"),
+                    } : { guide: lowCode, sourcePath: lowCodeParts.join("/") },
+                };
                 return {
                     ...module, title: french ? titles.get(module.module) : module.title,
-                    outline, guide, hints: hint, learning: concept,
+                    outline, guide, guides, hints: hint, learning: concept,
                     hintsSourcePath: [...base, "PRACTICE.md"].join("/"),
                     learningSourcePath: [...base, "LEARNING-GUIDE.md"].join("/"),
                     originalGuide: french && original !== null && translated === null ?
@@ -98,8 +106,9 @@ export function readJourney(root, progress) {
                 };
             }),
             documents: {
+                lowCodeDeployment: document(french ? "Votre environnement low-code" : "Your low-code environment", "LOW-CODE-DEPLOYMENT.md"),
                 concepts: document(french ? "Comprendre MCP et les agents" : "MCP and agent concepts", "MCP-CONCEPTS.md"),
-                gettingStarted: document(french ? "Choisir votre environnement" : "Choose your workspace", "GETTING-STARTED.md"),
+                gettingStarted: document(french ? "Bien démarrer" : "Get started", "GETTING-STARTED.md"),
                 practice: { title: french ? "Tester votre serveur MCP" : "Try your MCP", sourcePath: [...base, "PRACTICE.md"].join("/"), content: practice },
                 ...(available([...base, "TRACKS.md"]) ? {
                     tracks: document(french ? "Choisir son parcours" : "Choose your track", "TRACKS.md"),

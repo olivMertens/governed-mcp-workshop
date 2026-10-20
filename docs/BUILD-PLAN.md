@@ -175,11 +175,14 @@ Personas:
     the MCP server must stay blocked.
 
 ## 07 — Optional: other clients
-- **Depends on:** modules 03 to 06 validated (or a recording of them). Optional.
+- **Depends on:** modules 03 to 06 deployed and validated in the participant's approved test environment. Optional.
+  Recordings are a reading-only alternative; they do not provide the resources needed for the exercise.
 - **Take:** https://learn.microsoft.com/azure/foundry/agents/how-to/mcp-authentication;
   https://learn.microsoft.com/microsoft-copilot-studio/mcp-add-existing-server-to-agent.
-- **Show:** the same governed server from a Foundry agent (project managed identity or OAuth identity passthrough, Preview)
-  and from Copilot Studio. Facilitator demo only.
+- **Build and verify:** optional participant exercise with a Foundry agent using OAuth identity passthrough (**Preview**),
+  through the existing gateway. Alice reads; Bob's approved write is refused. The current gateway requires delegated
+  user context, so a project managed identity is not a substitute. Copilot Studio remains a reading-only outline,
+  not a live-validated exercise. See the module guide for setup, approval, cost and clean-up.
 
 ## 99 — Clean up
 - **Depends on:** run last, with the same private files and Terraform state as the deployed modules. Reverse order.

@@ -15,6 +15,17 @@ Take one MCP server from **open** to **governed** on Azure, alone, in **your own
 | Participant | [Follow the workshop](docs/GETTING-STARTED.md) · [Guide participant](docs/fr/GETTING-STARTED.md) |
 | Public guides (EN/FR) | [English](https://olivmertens.github.io/governed-mcp-workshop/?lang=en#/start) · [Français](https://olivmertens.github.io/governed-mcp-workshop/?lang=fr#/start): read-only, no Azure connection |
 
+### Choose one deployment track
+
+| Track | English | Français |
+|---|---|---|
+| Low-code: portal first, terminal only when needed, no Terraform | [Start low-code](modules/00-prerequisites/LOW-CODE.md) | [Commencer en low-code](modules/00-prerequisites/LOW-CODE.fr.md) |
+| Terraform + PowerShell: reviewed plans and scripts | [Start Terraform](modules/00-prerequisites/README.md) | [Commencer avec Terraform](modules/00-prerequisites/README.fr.md) |
+
+The [track page](docs/TRACKS.md) ([français](docs/fr/TRACKS.md)) links every module for each track.
+Module 01 is shared. All other modules have separate guides, validation instructions and cleanup.
+The website keeps your choice in `?track=low-code` or `?track=terraform`; changing guides does not migrate resources.
+
 The presenter shares the deployed portal's `?lang=fr#/start` or `?lang=en#/start` link. Paths such as `/fr/` return 404 by design: language is set by query string only.
 Participants do not deploy another portal or use the presenter's administrator account.
 The presenter shares the portal link only after its deployment and HTTPS checks succeed; it is not listed in this repository.
@@ -33,7 +44,10 @@ or [clonage et installation en français](docs/fr/GETTING-STARTED.md#0-récupér
 | 4️⃣ | ▶️ **Do** | Follow the module steps, one module at a time. | The result written under "What you should see". |
 | 5️⃣ | ✅ **Validate, then clean up** | Run the published module's validator. Review cleanup before deleting anything. | Offline `PASS` does not prove Azure deployment. Module 00 preflight creates nothing. |
 
-### 💻 PowerShell: run module 00
+### 💻 Terraform + PowerShell: run module 00
+
+The commands below belong to the Terraform track. For portal-first setup, follow
+[low-code module 00](modules/00-prerequisites/LOW-CODE.md) instead; it does not require Terraform.
 
 Open **PowerShell 7.4+** in the repository root, locally or in your chosen development container.
 Missing a tool? Follow the [installation guide](docs/GETTING-STARTED.md)
@@ -104,8 +118,9 @@ Module 02 deploys real Azure resources: start it only after module 00 validation
 ## 🗺️ Modules
 
 > [!TIP]
-> Each module offers two tracks: **low-code** (Azure portal or one short `az` command per step) or **full-code**
-> (Terraform and scripts). Pick one for the whole workshop: [choose your track](docs/TRACKS.md).
+> There are two separate sets of guides: **low-code, portal first**, and **Terraform + PowerShell**.
+> Pick one for the whole workshop: [choose your track](docs/TRACKS.md). The table below links the Terraform guides;
+> the track page links both sets, including their French translations.
 
 | # | Module | Need it? | Test status | Guide |
 |---|---|---|---|---|

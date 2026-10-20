@@ -1,18 +1,28 @@
-# 05 - Qui porte les droits ? On-Behalf-Of ou application seule (niveau 3)
+# 05 - Avec les droits de qui ? Accès délégué ou applicatif (niveau 3)
 
 [English](README.md)
 
 ## Objectif
 
-Poser **la même question** sous l'identité de deux utilisateurs différents et voir **qui porte les droits** en aval. À la fin :
+[Guide low-code, portail d'abord](LOW-CODE.fr.md)
 
-- `whoami` appelle Microsoft Graph **au nom de** l'utilisateur connecté et ne renvoie qu'une étiquette de persona synthétique
+**Parcours Terraform + PowerShell.** Vous gérerez les identités du serveur dans `infra/workload`.
+L'administrateur des identités configurera la relation de confiance dans `infra/entra`, avec son propre état Terraform.
+Conservez vos paramètres privés et votre état existants. Si vous avez créé vos ressources dans le portail,
+suivez plutôt le guide low-code.
+
+Vous allez faire **la même demande** avec Alice et Bob, puis comparer **les droits utilisés** pour accéder aux données.
+Vous activerez d'abord les identités du serveur, ferez configurer la confiance par l'administrateur, puis publierez
+le rapport synthétique et comparerez les appels. À la fin :
+
+- `whoami` appelle Microsoft Graph **au nom de** l'utilisateur connecté et ne renvoie qu'un libellé de compte de test
   (`alice` ou `bob`) ;
 - `read_report_as_user` lit un rapport synthétique dans Azure Storage **en tant qu'utilisateur** (On-Behalf-Of, OBO) : **Alice**
-  obtient le rapport, **Bob** obtient une **erreur d'outil MCP dans une réponse HTTP 200**, car Storage lui répond HTTP 403 ;
+  obtient le rapport, **Bob** obtient une **erreur d'outil Model Context Protocol (MCP) dans une réponse HTTP 200**,
+  car Storage lui répond HTTP 403 ;
 - `read_report_as_app` lit le même rapport **en tant qu'application** (une identité managée) : **Alice et Bob obtiennent le même
   résultat** ;
-- **il n'existe aucun secret client, nulle part** : l'API MCP prouve son identité avec une identité managée via des informations d'identification fédérées.
+- **ce module n'utilise aucun secret client** : l'API MCP prouve son identité avec une identité managée via des informations d'identification fédérées.
 
 > [!WARNING]
 > Ne collez jamais un jeton réel dans un site web, une conversation, un fichier, une capture ou un journal. Le validateur ne
@@ -21,7 +31,7 @@ Poser **la même question** sous l'identité de deux utilisateurs différents et
 ## Pourquoi c'est important
 
 Jusqu'ici, les outils n'appelaient aucun service en aval (démonstrations synthétiques) ou utilisaient l'identité du serveur. Les
-vrais outils, eux, appellent d'autres API. Il faut alors choisir : **avec les droits de qui** l'appel part-il ?
+outils peuvent aussi appeler d'autres API. Il faut alors choisir : **avec les droits de qui** ces appels sont-ils effectués ?
 
 | | Contexte utilisateur : **On-Behalf-Of** | Contexte application : **identité managée** |
 |---|---|---|
@@ -31,23 +41,24 @@ vrais outils, eux, appellent d'autres API. Il faut alors choisir : **avec les dr
 | Résultat | Différent selon l'utilisateur | **Identique pour tout appelant** que la passerelle laisse passer |
 | Risque en cas d'abus | Faible : le serveur ne peut pas dépasser les droits de l'utilisateur | « Confused deputy » (mandataire abusé) : quiconque peut appeler l'outil lit ce que l'application peut lire |
 
-### Suivre l'identité en aval, pas seulement le statut HTTP
+### Vérifier les droits utilisés pour appeler Graph et Storage, pas seulement le statut HTTP
 
 **Un jeton par appel, une audience par jeton.** Le jeton du client MCP a pour audience l'API MCP. Le serveur ne le transmet jamais
-à Graph ni à Storage (pas de token passthrough). Pour les outils en contexte utilisateur, il présente ce jeton **uniquement à
-Microsoft Entra ID**, comme *assertion* OBO, et reçoit en échange un jeton distinct par ressource en aval. L'outil en mode application
-seule, lui, n'utilise pas du tout le jeton de l'appelant.
+à Graph ni à Storage (pas de transmission directe, ou *token passthrough*). Pour les outils en contexte utilisateur,
+il présente ce jeton **uniquement à Microsoft Entra ID**, comme preuve de l'identité de l'utilisateur
+(*assertion* OBO), et reçoit en échange un jeton distinct par ressource en aval. L'outil en mode
+applicatif, lui, n'utilise pas du tout le jeton de l'appelant.
 
 **OBO sans secret.** OBO exige que l'API MCP s'authentifie comme client confidentiel. Au lieu d'un secret client ou d'un
-certificat, l'inscription de l'API fait confiance à **une identité managée affectée par l'utilisateur**, celle de la charge de travail,
-via un **identifiant d'identité fédérée** (émetteur `https://login.microsoftonline.com/<tenant>/v2.0`, sujet = l'ID de principal
+certificat, l'inscription de l'API fait confiance à **une identité managée affectée par l'utilisateur**, associée au serveur,
+via une **information d'identification fédérée** (émetteur `https://login.microsoftonline.com/<tenant>/v2.0`, sujet = l'ID de principal
 de l'identité, audience `api://AzureADTokenExchange`). Le serveur demande à cette identité un jeton dont l'audience est
 `api://AzureADTokenExchange` et l'utilise comme assertion client ([concept](../../docs/fr/concepts/obo-and-managed-identity.md)).
 
 **OBO est réservé aux utilisateurs.** Les outils en contexte utilisateur refusent un jeton d'application (sans revendication `scp`,
-`idtyp=app`) avant tout appel en aval. Sinon, OBO produirait un jeton qui ne représente pas l'appelant d'origine.
+`idtyp=app`) avant tout appel en aval. Un tel jeton ne représente pas un utilisateur et ne peut pas servir à cet échange OBO.
 
-**Statut HTTP externe ou résultat de l'outil.** MCP transporte les erreurs d'outil dans une réponse JSON-RPC réussie : l'appel de
+**Statut HTTP reçu par le client ou résultat de l'outil.** MCP transporte les erreurs d'outil dans une réponse JSON-RPC réussie : l'appel de
 Bob renvoie **HTTP 200** avec `result.isError: true`. Le HTTP 403 de la passerelle (module 04) signifie « vous ne pouvez pas
 appeler cet outil » ; une erreur d'outil avec HTTP 200 signifie « l'outil s'est exécuté, et l'API en aval a refusé l'identité
 qu'il a utilisée ».
@@ -57,23 +68,23 @@ qu'il a utilisée ».
 Tout s'active par des variables explicites, désactivées par défaut. Tant que `enable_delegated_access` vaut false, les modules 00 à 04
 ne changent pas et le serveur garde les démonstrations du module 02 pour `whoami` et `read_report_*`.
 
-### Examiner les identités de la charge de travail
+### Examiner les identités du serveur
 
-**Charge de travail** (`infra/workload/delegated-access.tf`, participant) :
+**Ressources Azure** (`infra/workload/delegated-access.tf`, à configurer par le participant) :
 
 | Ressource | Paramètres |
 |---|---|
 | Identité affectée par l'utilisateur `id-mcp-<prefix>-<suffix>-obo` | Approuvée par les informations d'identification fédérées de l'API MCP. **Aucun rôle Azure.** Sert uniquement à obtenir l'assertion client OBO. |
-| Identité affectée par l'utilisateur `id-mcp-<prefix>-<suffix>-report` | Identité application seule de `read_report_as_app` |
+| Identité affectée par l'utilisateur `id-mcp-<prefix>-<suffix>-report` | Identité utilisée pour l'accès applicatif de `read_report_as_app` |
 | Conteneur blob `reports` (compte de stockage du module 02, clés partagées désactivées) | Privé ; contient le fichier synthétique `monthly-usage.json` ([synthetic-data](synthetic-data/monthly-usage.json)) |
 | Attribution de rôle | **Storage Blob Data Reader** pour l'identité `-report`, portée limitée au seul conteneur `reports` |
 | Attribution de rôle | **Storage Blob Data Reader** pour Alice (`delegated_persona_object_ids.alice`), même portée. **Bob n'a rien.** |
 | Attribution de rôle | Storage Blob Data Contributor sur le conteneur pour la personne qui publie le rapport (par défaut : l'utilisateur Terraform connecté) |
-| Function App (module 02) | Les deux identités attachées ; paramètres `WORKSHOP_*` non secrets : tenant, ID client de l'API MCP, ID client des deux identités, URL du conteneur, table des personas |
+| Function App (module 02) | Les deux identités attachées ; paramètres `WORKSHOP_*` non secrets : tenant, ID client de l'API MCP, ID client des deux identités, URL du conteneur, correspondance entre les comptes de test et leurs identifiants |
 
 **Pourquoi deux nouvelles identités ?** L'identité OBO peut agir au nom de l'inscription de l'API MCP. C'est pourquoi elle n'a aucun
 rôle sur les données : un appel en contexte utilisateur ne dispose que des droits délégués de l'utilisateur. Une autre identité porte
-les droits application seule. Aucun outil n'utilise l'identité d'hébergement du module 02 (Blob Data Owner sur tout le compte, pour
+les droits applicatifs. Aucun outil n'utilise l'identité d'hébergement du module 02 (Blob Data Owner sur tout le compte, pour
 l'hôte Functions).
 
 ### Examiner la confiance et le consentement Entra
@@ -139,11 +150,14 @@ MCP d'API Management `2025-09-01-preview` (module 04) restent en **Preview** si 
 **Coût :** deux identités managées et un conteneur ne coûtent rien en eux-mêmes ; les transactions Storage et les appels Graph
 supplémentaires sont négligeables. La passerelle du module 04 reste facturée tant qu'elle existe.
 
-**Code :** les outils se trouvent dans [src/FunctionsMcpServer](../../src/FunctionsMcpServer) (`Logic/DelegatedTools.cs`,
-`Identity/DownstreamCredentials.cs`, `Logic/CallerContext.cs`). Ils reprennent `HelloToolWithAuth.cs` de l'exemple épinglé
-(`Azure-Samples/remote-mcp-functions-dotnet`, commit `468c518c884ec318e3001b9573254c9e775409c9`, MIT), avec ces modifications : pas de
-repli sur l'identité du développeur, l'assertion utilisateur vient de la requête validée par la plateforme (authentification
-intégrée), seul l'ID d'objet Graph est demandé (`/me?$select=id`), et une seconde identité managée porte les droits application seule.
+**Pour examiner le code :** ouvrez [src/FunctionsMcpServer](../../src/FunctionsMcpServer), en particulier
+`Logic/DelegatedTools.cs`, `Identity/DownstreamCredentials.cs` et `Logic/CallerContext.cs`.
+Ces outils s'appuient sur `HelloToolWithAuth.cs` de l'exemple épinglé
+(`Azure-Samples/remote-mcp-functions-dotnet`, commit `468c518c884ec318e3001b9573254c9e775409c9`, MIT).
+Ils n'utilisent jamais par défaut la connexion personnelle du développeur si une authentification échoue.
+L'assertion utilisateur provient de la requête validée
+par l'authentification intégrée. Graph ne fournit que l'ID d'objet (`/me?$select=id`) et une identité managée
+distincte porte les droits applicatifs.
 
 ## Prérequis et rôles nécessaires
 
@@ -164,171 +178,18 @@ de l'atelier) pour ajouter les informations d'identification fédérées et les 
 
 ## Étapes
 
-> [!TIP]
-> **Deux parcours, même résultat.** Gardez le parcours choisi aux modules 02 à 04 ([comment choisir](../../docs/fr/TRACKS.md)) :
-> le **parcours low-code** ci-dessous, ou le **parcours full-code** (sections PowerShell et Bash).
-
-### Parcours low-code (portail et commandes simples)
-
-Il vous faut la passerelle low-code du module 04, et l'administrateur d'identité pour l'étape L3. Un seul terminal de L1 à
-la fin.
-
-**L1. Les noms, et les deux nouvelles identités managées.** Portail : **Identités managées** → **Créer**, deux fois :
-`…-obo` signe l'échange On-Behalf-Of (OBO, « de la part de »), `…-report` lit le rapport en tant qu'application. Puis
-Function App → **Identité** → **Affectée par l'utilisateur** → **+ Ajouter** les deux.
-
-```powershell
-$p = Get-Content .\.workshop\participant.tfvars.json -Raw | ConvertFrom-Json
-$id = "$($p.participant_prefix)lc"; $sfx = $p.resource_suffix.Substring(0, 10)
-$rg = "rg-mcp-$id-$sfx"; $st = "st$id$sfx"; $fn = "func-mcp-$id-$sfx"; $apim = "apim-mcp-$id-$sfx"; $mi = "id-mcp-$id-$sfx"
-$obo = "$mi-obo"; $rep = "$mi-report"
-$tags = @('workshop=governed-mcp', "owner=$($p.owner)", "expiry=$($p.expiry)", 'track=low-code')
-$tenant = az account show --query tenantId -o tsv; $sub = az account show --query id -o tsv
-$apiClientId = az ad app list --display-name "Workshop MCP API ($id-$sfx)" --query "[0].appId" -o tsv
-az identity create -g $rg -n $obo --tags @tags -o none
-az identity create -g $rg -n $rep --tags @tags -o none
-$ids = foreach ($n in $mi, $obo, $rep) { az identity show -g $rg -n $n --query id -o tsv }
-az functionapp identity assign -g $rg -n $fn --identities @ids -o none
-(az functionapp identity show -g $rg -n $fn -o json | ConvertFrom-Json).userAssignedIdentities.PSObject.Properties.Name | ForEach-Object { ($_ -split '/')[-1] }
-```
-
-> **Résultat réel** — parcours low-code, 2026-10-20, tenant de test de l'auteur (noms raccourcis).
->
-> ```text
-> id-mcp-<id>
-> id-mcp-<id>-obo
-> id-mcp-<id>-report
-> ```
-
-**L2. Le conteneur `reports` et ses trois rôles, puis les paramètres de la Function.** Portail : compte de stockage →
-**Conteneurs** → **+ Conteneur** `reports` ; sur le conteneur → **Contrôle d'accès (IAM)** → **Ajouter une attribution de
-rôle** : *Storage Blob Data Reader* pour l'identité `…-report` et pour Alice, *Storage Blob Data Contributor* pour vous
-(pour publier). Rien pour Bob ni pour l'identité `…-obo`. Function App → **Variables d'environnement** : ajoutez les sept
-paramètres `WORKSHOP_*` ci-dessous.
-
-```powershell
-$u = Get-Content .\.workshop\test-users.private.json -Raw | ConvertFrom-Json
-az storage container-rm create -g $rg --storage-account $st -n reports -o none
-$cont = (az storage account show -g $rg -n $st --query id -o tsv) + '/blobServices/default/containers/reports'
-az role assignment create --assignee-object-id (az identity show -g $rg -n $rep --query principalId -o tsv) --assignee-principal-type ServicePrincipal --role 'Storage Blob Data Reader' --scope $cont -o none
-az role assignment create --assignee-object-id $u.alice.objectId --assignee-principal-type User --role 'Storage Blob Data Reader' --scope $cont -o none
-az role assignment create --assignee-object-id (az ad signed-in-user show --query id -o tsv) --assignee-principal-type User --role 'Storage Blob Data Contributor' --scope $cont -o none
-# Un fichier de paramètres garde les guillemets du JSON (en ligne, Windows les retire).
-$f = New-TemporaryFile
-@{
-    WORKSHOP_DELEGATED_ACCESS = 'enabled'; WORKSHOP_TENANT_ID = $tenant; WORKSHOP_MCP_API_CLIENT_ID = $apiClientId
-    WORKSHOP_OBO_ASSERTION_CLIENT_ID = (az identity show -g $rg -n $obo --query clientId -o tsv)
-    WORKSHOP_REPORT_IDENTITY_CLIENT_ID = (az identity show -g $rg -n $rep --query clientId -o tsv)
-    WORKSHOP_REPORT_CONTAINER_URL = "https://$st.blob.core.windows.net/reports"
-    WORKSHOP_PERSONA_OBJECT_IDS = (@{ alice = $u.alice.objectId; bob = $u.bob.objectId } | ConvertTo-Json -Compress)
-} | ConvertTo-Json | Set-Content $f
-az functionapp config appsettings set -g $rg -n $fn --settings "@$f" -o none; Remove-Item $f
-az role assignment list --scope $cont --query "[].roleDefinitionName" -o tsv
-```
-
-> **Résultat réel** — parcours low-code, 2026-10-20.
->
-> ```text
-> Storage Blob Data Reader
-> Storage Blob Data Reader
-> Storage Blob Data Contributor
-> ```
->
-> **Ce que cela signifie pour vous :** deux lecteurs (l'identité applicative et Alice) et un publieur (vous). Bob n'a aucun
-> rôle : sa lecture en contexte utilisateur échoue donc en aval. Cet échec, c'est la leçon.
-
-**L3. Administrateur d'identité : faire confiance à l'identité OBO, demander deux scopes délégués, donner le
-consentement.** Portail : **Inscriptions d'applications** → *Workshop MCP API* → **Certificats et secrets** →
-**Informations d'identification fédérées** → **+ Ajouter** → *Identité managée* → l'identité `…-obo`. Puis **Autorisations
-d'API** → **+ Ajouter une autorisation** : Microsoft Graph *User.Read* et Azure Storage *user_impersonation* (toutes deux
-*Déléguées*) → **Accorder le consentement administrateur**. Les commandes font la même chose avec Microsoft Graph.
-
-```powershell
-$h = @{ Authorization = "Bearer $(az account get-access-token --resource-type ms-graph --query accessToken -o tsv)" }
-$g = 'https://graph.microsoft.com/v1.0'
-$app = Invoke-RestMethod "$g/applications(appId='$apiClientId')?`$select=id" -Headers $h
-$sp = (Invoke-RestMethod "$g/servicePrincipals?`$filter=appId eq '$apiClientId'&`$select=id" -Headers $h).value[0]
-$fic = @{ name = 'workshop-obo-lowcode'; issuer = "https://login.microsoftonline.com/$tenant/v2.0"; audiences = @('api://AzureADTokenExchange')
-    subject = (az identity show -g $rg -n $obo --query principalId -o tsv); description = 'Module 05: the OBO managed identity proves this API. No secret.' }
-Invoke-RestMethod -Method Post "$g/applications/$($app.id)/federatedIdentityCredentials" -Headers $h -ContentType 'application/json' -Body ($fic | ConvertTo-Json) | Out-Null
-$down = @(@{ app = '00000003-0000-0000-c000-000000000000'; scope = 'User.Read' }, @{ app = 'e406a681-f3d4-42a8-90b6-c2b029497af1'; scope = 'user_impersonation' })
-$access = foreach ($d in $down) {
-    $r = (Invoke-RestMethod "$g/servicePrincipals?`$filter=appId eq '$($d.app)'&`$select=id,oauth2PermissionScopes" -Headers $h).value[0]; $d.sp = $r.id
-    @{ resourceAppId = $d.app; resourceAccess = @(@{ id = ($r.oauth2PermissionScopes | Where-Object value -eq $d.scope).id; type = 'Scope' }) }
-}
-Invoke-RestMethod -Method Patch "$g/applications/$($app.id)" -Headers $h -ContentType 'application/json' -Body (@{ requiredResourceAccess = @($access) } | ConvertTo-Json -Depth 5) | Out-Null
-foreach ($d in $down) {
-    $grant = @{ clientId = $sp.id; consentType = 'AllPrincipals'; resourceId = $d.sp; scope = $d.scope } | ConvertTo-Json
-    (Invoke-RestMethod -Method Post "$g/oauth2PermissionGrants" -Headers $h -ContentType 'application/json' -Body $grant).scope
-}
-```
-
-> **Résultat réel** — parcours low-code, 2026-10-20.
->
-> ```text
-> User.Read
-> user_impersonation
-> ```
->
-> **Ce que cela signifie pour vous :** l'inscription de l'API fait confiance à une seule identité managée (aucun secret
-> client). Elle peut appeler Graph et Storage *pour* l'utilisateur connecté, rien d'autre. Lancez ce bloc une seule fois :
-> une deuxième exécution crée des doublons.
-
-**L4. Publier le rapport synthétique.** Si votre compte de stockage est joignable (vous avez sauté l'étape L4 du module
-02), lancez la première ligne. S'il est privé, lancez la seconde : elle dépose le rapport depuis un conteneur de courte
-durée dans le réseau virtuel, puis le supprime.
-
-```powershell
-& .\modules\05-delegated-and-app-only\publish-report.ps1 -TenantId $tenant -SubscriptionId $sub -StorageAccount $st
-& .\modules\05-delegated-and-app-only\publish-report.ps1 -TenantId $tenant -SubscriptionId $sub -StorageAccount $st -InsideVirtualNetwork -ResourceGroup $rg -SubnetPrefix 10.52.1.64/28
-```
-
-> **Résultat réel** — parcours low-code, 2026-10-20, stockage privé (seconde ligne).
->
-> ```text
-> PASS explicit Azure context (expected HTTP 200 from Azure Resource Manager).
-> INFO temporary subnet, identity and container-scoped role created; waiting 60 s for the role to apply.
-> PASS synthetic report published as reports/monthly-usage.json from inside the virtual network, with a managed identity, no key or SAS (expected HTTP 201).
-> INFO temporary container, identity, role, subnet and its network security group deleted.
-> ```
-
-**L5. Vérifier votre travail, puis en tant qu'Alice et Bob.** Le même script de validation que le parcours full-code,
-avec des noms au lieu des sorties Terraform. Pour les personas, connectez chaque compte de test dans son propre
-`AZURE_CONFIG_DIR` (voir [Valider](#valider)).
-
-```powershell
-$lc = @{ ResourceGroup = $rg; FunctionApp = $fn; GatewayName = $apim; ApiClientId = $apiClientId; StorageAccount = $st; OboIdentityName = $obo }
-& .\modules\05-delegated-and-app-only\validate.ps1 -TenantId $tenant -SubscriptionId $sub @lc
-& .\modules\05-delegated-and-app-only\validate.ps1 -TenantId $tenant -Persona Alice @lc
-& .\modules\05-delegated-and-app-only\validate.ps1 -TenantId $tenant -Persona Bob @lc
-```
-
-> **Résultat réel** — parcours low-code, 2026-10-20 (extrait).
->
-> ```text
-> PASS MCP API registration: no client secret, exactly one federated credential trusting the OBO managed identity (expected HTTP 200 from Microsoft Graph).
-> PASS report container: 2 Storage Blob Data Reader assignment(s) (app-only identity, Alice), none for the OBO identity or Bob (expected HTTP 200 from Azure Resource Manager).
-> PASS module 05 operator checks complete. Persona checks are still required for validation.
-> PASS Alice whoami: On-Behalf-Of to Microsoft Graph returns the synthetic persona 'alice' and no name or email (expected HTTP 200).
-> PASS Alice read_report_as_user returns the synthetic report with her own Storage role (expected HTTP 200, isError false).
-> PASS Bob read_report_as_user: the MCP call succeeds but the tool result is an error, because Storage refuses Bob downstream (expected HTTP 200, isError true, downstream HTTP 403).
-> PASS read_report_as_app returned the same result for Alice and Bob: the managed identity, not the caller, carries the rights (expected HTTP 200).
-> ```
->
-> **Ce que cela signifie pour vous :** même jeton, deux réponses différentes pour l'outil utilisateur, une réponse
-> identique pour l'outil applicatif. Continuez avec le parcours low-code du module 06.
 
 ### PowerShell
 
 Exécutez les commandes depuis la racine du dépôt. Les étapes 2 à 5 modifient Azure ou Microsoft Entra : ne les exécutez qu'après approbation du plan.
 
-**1. Vérifications hors ligne (sans Azure).**
+**1. Vérifiez les fichiers hors ligne, sans accéder à Azure.**
 
 ```powershell
 & .\modules\05-delegated-and-app-only\validate.ps1 -Offline
 ```
 
-> **Résultat attendu** — d'après les messages du validateur ; pas encore capturé lors d'une exécution par un participant. Le nombre de fichiers dépend de votre copie.
+> **Résultat attendu** — d'après les messages du validateur ; cet exemple n'est pas une capture d'exécution. Le nombre de fichiers dépend de votre copie.
 >
 > ```text
 > PASS server: On-Behalf-Of with a managed-identity assertion, one token per downstream (Graph User.Read, Storage user_impersonation), app-only identity for read_report_as_app, app-only callers refused, no developer-credential fallback, no token parsing (expected HTTP N/A).
@@ -342,10 +203,11 @@ Exécutez les commandes depuis la racine du dépôt. Les étapes 2 à 5 modifien
 > PASS offline checks only. Module 05 is NOT deployed or validated by this result.
 > ```
 >
-> **Ce que cela signifie pour vous :** le code et le Terraform de votre copie respectent toujours la conception On-Behalf-Of
-> sans secret, avec des rôles limités au conteneur. Rien n'a été déployé.
+> **Comment lire vos résultats :** ces tests vérifient la conception On-Behalf-Of sans secret
+> et les rôles limités au conteneur. Leur réussite ne prouve pas que l'accès fonctionne dans Azure.
+> Rien n'a été déployé par ces contrôles.
 
-**2. Créer le fichier privé qui active le module dans la charge de travail (ignoré par Git).** Demandez les ID d'objet d'Alice et de Bob à
+**2. Créer le fichier privé qui active les accès aux données (ignoré par Git).** Demandez les ID d'objet d'Alice et de Bob à
 l'administrateur des identités (sortie `workload_module05_tfvars` de `infra/entra`).
 
 Si vous gérez `infra/entra` vous-même, écrivez plutôt le fichier directement depuis sa sortie :
@@ -360,7 +222,7 @@ Sinon, utilisez les commandes ci-dessous avec les deux ID d'objet que l'administ
 > **Résultat attendu** — aucune sortie : `Set-Content` n'affiche rien quand il réussit.
 > Vérifiez avec `Test-Path .\.workshop\module05.tfvars.json` (`True`). Le fichier ne contient que des ID d'objet, jamais de secret.
 
-**3. Planifier les modifications de la charge de travail.** Sélectionnez d'abord votre contexte approuvé (`& .\scripts\select-azure-context.ps1`).
+**3. Planifier les modifications des ressources Azure.** Sélectionnez d'abord votre contexte approuvé (`& .\scripts\select-azure-context.ps1`).
 Passez tous les fichiers de variables déjà utilisés, ainsi que celui du module 05 (retirez `module04.tfvars.json` si vous n'avez pas
 fait le module 04).
 
@@ -378,16 +240,18 @@ if ($LASTEXITCODE -ne 0) { throw 'Terraform plan failed.' }
 > Plan: 6 to add, 3 to change, 0 to destroy.
 > ```
 >
-> **Ce que cela signifie pour vous :** six ajouts : deux identités, un conteneur et trois attributions de rôle (un rôle de
-> lecteur pour Alice, aucun pour Bob, et aucun rôle pour l'identité `-obo`). Le plan de l'auteur comptait **3**
-> modifications : la mise à jour de la Function App, plus les deux stratégies azapi du module 04, une normalisation connue
-> des espaces (aucun changement fonctionnel). Sans module 04, attendez-vous à 1 modification.
-> Un `to destroy` signifie qu'il manque un fichier de variables : n'appliquez pas.
+> **Comment lire votre plan :** les six ajouts correspondent aux deux identités, au conteneur et aux trois attributions
+> de rôle : lecture pour Alice et l'identité `-report`, publication pour l'opérateur. Bob et l'identité `-obo`
+> ne reçoivent aucun rôle. Les **3** modifications de cet exemple comprennent la mise à jour de la Function App
+> et la normalisation des espaces de deux stratégies azapi du module 04, sans changement fonctionnel.
+> Sans module 04, attendez-vous à 1 modification. Si vous voyez `to destroy`, vérifiez les fichiers de variables
+> et n'appliquez pas.
 
-**Observez :** deux identités, un conteneur, trois attributions limitées au conteneur et une mise à jour en place de la Function App.
-Rien n'est encore appliqué. Expliquez quelle identité porte les droits applicatifs.
+Avant d'approuver, retrouvez dans votre plan les deux identités, le conteneur, les trois attributions limitées
+au conteneur et la mise à jour en place de la Function App. Rien n'est encore appliqué.
+Vérifiez que les droits applicatifs appartiennent à `-report`, pas à `-obo`.
 
-### Appliquer le plan de la charge de travail, seulement après accord
+### Appliquer le plan des ressources Azure, seulement après accord
 
 **STOP :** faites approuver exactement ce plan sauvegardé avant de lancer cette commande.
 
@@ -414,7 +278,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Terraform apply failed.' }
 > **Ce que cela signifie pour vous :** les identités, le conteneur et les rôles existent. Chaque attribution de rôle est
 > limitée au seul conteneur `reports`. Les attributions de rôle peuvent mettre quelques minutes à prendre effet.
 
-**Observez :** les ressources approuvées existent. L'API attend encore que l'administrateur des identités configure la confiance.
+Après un `apply` réussi, les ressources approuvées existent. Les outils OBO ne peuvent pas encore fonctionner :
+l'administrateur des identités doit d'abord configurer la relation de confiance.
 
 ### Lire uniquement la sortie dont l'administrateur a besoin
 
@@ -434,10 +299,11 @@ if ($LASTEXITCODE -ne 0) { throw 'Cannot read the administrator handoff.' }
 > }
 > ```
 >
-> **Ce que cela signifie pour vous :** c'est un ID de principal, pas un secret ; transmettez-le quand même par un canal privé.
-> L'administrateur n'a besoin de rien d'autre de votre part.
+> **Comment utiliser cette sortie :** transmettez l'ID de principal à l'administrateur par le canal privé approuvé.
+> Ce n'est pas un secret, mais il identifie la ressource qui doit être approuvée.
+> Pour cette étape, l'administrateur n'a besoin d'aucune autre sortie de votre état Terraform.
 
-Tant que l'étape 4 n'est pas terminée, `whoami` et `read_report_as_user` échouent sans risque (erreur d'outil) : l'API ne fait pas
+Tant que l'étape 4 n'est pas terminée, `whoami` et `read_report_as_user` renvoient une erreur d'outil sans accéder aux données : l'API ne fait pas
 encore confiance à l'identité.
 
 **4. Administrateur des identités : informations d'identification fédérées, autorisations, consentement.** Dans son propre terminal, avec son propre état :
@@ -461,7 +327,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Entra plan failed.' }
 > **Ce que cela signifie pour vous :** cinq ajouts, tous des objets du module 05, sans mot de passe ni certificat. Si le
 > plan modifie des objets du module 03, vous avez passé les mauvais fichiers de variables : n'appliquez pas.
 
-**Observez :** le plan propose deux accès aux API, une information d'identification fédérée et deux consentements. Aucun consentement n'est encore accordé.
+Avant d'appliquer, vérifiez que le plan propose deux accès aux API, une information d'identification fédérée
+et deux consentements. À ce stade, aucun consentement n'est encore accordé.
 
 ### Administrateur des identités : approuver la confiance et le consentement
 
@@ -504,8 +371,9 @@ OBO prouve l'identité de l'API avec l'identité managée `-obo`, jamais avec un
 <details>
 <summary>Afficher la réponse</summary>
 
-Il n'y en a pas : la capture affiche Client secrets (0). L'information d'identification fédérée permet à l'identité
-managée `-obo` de signer l'échange de jetons à sa place. Aucun secret n'existe, donc rien qui puisse fuir, ni à renouveler, ni à versionner dans Git.
+Il n'y en a pas : la capture affiche Client secrets (0). Grâce à l'information d'identification fédérée,
+l'API utilise une assertion obtenue avec l'identité managée `-obo` pour s'authentifier pendant l'échange.
+Vous n'avez donc aucun secret client à conserver, à renouveler ou à enregistrer dans Git.
 
 </details>
 
@@ -527,8 +395,8 @@ managée `-obo` de signer l'échange de jetons à sa place. Aucun secret n'exist
 
 > [!NOTE]
 > Si vous avez activé `mcp_private_storage = true` au module 02, l'accès réseau public du compte de stockage est désactivé et ce
-> dépôt échoue depuis l'extérieur du réseau virtuel. C'est ce qui s'est produit dans le tenant de test de l'auteur. Lancez
-> alors le même dépôt **depuis** le réseau virtuel ; n'activez jamais l'accès public ni les clés partagées. Ajoutez
+> téléversement échoue depuis l'extérieur du réseau virtuel. Publiez alors le rapport **depuis** le réseau virtuel ;
+> n'activez jamais l'accès public ni les clés partagées. Ajoutez
 > `-InsideVirtualNetwork -SubnetPrefix <un /28 libre de votre réseau virtuel>`. Le script crée une Azure Container Instance
 > de courte durée dans un sous-réseau temporaire, avec une identité managée temporaire qui détient Storage Blob Data
 > Contributor sur le seul conteneur `reports`. Il dépose le rapport, puis supprime le tout. Résultat réel, 2026-10-20 :
@@ -557,7 +425,10 @@ pour `read_report_as_app`.
 
 </details>
 
-**7. Vérifications opérateur, puis vérifications par persona.**
+**7. Lancez les vérifications avec votre compte habituel de déploiement, puis avec Alice et Bob.**
+
+Le script appelle le premier mode « opérateur » : il vérifie la configuration.
+Le mode « persona » vérifie ensuite les accès d'un compte de test.
 
 ```powershell
 & .\modules\05-delegated-and-app-only\validate.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID
@@ -590,7 +461,7 @@ Remove-Item Env:\AZURE_CONFIG_DIR
 > fédérée, deux identités distinctes, et des rôles de lecteur sur l'unique conteneur pour l'identité applicative et pour
 > Alice seulement. Le nombre de fichiers dépend de votre copie.
 
-> **Résultat réel** — vérifications par persona, 2026-10-20, tenant de test de l'auteur ; Alice et Bob sont chacun
+> **Résultat réel** — tests avec Alice et Bob, 2026-10-20, tenant de test de l'auteur ; Alice et Bob sont chacun
 > connectés dans leur propre profil Azure CLI. Noms et ID masqués (extrait).
 >
 > ```text
@@ -601,15 +472,21 @@ Remove-Item Env:\AZURE_CONFIG_DIR
 > PASS read_report_as_app returned the same result for Alice and Bob: the managed identity, not the caller, carries the rights (expected HTTP 200).
 > ```
 >
-> **Ce que cela signifie pour vous :** même question, deux utilisateurs, deux réponses **avec On-Behalf-Of** : ce sont
-> les droits de l'utilisateur sur la donnée qui décident. Avec l'identité de l'application, tout le monde obtient la même réponse :
-> ce sont les droits **de l'application** qui décident. L'« erreur dans un HTTP 200 » de Bob n'est pas un bug : la
-> passerelle l'a laissé appeler l'outil, c'est Storage qui **le** refuse. Choisissez par outil le comportement voulu
+> **Comment lire vos résultats :** pour une même demande **avec On-Behalf-Of**, les droits de l'utilisateur sur les données
+> déterminent le résultat. Avec l'identité de l'application, tous les appelants autorisés à utiliser l'outil obtiennent
+> la même réponse : ce sont les droits **de l'application** qui décident. L'erreur d'outil dans la réponse HTTP 200 de Bob
+> est attendue : la passerelle l'a laissé appeler l'outil, puis Storage **lui** a refusé l'accès.
+> Le choix de l'identité doit être fixé pour chaque outil
 > ([OBO expliqué simplement](../../docs/fr/MCP-CONCEPTS.md)).
 
-![Sortie réelle du terminal : vérification par persona du module 05, connexion en tant que Bob ; le cadre 1 marque whoami par On-Behalf-Of, le cadre 2 le refus de Storage dans une réponse HTTP 200, le cadre 3 le résultat applicatif identique](../../assets/screenshots/terminal-05-bob.png)
+![Résultat réel avec Bob : cadre 1, whoami par On-Behalf-Of ; cadre 2, refus de Storage dans une réponse MCP HTTP 200 ; cadre 3, rapport lu avec l'identité de l'application](../../assets/screenshots/terminal-05-bob.png)
 
 ### Bash
+
+Suivez le même ordre qu'en PowerShell et arrêtez-vous pour faire approuver chaque plan avant son application.
+L'administrateur exécute les commandes `infra/entra` dans son propre terminal, avec son propre état.
+Si le stockage est privé, utilisez la publication depuis le réseau virtuel décrite à l'étape 5 ;
+le bloc ci-dessous ne lève pas cette exigence.
 
 ```bash
 bash ./modules/05-delegated-and-app-only/validate.sh -Offline
@@ -639,20 +516,20 @@ unset AZURE_CONFIG_DIR
 
 ## Ce que vous devez voir
 
-Même question, deux personas. D'abord le statut HTTP externe, puis le résultat de l'outil MCP
+Même demande, deux comptes de test. Lisez d'abord le statut HTTP reçu par le client, puis le résultat de l'outil MCP
 ([exemples synthétiques](synthetic-data/expected-tool-results.json)).
 
-| Persona | Outil | HTTP externe | Résultat de l'outil | Pourquoi |
+| Compte de test | Outil | Statut HTTP reçu par le client | Résultat de l'outil | Pourquoi |
 |---|---|---|---|---|
 | Alice | `whoami` | HTTP 200 | `isError: false`, `persona: "alice"` | Jeton OBO pour Graph `User.Read` ; seul l'ID d'objet est lu puis associé à une étiquette |
 | Bob | `whoami` | HTTP 200 | `isError: false`, `persona: "bob"` | Même flux, avec le jeton de Bob |
 | Alice | `read_report_as_user` | HTTP 200 | `isError: false`, les deux lignes synthétiques | Jeton OBO pour Storage ; Alice a Storage Blob Data Reader sur `reports` |
 | Bob | `read_report_as_user` | **HTTP 200** | **`isError: true`** | Jeton OBO pour Storage ; Bob n'a aucun rôle, Storage répond **HTTP 403** en aval |
 | Alice | `read_report_as_app` | HTTP 200 | `isError: false`, les deux lignes synthétiques | L'identité managée `-report` lit le conteneur |
-| Bob | `read_report_as_app` | HTTP 200 | `isError: false`, lignes **identiques** | Même identité, mêmes droits : l'appelant ne compte pas |
-| Tout appelant application seule | `whoami` / `read_report_as_user` | HTTP 200 (ou 403 à la passerelle) | `isError: true` | OBO est réservé aux utilisateurs ; refus avant tout appel en aval |
+| Bob | `read_report_as_app` | HTTP 200 | `isError: false`, lignes **identiques** | Même identité et mêmes droits en aval ; l'autorisation d'appeler l'outil reste obligatoire |
+| Toute application agissant sans utilisateur | `whoami` / `read_report_as_user` | HTTP 200 (ou 403 à la passerelle) | `isError: true` | OBO est réservé aux utilisateurs ; refus avant tout appel en aval |
 
-Les journaux du serveur contiennent une ligne par appel : nom de l'outil, ID d'objet de l'appelant, résultat (`success`,
+Les journaux du serveur contiennent une ligne par appel : nom de l'outil, ID d'objet de l'appelant, statut (`success`,
 `denied-downstream:403`, `rejected-caller`), latence et ID d'invocation. Ils ne contiennent jamais les arguments, le rapport, un nom ni un jeton.
 
 **Question :** pourquoi `read_report_as_app` donne-t-il le même résultat à Alice et à Bob, alors que `read_report_as_user` non ?
@@ -678,12 +555,12 @@ pas seulement le statut HTTP.
 
 </details>
 
-### Lire la documentation au moment de la démonstration
+### Comprendre les résultats avec la documentation
 
 Suivez l'identité utilisée pour chaque appel, pas seulement le statut HTTP externe. Le choix est fixé pour chaque outil ;
-après un refus en mode délégué, l'utilisateur ne peut pas se replier sur l'accès applicatif.
+après un refus en mode délégué, l'outil ne bascule pas vers une identité applicative.
 
-| Démonstration ou choix | Ce qu'il faut comprendre dans Microsoft Learn | Référence API ou SDK |
+| Résultat observé ou choix technique | Ce qu'il faut comprendre dans Microsoft Learn | Référence API ou SDK |
 |---|---|---|
 | Alice et Bob appellent `whoami` | [On-Behalf-Of (OBO)](https://learn.microsoft.com/entra/identity-platform/v2-oauth2-on-behalf-of-flow) échange le jeton utilisateur MCP contre un jeton Graph distinct. | [Graph GET /me](https://learn.microsoft.com/graph/api/user-get?view=graph-rest-1.0) avec `User.Read` et `$select=id` ; [OnBehalfOfCredential](https://learn.microsoft.com/dotnet/api/azure.identity.onbehalfofcredential). Le serveur associe l'ID à un persona fictif, pas à un vrai profil. |
 | Alice lit en mode utilisateur ; Bob est refusé | [Autoriser Blob Storage avec Entra](https://learn.microsoft.com/azure/storage/blobs/authorize-access-azure-active-directory) : Storage contrôle le rôle de l'appelant sur la ressource, pas seulement le scope MCP. | [Autorisation de Get Blob](https://learn.microsoft.com/rest/api/storageservices/get-blob#authorization) et [DownloadContentAsync](https://learn.microsoft.com/dotnet/api/azure.storage.blobs.specialized.blobbaseclient.downloadcontentasync), hérité par `BlobClient`. Le HTTP 403 renvoyé en aval à Bob devient une erreur d'outil MCP dans une réponse HTTP 200 externe. |
@@ -692,16 +569,56 @@ après un refus en mode délégué, l'utilisateur ne peut pas se replier sur l'a
 | Un appelant applicatif tente `whoami` ou `read_report_as_user` | [Flux OBO](https://learn.microsoft.com/entra/identity-platform/v2-oauth2-on-behalf-of-flow) : la délégation nécessite une assertion utilisateur. | Le serveur refuse l'appel avant de contacter Graph ou Storage ; aucun basculement silencieux vers [ManagedIdentityCredential](https://learn.microsoft.com/dotnet/api/azure.identity.managedidentitycredential). |
 
 Les données du rapport sont fictives, mais l'autorisation déployée, elle, n'est pas simulée. À l'inverse, les clients simulés des
-tests hors ligne ne prouvent pas l'autorisation Azure. Seuls les contrôles réels avec les personas ci-dessus prouvent les différences attendues.
+tests hors ligne ne prouvent pas l'autorisation Azure. Vous devez exécuter les contrôles avec Alice et Bob pour constater les différences attendues.
 Liens documentaires vérifiés le 2026-10-16.
+
+### Vérifier vous-même avec Azure CLI
+
+**Pourquoi :** l'identité utilisée pour l'échange On-Behalf-Of (OBO) et celle qui lit le rapport en mode applicatif
+ont des fonctions différentes. Elles doivent rester distinctes.
+Dans PowerShell 7, à la racine du dépôt, lisez les noms du déploiement :
+
+```powershell
+$ErrorActionPreference = 'Stop'
+$inspectGroup = terraform '-chdir=infra\workload' output -raw resource_group_name
+if ($LASTEXITCODE -ne 0) { throw 'Groupe de ressources indisponible.' }
+$inspectNames = terraform '-chdir=infra\workload' output -json resource_names | ConvertFrom-Json
+if ($LASTEXITCODE -ne 0) { throw 'Noms des ressources indisponibles.' }
+```
+
+> **Résultat attendu** — aucune sortie : les variables reçoivent les noms de votre déploiement. Vérifiez avec `$inspectNames`.
+
+Copiez les deux lectures suivantes. Elles ne demandent aucun jeton MCP et ne lisent pas le rapport :
+
+```powershell
+az identity show -g $inspectGroup -n $inspectNames.obo_identity --query '{name:name,type:type}' -o json
+if ($LASTEXITCODE -ne 0) { throw 'Identité OBO introuvable.' }
+az identity show -g $inspectGroup -n $inspectNames.report_identity --query '{name:name,type:type}' -o json
+if ($LASTEXITCODE -ne 0) { throw 'Identité applicative du rapport introuvable.' }
+```
+
+> **Résultat attendu** — deux identités managées de type `Microsoft.ManagedIdentity/userAssignedIdentities`,
+> avec des noms qui se terminent respectivement par `-obo` et `-report`.
+
+![Résultat réel Azure CLI : deux identités managées distinctes, OBO et rapport applicatif](../../assets/screenshots/terminal-05-az-identities.png)
+
+*Capture en lecture seule du 20 octobre 2026 ; les noms sont masqués.
+Elle confirme l'existence des identités, pas leurs droits effectifs. Le validateur doit aussi vérifier la fédération
+et les attributions sur le conteneur ; les essais Alice/Bob montrent ensuite les droits réellement utilisés.
+Si une identité manque, reprenez le déploiement prévu, sans donner à l'identité OBO les droits de lecture du rapport.*
 
 ## Valider
 
+> **Note de validation :** les sorties réelles présentées ici proviennent du tenant de test de l'auteur,
+> aux dates indiquées. Elles ne valident pas votre propre environnement. Les sorties « attendues »
+> et les tests hors ligne ne prouvent aucun accès réel. Après le déploiement approuvé, exécutez les contrôles
+> opérateur, puis ceux d'Alice et de Bob, y compris la comparaison des rapports.
+
 `validate.ps1` (ou `validate.sh`) exécute toujours d'abord les vérifications hors ligne : On-Behalf-Of avec une assertion
-d'identité managée et un jeton par ressource en aval ; appelants application seule refusés ; pas de repli sur l'identité du
+d'identité managée et un jeton par ressource en aval ; refus des applications agissant sans utilisateur pour les outils OBO ; pas de repli sur l'identité du
 développeur ni d'analyse de jeton dans le serveur ; informations d'identification fédérées Entra et scopes délégués exacts, consentement
 activé explicitement, sans mot de passe ; tous les rôles du module 05 sur le seul conteneur du rapport, aucun pour l'identité OBO
-ni pour Bob ; données synthétiques uniquement ; aucun motif de secret ; tests unitaires ; format, schéma et tests simulés Terraform
+ni pour Bob ; données synthétiques uniquement ; aucun motif de secret ; tests unitaires ; formatage, schéma et tests simulés Terraform
 pour les deux modules racines.
 
 Sortie hors ligne (ce résultat **n'est pas** une preuve de déploiement) :
@@ -722,15 +639,16 @@ PASS offline checks only. Module 05 is NOT deployed or validated by this result.
 En mode réel, après un déploiement approuvé :
 
 - **Opérateur** (`-TenantId -SubscriptionId`) : les paramètres de la Function référencent les deux identités et ne contiennent aucun
-  paramètre secret ; l'inscription de l'API MCP n'a **aucun identifiant de mot de passe**   et une seule information d'identification fédérée, qui
-  fait confiance à l'identité OBO ; sur le conteneur `reports`, seuls l'identité application seule et Alice ont Storage Blob Data
+  paramètre secret ; l'inscription de l'API MCP n'a **aucun secret client** et possède une seule information d'identification fédérée, qui
+  établit la confiance avec l'identité OBO ; sur le conteneur `reports`, seules l'identité applicative et Alice ont Storage Blob Data
   Reader ; l'identité OBO et Bob n'ont rien.
-- **Persona** (`-TenantId -Persona Alice|Bob`) : `whoami` renvoie l'étiquette du persona, sans nom ni adresse e-mail ;
+- **Compte de test** (`-TenantId -Persona Alice|Bob`) : `whoami` renvoie le libellé du compte de test, sans nom ni adresse e-mail ;
   `read_report_as_user` d'Alice renvoie le rapport (HTTP 200, `isError: false`) ; celui de Bob renvoie **HTTP 200 avec
   `isError: true`** ; `read_report_as_app` renvoie les mêmes lignes synthétiques aux deux (le second passage compare une empreinte
   enregistrée par le premier, dans `.workshop/`).
 
-Le module n'est `validated` que lorsque tout cela réussit sur un abonnement neuf, juste après les modules 00 à 04.
+Pour valider le module, faites réussir tous ces contrôles dans votre abonnement de test, à la suite des modules précédents.
+Le statut de référence `validated` exige une exécution complète sur un abonnement neuf, après les modules 00 à 04.
 
 **Question :** un contrôle hors ligne refuse tout « repli sur les identifiants du développeur » dans le serveur. Que pourrait-il se passer sans lui ?
 
@@ -739,7 +657,7 @@ Le module n'est `validated` que lorsque tout cela réussit sur un abonnement neu
 
 Sur un poste, des identifiants par défaut peuvent utiliser en silence **votre propre** connexion Azure CLI. Le serveur lirait
 alors Storage avec vos droits, et non ceux de l'appelant (On-Behalf-Of) ou de l'application (identité managée). Une
-configuration cassée aurait l'air de fonctionner. Le contrôle oblige le serveur à échouer de façon visible.
+configuration incorrecte aurait l'air de fonctionner. Le contrôle oblige le serveur à signaler l'erreur.
 
 </details>
 
@@ -760,8 +678,9 @@ configuration cassée aurait l'air de fonctionner. Le contrôle oblige le serveu
 
 ## Nettoyer
 
-Le script est idempotent : il établit d'abord un plan et refuse toute modification hors du module 05. Lancez-le une fois pour relire
-le plan, puis avec `-Apply`. L'auteur ne l'a pas exécuté, faute de déploiement.
+Si vous poursuivez immédiatement avec le module 06, conservez les ressources. Sinon, lancez le script une première fois
+pour relire le plan, puis avec `-Apply` après accord. Il refuse toute modification hors du module 05.
+Vous pouvez le relancer : une phase déjà terminée ne supprime rien de plus.
 
 ```powershell
 # Participant : identités, conteneur (et rapport), attributions de rôle, paramètres
@@ -773,7 +692,7 @@ Remove-Item -LiteralPath .\.workshop\module05.tfvars.json, .\.workshop\module05-
 Remove-Item -LiteralPath .\.workshop\entra-module05.tfvars.json -ErrorAction SilentlyContinue
 ```
 
-> **Résultat attendu** — d'après les messages du script de nettoyage ; non exécuté par l'auteur (extrait). Première exécution sur la charge de travail, sans `-Apply` :
+> **Résultat attendu** — d'après les messages du script de nettoyage (extrait). Premier rapport sur les ressources Azure, sans `-Apply` :
 >
 > ```text
 > PASS explicit Azure context and private participant parameters (expected HTTP 200 from Azure Resource Manager).
@@ -827,7 +746,7 @@ Si vous passez directement au module 06, conservez tout.
 
 **On-Behalf-Of (OBO) peut-il traverser trois sauts ?** Oui. Microsoft Entra ID n'impose pas de limite fixe : OBO est conçu
 pour transmettre l'identité de l'utilisateur « tout au long de la chaîne de requêtes ». Mais chaque saut change ce que voit
-le service suivant : plus la chaîne est longue, plus elle est difficile à exploiter et à auditer.
+le service suivant. Plus la chaîne est longue, plus son fonctionnement est difficile à diagnostiquer et à auditer.
 
 ![On-Behalf-Of sur trois sauts : l'utilisateur Alice est conservé, mais chaque saut émet un nouveau jeton pour l'audience suivante et le client devient l'API précédente ; règles à chaque saut : pas de relais, consentement préalable, MFA renvoyée, utilisateurs seulement](../../assets/screenshots/diagram-05-obo-hops-fr.png)
 
@@ -841,7 +760,7 @@ le service suivant : plus la chaîne est longue, plus elle est difficile à expl
 | Application appelante | — | `azp` (`appid` dans les jetons v1.0) désigne l'application qui a fait le dernier échange. Au 3ᵉ saut, l'API C voit l'API B, **pas** VS Code. Journalisez le client d'origine dès le premier saut si vous en avez besoin. |
 | Droits | Les scopes délégués qui ont été consentis | Les rôles d'application restent attachés à l'utilisateur, **jamais** à l'application qui agit pour lui : un service intermédiaire ne peut pas ajouter ses propres droits à ceux de l'utilisateur. |
 | Consentement | — | Les services intermédiaires ne peuvent pas afficher d'écran de consentement. Le consentement doit exister **à l'avance** pour chaque saut (ici, consentement administrateur). |
-| MFA et accès conditionnel | — | Si une API en aval exige la MFA, le point de terminaison de jeton renvoie un « claims challenge » (demande de revendications supplémentaires). **Chaque** service intermédiaire doit le renvoyer au client (HTTP 401 avec `WWW-Authenticate`). Un seul relais manquant casse la chaîne. |
+| Authentification multifacteur (MFA) et accès conditionnel | — | Si une API en aval exige la MFA, le point de terminaison de jeton renvoie un « claims challenge » (demande de revendications supplémentaires). **Chaque** service intermédiaire doit le renvoyer au client (HTTP 401 avec `WWW-Authenticate`). Si un seul service ne le transmet pas, le client ne peut pas satisfaire cette demande. |
 | Appelant applicatif | — | OBO ne fonctionne que pour des **utilisateurs**. Un jeton applicatif ne peut pas être échangé : utilisez alors l'identité propre de l'application (client credentials ou identité managée). |
 
 </details>
@@ -876,6 +795,8 @@ le premier saut et transmettez un identifiant de corrélation, jamais le jeton.
 </details>
 
 ## Sources
+
+- [Lire une identité managée avec Azure CLI](https://learn.microsoft.com/cli/azure/identity#az-identity-show), vérifié le 20 octobre 2026.
 
 - [Plateforme d'identités Microsoft et flux On-Behalf-Of OAuth 2.0](https://learn.microsoft.com/entra/identity-platform/v2-oauth2-on-behalf-of-flow)
 - [Référence des revendications des jetons d'accès (`azp`, `appid`, `roles`)](https://learn.microsoft.com/entra/identity-platform/access-token-claims-reference) et

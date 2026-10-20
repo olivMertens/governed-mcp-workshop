@@ -1,8 +1,8 @@
 # Comprendre les protections du serveur
 
 Pour chaque étape, cherchez à comprendre ce qui est autorisé et ce qui doit être refusé.
-Passez ensuite au guide et au script de vérification du module, dès qu'ils sont publiés.
-Les schémas décrivent l'architecture **prévue**, pas un service déjà déployé.
+Suivez ensuite le guide du module et lancez son script de vérification.
+Les schémas décrivent les échanges et les protections ; ils ne prouvent pas que votre environnement est déjà configuré.
 
 > [!IMPORTANT]
 > La connexion établit qui vous êtes. Vos droits déterminent ce que vous pouvez faire.
@@ -10,7 +10,7 @@ Les schémas décrivent l'architecture **prévue**, pas un service déjà déplo
 
 ## 00 - Prérequis et environnement
 
-**Objectif :** vérifier les outils, l'environnement Azure et le budget autorisés.
+**Objectif :** vous allez vérifier vos outils et préparer un environnement Azure dont l'utilisation et le budget sont approuvés.
 L'administrateur Entra gère les identités ; l'administrateur Azure gère les ressources.
 Le droit de déployer des ressources ne donne pas forcément le droit d'attribuer des rôles.
 
@@ -18,24 +18,26 @@ Le droit de déployer des ressources ne donne pas forcément le droit d'attribue
 Ce ne sont pas des appels MCP. Un codespace est une machine de développement, pas un tenant.
 
 > [!TIP]
-> Commencez par le guide Azure du tableau. Demandez qui approuve les identités.
+> Commencez par le guide du module 00. Identifiez la personne qui doit approuver la configuration des identités.
 > Ne demandez pas le rôle Propriétaire (Owner) pour simplifier l'exercice.
 
 **Résultat attendu :** les vérifications du module 00 réussissent et la demande Entra est claire.
 Choisir l'abonnement ne suffit pas.
-**Suite :** module 01, une fois que le validateur publié du module 00 réussit. Le module 01 n'utilise aucune ressource cloud.
+**Suite :** module 01, dès que les outils nécessaires fonctionnent.
+Vous pouvez le suivre pendant que les vérifications Azure du module 00 sont en attente : il n'utilise aucune ressource cloud.
 
 **Approfondir :** [tenant et abonnement](https://learn.microsoft.com/cli/azure/manage-azure-subscriptions-azure-cli),
 [attribution des rôles Azure](https://learn.microsoft.com/azure/role-based-access-control/role-assignments-cli).
 
 ## 01 - Découvrir MCP sans Azure
 
-**Objectif :** afficher les outils disponibles, puis en exécuter un.
+**Objectif :** vous allez découvrir les outils disponibles, puis en appeler un.
 Le Model Context Protocol (MCP) permet au client de découvrir les outils et les informations qu'ils attendent.
 Le serveur local communique avec le client par ses entrées et sorties standard (stdio).
 Les serveurs distants utilisent le transport Streamable HTTP. Ouvrir une adresse dans le navigateur ne teste pas les outils.
 
-**Schéma :** client local, serveur local, outil synthétique. Ni Entra, ni passerelle, ni ressource cloud payante.
+**Schéma :** le client et le serveur fonctionnent sur votre poste ; l'outil renvoie des données fictives.
+Aucun service Entra, aucune passerelle ni ressource cloud payante n'intervient.
 Les annotations d'outil aident le client, mais n'appliquent aucune autorisation.
 
 > [!IMPORTANT]
@@ -51,26 +53,27 @@ Les annotations d'outil aident le client, mais n'appliquent aucune autorisation.
 
 ## 02 - Une clé n'est pas une identité utilisateur
 
-**Objectif :** comprendre qu'une clé partagée ne permet pas de savoir qui l'utilise.
+**Objectif :** vous allez constater qu'une clé partagée ne permet pas de savoir qui l'utilise.
 L'extension MCP d'Azure Functions utilise la clé système `mcp_extension`.
 Le point d'entrée conserve le niveau d'autorisation `System`. « Ouvert » ne signifie pas « sans protection ».
 
-**Schéma :** le client muni de la clé appelle Functions ; une écriture synthétique atteint une file Azure Storage.
+**Schéma :** le client appelle Functions avec la clé ; l'outil d'écriture ajoute un ticket fictif à une file Azure Storage.
 Les outils qui dépendent d'une identité restent simulés jusqu'au module 05, et l'indiquent.
 
 > [!WARNING]
-> Limitez la durée de cette étape. Ne désactivez jamais la protection du webhook. Ne placez pas la clé dans une URL ni dans un en-tête journalisé.
+> Ne laissez pas le serveur protégé par une simple clé en service après l'exercice.
+> Ne désactivez jamais l'exigence de clé. Ne la placez pas dans une URL ni dans un en-tête journalisé.
 > Quiconque possède la clé peut utiliser les outils exposés : en entreprise, cette protection ne suffit pas.
 
 **Résultat attendu :** HTTP 401 sans clé ; HTTP 200 et réussite de l'outil avec la bonne clé.
-**Suite :** module 03, qui remplace la clé partagée par l'authentification des utilisateurs affectés.
+**Suite :** module 03, qui remplace la clé partagée par l'authentification des utilisateurs autorisés dans l'application.
 
 **Approfondir :** [exemple Functions épinglé](https://github.com/Azure-Samples/remote-mcp-functions-dotnet/tree/468c518c884ec318e3001b9573254c9e775409c9),
 [liaisons MCP](https://learn.microsoft.com/azure/azure-functions/functions-bindings-mcp).
 
 ## 03 - Connexion des utilisateurs et rôles applicatifs
 
-**Objectif :** n'accepter que les jetons d'accès destinés au serveur MCP.
+**Objectif :** vous allez exiger une connexion utilisateur avec un jeton d'accès destiné au serveur MCP.
 La plateforme vérifie l'émetteur du jeton, le tenant, l'audience (le service destinataire) et la date d'expiration.
 Les autorisations déléguées (scopes) définissent ce que le client peut demander au nom de l'utilisateur.
 Les rôles applicatifs définissent les actions permises à cet utilisateur ou à une application.
@@ -81,11 +84,16 @@ la Function avec ce jeton. Entra ne relaie pas les appels d'outils.
 Les métadonnées de ressource protégée (PRM) sont en **Preview**.
 
 > [!IMPORTANT]
-> Alice et Bob sont affectés ; Eve ne l'est pas. Une connexion réussie ne donne pas accès à tous les outils.
+> Alice a `Tools.Read` et `Tools.Write`, Bob a seulement `Tools.Read`, Eve n'a aucune attribution.
+> Tous trois peuvent se connecter au tenant, mais Eve ne peut pas obtenir de jeton pour l'application MCP.
+> Dans ce module, Bob peut encore utiliser tous les outils, y compris `create_ticket` :
+> son rôle de lecture n'est pas encore contrôlé par outil. Ce contrôle arrive au module 04.
 > Pour expliquer le contenu d'un jeton, utilisez des exemples fictifs. Ne collez jamais un jeton réel dans un site de décodage, une conversation ou un fichier.
 
 **Résultat attendu :** HTTP 401 sans jeton ou avec un jeton destiné à un autre service ; Alice et Bob se connectent ;
-Eve ne peut pas obtenir ce jeton, qui exige une affectation. Le module 04 traite les contrôles par outil.
+Eve ne peut pas obtenir ce jeton (`AADSTS50105`), car l'application exige une attribution.
+Activez d'abord Entra en conservant la clé ; vérifiez sa configuration et le refus sans jeton,
+puis retirez l'exigence de clé. Le module 04 traite les contrôles par outil.
 **Suite :** module 04 : API Management devient le point d'entrée imposé.
 
 **Approfondir :** [autorisation MCP et PRM](https://learn.microsoft.com/azure/app-service/configure-authentication-mcp),
@@ -93,13 +101,15 @@ Eve ne peut pas obtenir ce jeton, qui exige une affectation. Le module 04 traite
 
 ## 04 - Passer obligatoirement par API Management
 
-**Objectif :** tous les appels passent par API Management (APIM), qui vérifie les droits et limite le nombre d'appels.
+**Objectif :** vous allez faire passer tous les appels par API Management (APIM), qui vérifiera les droits et limitera le débit.
 APIM et Functions protègent le même service MCP. Le jeton doit être destiné à ce service.
 N'ajoutez pas d'autre audience acceptée pour faire réussir un test.
 L'API de gestion MCP `2025-09-01-preview` est en **Preview**. Ce n'est pas l'offre AI Gateway, elle aussi en Preview.
 
-**Schéma :** client, APIM Standard v2, Function privée. L'intégration réseau sortante et le DNS privé assurent
-la connectivité ; la désactivation de l'accès public empêche tout contournement. Le réseau ne remplace pas la validation du jeton.
+**Schéma :** le client appelle APIM Standard v2, qui rejoint la Function par le réseau privé.
+L'intégration réseau sortante et le DNS privé permettent cette connexion.
+La désactivation de l'accès public empêche d'appeler directement la Function.
+Ces protections réseau ne remplacent pas la vérification du jeton.
 
 > [!WARNING]
 > Vérifiez aussi que l'accès direct à la Function est refusé. Une passerelle qui fonctionne ne suffit pas.
@@ -118,7 +128,7 @@ Les journaux ne contiennent aucun corps de requête ou de réponse.
 
 ## 05 - Accès délégué ou applicatif
 
-**Objectif :** comparer deux façons d'accéder aux données.
+**Objectif :** vous allez comparer deux façons d'accéder aux mêmes données.
 L'accès délégué On-Behalf-Of (OBO) agit au nom de l'utilisateur, avec ses droits.
 L'accès applicatif utilise une identité managée, avec ses propres droits sur la ressource.
 Chaque accès obtient son **propre jeton**, destiné à l'API appelée ; le serveur ne transmet jamais le jeton MCP.
@@ -134,10 +144,10 @@ L'outil `whoami` appelle séparément Microsoft Graph avec un jeton destiné à 
 | Outil | Alice | Bob | Droits utilisés |
 |---|---|---|---|
 | `read_report_as_user` | Autorisé | Refusé par la ressource cible | Ceux de l'utilisateur |
-| `read_report_as_app` | Même rapport synthétique autorisé | Même rapport synthétique autorisé | Ceux de l'identité managée |
+| `read_report_as_app` | Même rapport fictif accessible | Même rapport fictif accessible | Ceux de l'identité managée |
 
 **Résultat attendu :** les quatre cas du tableau. Notez le code HTTP et l'éventuelle erreur MCP :
-un refus HTTP 403 de Storage peut arriver dans une réponse HTTP 200.
+un refus HTTP 403 de Storage peut être signalé par une erreur d'outil dans une réponse HTTP 200 du serveur MCP.
 **Suite :** module 06 pour observer les métadonnées sans capturer le contenu.
 
 **Approfondir :** [fonctionnement des jetons OBO](https://learn.microsoft.com/entra/identity-platform/v2-oauth2-on-behalf-of-flow),
@@ -145,7 +155,7 @@ un refus HTTP 403 de Storage peut arriver dans une réponse HTTP 200.
 
 ## 06 - Suivre les appels et répertorier le serveur
 
-**Objectif :** savoir qui a utilisé quel outil et avec quel résultat, sans enregistrer les données échangées.
+**Objectif :** vous allez suivre les appels d'outils sans enregistrer les données échangées.
 Conservez uniquement l'identifiant de l'appelant authentifié, le nom de l'outil, le statut, la durée et
 l'identifiant de corrélation. Ces informations sont des métadonnées.
 
@@ -156,7 +166,7 @@ il ne relaie pas les requêtes, n'authentifie pas les clients et ne donne aucun 
 > [!WARNING]
 > Aucun contenu de requête ou de réponse dans les journaux, y compris dans les configurations héritées.
 > Ne conservez ni jetons, ni prompts, ni arguments, ni résultats d'outils et n'exportez pas les traces Inspector.
-> L'inventaire Microsoft 365, facultatif, est en **Preview** et réservé à l'animateur.
+> L'inventaire Microsoft 365, facultatif, est en **Preview**. Sa configuration est réservée à l'administrateur du tenant.
 
 <details>
 <summary>Facultatif : Agent 365 et API Management — Preview, démonstration prévue</summary>
@@ -193,36 +203,40 @@ Dernière vérification : 2026-10-14.
 
 ## 07 - D'autres clients, les mêmes protections
 
-**Objectif :** comparer client délégué et identité applicative sans modifier les protections du serveur.
-Le schéma montre une **connexion facultative prévue**, pas un agent Foundry déjà créé ni un agent Copilot Studio déjà configuré.
+**Objectif :** vous allez appeler le serveur depuis un autre client sans modifier ses contrôles d'accès.
+Vous pouvez réaliser la partie A avec Microsoft Foundry dans votre propre environnement de test.
+La partie B est un aperçu de Copilot Studio, non validé en conditions réelles.
 
 **Schéma :** un client facultatif passe par la même passerelle pour accéder à la Function privée.
 Vérifiez l'identité utilisée, les licences et les fonctionnalités en Preview.
-Le client choisi doit prendre en charge une connexion sans secret.
+Le [guide du module 07](../../modules/07-clients/README.fr.md) décrit les prérequis, les limites de connexion et le nettoyage.
 
 > [!IMPORTANT]
-> Si le parcours OAuth manuel décrit dans la documentation de Copilot Studio exige un secret client, remettez-le à plus tard.
+> Chaque utilisateur doit se connecter avec sa propre identité. N'affaiblissez pas les contrôles pour ajouter un client.
 > Une fonctionnalité nommée « identity passthrough » n'autorise pas à transmettre le jeton MCP aux API cibles.
 
-**Résultat attendu :** une connexion sans secret, approuvée et officiellement prise en charge.
+**Résultat attendu :** Foundry permet à Alice de lire ; l'écriture approuvée par Bob reste refusée par la passerelle (HTTP 403).
 Aucun client supplémentaire n'est requis pour terminer le parcours principal.
-**Suite :** module 99, même si vous sautez cette démonstration.
+**Suite :** module 99, que vous ayez réalisé ou non cet exercice facultatif.
 
 **Approfondir :** [authentification Foundry, certains flux en Preview](https://learn.microsoft.com/azure/foundry/agents/how-to/mcp-authentication),
 [MCP dans Copilot Studio](https://learn.microsoft.com/microsoft-copilot-studio/mcp-add-existing-server-to-agent).
 
 ## 99 - Supprimer uniquement ce que l'atelier a créé
 
-**Objectif :** arrêter les coûts et supprimer les affectations créées sans toucher aux ressources partagées.
+**Objectif :** vous allez arrêter les coûts et retirer les attributions de rôle créées pour l'atelier,
+sans toucher aux ressources partagées.
 Les deux lignes du schéma représentent des opérations administratives, pas des appels d'outils.
 
 > [!WARNING]
 > Examinez le plan de destruction réel et obtenez l'approbation explicite.
-> Nettoyez d'abord les ressources, puis seulement les objets Entra créés pour l'atelier.
+> Suivez l'ordre indiqué dans le guide de votre parcours. Si vous avez déployé Foundry au module 07,
+> commencez par son nettoyage : son groupe de ressources et ses identités sont distincts de ceux du serveur MCP.
 > Conservez les identifiants fournis, les comptes existants et l'infrastructure partagée.
 
-**Résultat attendu :** aucune ressource portant l'étiquette de l'atelier ne subsiste ; les identités créées et
-les rôles attribués sont tous recensés. Vérifiez l'inventaire, les durées de conservation et les suppressions récupérables.
+**Résultat attendu :** les ressources, identités et attributions de rôles créées pour l'atelier ont été retirées,
+sauf les éléments explicitement conservés après accord. Vérifiez aussi les ressources qu'API Management et Foundry
+conservent temporairement après suppression : elles doivent être purgées selon le guide.
 Arrêtez les clients et les codespaces inutilisés.
 **Suite :** retour à l'accueil, ou nouveau préfixe approuvé après vérification du nettoyage.
 

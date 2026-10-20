@@ -13,12 +13,12 @@ function bundle(t) {
     const directory = mkdtempSync(join(tmpdir(), "workshop-public-portal-"));
     t.after(() => rmSync(directory, { recursive: true, force: true }));
     const destination = join(directory, "bundle");
-    assert.equal(buildPortal(root, destination).files, 95);
+    assert.equal(buildPortal(root, destination).files, 107);
     return destination;
 }
 test("public hosting verifies exact assets and refuses tampering, private extras or a changed server", (t) => {
     const directory = bundle(t);
-    assert.equal(verifyPortal(directory).size, 93);
+    assert.equal(verifyPortal(directory).size, 105);
     const server = readFileSync(join(directory, "server.mjs"));
     writeFileSync(join(directory, "server.mjs"), "throw new Error('not the reviewed server');");
     assert.throws(() => verifyPortal(directory), /reviewed runtime/);
@@ -35,7 +35,8 @@ test("public server serves bilingual assets and health, but never exposes code, 
     await once(server, "listening");
     t.after(() => new Promise((resolve) => { server.closeAllConnections(); server.close(resolve); }));
     const base = `http://127.0.0.1:${server.address().port}`;
-    for (const path of ["/", "/?lang=fr", "/health", ...publicPaths.filter((path) => path !== ".nojekyll").map((path) => `/${path}`)]) {
+    for (const path of ["/", "/?lang=fr", "/?track=low-code", "/?track=terraform&lang=en",
+        "/?lang=fr&track=low-code", "/health", ...publicPaths.filter((path) => path !== ".nojekyll").map((path) => `/${path}`)]) {
         const response = await fetch(`${base}${path}`);
         assert.equal(response.status, 200, path);
         assert.equal(response.headers.get("x-content-type-options"), "nosniff");
@@ -48,6 +49,9 @@ test("public server serves bilingual assets and health, but never exposes code, 
         assert.equal((await fetch(`${base}${path}`)).status, 404, path);
     }
     assert.equal((await fetch(`${base}/?token=synthetic`)).status, 400);
+    for (const query of ["track=invalid", "track=", "track=low-code&track=terraform", "lang=fr&lang=en", "track=low-code&token=synthetic"]) {
+        assert.equal((await fetch(`${base}/?${query}`)).status, 400, query);
+    }
     assert.equal((await fetch(`${base}/`, { method: "POST", body: "synthetic" })).status, 405);
     const head = await fetch(base, { method: "HEAD" });
     assert.equal(head.status, 200);

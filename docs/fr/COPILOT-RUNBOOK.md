@@ -139,7 +139,8 @@ sur un abonnement neuf. Liste les écarts dans une PR. Ne corrige que ce qui est
 
 </details>
 
-Le module 07 est une démonstration facultative de l'animateur ; il ne doit pas retarder le nettoyage.
+Le module 07 propose un exercice Foundry facultatif aux participants ; Copilot Studio reste un aperçu à lire.
+Il ne doit pas retarder le nettoyage.
 Avant l'atelier, répétez les modules 00 à 06 puis 99 sur un abonnement de test neuf.
 Vérifiez les coûts et préparez des vidéos de secours.
 

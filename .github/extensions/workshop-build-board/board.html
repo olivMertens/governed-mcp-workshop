@@ -239,6 +239,7 @@
     .workspace-option { display: block; padding: 18px; border: 1px solid var(--line); border-radius: 8px; text-decoration: none; background: var(--surface); }
     .workspace-option strong, .workspace-option span { display: block; }
     .workspace-option span { margin-top: 8px; color: var(--muted); font-size: 13px; }
+    .workspace-option[aria-current="true"] { border-color: var(--blue); outline: 2px solid var(--blue); outline-offset: 2px; }
     .brands { display: flex; flex-wrap: wrap; align-items: center; gap: 18px; margin: 24px 0; font-size: 13px; }
     .product { display: inline-flex; align-items: center; gap: 8px; }
     .product img { width: 30px; height: 30px; object-fit: contain; padding: 2px; background: white; }
@@ -479,6 +480,9 @@
     const key = "__BOARD_KEY__";
     const staticSite = "__STATIC_SITE__" === "true";
     const PORTAL_SCREENSHOTS = ["azure-02-storage-public-access", "azure-02-storage-private-endpoints",
+      "terminal-00-az-context", "terminal-02-az-runtime", "terminal-03-az-auth", "terminal-04-az-network",
+      "terminal-05-az-identities", "terminal-06-az-counts", "terminal-07-az-gateway", "terminal-99-az-inventory",
+      "azure-02-function-overview", "azure-02-function-keys", "azure-04-function-networking", "terminal-00-validate",
       "azure-03-function-authentication", "azure-03-app-registration-overview", "azure-03-app-roles",
       "azure-03-enterprise-app-properties", "terminal-03-operator", "terminal-03-alice",
       "azure-05-api-permissions", "azure-05-federated-credentials", "azure-06-kql-logs",
@@ -494,6 +498,18 @@
     let participant = null;
     let participantChecked = false;
     let language = new URL(location.href).searchParams.get("lang") === "fr" ? "fr" : "en";
+    function readTrack(url) {
+      const track = new URL(url).searchParams.get("track");
+      return ["low-code", "terraform"].includes(track) ? track : null;
+    }
+    let selectedTrack = readTrack(location.href);
+    function trackModules(modules, track) {
+      return modules.map((module) => {
+        if (!track) return module;
+        const guide = module.guides[track];
+        return { ...module, guide: guide.guide, sourcePath: guide.sourcePath, originalGuide: null };
+      });
+    }
     let loading = false;
     const content = document.getElementById("content");
     const message = document.getElementById("message");
@@ -502,12 +518,12 @@
       "00": { requires: [], text: "Start here. This module does not depend on any other module." },
       "01": { requires: ["00"], text: "Needs the tools checked in module 00. No Azure resource: you can do it while module 00's Azure checks are still pending." },
       "02": { requires: ["00", "01"], text: "Needs module 00 validated for your subscription (private parameters and Azure context) and module 01 completed." },
-      "03": { requires: ["02"], text: "Builds on your module 02 deployment: same private files and Terraform state. Your identity administrator must approve the Microsoft Entra request before you start." },
-      "04": { requires: ["02", "03"], text: "Needs both stages of module 03 deployed, with the same private files and Terraform state, and the Alice, Bob and Eve role assignments. If you plan module 05, publish its server code before stage 2: stage 2 makes the deployment endpoints private." },
-      "05": { requires: ["02", "03"], text: "Needs modules 02 and 03 deployed with the same private files and Terraform state; module 04 is recommended. Publish the server code before module 04 stage 2 makes the deployment endpoints private." },
+      "03": { requires: ["02"], text: "Builds on module 02 in your selected track, with the same private participant file. Your identity administrator must approve the Microsoft Entra request before you start." },
+      "04": { requires: ["02", "03"], text: "Needs both stages of module 03 in your selected track and the Alice, Bob and Eve role assignments. If you plan module 05, publish its server code before stage 2: stage 2 makes the deployment endpoints private." },
+      "05": { requires: ["02", "03"], text: "Needs modules 02 and 03 in your selected track; module 04 is recommended. Publish the server code before module 04 stage 2 makes the deployment endpoints private." },
       "06": { requires: ["00", "01", "02", "03", "04", "05"], text: "Needs modules 00 to 05 completed, with the API Management MCP endpoint answering requests." },
-      "07": { requires: ["03", "04", "05", "06"], text: "Optional. Needs modules 03 to 06 validated, or a recording of them. Use the API Management address from module 04, never the Function address." },
-      "99": { requires: [], text: "Run it last, even if you stopped early. Use the same private files and Terraform state as the modules you deployed. Clean up in reverse order." },
+      "07": { requires: ["03", "04", "05", "06"], text: "Optional participant exercise. Needs modules 03 to 06 deployed and validated in your own approved test environment. Use the API Management address from module 04, never the Function address. Recordings are for reading only." },
+      "99": { requires: [], text: "Run it last, even if you stopped early. Keep your selected track and private participant file. Clean up in reverse order; preserve shared resources." },
     };
     // Concept section a beginner should read before the module, opened directly on its text and diagram.
     const readFirst = {
@@ -639,12 +655,19 @@
             const repositoryPath = repositoryUrl ?
               decodeURIComponent(url.pathname).replace(/^\/olivMertens\/governed-mcp-workshop\/blob\/main\//, "") : null;
             const local = Object.entries(state.documents).find(([, doc]) => doc.sourcePath === repositoryPath);
-            const localModule = state.modules.find((module) => module.guide !== null && module.sourcePath === repositoryPath);
+            const localModule = state.modules.find((module) => module.sourcePath === repositoryPath ||
+              Object.values(module.guides ?? {}).some((guide) => guide.sourcePath === repositoryPath));
+            let explicitTrack = null;
+            if (localModule && localModule.module !== "01") {
+              if (repositoryPath.includes("/LOW-CODE")) explicitTrack = "low-code";
+              else if (path.endsWith("TRACKS.md") || path === localModule.guides["low-code"].sourcePath) explicitTrack = "terraform";
+            }
             const asset = repositoryPath && (
               /^assets\/architecture\/(?:00|01|02|03|04|05|06|07|99|session2)\.(?:en|fr)\.(?:svg|png)$/.test(repositoryPath) ||
               repositoryPath === "assets/architecture/workshop.drawio" || repositoryPath === "assets/architecture/session2.drawio" ||
               /^assets\/icons\/(?:azure|microsoft|entra|apim|functions|storage|insights|api-center|subscription|foundry-agent-service|copilot-studio)\.svg$/.test(repositoryPath));
-            const anchor = link(label, local ? `#/${local[0]}` : localModule ? `#/module/${localModule.module}` :
+            const anchor = link(label, local ? `#/${local[0]}` : localModule ?
+              explicitTrack ? trackUrl(explicitTrack, `#/module/${localModule.module}`) : `#/module/${localModule.module}` :
               asset ? `${staticSite ? "" : "/"}${repositoryPath}` : url.href);
             if (!local && !localModule) {
               anchor.target = "_blank";
@@ -1063,6 +1086,7 @@
           panel.append(show);
         }
         for (const block of step.blocks || []) {
+          if (["bash", "sh"].includes(block.language)) continue;
           const node = commandBlock(titles[block.language] || block.language || "Code", block.code, "Copy code", false);
           if (block.output) {
             node.classList.add("output");
@@ -1552,6 +1576,38 @@
     function moduleLink(module, className) {
       return link(module.title, `#/module/${module.module}`, className);
     }
+    function trackUrl(track, hash = location.hash) {
+      const url = new URL(location.href);
+      url.searchParams.set("track", track);
+      url.hash = hash;
+      return url.href;
+    }
+    function trackChoices() {
+      const section = element("section", undefined, "workspace-choice");
+      section.setAttribute("aria-label", t("Choose your track"));
+      section.append(element("h2", "Choose your track"),
+        element("p", "Choose once, then follow only that guide. Switching the page does not migrate deployed resources: clean up your old track before starting the other one."));
+      const options = element("div", undefined, "workspace-options");
+      for (const [track, title, description] of [
+        ["low-code", "Low-code / portal first", "Click-by-click portal instructions. Short terminal steps only for publishing, settings unavailable in the portal and validation. No Terraform required."],
+        ["terraform", "Terraform + PowerShell", "Reviewed plans and module scripts. One deployment sequence, without low-code alternatives between commands."],
+      ]) {
+        const anchor = link("", trackUrl(track, /^#\/module\/\d{2}$/.test(location.hash) ? location.hash : "#/module/00"), "workspace-option");
+        anchor.dataset.track = track;
+        if (track === selectedTrack) anchor.setAttribute("aria-current", "true");
+        anchor.append(element("strong", title), element("span", description));
+        anchor.addEventListener("click", (event) => {
+          event.preventDefault();
+          history.pushState(null, "", anchor.href);
+          selectedTrack = track;
+          activateLanguage();
+          render(true);
+        });
+        options.append(anchor);
+      }
+      section.append(options, element("p", "The selected track stays in the page address, including after refresh, language changes and links to the next module. Module 01 is shared."));
+      return section;
+    }
     function dependencyNotice(module) {
       const dependency = dependencies[module.module];
       if (!dependency) return null;
@@ -1625,72 +1681,45 @@
     }
     function validationCommands(module) {
       const section = element("div");
+      if (selectedTrack === "low-code" && module.module !== "01") {
+        section.append(element("p", "Use the complete validation command in this low-code guide, with its explicit resource parameters. A bare validator command can read Terraform outputs and is not offered here.", "field-message"));
+        return section;
+      }
       const paths = module.validation;
-      if (!paths.powershell && !paths.bash) {
+      if (!paths.powershell) {
         section.append(element("p", "Module validation is not published yet. No runnable validator is offered.", "field-message"));
         return section;
       }
       section.append(element("p", "From the repository root, after reviewing the module guide and approvals. This can make real calls and create synthetic test data.", "field-message"));
       if (paths.powershell) section.append(commandBlock(`${language === "fr" ? "Vérifier le module" : "Validate module"} ${module.module} / PowerShell`,
         `pwsh -NoProfile -File .\\${paths.powershell.replaceAll("/", "\\")}`));
-      if (paths.bash) section.append(disclosure("Using bash",
-        commandBlock(`${language === "fr" ? "Vérifier le module" : "Validate module"} ${module.module} / bash`, `bash ./${paths.bash}`)));
       return section;
     }
-      function workspaceChoices() {
-        const section = element("section", undefined, "workspace-choice");
-        section.append(element("h2", "Choose your workspace first"),
-          element("p", "Dev container or local terminal: the same scripts, private participant file and Terraform root. No progression form or cloud action."));
-        const options = element("div", undefined, "workspace-options");
-        for (const [mode, title, description] of [
-          ["devcontainer", "VS Code dev container", "Use the checked-in container configuration. Requires an approved, reachable Linux container engine."],
-          ["local", "Local terminal", "Use your existing tools without a container. Check them in the terminal you will actually use."],
-          ["codespaces", "Codespaces (optional)", "Use the same container in GitHub after publication. Review branch, quota, costs and private forwarding."],
-        ]) {
-          const anchor = link("", `#/start/${mode}`, "workspace-option");
-          anchor.append(element("strong", title), element("span", description));
-          options.append(anchor);
-        }
-        section.append(options);
-        return section;
-      }
-      function showStart(mode) {
-        content.append(element("h1", "Your workspace. Your resources."), workspaceChoices());
-        if (mode !== "codespaces") {
+      function showStart() {
+        content.append(element("h1", "Get started"), trackChoices());
           content.append(element("h2", "Clone the repository"),
-            element("p", "For a local terminal or VS Code dev container, install Git using your approved process, then run these commands in a folder where you keep projects. Codespaces creates its own checkout; no local clone is needed."),
+            element("p", "Run the commands in your terminal. Follow module 00 for your selected track to install and check the required tools."),
             externalLink("Open the workshop repository", "https://github.com/olivMertens/governed-mcp-workshop", "secondary"),
-            element("p", "Once the repository is public, HTTPS cloning needs no GitHub account. Until then, repository access is required."),
+            element("p", "The repository is public: HTTPS cloning needs no GitHub account."),
             commandBlock("Clone repository / PowerShell",
               "git clone --branch main https://github.com/olivMertens/governed-mcp-workshop.git\nif ($LASTEXITCODE -ne 0) { throw 'Clone failed. Do not continue in another directory.' }\nSet-Location .\\governed-mcp-workshop",
               "Copy command", false),
-            disclosure("Using bash", commandBlock("Clone repository / bash",
-              "git clone --branch main https://github.com/olivMertens/governed-mcp-workshop.git && \\\n  cd governed-mcp-workshop",
-              "Copy command", false)),
             element("p", "Already have a checkout? Use your existing folder. Keep your private .workshop files and Terraform state through cleanup; do not clone again to start over."));
-        }
-        if (mode === "devcontainer") {
-          content.append(element("h2", "VS Code dev container"),
-            commandBlock("Open your existing local checkout in VS Code", "code ."),
-            element("p", "In VS Code, run Dev Containers: Reopen in Container. Read the startup log and resolve every failed check. Do not mount host Azure credentials or expose Inspector ports publicly."),
-            notice("Container runtime still needs verification.", "The configuration and registry pins were checked, but no reachable engine was available here. Your build and module 00 checks are required.", "warning"));
-        } else if (mode === "local") {
-          content.append(element("h2", "Local terminal"),
-            element("p", "Install the officially documented tools using your approved process. No script installs workstation tools automatically. Run from this checkout."));
-        } else if (mode === "codespaces") {
-          content.append(element("h2", "Codespaces (optional)"),
-            externalLink("Open Codespaces setup", "https://codespaces.new/olivMertens/governed-mcp-workshop", "secondary"),
-            element("p", "Codespaces opens GitHub's creation flow. Review quota, costs and the published branch before creating a machine. Local unpushed changes are not included."));
-        }
-        if (mode && state.environment.tools) content.append(
-          commandBlock("Check tools / PowerShell", "& .\\scripts\\check-tools.ps1"),
-          disclosure("Using bash", commandBlock("Check tools / bash", "bash ./scripts/check-tools.sh")));
+        if (state.environment.tools && selectedTrack) content.append(
+          commandBlock("Check tools / PowerShell", `& .\\scripts\\check-tools.ps1 -Track ${selectedTrack}`));
+        // The deployment map (section 5 of the getting-started guide) stays visible; the rest of the guide is a disclosure.
+        const guide = state.documents.gettingStarted.content;
+        const mapStart = guide.search(/^## 5\. /m);
+        const mapEnd = mapStart < 0 ? -1 : guide.indexOf("\n## ", mapStart + 1);
+        const deploymentMap = mapStart < 0 ? "" : guide.slice(mapStart, mapEnd < 0 ? undefined : mapEnd);
+        const otherSections = mapStart < 0 ? guide : guide.slice(0, mapStart) + (mapEnd < 0 ? "" : guide.slice(mapEnd));
+        if (deploymentMap) content.append(markdown(deploymentMap, state.documents.gettingStarted.sourcePath));
         content.append(element("p", "Start with module 00. It checks your tools and explains how to prepare your test environment."),
           link("Explore module 00", "#/module/00", "primary"));
         content.append(disclosure("Installation and preparation details",
           notice("Stable random names, not extra quota.",
-            "Prepare one private participant file before Terraform. Reuse its suffix and state through cleanup. A new resource group does not reset subscription or regional quotas."),
-          markdown(state.documents.gettingStarted.content, state.documents.gettingStarted.sourcePath),
+            "Prepare one private participant file for your selected track. Keep its suffix through cleanup. A new resource group does not reset subscription or regional quotas."),
+          markdown(otherSections, state.documents.gettingStarted.sourcePath),
           link("Your Azure context", "#/deployment", "secondary")));
       }
       function deploymentContext() {
@@ -1700,8 +1729,6 @@
           link("Read the context and permission guide", "#/deployment", "secondary"));
         if (state.environment.context.powershell) section.append(commandBlock("Select Azure context / PowerShell",
           `& .\\${state.environment.context.powershell.replaceAll("/", "\\")}${language === "fr" ? " -Language fr" : ""}`));
-        if (state.environment.context.bash) section.append(disclosure("Using bash", commandBlock("Select Azure context / bash",
-          `source ./${state.environment.context.bash} ${language}`)));
         section.append(element("p", "Read the script first. Run it in the same terminal used for the real module. No credentials or IDs are collected here.", "field-message"));
         const portals = element("div", undefined, "action-row");
         portals.append(externalLink("Open Azure portal", "https://portal.azure.com/", "secondary"),
@@ -1763,7 +1790,7 @@
         element("p", "Connect your own deployed MCP server in a real client. Discover a tool, make a controlled call, then compare what happened with what should happen.", "lead"),
         notice("No credentials in this page.",
           "Only the endpoint goes here, in page memory. The canvas does not call your server, save connection details or run code. Commands and prompts must be reviewed and run by you."));
-      content.append(link("Choose your workspace", "#/start", "secondary"));
+      content.append(link("Get started", "#/start", "secondary"));
       const launch = disclosure("Workspace and launch options");
       launch.append(element("h2", "Start your workspace"));
       const actions = element("div", undefined, "action-row");
@@ -1778,9 +1805,7 @@
       const clone = element("details");
       clone.append(element("summary", "No local checkout yet?"),
         commandBlock("Clone a new checkout / PowerShell",
-          "git clone https://github.com/olivMertens/governed-mcp-workshop.git\nif ($LASTEXITCODE -ne 0) { throw 'Clone failed. Use an existing checkout or choose an empty destination.' }\ncode .\\governed-mcp-workshop"),
-        commandBlock("Clone a new checkout / bash",
-          "git clone https://github.com/olivMertens/governed-mcp-workshop.git && code ./governed-mcp-workshop"));
+          "git clone https://github.com/olivMertens/governed-mcp-workshop.git\nif ($LASTEXITCODE -ne 0) { throw 'Clone failed. Use an existing checkout or choose an empty destination.' }\ncode .\\governed-mcp-workshop"));
       launch.append(clone);
       launch.append(link("Explore module 00", "#/module/00", "secondary"));
       const connection = element("section", undefined, "launch-panel");
@@ -1819,7 +1844,6 @@
         feedback.textContent = t("Commands prepared locally. No network test has run; nothing has been saved.");
         commands.append(
           commandBlock("Start Inspector / PowerShell", prepared.powershell),
-          disclosure("Using bash", commandBlock("Start Inspector / bash", prepared.bash)),
           disclosure("VS Code user configuration / URL only",
             commandBlock("VS Code user configuration / URL only", prepared.configuration, "Copy configuration")));
       });
@@ -1864,7 +1888,7 @@
     function overview() {
       content.append(element("h1", "From open tools to governed access."),
         element("p", "Build one Model Context Protocol (MCP) server. Add identity, enforce permissions, then see who called what. Follow the modules in order, at your own pace.", "lead"));
-      content.append(workspaceChoices());
+      content.append(trackChoices());
       const brands = element("div", undefined, "brands");
       brands.append(element("span", "Technologies covered"));
       for (const [name, asset] of [["Microsoft", "microsoft"], ["Azure", "azure"], ["Microsoft Entra ID", "entra"]]) {
@@ -1888,7 +1912,7 @@
       for (const module of state.modules) {
         const row = link("", `#/module/${module.module}`, "route-item");
         const title = element("span", module.title, "route-title");
-        title.append(element("span", module.module === "07" ? "Optional facilitator demo" : module.module === "99" ? "Remove workshop-owned resources" : labels[module.status], "route-meta"));
+        title.append(element("span", module.module === "07" ? "Optional participant exercise" : module.module === "99" ? "Remove workshop-owned resources" : labels[module.status], "route-meta"));
         const requires = dependencies[module.module]?.requires ?? [];
         if (requires.length) {
           const meta = element("span", undefined, "route-meta");
@@ -1904,11 +1928,24 @@
     function showModule(module) {
       const intro = element("div", undefined, "intro");
       const title = element("div");
-      title.append(element("span", module.module === "07" ? "Optional / facilitator demo" : module.module === "99" ? "Cleanup" : "Workshop module", "pill"),
+      title.append(element("span", module.module === "07" ? "Optional / participant exercise" : module.module === "99" ? "Cleanup" : "Workshop module", "pill"),
         element("h1", module.title));
       intro.append(element("span", module.module, "chapter"), title);
       // Microsoft product chips stay visible: they tell the reader at a glance which services this stage touches.
       content.append(intro, servicesList(module));
+      if (!selectedTrack && module.module !== "01") {
+        content.append(trackChoices());
+        return;
+      }
+      const trackInfo = element("p", undefined, "field-message");
+      trackInfo.append(element("strong", module.module === "01" ? "Shared module: both tracks" :
+        selectedTrack === "low-code" ? "Low-code / portal first" : "Terraform + PowerShell"),
+        document.createTextNode(" · "), link("Choose your track", "#/tracks"));
+      content.append(trackInfo);
+      if (selectedTrack && module.guide === null) {
+        content.append(notice("Guide unavailable for this track.", "Do not follow the other track as a substitute. Ask the workshop maintainer for the missing guide."));
+        return;
+      }
       const dependency = dependencyNotice(module);
       if (module.guide === null) content.append(notice("Design outline - participant guide not published.",
         "These are the planned outcomes and requirements. Do not treat them as deployment instructions. The complete steps, commands, validation and cleanup will appear here when the module README is added."));
@@ -1958,14 +1995,11 @@
         return block;
       } };
       // Module 00 checks the environment: no review questions there.
-      // A module with a low-code section shows one track at a time; the reader picks it, and the choice is remembered.
-      const tracked = module.guide !== null && /^#{2,4} (?:Low-code track|Parcours low-code)\b/m.test(module.guide);
-      const track = tracked ? (preferences.get("track") === "low" ? "low" : "full") : null;
-      const items = module.guide !== null && module.module !== "00" ? collectQuestions(module.guide, track) : [];
+      const items = module.guide !== null && module.module !== "00" ? collectQuestions(module.guide) : [];
       let lesson = null;
       const review = items.length ? { render: (jump) => reviewList(items, module.sourcePath, jump,
         (original) => (original >= lesson.reviewIndex ? original + 2 : original + 1)) } : null;
-      lesson = guidedDocument(module.guide ?? module.outline, module.sourcePath, null, { validate, review, track });
+      lesson = guidedDocument(module.guide ?? module.outline, module.sourcePath, null, { validate, review });
       // A short map tells a first-time reader what to do on this page, in which order.
       const map = element("nav", undefined, "page-map");
       map.setAttribute("aria-label", t("How this page works"));
@@ -1975,7 +2009,7 @@
       const cards = [[t("Follow the guide"), `${lesson.stepCount} ${t("steps, one at a time")}`, () => { lesson.goTo(0); }]];
       if (lesson.exerciseIndex !== -1) cards.push([t("Your turn"), t("Server built and Inspector ready? Start the guided requests."), () => lesson.goTo(lesson.exerciseIndex)]);
       if (lesson.validateIndex !== -1) cards.push([t("Check your work"), `${stepWord(lesson.validateIndex + 1)}${language === "fr" ? " : " : ": "}${module.module === "00" ? t("Review your Azure context") : t("Run the validator: PASS or FAIL")}`, () => lesson.goTo(lesson.validateIndex)]);
-      if (lesson.reviewIndex !== -1) cards.push([t("Review questions"), `${stepWord(lesson.reviewIndex + 1)}${language === "fr" ? " : " : ": "}${items.length} ${t("questions, answers hidden")}`, () => lesson.goTo(lesson.reviewIndex)]);
+      if (lesson.reviewIndex !== -1) cards.push([t("Review questions"), `${stepWord(lesson.reviewIndex + 1)}${language === "fr" ? " : " : ": "}${items.length} ${t(items.length === 1 ? "question, answer hidden" : "questions, answers hidden")}`, () => lesson.goTo(lesson.reviewIndex)]);
       cards.push([t("Architecture and context"), t("Optional: architecture, prerequisites, why it matters"), () => goTo(furtherTitle), true]);
       cards.forEach(([title, detail, action, optional], position) => {
         const stop = element("li");
@@ -1989,25 +2023,6 @@
       map.append(stops);
       content.insertBefore(map, content.children[2] || null);
       content.append(guideTitle);
-      if (tracked) {
-        const picker = element("div", undefined, "track-picker");
-        picker.setAttribute("role", "group");
-        picker.setAttribute("aria-label", t("Your track"));
-        picker.append(element("span", "Your track:", "track-label"));
-        for (const [value, name, detail] of [["full", "Full-code", "Terraform and scripts"], ["low", "Low-code", "Azure portal and short commands"]]) {
-          const button = element("button");
-          button.type = "button";
-          button.setAttribute("aria-pressed", String(track === value));
-          button.append(element("strong", name), element("small", detail));
-          button.addEventListener("click", () => { if (track !== value) { preferences.set("track", value); render(true); } });
-          picker.append(button);
-        }
-        const note = element("p", undefined, "field-message track-note");
-        note.append(document.createTextNode(`${t("The guide shows only the steps of this track. Keep the same track for every module.")} `),
-          link("How to choose", "#/tracks"));
-        picker.append(note);
-        content.append(picker);
-      }
       content.append(lesson);
       // Optional material comes after the lesson, so the main path reads strictly top to bottom.
       content.append(furtherTitle,
@@ -2017,7 +2032,7 @@
       concepts.append(element("summary", "Why this boundary matters"), markdown(module.learning, module.learningSourcePath),
         link("Read the full governance guide", "#/governance", "secondary"));
       content.append(concepts);
-      if (module.guide !== null) content.append(pdfAction(`${module.module} / ${module.title}`, module.guide, module.sourcePath, () => servicesList(module)));
+      if (module.guide !== null) content.append(pdfAction(`${module.module} / ${module.title} / ${module.module === "01" ? t("Shared module: both tracks") : t(selectedTrack === "low-code" ? "Low-code / portal first" : "Terraform + PowerShell")}`, module.guide, module.sourcePath, () => servicesList(module)));
       const source = element("p", undefined, "source");
       source.append(document.createTextNode(language === "fr" ? "Fichier source : " : "Source: "), element("code", module.sourcePath));
       content.append(source);
@@ -2050,7 +2065,7 @@
       const deep = /^#\/(concepts|governance|gettingStarted)\/(\d+)$/.exec(route);
       const documentKey = deep ? deep[1] : route.slice(2);
       const module = state.modules.find((item) => route === `#/module/${item.module}`);
-      if (["#/start", "#/start/devcontainer", "#/start/local", "#/start/codespaces"].includes(route)) showStart(route.split("/")[2]);
+      if (["#/start", "#/start/devcontainer", "#/start/local", "#/start/codespaces"].includes(route)) showStart();
       else if (module) showModule(module);
       else if (route === "#/practice") showPractice();
       else if (route === "#/decisions" && state.openDecisions) {
@@ -2060,10 +2075,11 @@
         if (language === "fr") content.prepend(notice("Note", "Original repository decisions and evidence remain in English."));
       } else if (Object.hasOwn(state.documents, documentKey)) {
         const doc = state.documents[documentKey];
-        const guided = ["deployment", "presenter", "integration", "mcpServer", "tracks", "hosting", "gettingStarted", "concepts", "governance"].includes(documentKey);
+        const guided = ["deployment", "lowCodeDeployment", "presenter", "integration", "mcpServer", "tracks", "hosting", "gettingStarted", "concepts", "governance"].includes(documentKey);
         const body = guided ? guidedDocument(doc.content, doc.sourcePath, deep ? Number(deep[2]) : null) : markdown(doc.content, doc.sourcePath);
         if (language === "fr" && route.startsWith("#/original")) body.lang = "en";
         content.append(element("h1", doc.title), body);
+        if (documentKey === "tracks") content.insertBefore(trackChoices(), body);
         if (guided) content.append(pdfAction(doc.title, doc.content, doc.sourcePath));
       } else if (route === "#/overview" || route === "#content") overview();
       else {
@@ -2082,9 +2098,64 @@
       if (focus) content.focus({ preventScroll: true });
       window.scrollTo(0, 0);
     }
+    function powershellContent(text) {
+      if (text === null || text === undefined) return text;
+      const lines = text.split(/\r?\n/), result = [];
+      let fenced = false, omitFence = false, omittedHeading = 0, omittedDetails = 0;
+      for (let index = 0; index < lines.length; index++) {
+        const line = lines[index];
+        if (/^\s*```/.test(line)) {
+          if (!fenced) omitFence = /^\s*```(?:bash|sh)(?:\s|$)/i.test(line);
+          const omit = omitFence;
+          fenced = !fenced;
+          if (!fenced) omitFence = false;
+          if (!omit && !omittedHeading && !omittedDetails) result.push(line);
+          continue;
+        }
+        if (fenced) {
+          if (!omitFence && !omittedHeading && !omittedDetails) result.push(line);
+          continue;
+        }
+        if (omittedDetails) {
+          if (line.trim() === "<details>") omittedDetails++;
+          if (line.trim() === "</details>") omittedDetails--;
+          continue;
+        }
+        const heading = /^(#{1,6})\s+(.+)$/.exec(line);
+        if (heading && omittedHeading && heading[1].length <= omittedHeading) omittedHeading = 0;
+        if (omittedHeading) continue;
+        if (heading && /\bbash\b/i.test(heading[2])) {
+          omittedHeading = heading[1].length;
+          continue;
+        }
+        if (line.trim() === "<details>" && /^<summary>.*\bbash\b/i.test(lines[index + 1] || "")) {
+          omittedDetails = 1;
+          continue;
+        }
+        if (/^(?:Or, using bash|Ou, avec bash)\b/i.test(line)) continue;
+        result.push(line);
+      }
+      return result.join("\n");
+    }
+    function powershellPresentation(localized, track) {
+      return { ...localized,
+        modules: trackModules(localized.modules, track).map((module) => ({ ...module,
+          guide: powershellContent(module.guide),
+          learning: powershellContent(module.learning),
+          hints: powershellContent(module.hints),
+          originalGuide: module.originalGuide ? { ...module.originalGuide, content: powershellContent(module.originalGuide.content) } : null,
+        })),
+        documents: Object.fromEntries(Object.entries(localized.documents).map(([key, doc]) =>
+          [key, { ...doc, content: powershellContent(doc.content) }])),
+      };
+    }
     function activateLanguage() {
       document.documentElement.lang = language;
-      if (rawState) state = language === "fr" ? { ...rawState, ...rawState.translations.fr } : rawState;
+      if (rawState) {
+        const localized = language === "fr" ? { ...rawState, ...rawState.translations.fr } : rawState;
+        state = powershellPresentation(localized, selectedTrack);
+        if (selectedTrack === "low-code") state.documents.deployment = state.documents.lowCodeDeployment;
+      }
       for (const [selector, text] of [
         [".skip", "Skip to content"],
         [".toolbar > span", staticSite ? "Governed MCP / self-paced workshop" : "Workshop build board / self-paced guide"], ["#refresh", "Refresh content"],
@@ -2110,7 +2181,7 @@
         return anchor;
       }
       const starts = document.getElementById("start-nav");
-      starts.replaceChildren(navLink("start", "Choose your workspace", "terminal"),
+      starts.replaceChildren(navLink("start", "Get started", "terminal"),
         navLink("concepts", "MCP and agent concepts", "book"), navLink("overview", "Workshop overview", "home"));
       for (const code of ["en", "fr"]) document.getElementById(`language-${code}`).setAttribute("aria-pressed", String(language === code));
       for (const [group, nav, title, icon, entries] of [
@@ -2317,6 +2388,7 @@
     }
     window.addEventListener("popstate", () => {
       language = new URL(location.href).searchParams.get("lang") === "fr" ? "fr" : "en";
+      selectedTrack = readTrack(location.href);
       activateLanguage();
       render(true);
     });

@@ -1,12 +1,19 @@
-# 07 - Facultatif : autres clients (Microsoft Foundry en direct, plan Copilot Studio)
+# 07 - Facultatif : essayer un autre client (Microsoft Foundry ; aperçu de Copilot Studio)
 
 [English](README.md)
 
 ## Objectif
 
-Appeler le même serveur MCP gouverné depuis un autre client : un **agent Microsoft Foundry** (partie A, exécutée en
-conditions réelles) et, sous forme de plan, **Microsoft Copilot Studio** (partie B). La passerelle, les rôles
-d'application et les journaux des modules 03 à 06 ne changent pas.
+**Parcours Terraform + PowerShell.** Vous allez réutiliser les ressources gérées par Terraform.
+Si vous avez suivi le parcours portail, utilisez plutôt le [guide low-code autonome](LOW-CODE.fr.md).
+Exécutez les commandes à la racine du dépôt.
+
+Vous allez appeler le même serveur Model Context Protocol (MCP), protégé par Microsoft Entra ID et accessible uniquement
+via API Management, depuis un **agent Microsoft Foundry** (partie A).
+Vous vérifierez qu'Alice peut lire les données fictives et que Bob ne peut pas écrire, même après
+avoir approuvé l'appel. Réalisez cet exercice facultatif dans votre environnement de test, après les modules 03 à 06.
+La partie B vous permet de découvrir **Microsoft Copilot Studio** par la lecture uniquement ; elle ne demande aucune action.
+Vous conserverez les contrôles de la passerelle, les rôles d'application et les règles de journalisation des modules précédents.
 
 ## Pourquoi c'est important
 
@@ -14,38 +21,39 @@ La gouvernance doit s'appliquer quel que soit le client qui appelle le serveur. 
 
 - Quelle identité appelle le serveur MCP (l'utilisateur, une identité managée ou une identité d'agent) ?
 - Quelle est l'audience du jeton, et s'agit-il bien de l'audience propre au serveur MCP ?
-- Le jeton est-il transmis tel quel à un service en aval (token passthrough) ?
+- Le serveur obtient-il un nouveau jeton pour chaque API en aval, sans jamais lui transmettre le jeton MCP (pas de *token passthrough*) ?
 
 ## Ce que vous déployez
 
-Partie A seulement (facultative, facturée). Les parties B et C ne créent rien.
+Seule la partie A vous demande de déployer des ressources. Elle est facultative et payante.
+La partie B est un aperçu à lire, pas un exercice à exécuter ; la partie C récapitule les contrôles à vérifier.
 
 | Quoi | Où | Pourquoi |
 |---|---|---|
-| Un projet Foundry avec un déploiement `gpt-4.1-mini` | Son propre groupe de ressources, depuis le modèle `azd-ai-starter-basic` | Héberge l'agent |
-| Une **inscription d'application cliente** `workshop-mcp-foundry-client-<prefix>` | Microsoft Entra | Le client OAuth avec lequel Foundry connecte les utilisateurs |
+| Un projet Foundry avec un déploiement `gpt-4.1-mini` | Un groupe de ressources dédié, créé à partir du modèle `azd-ai-starter-basic` | Héberge l'agent |
+| Une **inscription d'application cliente** `workshop-mcp-foundry-client-<prefix>` | Microsoft Entra | Permet à Foundry de connecter chaque utilisateur avec OAuth |
 | Un **secret client valable un jour** sur cette application | Microsoft Entra, transmis uniquement à Foundry | Foundry n'accepte qu'un client confidentiel (vérifié le 2026-10-20) |
-| La préautorisation de ce client pour `user_impersonation` | `infra/entra`, fichier privé `.workshop/entra-module07.tfvars.json` | Pas de demande de consentement pour le scope MCP |
+| La préautorisation de ce client pour `user_impersonation` | `infra/entra`, fichier privé `.workshop/entra-module07.tfvars.json` | Évite une demande de consentement pour l'autorisation déléguée (scope) MCP |
 | L'ID du client dans les applications autorisées | `infra/workload`, fichier privé `.workshop/module07.tfvars.json` | La stratégie de la passerelle et l'authentification de la Function acceptent ce client |
 | Le rôle **Foundry User** sur le projet pour chaque utilisateur de test | Le projet Foundry | Chaque utilisateur appelle l'agent avec sa propre identité |
-| Un **blueprint d'identité d'agent**, créé par Foundry pour l'agent | Microsoft Entra | Créé automatiquement ; non supprimé avec le groupe de ressources |
+| Un **modèle d'identité d'agent** (agent identity blueprint), créé par Foundry | Microsoft Entra | Créé automatiquement ; à supprimer séparément lors du nettoyage |
 
 > [!NOTE]
-> Fonctionnalités en préversion (signalez-les quand vous les montrez) :
+> Cet exercice utilise deux fonctionnalités en **préversion (Preview)**. Leurs écrans et leur comportement peuvent changer :
 >
 > - **Préversion :** relais d'identité OAuth (OAuth identity passthrough) pour les outils MCP de Microsoft Foundry.
 > - **Préversion :** le nouveau portail Foundry et sa configuration des outils MCP.
 
 ## Prérequis et rôles nécessaires
 
-- Modules 03 à 06 déployés : l'URL de la passerelle du module 04 (jamais l'URL de la Function).
+- Modules 03 à 06 déployés et validés dans votre environnement de test approuvé. Utilisez l'URL de la passerelle du module 04, jamais celle de la Function.
 - Contributeur sur un abonnement pour le groupe de ressources Foundry ; Administrateur d'applications (ou propriétaire
   de l'application cliente) pour l'inscription et son secret ; l'administrateur des identités du module 03 pour `infra/entra`.
 - Azure Developer CLI (`azd`) 1.34 ou plus récent, et les comptes de test Alice et Bob (Eve est déjà refusée au module 03).
 
 ## Étapes
 
-### Garder la même frontière d'autorisation
+### Conserver les mêmes contrôles d'accès
 
 
 
@@ -106,28 +114,41 @@ Le client change, pas les droits exigés par le serveur.
 > [!IMPORTANT]
 > **Point de compatibilité :** la passerelle exige un scope délégué et les outils OBO exigent un utilisateur.
 > Une identité managée ou une identité d'agent Foundry est applicative : lui attribuer un rôle ne suffit **pas**.
-> Le chemin qui fonctionne est le **relais d'identité OAuth** (partie A) : chaque utilisateur se connecte, et son jeton porte ses rôles.
+> Cet exercice utilise donc le **relais d'identité OAuth** (partie A) : chaque utilisateur se connecte, et son jeton contient ses rôles.
 
 **Question :** Foundry appelle le serveur avec son identité managée. `whoami` peut-il agir au nom d'Alice ?
 
 <details>
 <summary>Afficher la réponse</summary>
 
-Non. Un jeton d'application ne porte aucun contexte délégué d'Alice. La passerelle actuelle refuse ce flux ;
+Non. Un jeton d'application ne représente pas Alice. La passerelle actuelle refuse ce mode d'accès ;
 les outils OBO doivent aussi refuser les appelants applicatifs. L'identité du client et l'identité managée utilisée par un outil en aval sont deux choix distincts.
 
 </details>
 
 ### Partie A — Agent Microsoft Foundry avec relais d'identité OAuth (préversion)
 
-L'auteur a exécuté toutes les étapes ci-dessous le 2026-10-20 dans un tenant de test. Lancez-les dans PowerShell depuis
-la racine du dépôt, avec `$env:ARM_TENANT_ID` et `$env:ARM_SUBSCRIPTION_ID` définis comme au module 00.
-
-**A1. Créer le projet Foundry** (environ 4 minutes). Le modèle crée son propre groupe de ressources `rg-<nom>`.
+Utilisez votre propre tenant et abonnement hors production approuvés.
+Faites approuver les modifications et le coût avant de commencer ; nettoyez les ressources le jour même.
+Lancez les commandes dans PowerShell depuis la racine du dépôt. Initialisez le contexte du module :
 
 ```powershell
-$name = 'mcp07-<prefix>'                                  # lettres, chiffres et tirets
-$dir = Join-Path $env:TEMP "foundry-07\$name"; New-Item -ItemType Directory -Force $dir | Out-Null; Push-Location $dir
+$p = Get-Content .\.workshop\participant.tfvars.json -Raw | ConvertFrom-Json
+$env:ARM_TENANT_ID = az account show --query tenantId -o tsv
+$env:ARM_SUBSCRIPTION_ID = az account show --query id -o tsv
+az account show --query '{subscription:name,tenant:tenantId}' -o table
+$vars = @('participant.tfvars.json', 'module02.tfvars.json', 'module03.tfvars.json', 'module04.tfvars.json', 'module04b.tfvars.json') |
+    Where-Object { Test-Path ".\.workshop\$_" } | ForEach-Object { "-var-file=..\..\.workshop\$_" }
+```
+
+> **Résultat attendu** — votre abonnement et tenant de test approuvés. Sinon, arrêtez.
+
+**A1. Créez le projet Foundry.** Le modèle de déploiement `azd` crée son propre groupe de ressources `rg-<nom>`.
+Prévoyez environ quatre minutes, sans garantie de durée.
+
+```powershell
+$name = "mcp07-$($p.participant_prefix)-$($p.resource_suffix.Substring(0, 10))"
+$dir = Join-Path $PWD ".workshop\foundry-07\$name"; New-Item -ItemType Directory -Force $dir | Out-Null; Push-Location $dir
 $env:AZURE_DEV_USER_AGENT = 'microsoft_foundry_skill'
 azd init -t https://github.com/Azure-Samples/azd-ai-starter-basic -e $name --no-prompt
 azd env set AZURE_LOCATION swedencentral
@@ -149,15 +170,16 @@ az group update -n "rg-$name" --tags workshop=governed-mcp owner=$($p.owner) exp
 > SUCCESS: Your application was provisioned in Azure in 3 minutes 21 seconds.
 > ```
 >
-> La valeur JSON exige `\"` autour de chaque nom : `azd` l'insère dans une chaîne JSON. Sans cela, `azd provision`
-> s'arrête avec `invalid character 'n' after object key:value pair`.
+> Gardez les guillemets échappés `\"` dans la valeur JSON : `azd` l'insère dans une chaîne JSON.
+> Sans ces caractères, `azd provision` s'arrête avec `invalid character 'n' after object key:value pair`.
 
-**A2. Créer l'inscription d'application cliente** (sans secret pour l'instant) et noter ses ID dans un fichier privé.
+**A2. Créez l'inscription d'application cliente**, sans secret pour l'instant.
+Le bloc suivant conserve ses identifiants dans un fichier privé pour le nettoyage.
 
 ```powershell
 $mcpApp = terraform -chdir=infra/entra output -raw application_client_id
 $scopeId = az ad app show --id $mcpApp --query "api.oauth2PermissionScopes[?value=='user_impersonation'].id | [0]" -o tsv
-$f = New-TemporaryFile
+$f = Join-Path $PWD '.workshop\foundry-client-request.json'
 @{ resourceAppId = $mcpApp; resourceAccess = @(@{ id = $scopeId; type = 'Scope' }) } | ConvertTo-Json -Depth 5 -AsArray | Set-Content $f
 $app = az ad app create --display-name "workshop-mcp-foundry-client-$($p.participant_prefix)" --sign-in-audience AzureADMyOrg `
     --required-resource-accesses "@$f" --query "{appId:appId,id:id}" -o json | ConvertFrom-Json
@@ -169,9 +191,11 @@ Remove-Item $f; az ad sp create --id $app.appId -o none
 > **Résultat attendu** — aucune sortie. `Get-Content .\.workshop\module07.private.json` affiche les deux ID et le nom du
 > groupe de ressources. La nouvelle inscription n'a encore ni secret ni certificat.
 
-**A3. Autoriser ce client dans Terraform** (l'administrateur des identités pour `infra/entra`, puis vous pour
-`infra/workload`). Les listes gardent Visual Studio Code et Azure CLI. Relisez chaque plan : une préautorisation ajoutée,
-puis des mises à jour en place des stratégies de la passerelle et de l'authentification de la Function, rien de supprimé.
+**A3. Autorisez ce client dans Terraform.** Faites d'abord intervenir l'administrateur des identités pour
+`infra/entra`, puis appliquez les changements dans `infra/workload` avec vos droits Azure.
+Conservez Visual Studio Code et Azure CLI dans les listes de clients autorisés. Avant chaque application, relisez le plan :
+vous devez voir une préautorisation ajoutée, puis des mises à jour des stratégies de la passerelle et de
+l'authentification de la Function, sans aucune suppression.
 
 ```powershell
 $ids = @(@(terraform -chdir=infra/entra output -json pre_authorized_client_ids | ConvertFrom-Json) + $app.appId | Select-Object -Unique)   # VS Code, Azure CLI, client Foundry
@@ -195,58 +219,6 @@ terraform '-chdir=infra\workload' apply '..\..\.workshop\module07.tfplan'
 > Apply complete! Resources: 0 added, 6 changed, 0 destroyed.
 > ```
 
-<details>
-<summary>Parcours low-code : A2 et A3 sans Terraform (à ouvrir seulement si vous avez choisi le parcours low-code)</summary>
-
-**A2 et A3 dans le parcours low-code** ([comment choisir](../../docs/fr/TRACKS.md)). A1 et A4 à A7 sont identiques dans
-les deux parcours. Lancez A2 avec les deux premières lignes ci-dessous au lieu de sa ligne `terraform`. Ensuite, au lieu
-des plans Terraform de A3, ajoutez le client Foundry à la main aux trois contrôles : les clients préautorisés de l'API
-(Entra), les applications autorisées de la Function (authentification intégrée) et les stratégies de la passerelle
-(régénérées avec les mêmes modèles que Terraform).
-
-```powershell
-$p = Get-Content .\.workshop\participant.tfvars.json -Raw | ConvertFrom-Json; $id = "$($p.participant_prefix)lc"; $sfx = $p.resource_suffix.Substring(0, 10)
-$mcpApp = az ad app list --display-name "Workshop MCP API ($id-$sfx)" --query "[0].appId" -o tsv   # remplace la ligne terraform de A2
-# --- après A2 : $app contient le client Foundry ---
-$rg = "rg-mcp-$id-$sfx"; $fn = "func-mcp-$id-$sfx"; $apim = "apim-mcp-$id-$sfx"
-$tenant = az account show --query tenantId -o tsv; $sub = az account show --query id -o tsv
-$scopeId = az ad app show --id $mcpApp --query "api.oauth2PermissionScopes[?value=='user_impersonation'].id | [0]" -o tsv
-# 1. Entra (administrateur des identités) : préautoriser le client Foundry, garder VS Code et Azure CLI.
-$h = @{ Authorization = "Bearer $(az account get-access-token --resource-type ms-graph --query accessToken -o tsv)" }; $g = 'https://graph.microsoft.com/v1.0'
-$api = Invoke-RestMethod "$g/applications(appId='$mcpApp')?`$select=id,api" -Headers $h
-$pre = @($api.api.preAuthorizedApplications | Where-Object appId -ne $app.appId) + @(@{ appId = $app.appId; delegatedPermissionIds = @($scopeId) })
-Invoke-RestMethod -Method Patch "$g/applications/$($api.id)" -Headers $h -ContentType 'application/json' -Body (@{ api = @{ preAuthorizedApplications = $pre } } | ConvertTo-Json -Depth 5) | Out-Null
-# 2. Authentification intégrée de la Function : ajouter le client aux applications autorisées.
-$authUrl = "https://management.azure.com/subscriptions/$sub/resourceGroups/$rg/providers/Microsoft.Web/sites/$fn/config/authsettingsV2?api-version=2024-04-01"
-$auth = az rest --url $authUrl -o json | ConvertFrom-Json
-$pol = $auth.properties.identityProviders.azureActiveDirectory.validation.defaultAuthorizationPolicy
-$ids = @(@($pol.allowedApplications) + $app.appId | Select-Object -Unique); $pol.allowedApplications = $ids
-$f = New-TemporaryFile; [IO.File]::WriteAllText($f, (@{ properties = $auth.properties } | ConvertTo-Json -Depth 12 -Compress))
-az rest --method put --url $authUrl --body "@$f" --headers 'Content-Type=application/json' -o none; Remove-Item $f
-# 3. Passerelle : régénérer les stratégies avec la nouvelle liste, puis les coller (portail : chaque API → Policies), ou
-#    coller d'abord l'aide du module 04 L1 (la ligne $svcId et la fonction Put) et lancer la boucle.
-& .\modules\04-governed-gateway\render-policies.ps1 -TenantId $tenant -ApiClientId $mcpApp -GatewayName $apim -AllowedClientIds $ids
-foreach ($m in @(@('workshop-mcp', 'mcp-server'), @('contoso-tickets-api', 'rest-api'), @('contoso-tickets-mcp', 'rest-mcp-server'))) {
-    Put "apis/$($m[0])/policies/policy" @{ properties = @{ format = 'rawxml'; value = [IO.File]::ReadAllText("$PWD\.workshop\policy-$($m[1]).xml") } }
-}
-"pre-authorized: $($pre.Count); function allowed: $($ids.Count)"
-```
-
-> **Résultat réel** — parcours low-code, 2026-10-20, tenant de test de l'auteur. Le script de validation low-code du
-> module 04 passe toujours ensuite.
->
-> ```text
-> pre-authorized: 3; function allowed: 3
-> PASS a valid token for another audience (Microsoft Graph) is refused by the gateway (expected HTTP 401).
-> PASS module 04 operator checks complete. Persona checks are still required for validation.
-> ```
->
-> **Ce que cela signifie pour vous :** trois listes, trois ID chacune (VS Code, Azure CLI, client Foundry). Un client absent
-> d'une seule d'entre elles est refusé à ce contrôle. À l'étape A4, utilisez `https://<apim>.azure-api.net/workshop-mcp/mcp`
-> comme point de terminaison et `api://<mcpApp>/user_impersonation offline_access` comme scopes.
-
-</details>
-
 **A4. Ajouter l'outil MCP dans le portail Foundry.** Ouvrez [Foundry](https://ai.azure.com/nextgen), choisissez votre
 projet, puis **Build** → **Tools** → **Connect a tool** → **Custom** → **Model Context Protocol (MCP)** → **Create**
 (portail en anglais). Remplissez :
@@ -260,7 +232,7 @@ projet, puis **Build** → **Tools** → **Connect a tool** → **Custom** → *
 | Client secret | laissez vide pour l'instant (l'étape A5 l'ajoute) |
 | Token URL et Refresh URL | `https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/token` |
 | Auth URL | `https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/authorize` |
-| Scopes | `terraform -chdir=infra/entra output -raw user_impersonation_scope`, une espace, puis `offline_access` |
+| Scopes | La valeur renvoyée par `terraform -chdir=infra/entra output -raw user_impersonation_scope`, suivie d'un espace, puis de `offline_access` |
 
 Sélectionnez **Connect**, puis copiez la **Redirect URL** affichée par Foundry. Sélectionnez ensuite **Use in an agent**,
 nommez l'agent `workshop-mcp-agent` et gardez uniquement cet outil MCP (retirez **Web search** s'il apparaît, puis **Save**).
@@ -269,13 +241,15 @@ nommez l'agent `workshop-mcp-agent` et gardez uniquement cet outil MCP (retirez 
 
 *Capture réelle, 2026-10-20, tenant de test de l'auteur. Noms pseudonymisés, ID remplacés.*
 
-**A5. Inscrire l'URL de redirection et donner à Foundry un secret d'un jour.** Collez ce bloc en une seule fois : le secret
-n'existe qu'en mémoire, part directement dans la connexion Foundry et n'est jamais affiché.
+**A5. Inscrire l'URL de redirection et transmettre à Foundry un secret valable un jour.** Collez ce bloc en une seule fois.
+Ce bloc transmet le secret à Foundry au moyen d'un fichier de requête privé, ignoré par Git et supprimé dans `finally`.
+Le transfert ne se fait donc pas uniquement en mémoire. N'affichez pas le secret, n'activez pas de transcription
+et ne conservez pas ce fichier.
 
 ```powershell
 $redirect = '<redirect-url-de-A4>'
 $s = Get-Content .\.workshop\module07.private.json -Raw | ConvertFrom-Json
-$f = New-TemporaryFile
+$f = Join-Path $PWD '.workshop\foundry-connection.private.json'
 @{ web = @{ redirectUris = @($redirect) } } | ConvertTo-Json -Depth 4 | Set-Content $f
 az rest --method patch --url "https://graph.microsoft.com/v1.0/applications/$($s.foundry_client_object_id)" --body "@$f" --headers 'Content-Type=application/json'
 $end = (Get-Date).ToUniversalTime().AddDays(1).ToString('yyyy-MM-ddTHH:mm:ssZ')
@@ -293,13 +267,14 @@ try { az rest --method put --url $url --body "@$f" --headers 'Content-Type=appli
 > **Résultat réel** — 2026-10-20 : aucune sortie. Relire la connexion affiche `"credentials": null` : Foundry ne renvoie
 > jamais le secret. Dans Microsoft Entra, l'application cliente montre un secret nommé `foundry-module07-short-lived`, valable un jour.
 
-> **Pourquoi un secret ?** L'auteur a d'abord essayé sans (un client public, comme Visual Studio Code). La connexion
-> d'Alice a réussi dans Microsoft Entra, mais le gestionnaire d'identifiants de Foundry n'a pas pu échanger le code. Le
-> portail marque aussi **Client secret** comme obligatoire. La règle est donc : une application cliente dédiée, un secret
-> valable un jour, jamais affiché ni stocké, supprimé par le nettoyage. Le secret identifie l'**application cliente** ;
-> chaque utilisateur se connecte toujours avec sa propre identité.
+> **Pourquoi un secret ?** Foundry exige ici un client confidentiel : le champ **Client secret** est obligatoire.
+> Lors du test du 2026-10-20, un client public permettait la connexion d'Alice à Entra, mais pas l'échange du code par Foundry.
+> Utilisez uniquement l'application dédiée et un secret valable un jour. Ne l'affichez pas et n'en conservez aucune copie ;
+> le fichier de transfert est supprimé par le bloc, puis le nettoyage retire le secret de l'application.
+> Ce secret identifie l'**application cliente** ; chaque utilisateur se connecte toujours avec sa propre identité.
 
-**A6. Donner le rôle Foundry User sur le projet à chaque utilisateur de test**, pour qu'il appelle l'agent en son nom :
+**A6. Attribuez le rôle Foundry User à chaque utilisateur de test sur ce projet uniquement.**
+Chacun pourra ainsi appeler l'agent en son propre nom :
 
 ```powershell
 $users = Get-Content .\.workshop\test-users.private.json -Raw | ConvertFrom-Json
@@ -311,10 +286,10 @@ foreach ($u in 'alice', 'bob') {
 > **Résultat attendu** — aucune sortie. Attendez 2 à 3 minutes : tant que le rôle n'est pas appliqué, Foundry répond HTTP 403.
 
 La documentation recommande **Foundry Agent Consumer** pour les agents publiés. Pour des appels directs au projet, comme
-ici, ce rôle a renvoyé HTTP 403 lors du test de l'auteur ; **Foundry User** a fonctionné.
+ici, ce rôle a renvoyé HTTP 403 lors du test du 2026-10-20 ; **Foundry User** a fonctionné.
 
-**A7. Appeler l'agent en tant qu'Alice, se connecter une fois, approuver la lecture.** Utilisez le profil Azure CLI
-d'Alice (module 03) :
+**A7. Testez la lecture avec Alice, puis le refus d'écriture avec Bob.** Commencez avec le profil Azure CLI
+d'Alice (module 03). Connectez-vous quand Foundry le demande, puis examinez l'appel avant d'approuver la lecture :
 
 ```powershell
 $env:AZURE_CONFIG_DIR = Join-Path $PWD '.workshop\az-alice'
@@ -322,7 +297,7 @@ $prompt = 'Use the workshop MCP tool to call get_service_health with service "wo
 pwsh ./modules/07-clients/invoke-foundry-agent.ps1 -ProjectEndpoint $endpoint -Prompt $prompt
 # CONSENT : ouvrez le lien affiché dans un navigateur connecté en tant qu'Alice, choisissez « Allow access », connectez-vous, puis relancez la même commande.
 # APPROVAL : lisez le nom de l'outil et ses arguments, puis :
-pwsh ./modules/07-clients/invoke-foundry-agent.ps1 -ProjectEndpoint $endpoint -PreviousResponseId <resp_id> -Approve
+pwsh ./modules/07-clients/invoke-foundry-agent.ps1 -ProjectEndpoint $endpoint -PreviousResponseId '<resp_id>' -Approve
 ```
 
 > **Résultat réel** — Alice, 2026-10-20, après son consentement (ID de réponse raccourcis).
@@ -341,9 +316,9 @@ Use the workshop MCP tool. Call create_ticket with service "ticket-queue", sever
 
 ![Sortie réelle du terminal : le cadre 1 marque l'approbation demandée par Foundry avant get_service_health, le cadre 2 le résultat d'Alice via la passerelle, le cadre 3 le create_ticket approuvé de Bob, refusé par la passerelle avec HTTP 403](../../assets/screenshots/terminal-07-foundry.png)
 
-Le même parcours dans le playground du portail : Foundry affiche l'outil et ses arguments, puis attend **Approve** ou **Deny**.
+Vous pouvez aussi utiliser l'espace de test du portail (playground) : Foundry affiche l'outil et ses arguments, puis attend votre choix, **Approve** ou **Deny**.
 
-![Capture réelle : playground Foundry ; le cadre 1 marque l'appel d'outil en attente d'approbation, le cadre 2 l'option Approve once, le cadre 3 le seul outil, la passerelle gouvernée](../../assets/screenshots/azure-07-foundry-approve.png)
+![Capture réelle : playground Foundry ; le cadre 1 marque l'appel d'outil en attente d'approbation, le cadre 2 l'option Approve once, le cadre 3 la connexion MCP via API Management, seul outil configuré dans l'agent](../../assets/screenshots/azure-07-foundry-approve.png)
 
 ![Capture réelle : playground Foundry après approbation ; le cadre 1 marque Request has been approved, le cadre 2 la réponse de l'agent issue de l'outil synthétique, le cadre 3 l'outil qui a répondu](../../assets/screenshots/azure-07-foundry-result.png)
 
@@ -363,24 +338,27 @@ jeton. La passerelle cherche `Tools.Write` dans la revendication `roles`, que Bo
 
 </details>
 
-### Partie B — Microsoft Copilot Studio (plan)
+### Partie B — Aperçu de la connexion à Microsoft Copilot Studio (non validé en conditions réelles)
 
-1. Dans l'agent, ouvrez **Outils**, puis **Ajouter un outil**, puis **Nouvel outil**, puis **Model Context Protocol**.
-2. Saisissez un **Nom du serveur**, une **Description du serveur** et l'**URL du serveur** (URL de la passerelle).
-3. Choisissez **OAuth 2.0**, jamais **Aucune**. Le parcours **Manual** documenté demande un **Client secret**. La règle de
+Cette partie est une **lecture uniquement, non validée en conditions réelles**. N'exécutez pas ces étapes dans
+le cadre de l'atelier. Voici le fonctionnement décrit par la documentation ; consultez les sources pour l'étudier.
+
+1. L'ajout se fait dans l'agent, sous **Outils → Ajouter un outil → Nouvel outil → Model Context Protocol**.
+2. Le formulaire demande un **Nom du serveur**, une **Description du serveur** et l'**URL du serveur** (celle de la passerelle).
+3. L'authentification à étudier est **OAuth 2.0**, jamais **Aucune**. Le parcours **Manual** documenté demande un **Client secret**. La règle de
    l'atelier ne l'autorise que comme dans la partie A : une inscription d'application cliente dédiée, un secret valable un
    jour, transmis sans être affiché ni stocké, et supprimé au nettoyage. L'atelier n'implémente pas l'inscription dynamique
    de clients. Ne passez jamais à **Clé API** pour contourner cette étape.
 4. Seul le transport **Streamable** est pris en charge. SSE n'est plus pris en charge.
-5. Testez d'abord un outil de lecture, avec la bonne audience MCP, le scope délégué et les rôles. L'auteur n'a **pas**
-   exécuté ce plan en conditions réelles : seule la partie A (Foundry) l'a été.
+5. Une expérimentation séparée devrait commencer par un outil de lecture, avec l'audience MCP, le scope délégué
+   et les rôles requis. Aucun test réel de cette connexion Copilot Studio n'a été effectué pour l'atelier.
 
 > [!CAUTION]
 > Ne passez jamais à **Aucune** ni à **Clé API** pour faire fonctionner une connexion Copilot Studio : cela supprime
 > le contrôle d'identité mis en place dans l'atelier. Un secret client n'est acceptable que de courte durée, sur une
 > application cliente dédiée, et supprimé ensuite.
 
-> Les libellés exacts des écrans peuvent changer. Vérifiez la page citée dans les sources avant la session.
+> Les libellés exacts des écrans peuvent changer. Consultez la page citée dans les sources avant d'étudier cette intégration.
 
 **Question :** le parcours OAuth Manual de Copilot Studio demande un secret client. Pourquoi ne pas passer plutôt à **Clé API** ?
 
@@ -393,11 +371,11 @@ sur une application cliente dédiée, garde la connexion de chaque utilisateur :
 
 </details>
 
-### Partie C — Checklist pour chaque client
+### Partie C — Points à vérifier pour chaque client
 
 - [ ] L'audience du jeton est l'audience propre au serveur MCP (ni Microsoft Graph, ni une API en aval).
 - [ ] Le client connecte chaque utilisateur (OAuth) ; jamais **Aucune** ni une clé API.
-- [ ] Tout secret client est de courte durée, sur une application cliente dédiée, jamais affiché ni stocké, et supprimé au nettoyage.
+- [ ] Tout secret client est valable un jour, sur une application cliente dédiée, jamais affiché ni conservé, et supprimé au nettoyage. Le fichier de transfert temporaire est supprimé dans `finally`.
 - [ ] Les outils d'écriture exigent un rôle explicite et une approbation humaine.
 - [ ] Les journaux de la passerelle montrent l'appel avec un ID de corrélation et sans corps de requête (module 06).
 
@@ -407,9 +385,53 @@ sur une application cliente dédiée, garde la connexion de chaque utilisateur :
 - Bob : l'approbation est demandée pour `create_ticket`, puis la passerelle répond **HTTP 403** ; l'outil ne s'exécute pas.
 - Requête du module 06 : les appels de Foundry apparaissent avec le nom de l'outil, le statut et la durée, sans corps.
 
+### Vérifier vous-même avec Azure CLI
+
+**Pourquoi :** changer de client ne doit pas créer un nouvel accès direct à la Function.
+Avant les essais dans Foundry, retrouvez la même passerelle qu'au module 04.
+Dans PowerShell 7, à la racine du dépôt :
+
+```powershell
+$ErrorActionPreference = 'Stop'
+$inspectGroup = terraform '-chdir=infra\workload' output -raw resource_group_name
+if ($LASTEXITCODE -ne 0) { throw 'Groupe de ressources indisponible.' }
+$inspectNames = terraform '-chdir=infra\workload' output -json resource_names | ConvertFrom-Json
+if ($LASTEXITCODE -ne 0) { throw 'Noms des ressources indisponibles.' }
+```
+
+> **Résultat attendu** — aucune sortie : les variables reçoivent les noms de votre déploiement. Vérifiez avec `$inspectNames`.
+
+Copiez cette lecture de la passerelle existante ; elle ne crée ni agent ni connexion :
+
+```powershell
+az apim show -g $inspectGroup -n $inspectNames.api_management --query '{name:name,sku:sku.name,provisioningState:provisioningState,gatewayUrl:gatewayUrl}' -o json
+if ($LASTEXITCODE -ne 0) { throw 'Passerelle introuvable. Reprenez les prérequis du module 04.' }
+```
+
+> **Résultat attendu** — la passerelle `StandardV2` à l'état `Succeeded`.
+> L'adresse MCP reste son `gatewayUrl` suivi de `/workshop-mcp/mcp`, pas le domaine de la Function.
+
+![Résultat réel Azure CLI : URL et état de la même passerelle API Management](../../assets/screenshots/terminal-07-az-gateway.png)
+
+Comparez ensuite avec le résultat de l'appel dans Foundry, après avoir réalisé les étapes approuvées :
+
+![Exemple réel dans Foundry : résultat d'un appel MCP via la passerelle](../../assets/screenshots/azure-07-foundry-result.png)
+
+*La capture Azure CLI date du 20 octobre 2026 ; les noms sont masqués.
+La capture Foundry existante illustre le résultat côté client, pas une nouvelle exécution de cet exercice.
+La lecture d'APIM ne prouve ni la connexion OAuth du client ni les droits d'Alice/Bob : utilisez les essais ci-dessous.
+En cas d'échec, vérifiez l'URL et les prérequis, sans réactiver l'accès public de la Function.*
+
 ## Valider
 
-**Hors ligne** (toujours) : le dossier est complet, la partie A est documentée avec son nettoyage, et aucune valeur de secret n'est écrite.
+> [!NOTE]
+> **Limites de validation :** le parcours Foundry initial a été testé dans le tenant de test de l'auteur le 2026-10-20.
+> Le guide dans sa version actuelle n'a pas été revalidé de bout en bout. Les sorties et captures datées sont des exemples,
+> pas des preuves pour votre environnement. La partie B (Copilot Studio) reste une lecture uniquement, sans validation réelle.
+> Le relais d'identité OAuth et la configuration MCP du nouveau portail Foundry restent en **préversion (Preview)**.
+
+**Vérifiez d'abord les fichiers, sans accéder à Azure.** Le validateur vérifie que les fichiers requis sont présents,
+que la partie A et son nettoyage sont documentés et qu'aucune valeur de secret n'est écrite dans le guide.
 
 ```powershell
 pwsh ./modules/07-clients/validate.ps1 -Offline
@@ -463,7 +485,8 @@ le parcours réel : la lecture d'Alice réussit après approbation, et l'écritu
 
 ## Nettoyer
 
-D'abord le rapport, puis l'application. Le script restaure les applications autorisées par des plans Terraform contrôlés,
+Lancez d'abord le script en mode rapport pour relire les changements prévus, puis utilisez `-Apply` après approbation.
+Le script rétablit les listes de clients autorisés à l'aide de plans Terraform contrôlés,
 puis supprime le groupe de ressources Foundry (seulement s'il porte l'étiquette `module=07`) et l'inscription
 d'application cliente avec son secret.
 
@@ -485,12 +508,15 @@ pwsh ./modules/07-clients/cleanup.ps1 -TenantId $env:ARM_TENANT_ID -Subscription
 > DONE module 07 part A removed. Private module 07 files deleted.
 > ```
 >
-> **Ce que cela signifie pour vous :** la passerelle et la Function n'acceptent de nouveau que Visual Studio Code et
-> Azure CLI, et plus aucun secret n'existe. L'exécution de l'auteur a ensuite trouvé le **blueprint d'identité d'agent**
-> de Foundry encore présent dans Microsoft Entra : supprimer le groupe de ressources ne le supprime pas. Le script le
-> supprime désormais aussi, avant le groupe de ressources.
+> **Ce que cela signifie pour vous :** vérifiez que la passerelle et la Function n'acceptent plus le client Foundry
+> et que son application dédiée, avec son secret, a disparu. Le **modèle d'identité d'agent** de Foundry doit être
+> supprimé séparément dans Microsoft Entra : supprimer le groupe de ressources ne suffit pas.
+> Le script prévoit cette suppression avant celle du groupe ; vérifiez aussi son résultat.
 
 ```bash
+export ARM_TENANT_ID="$(az account show --query tenantId -o tsv)"
+export ARM_SUBSCRIPTION_ID="$(az account show --query id -o tsv)"
+az account show --query '{subscription:name,tenant:tenantId}' -o table
 bash ./modules/07-clients/cleanup.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId "$ARM_SUBSCRIPTION_ID"
 ```
 
@@ -498,10 +524,12 @@ bash ./modules/07-clients/cleanup.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId 
 
 ## Pour aller plus loin
 
-- Publiez l'agent et comparez **Foundry Agent Consumer** et **Foundry User** pour ses utilisateurs.
+- Dans une expérimentation séparée et approuvée, publiez l'agent et comparez **Foundry Agent Consumer** et **Foundry User** pour ses utilisateurs.
 - Suivez la disponibilité générale du relais d'identité OAuth, et la possibilité d'un client public.
 
 ## Sources
+
+- [Retrouver la passerelle avec Azure CLI](https://learn.microsoft.com/cli/azure/apim#az-apim-show), vérifié le 20 octobre 2026.
 
 - Microsoft Foundry — Configurer l'authentification des outils MCP : https://learn.microsoft.com/azure/foundry/agents/how-to/mcp-authentication
 - Azure Functions — Connecter un serveur MCP sur Azure Functions à un agent Foundry Agent Service : https://learn.microsoft.com/azure/azure-functions/functions-mcp-foundry-tools

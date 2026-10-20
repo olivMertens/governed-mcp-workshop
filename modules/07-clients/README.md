@@ -4,8 +4,14 @@
 
 ## Goal
 
-Call the same governed MCP server from another client: a **Microsoft Foundry agent** (part A, run live) and, as an
-outline, **Microsoft Copilot Studio** (part B). The gateway, the app roles and the logs from modules 03 to 06 do not change.
+**Terraform + PowerShell track.** For a separate portal-first exercise, choose [Low-code](LOW-CODE.md).
+Run commands from the repository root. This separated composition has not been revalidated live;
+dated outputs and screenshots remain historical author examples, not proof for your environment.
+
+Call the same governed MCP server from a **Microsoft Foundry agent** (part A).
+This optional participant exercise runs in your own test environment after modules 03 to 06.
+Part B outlines **Microsoft Copilot Studio** integration; it has not been validated live.
+The gateway controls, app roles and logging rules from modules 03 to 06 stay in place.
 
 ## Why it matters
 
@@ -17,7 +23,8 @@ Governance must hold no matter which client calls the server. Each client has it
 
 ## What you deploy
 
-Part A only (optional, billed). Part B and part C create nothing.
+Only part A includes a deployment to carry out (optional, billed).
+Part B is a reading-only outline, not a hands-on exercise; part C is a checklist of controls to verify.
 
 | What | Where | Why |
 |---|---|---|
@@ -30,7 +37,7 @@ Part A only (optional, billed). Part B and part C create nothing.
 | An **agent identity blueprint**, created by Foundry for the agent | Microsoft Entra | Created automatically; not removed with the resource group |
 
 > [!NOTE]
-> Preview features (label them when you show them):
+> This exercise uses two **Preview** features. Their screens and behavior may change:
 >
 > - **Preview:** OAuth identity passthrough for MCP tools in Microsoft Foundry.
 > - **Preview:** the new Foundry portal and its MCP tool configuration.
@@ -121,14 +128,27 @@ OBO tools must also reject app-only callers. Application identity at the client 
 
 ### Part A — Microsoft Foundry agent with OAuth identity passthrough (Preview)
 
-The author ran every step below on 2026-10-20 in a test tenant. Run them in PowerShell from the repository root, with
-`$env:ARM_TENANT_ID` and `$env:ARM_SUBSCRIPTION_ID` set as in module 00.
+The steps below were validated in the author's test environment on 2026-10-20.
+To carry out the exercise, use your own approved non-production tenant and subscription.
+Get approval for the changes and cost before starting; clean up the resources the same day.
+Run the commands in PowerShell from the repository root. Initialize this module's context:
+
+```powershell
+$p = Get-Content .\.workshop\participant.tfvars.json -Raw | ConvertFrom-Json
+$env:ARM_TENANT_ID = az account show --query tenantId -o tsv
+$env:ARM_SUBSCRIPTION_ID = az account show --query id -o tsv
+az account show --query '{subscription:name,tenant:tenantId}' -o table
+$vars = @('participant.tfvars.json', 'module02.tfvars.json', 'module03.tfvars.json', 'module04.tfvars.json', 'module04b.tfvars.json') |
+    Where-Object { Test-Path ".\.workshop\$_" } | ForEach-Object { "-var-file=..\..\.workshop\$_" }
+```
+
+> **Expected result** — your approved test subscription and tenant. Stop if they are not yours.
 
 **A1. Create the Foundry project** (about 4 minutes). The template creates its own resource group `rg-<name>`.
 
 ```powershell
-$name = 'mcp07-<prefix>'                                  # letters, digits and hyphens
-$dir = Join-Path $env:TEMP "foundry-07\$name"; New-Item -ItemType Directory -Force $dir | Out-Null; Push-Location $dir
+$name = "mcp07-$($p.participant_prefix)-$($p.resource_suffix.Substring(0, 10))"
+$dir = Join-Path $PWD ".workshop\foundry-07\$name"; New-Item -ItemType Directory -Force $dir | Out-Null; Push-Location $dir
 $env:AZURE_DEV_USER_AGENT = 'microsoft_foundry_skill'
 azd init -t https://github.com/Azure-Samples/azd-ai-starter-basic -e $name --no-prompt
 azd env set AZURE_LOCATION swedencentral
@@ -158,7 +178,7 @@ az group update -n "rg-$name" --tags workshop=governed-mcp owner=$($p.owner) exp
 ```powershell
 $mcpApp = terraform -chdir=infra/entra output -raw application_client_id
 $scopeId = az ad app show --id $mcpApp --query "api.oauth2PermissionScopes[?value=='user_impersonation'].id | [0]" -o tsv
-$f = New-TemporaryFile
+$f = Join-Path $PWD '.workshop\foundry-client-request.json'
 @{ resourceAppId = $mcpApp; resourceAccess = @(@{ id = $scopeId; type = 'Scope' }) } | ConvertTo-Json -Depth 5 -AsArray | Set-Content $f
 $app = az ad app create --display-name "workshop-mcp-foundry-client-$($p.participant_prefix)" --sign-in-audience AzureADMyOrg `
     --required-resource-accesses "@$f" --query "{appId:appId,id:id}" -o json | ConvertFrom-Json
@@ -196,56 +216,6 @@ terraform '-chdir=infra\workload' apply '..\..\.workshop\module07.tfplan'
 > Apply complete! Resources: 0 added, 6 changed, 0 destroyed.
 > ```
 
-<details>
-<summary>Low-code track: A2 and A3 without Terraform (open only if you chose the low-code track)</summary>
-
-**A2 and A3 in the low-code track** ([how to choose](../../docs/TRACKS.md)). A1 and A4 to A7 are the same in both tracks.
-Run A2 with the first two lines below instead of its `terraform` line. Then, instead of the A3 Terraform plans, add the
-Foundry client to the three gates by hand: the API's pre-authorized clients (Entra), the Function's allowed applications
-(built-in authentication), and the gateway policies (re-rendered with the same templates as Terraform).
-
-```powershell
-$p = Get-Content .\.workshop\participant.tfvars.json -Raw | ConvertFrom-Json; $id = "$($p.participant_prefix)lc"; $sfx = $p.resource_suffix.Substring(0, 10)
-$mcpApp = az ad app list --display-name "Workshop MCP API ($id-$sfx)" --query "[0].appId" -o tsv   # replaces the A2 terraform line
-# --- after A2: $app holds the Foundry client ---
-$rg = "rg-mcp-$id-$sfx"; $fn = "func-mcp-$id-$sfx"; $apim = "apim-mcp-$id-$sfx"
-$tenant = az account show --query tenantId -o tsv; $sub = az account show --query id -o tsv
-$scopeId = az ad app show --id $mcpApp --query "api.oauth2PermissionScopes[?value=='user_impersonation'].id | [0]" -o tsv
-# 1. Entra (identity administrator): pre-authorize the Foundry client, keep VS Code and Azure CLI.
-$h = @{ Authorization = "Bearer $(az account get-access-token --resource-type ms-graph --query accessToken -o tsv)" }; $g = 'https://graph.microsoft.com/v1.0'
-$api = Invoke-RestMethod "$g/applications(appId='$mcpApp')?`$select=id,api" -Headers $h
-$pre = @($api.api.preAuthorizedApplications | Where-Object appId -ne $app.appId) + @(@{ appId = $app.appId; delegatedPermissionIds = @($scopeId) })
-Invoke-RestMethod -Method Patch "$g/applications/$($api.id)" -Headers $h -ContentType 'application/json' -Body (@{ api = @{ preAuthorizedApplications = $pre } } | ConvertTo-Json -Depth 5) | Out-Null
-# 2. Function built-in authentication: add the client to the allowed applications.
-$authUrl = "https://management.azure.com/subscriptions/$sub/resourceGroups/$rg/providers/Microsoft.Web/sites/$fn/config/authsettingsV2?api-version=2024-04-01"
-$auth = az rest --url $authUrl -o json | ConvertFrom-Json
-$pol = $auth.properties.identityProviders.azureActiveDirectory.validation.defaultAuthorizationPolicy
-$ids = @(@($pol.allowedApplications) + $app.appId | Select-Object -Unique); $pol.allowedApplications = $ids
-$f = New-TemporaryFile; [IO.File]::WriteAllText($f, (@{ properties = $auth.properties } | ConvertTo-Json -Depth 12 -Compress))
-az rest --method put --url $authUrl --body "@$f" --headers 'Content-Type=application/json' -o none; Remove-Item $f
-# 3. Gateway: re-render the policies with the new list, then paste them (portal: each API → Policies), or first paste the
-#    module 04 L1 helper (the $svcId line and the Put function) and run the loop.
-& .\modules\04-governed-gateway\render-policies.ps1 -TenantId $tenant -ApiClientId $mcpApp -GatewayName $apim -AllowedClientIds $ids
-foreach ($m in @(@('workshop-mcp', 'mcp-server'), @('contoso-tickets-api', 'rest-api'), @('contoso-tickets-mcp', 'rest-mcp-server'))) {
-    Put "apis/$($m[0])/policies/policy" @{ properties = @{ format = 'rawxml'; value = [IO.File]::ReadAllText("$PWD\.workshop\policy-$($m[1]).xml") } }
-}
-"pre-authorized: $($pre.Count); function allowed: $($ids.Count)"
-```
-
-> **Real result** — low-code track, 2026-10-20, author's test tenant. Then the module 04 low-code validator still passes.
->
-> ```text
-> pre-authorized: 3; function allowed: 3
-> PASS a valid token for another audience (Microsoft Graph) is refused by the gateway (expected HTTP 401).
-> PASS module 04 operator checks complete. Persona checks are still required for validation.
-> ```
->
-> **What it means for you:** three lists, three IDs each (VS Code, Azure CLI, Foundry client). A client missing from any
-> one of them is refused at that gate. In A4, use `https://<apim>.azure-api.net/workshop-mcp/mcp` as the endpoint and
-> `api://<mcpApp>/user_impersonation offline_access` as the scopes.
-
-</details>
-
 **A4. Add the MCP tool in the Foundry portal.** Open [Foundry](https://ai.azure.com/nextgen), select your project, then
 **Build** → **Tools** → **Connect a tool** → **Custom** → **Model Context Protocol (MCP)** → **Create**. Fill in:
 
@@ -267,13 +237,14 @@ Select **Connect**, then copy the **Redirect URL** that Foundry shows. Then sele
 
 *Real capture, 2026-10-20, author's test tenant. Names pseudonymised, IDs replaced.*
 
-**A5. Register the redirect URL and hand Foundry a one-day secret.** Run this block as one paste: the secret exists only
-in memory, goes straight into the Foundry connection, and is never printed.
+**A5. Register the redirect URL and hand Foundry a one-day secret.** Run this block as one paste.
+The existing handoff uses an ignored transient request file, deleted in `finally`; it is not memory-only.
+Never print the secret, enable a transcript or retain that request file.
 
 ```powershell
 $redirect = '<redirect-url-from-A4>'
 $s = Get-Content .\.workshop\module07.private.json -Raw | ConvertFrom-Json
-$f = New-TemporaryFile
+$f = Join-Path $PWD '.workshop\foundry-connection.private.json'
 @{ web = @{ redirectUris = @($redirect) } } | ConvertTo-Json -Depth 4 | Set-Content $f
 az rest --method patch --url "https://graph.microsoft.com/v1.0/applications/$($s.foundry_client_object_id)" --body "@$f" --headers 'Content-Type=application/json'
 $end = (Get-Date).ToUniversalTime().AddDays(1).ToString('yyyy-MM-ddTHH:mm:ssZ')
@@ -293,8 +264,9 @@ try { az rest --method put --url $url --body "@$f" --headers 'Content-Type=appli
 
 > **Why a secret?** The author first tried without one (a public client, as Visual Studio Code uses). Alice's sign-in
 > succeeded in Microsoft Entra, but the Foundry credential manager then failed to redeem the code. The portal also marks
-> **Client secret** as required. So the rule is: one dedicated client app, a secret valid for one day, never printed or
-> stored, deleted by the clean-up. The secret identifies the **client app**; each user still signs in as themselves.
+> **Client secret** as required. So the rule is: one dedicated client app, a secret valid for one day, never printed,
+> never retained locally after handoff, deleted by the clean-up. The secret identifies the **client app**;
+> each user still signs in as themselves.
 
 **A6. Give each test user the Foundry User role on the project**, so they call the agent as themselves:
 
@@ -318,7 +290,7 @@ $prompt = 'Use the workshop MCP tool to call get_service_health with service "wo
 pwsh ./modules/07-clients/invoke-foundry-agent.ps1 -ProjectEndpoint $endpoint -Prompt $prompt
 # CONSENT: open the printed link in a browser signed in as Alice, select "Allow access", sign in, then run the same command again.
 # APPROVAL: read the tool name and arguments, then:
-pwsh ./modules/07-clients/invoke-foundry-agent.ps1 -ProjectEndpoint $endpoint -PreviousResponseId <resp_id> -Approve
+pwsh ./modules/07-clients/invoke-foundry-agent.ps1 -ProjectEndpoint $endpoint -PreviousResponseId '<resp_id>' -Approve
 ```
 
 > **Real result** — Alice, 2026-10-20, after her consent (response IDs shortened).
@@ -359,7 +331,10 @@ gateway checks the `roles` claim for `Tools.Write`, which Bob does not have, so 
 
 </details>
 
-### Part B — Microsoft Copilot Studio (outline)
+### Part B — Microsoft Copilot Studio overview (not live-validated)
+
+This section explains the steps to plan. It is not part of the hands-on exercise and requires no action in your
+environment. Consult the sources if you want to explore this integration.
 
 1. In the agent, open **Tools**, then **Add a tool**, then **New tool**, then **Model Context Protocol**.
 2. Enter a **Server name**, a **Server description** and the **Server URL** (gateway URL).
@@ -375,7 +350,7 @@ gateway checks the `roles` claim for `Tools.Write`, which Bob does not have, so 
 > Never switch to **None** or **API key** to make a Copilot Studio connection work: that removes the identity check
 > this workshop builds. A client secret is acceptable only short-lived, on a dedicated client app, and deleted after.
 
-> The exact screen labels can change. Check the source page below before the session.
+> The exact screen labels can change. Check the source page below before exploring this integration.
 
 **Question:** the Copilot Studio Manual OAuth setup asks for a client secret. Why not switch to **API key** instead?
 
@@ -392,7 +367,7 @@ app keeps each user's sign-in: the secret identifies the client app, not the use
 
 - [ ] The token audience is the MCP server's own audience (not Microsoft Graph, not a downstream API).
 - [ ] The client signs each user in (OAuth); never **None** or an API key.
-- [ ] Any client secret is short-lived, on a dedicated client app, never printed or stored, and deleted at clean-up.
+- [ ] Any client secret is short-lived, on a dedicated client app, never printed or retained locally after handoff, and deleted at clean-up.
 - [ ] Write tools require an explicit role and a human approval.
 - [ ] The gateway logs show the call with a correlation ID and no request body (module 06).
 
@@ -483,6 +458,9 @@ pwsh ./modules/07-clients/cleanup.ps1 -TenantId $env:ARM_TENANT_ID -Subscription
 > the resource group does not remove it. The script now deletes it too, before the resource group.
 
 ```bash
+export ARM_TENANT_ID="$(az account show --query tenantId -o tsv)"
+export ARM_SUBSCRIPTION_ID="$(az account show --query id -o tsv)"
+az account show --query '{subscription:name,tenant:tenantId}' -o table
 bash ./modules/07-clients/cleanup.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId "$ARM_SUBSCRIPTION_ID"
 ```
 

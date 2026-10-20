@@ -1,6 +1,10 @@
-# Choose your workspace first
+# Get started
 
-**Participant:** use the portal link your presenter sends, choose EN/FR, then start at module 00.
+**Participant:** use the portal link your presenter sends, choose EN/FR and your deployment track, then start at module 00.
+There is no workspace selection step in the portal. Run commands in your terminal.
+The site uses PowerShell 7 throughout, on Windows, macOS and Linux. There is no shell to choose.
+Bash alternatives remain in the repository guides and scripts, not in the site's lessons or PDF exports.
+The optional container and Codespaces setup details below are reference material, not another required choice.
 You do not need another App Service or the presenter's administrator account.
 Without a portal, follow these Markdown guides.
 **Presenter:** use the separate [publishing how-to](PRESENTER.md).
@@ -9,9 +13,14 @@ Without a portal, follow these Markdown guides.
 use [module 01](../modules/01-discover-mcp/README.md). The presenter portal is optional documentation hosting.
 
 Use **Visual Studio Code (VS Code)** with a dev container, or use your own terminal.
-These are two routes to the same scripts, private participant parameters and Terraform root.
+These workspace choices are independent of your deployment track.
 Visual Studio IDE is a different product; the container instructions here use the VS Code Dev Containers extension.
 No Copilot subscription or canvas is required to read the Markdown guides or run the scripts.
+
+**Choose your deployment track separately:** after cloning below, use
+[low-code module 00](../modules/00-prerequisites/LOW-CODE.md) for the portal-first tool list and checks,
+or [Terraform module 00](../modules/00-prerequisites/README.md).
+The low-code guide is self-contained: you do not need the Terraform installation or commands below.
 
 ## 0. Get the repository onto your computer
 
@@ -51,7 +60,6 @@ git clone --branch main https://github.com/olivMertens/governed-mcp-workshop.git
 **Expected:** `README.md`, `scripts` and `infra` are in the current folder.
 Run the following commands from this folder. If VS Code is installed, open it with `code .`.
 Each participant needs their own checkout. The repository is public: cloning needs no GitHub account or GitHub CLI.
-While it is private, your presenter must grant repository access or share the documentation portal instead.
 
 <details>
 <summary>Already have a checkout? Find it and update it</summary>
@@ -76,7 +84,7 @@ Keep `.workshop` and Terraform state private. Do not delete them, clone again to
 | Route | What you need | Start here |
 |---|---|---|
 | VS Code dev container | VS Code, Dev Containers extension, approved reachable Linux container engine, internet for public packages | Open this checkout with `code .`, then **Dev Containers: Reopen in Container**. |
-| Local terminal | Git, PowerShell 7.4+, Azure CLI, Terraform, .NET SDK, Node.js, Functions Core Tools | Keep the checkout local. Install the tools below using your organization's approved process. |
+| Local terminal | Git, PowerShell 7.4+, Azure CLI, .NET SDK, Node.js, Functions Core Tools; Terraform only for its track | Keep the checkout local. Install your track's tools using your organization's approved process. |
 | Codespaces (optional) | GitHub access, quota and cost approval | [Choose branch and machine](https://codespaces.new/olivMertens/governed-mcp-workshop). It uses the same `.devcontainer`, but only after these files are published. |
 
 The container mounts the checkout. It does **not** mount your host Azure credential directory or engine socket,
@@ -115,7 +123,7 @@ and follow your organization's approval process.
 | Tool | Windows command or installer |
 |---|---|
 | Azure CLI, to connect to Azure | `winget install --id Microsoft.AzureCLI --exact` |
-| Terraform, to plan deployments | `winget install --id Hashicorp.Terraform --exact` |
+| Terraform, only for the Terraform track | `winget install --id Hashicorp.Terraform --exact` |
 | .NET SDK 10, for the C# server | `winget install --id Microsoft.DotNet.SDK.10 --exact` |
 | Node.js, a supported LTS release | `winget install --id OpenJS.NodeJS.LTS --exact` |
 | Azure Functions Core Tools **v4** | [Official Windows installers](https://learn.microsoft.com/azure/azure-functions/functions-run-local#install-the-azure-functions-core-tools): choose the version for your platform. |
@@ -130,7 +138,7 @@ On macOS/Linux, use the official installation guide for your operating system.
 | Git | 2+ | [Git downloads](https://git-scm.com/downloads) |
 | PowerShell | 7.4+ | [Install PowerShell](https://learn.microsoft.com/powershell/scripting/install/installing-powershell) |
 | Azure CLI | 2.88.0+ | [Install Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) |
-| Terraform | 1.16.6+, below 2 | [Install Terraform](https://developer.hashicorp.com/terraform/install) |
+| Terraform (Terraform track only) | 1.16.6+, below 2 | [Install Terraform](https://developer.hashicorp.com/terraform/install) |
 | .NET SDK | 10 installed | [.NET download](https://dotnet.microsoft.com/download/dotnet/10.0) |
 | Node.js | 22.19.0+ | [Node.js download](https://nodejs.org/en/download) |
 | Functions Core Tools | 4.5.0+, below 5 | [Core Tools installation](https://learn.microsoft.com/azure/azure-functions/functions-run-local) |
@@ -141,6 +149,9 @@ Finish the approved installation separately; a package entry alone proves nothin
 No script in this repository installs workstation tools or changes your engine automatically.
 
 ## 2. Check the terminal you will actually use
+
+The commands below use the Terraform baseline. For low-code, follow its
+[module 00](../modules/00-prerequisites/LOW-CODE.md), which passes `-Track low-code` and does not check Terraform.
 
 Run inside the container if you chose it; otherwise run on the host. A host check does not validate a container.
 From the repository root, PowerShell:
@@ -221,9 +232,12 @@ Later identity and network modules still need their own isolation and address-sp
 
 ## 4. Understand the Terraform boundary
 
-`infra/workload` contains the resource-group foundation, future MCP names and an **optional public App Service**.
-The paid portal is disabled by default; [hosting](HOSTING.md) documents explicit persistent opt-in and deployment.
-It does not deploy Functions, networking, API Management, identities, or an MCP server.
+`infra/workload` is the Terraform root for **your** resources: the resource-group foundation, then each module turns
+on its part with an opt-in variable (Function App in 02, Entra authentication in 03, API Management in 04, delegated and
+app-only access in 05). `infra/entra` holds the Microsoft Entra objects, run by an identity administrator (or by you
+in a test tenant where you have that role). Nothing is deployed until you apply a reviewed plan. The paid portal is
+disabled by default; [hosting](HOSTING.md) documents explicit persistent opt-in and deployment.
+The [section 5 deployment map](#5-deployment-map-what-you-deploy-module-by-module) lists what each module adds.
 The [module 00 guide](../modules/00-prerequisites/README.md), read-only preflight and administrator request are available.
 Run its real environment checks before the foundation plan. The authoring evidence validates the local-terminal
 route only; every participant must repeat the checks for their own target.
@@ -300,6 +314,45 @@ without Azure sign-in, Terraform or the presenter portal. Its validator and Insp
 client approval remains manual. Complete module 00 on the workspace route you actually selected before cloud work.
 After paid stages, follow module 99. Review destroy against the same state; preserve existing groups and identities.
 Do not delete an entire group to bypass an incomplete Terraform cleanup.
+
+## 5. Deployment map: what you deploy, module by module
+
+You build **one** environment, step by step. Each module adds one layer to the previous one. Three rules keep it safe:
+
+1. **One checkout, one private folder, one Terraform state** (the `.workshop` folder), from module 00 to module 99. Never clone again to
+   "start over".
+2. **Each module adds one small private file** in `.workshop` (ignored by Git). It holds switches and IDs, never a secret.
+3. **Every plan passes every private file that exists** (for `infra/workload`), in the order of the table. If you drop a file,
+   the plan removes what that file turned on.
+
+| Module | Terraform root | Private file you add | What appears in your tenant | You should see |
+|---|---|---|---|---|
+| 00 | none (read-only checks) | `participant.tfvars.json` ([section 3](#3-prepare-private-isolated-participant-names)) | Nothing | [validator, all PASS](../assets/screenshots/terminal-00-validate.png) |
+| 01 | none (local only) | none | Nothing: the server runs on your computer | [Inspector lists the tools](../assets/screenshots/client-01-inspector.png) |
+| 02 | `infra/workload` | `module02.tfvars.json` (`enable_mcp_server`) | Storage account, Function App (Flex Consumption) with the MCP tools behind a key | [Flex plan and MCP tools](../assets/screenshots/azure-02-function-overview.png), [the system key](../assets/screenshots/azure-02-function-keys.png) |
+| 03 | `infra/entra`, then `infra/workload` (2 stages) | `entra.tfvars.json`, `module03.tfvars.json` | App registration with app roles, built-in authentication on the Function App; stage 2 replaces the key | [app roles](../assets/screenshots/azure-03-app-roles.png) |
+| 04 | `infra/workload` (2 stages) | `module04.tfvars.json` (`enable_governed_gateway`) | API Management Standard v2, private endpoint; stage 2 closes the Function App to the internet | [Function private](../assets/screenshots/azure-04-function-networking.png), [validator](../assets/screenshots/terminal-04-operator.png) |
+| 04 part B (optional) | `infra/workload` | `module04b.tfvars.json` (`enable_rest_mcp_demo`) | A REST API exposed as a second MCP server | [MCP tools](../assets/screenshots/azure-04b-mcp-tools.png) |
+| 05 | `infra/workload`, then `infra/entra` | `module05.tfvars.json`, `entra-module05.tfvars.json` | Managed identities with federated credentials, the report storage | [API permissions](../assets/screenshots/azure-05-api-permissions.png) |
+| 06 | none | none | Nothing: you read logs and traces | [KQL in Logs](../assets/screenshots/azure-06-kql-logs.png) |
+| 07 | `infra/entra`, then `infra/workload` | `entra-module07.tfvars.json`, `module07.tfvars.json` | One more allowed client application | [Foundry approval](../assets/screenshots/azure-07-foundry-approve.png) |
+| 99 | the same roots, destroy | none | Everything above is removed | the module 99 report |
+
+Each module guide gives the exact commands. If you prefer **one command per module**, create the private file as the
+guide shows, then run:
+
+```powershell
+& .\scripts\select-azure-context.ps1           # once per terminal: your test tenant and subscription
+& .\scripts\deploy-module.ps1 -Module 02       # then 03, 04, 05, 07, in order
+```
+
+The script checks the signed-in context, passes the private files that exist in the right order, saves a
+`terraform plan`, **waits for you to type** `yes`, applies exactly that plan, then runs the module validator.
+`-PlanOnly` stops after the plan. For a module that changes Entra objects, run it with `-Root entra` first.
+It never creates your private files, never switches a stage for you and never uses `-auto-approve`.
+
+The captures in this table come from the author's test tenant. Names are replaced by `p01-<suffix>`, IDs by zeros.
+They were produced with [tools/capture](../tools/capture/README.md), which you can reuse in your own tenant.
 
 ## Sources
 

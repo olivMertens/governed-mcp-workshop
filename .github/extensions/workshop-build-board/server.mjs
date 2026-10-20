@@ -14,7 +14,7 @@ function publicAsset(url, root) {
     if (/^\/assets\/icons\/(?:azure|microsoft|entra|apim|functions|storage|insights|api-center|subscription|foundry-agent-service|copilot-studio)\.svg$/.test(url) ||
         /^\/assets\/architecture\/(?:00|01|02|03|04|05|06|07|99|session2)\.(?:en|fr)\.svg$/.test(url)) type = "image/svg+xml";
     else if (/^\/assets\/architecture\/(?:00|01|02|03|04|05|06|07|99|session2)\.(?:en|fr)\.png$/.test(url) ||
-        /^\/assets\/screenshots\/(?:azure-02-storage-(?:public-access|private-endpoints)|azure-03-(?:function-authentication|app-registration-overview|app-roles|enterprise-app-properties)|terminal-03-(?:operator|alice)|azure-05-(?:api-permissions|federated-credentials)|azure-06-(?:kql-logs|observability-agent-answer|observability-agent-query)|diagram-0(?:5-(?:obo-hops|rbac-checks)|2-server-levels)-(?:en|fr)|client-01-inspector|client-03-vscode|azure-06-apic-register|azure-04-mcp-servers|azure-04b-mcp-(?:tools|policy)|terminal-04b-(?:operator|alice))\.png$/.test(url)) type = "image/png";
+        /^\/assets\/screenshots\/(?:azure-02-storage-(?:public-access|private-endpoints)|azure-02-function-(?:overview|keys)|azure-03-(?:function-authentication|app-registration-overview|app-roles|enterprise-app-properties)|terminal-03-(?:operator|alice|az-auth)|azure-05-(?:api-permissions|federated-credentials)|azure-06-(?:kql-logs|observability-agent-answer|observability-agent-query|trace-span-attributes|trace-waterfall)|diagram-0(?:5-(?:obo-hops|rbac-checks)|2-server-levels)-(?:en|fr)|client-01-inspector|client-03-vscode|azure-06-apic-register|azure-04-(?:mcp-servers|function-networking)|azure-04b-mcp-(?:tools|policy)|terminal-04b-(?:operator|alice)|terminal-00-(?:validate|az-context)|terminal-02-az-runtime|terminal-04-(?:operator|bob|az-network)|terminal-05-(?:bob|az-identities)|terminal-06-az-counts|terminal-07-(?:foundry|az-gateway)|terminal-99-az-inventory|azure-07-foundry-(?:tool|approve|result))\.png$/.test(url)) type = "image/png";
     else if (url === "/assets/architecture/workshop.drawio" || url === "/assets/architecture/session2.drawio") type = "application/xml";
     else throw new BoardError("not_found", "Unknown public asset.", 404);
     const parts = url.slice("/assets/".length).split("/");
@@ -50,7 +50,11 @@ export async function startServer(store, readJourney, assetsRoot = defaultAssets
             if (req.headers.host !== new URL(origin).host) {
                 throw new BoardError("invalid_host", "Unexpected host.", 403);
             }
-            if (req.method === "GET" && /^\/(?:\?lang=(?:en|fr))?$/.test(req.url)) {
+            const url = new URL(req.url, origin);
+            const selectors = { lang: ["en", "fr"], track: ["low-code", "terraform"] };
+            const publicSelectors = [...url.searchParams].every(([name, value]) => Object.hasOwn(selectors, name) &&
+                selectors[name].includes(value) && url.searchParams.getAll(name).length === 1);
+            if (req.method === "GET" && url.origin === origin && url.pathname === "/" && publicSelectors) {
                 // Read on each request so a long-lived canvas never serves a stale interface.
                 res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
                 res.end(readFileSync(boardUrl, "utf8").replace("__BOARD_KEY__", key));

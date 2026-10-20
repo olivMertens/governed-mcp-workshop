@@ -179,19 +179,21 @@ Last verified: 2026-10-14.
 
 ## 07 - Optional clients, same boundary
 
-**Goal:** compare a user-delegated client with an application-identity client without changing the server's boundary.
-The diagram is a **planned optional connection**, not proof of a created Foundry agent or a configured Copilot Studio agent.
+**Goal:** call the server from another client without changing its access controls.
+You can carry out part A with Microsoft Foundry in your own approved test environment.
+Part B is a Copilot Studio outline that has not been validated live.
 
 **Diagram:** optional client to the same governed gateway to the private Function. Determine which identity reaches
-MCP before interpreting tool results. Recheck Preview status, licensing, scopes, callback support and secretless authentication.
+MCP before interpreting tool results. Recheck Preview status, licensing, scopes and callback support.
+The [module 07 guide](../modules/07-clients/README.md) covers prerequisites, connection limitations and clean-up.
 
 > [!IMPORTANT]
-> Defer the documented Copilot Studio manual OAuth route if it requires a client secret.
+> Each user must sign in with their own identity. Do not weaken the controls to add a client.
 > A product feature called identity passthrough does not permit server-to-downstream token passthrough.
 
-**Expected evidence:** only an explicitly supported, approved, secretless connection. No extra client is required
-to complete the core path.
-**Next:** module 99, even if this demonstration is skipped.
+**Expected evidence:** Foundry lets Alice read; Bob's approved write is still refused by the gateway (HTTP 403).
+No extra client is required to complete the core path.
+**Next:** module 99, whether or not you carry out this optional exercise.
 
 **Deep dive:** [Foundry authentication, selected flows Preview](https://learn.microsoft.com/azure/foundry/agents/how-to/mcp-authentication),
 [Copilot Studio MCP](https://learn.microsoft.com/microsoft-copilot-studio/mcp-add-existing-server-to-agent).

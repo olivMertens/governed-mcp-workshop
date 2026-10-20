@@ -4,24 +4,29 @@
 
 ## Objectif
 
-Microsoft Entra ID protège votre serveur MCP (module 03). Le serveur n'est joignable que par
-Azure API Management (APIM, module 04) et il accède aux données en aval avec la bonne identité (module 05).
+**Parcours Terraform + PowerShell.** Vous allez utiliser les ressources gérées dans `infra/workload`.
+Le guide portail autonome est [Low-code](LOW-CODE.fr.md). Exécutez les commandes à la racine du dépôt.
+
+Microsoft Entra ID protège votre serveur Model Context Protocol (MCP, module 03).
+Les appels passent obligatoirement par Azure API Management (APIM, module 04).
+Le serveur utilise ensuite l'identité prévue pour chaque outil afin d'accéder aux données (module 05).
 Reste une question : **voyez-vous ce qui se passe, et les autres équipes trouvent-elles ce serveur ?**
 
-Ce module répond en deux temps :
+Vous allez examiner les appels au serveur, puis enregistrer son adresse dans un catalogue :
 
-- **Observer :** quel outil, quel appelant, quand, quel statut, quelle durée. Vous lisez ces métadonnées dans
+- **Observer :** vous allez retrouver l'outil appelé, l'appelant, l'heure, le statut et la durée. Vous lirez ces métadonnées dans
   Application Insights avec une requête KQL (Kusto Query Language).
-- **Inventorier :** inscrire le serveur dans un catalogue (existence, responsable, adresse). Vous l'enregistrez dans
+- **Inventorier :** vous allez créer une fiche qui indique le responsable du serveur et son adresse dans
   Azure API Center (**Preview**). Un administrateur peut aussi le déclarer dans le centre d'administration
-  Microsoft 365 comme serveur MCP « apporté par le client » (BYO, Bring Your Own) (**Preview**).
+  Microsoft 365 comme serveur MCP fourni par votre organisation (BYO, Bring Your Own) (**Preview**).
 
-Vous ne déployez rien de nouveau. Vous apprenez en revanche ce que prouve chaque élément (journal, inventaire,
-déclaration BYO) et ce qu'il ne prouve pas.
+Vous utiliserez la télémétrie existante et ne créerez un centre API Free que si nécessaire.
+Vous distinguerez ensuite ce qu'un journal, une fiche de catalogue et une déclaration BYO permettent réellement de vérifier.
 
 ## Pourquoi c'est important
 
-Un serveur que personne ne voit n'est pas gouverné. Sans métadonnées, impossible de répondre à « qui a utilisé l'outil
+Les contrôles d'accès ne suffisent pas : vous devez aussi connaître les serveurs disponibles et leur utilisation.
+Sans métadonnées, impossible de répondre à « qui a utilisé l'outil
 d'écriture hier ? ». Sans inventaire, les équipes créent des serveurs en double ou utilisent des serveurs inconnus
 (« shadow MCP »).
 
@@ -29,7 +34,7 @@ Deux pièges à éviter :
 
 - **Trop journaliser.** Stocker les prompts, les arguments ou les résultats d'outils fait fuiter des données.
   Cet atelier ne journalise que des métadonnées.
-- **Trop faire confiance.** Une ligne de journal ou une entrée de catalogue est une preuve, pas un contrôle. HTTP 200 ne
+- **Trop faire confiance.** Une ligne de journal ou une entrée de catalogue fournit une information, pas un contrôle d'accès. HTTP 200 ne
   prouve pas que l'outil a réussi, et une entrée d'inventaire n'autorise personne.
 
 > [!WARNING]
@@ -37,31 +42,34 @@ Deux pièges à éviter :
 
 ## Ce que vous déployez
 
-Ce module ne déploie **aucune nouvelle ressource Azure**. Il réutilise l'instance API Management et le composant Application Insights des modules précédents, et ajoute :
+Vous réutilisez API Management et Application Insights, sans ajouter de ressource gérée par Terraform.
+Si vous ne disposez pas d'un centre API, vous en créerez un à l'étape 4 (offre Free, après accord).
+Voici les éléments utilisés ou ajoutés :
 
 | Élément | Type | Emplacement | Statut |
 |---|---|---|---|
 | Requête KQL du trafic MCP | Fichier KQL (`queries/mcp-traffic.kql`) | Dossier de ce module | Stable |
 | Spans des appels d'outils et leur requête | OpenTelemetry dans le code du serveur, fichier KQL (`queries/tool-spans.kql`) | Publiés avec le serveur au module 02 ; dossier de ce module | Stable (conventions MCP : Development) |
-| Enregistrement du serveur MCP dans API Center | Asset d'un centre API | Portail Azure (étapes manuelles) | **Préversion** |
+| Enregistrement du serveur MCP dans API Center | Fiche de catalogue (asset) | Portail Azure (étapes manuelles) | **Préversion** |
 | Entrée de serveur MCP BYO | Entrée dans le centre d'administration Microsoft 365 | Centre d'administration Microsoft 365 | **Préversion** |
-| Agent 365 avec API Management (démo uniquement) | Argumentaire facultatif, voir « Aller plus loin » | Non mis en place par les participants | **Préversion** |
+| Agent 365 avec API Management (hors exercice pratique) | Présentation des possibilités, voir « Aller plus loin » | Configuration réservée aux administrateurs | **Préversion** |
 
-Ce module n'utilise pas Terraform. Il n'a pas de dossier `infra/` car il n'ajoute aucune infrastructure. Deux étapes touchent des paramètres du tenant : l'entrée BYO et, s'il y en a une, la stratégie Agent 365. C'est un administrateur du tenant qui s'en charge, jamais un participant.
+Il n'y a pas de dossier `infra/` propre au module. Les commandes lisent les sorties du déploiement existant.
+L'entrée BYO et toute stratégie Agent 365 relèvent de l'administrateur du tenant, jamais du participant.
 
 ## Prérequis et rôles requis
 
 - Modules 00 à 05 terminés ; le point de terminaison MCP d'APIM doit répondre.
 - PowerShell 7.4 ou version ultérieure (`pwsh`) et, pour les étapes Linux ou macOS, bash.
-- Azure CLI, connecté à un abonnement hors production approuvé que vous possédez. Si vous êtes présentateur, n'exécutez pas ces étapes dans le tenant d'un participant.
+- Azure CLI, connecté à l'abonnement hors production approuvé pour votre atelier. Travaillez uniquement dans votre propre environnement de test.
 - **Lecteur** sur le composant Application Insights, pour exécuter les requêtes KQL.
-- Pour API Center : un rôle qui autorise l'enregistrement d'assets dans le centre API. Confirmez le nom exact du rôle intégré dans la page des rôles intégrés Azure RBAC avant de l'attribuer. Ce module ne présuppose aucun rôle précis.
+- Pour API Center : un rôle qui autorise l'enregistrement de fiches (**Assets**) dans le centre API. Avec l'administrateur, confirmez le rôle requis dans la liste des rôles intégrés du contrôle d'accès Azure (RBAC) avant toute attribution.
 - Pour l'entrée BYO : un administrateur informatique dans le centre d'administration Microsoft 365. Le participant n'a pas besoin de ce rôle et ne doit pas le demander.
 - Pour Agent 365 (démo facultative) : un administrateur du tenant qui détient le rôle Agent 365 MCP Gateway Policy Operator. Ce rôle n'est jamais attribué à un participant.
 
 ## Étapes
 
-### Lire les trois circuits séparément
+### Distinguer les appels, les journaux et l'inventaire
 
 
 
@@ -117,6 +125,7 @@ Ce module n'utilise pas Terraform. Il n'a pas de dossier `infra/` car il n'ajout
 ### Que peut-on réellement tracer ?
 
 Kusto Query Language (KQL) est le langage de requête des journaux. Il lit les traces enregistrées, pas le raisonnement de l'agent.
+Une trace regroupe les étapes d'un appel. Chaque étape est représentée par un segment de trace, ou *span*.
 
 | Preuve | Présente ici | Limite |
 |---|---|---|
@@ -127,7 +136,7 @@ Kusto Query Language (KQL) est le langage de requête des journaux. Il lit les t
 | Confirmation humaine, prompt, arguments, résultat | Non collectés ici | La passerelle ne prouve pas la confirmation et ne conserve pas la conversation |
 
 En accès applicatif (app-only), les journaux en aval identifient l'application, pas Alice ou Bob.
-OBO peut conserver l'identité utilisateur, mais l'audit en aval exige sa propre configuration et ses propres droits.
+Le flux On-Behalf-Of (OBO, au nom de l'utilisateur) peut conserver l'identité utilisateur, mais l'audit en aval exige sa propre configuration et ses propres droits.
 Recoupez les métadonnées disponibles d'un service à l'autre ; n'ajoutez jamais de jeton ni de corps pour combler un manque.
 
 **Question :** l'appel de Bob renvoie HTTP 200. Cela prouve-t-il qu'il a lu le rapport ?
@@ -139,42 +148,6 @@ Non. Storage peut refuser Bob ; le serveur renvoie alors une erreur d'outil MCP 
 Vérifiez le résultat dans le client et les traces disponibles en aval. Une requête de journaux vide ne prouve ni réussite ni absence d'activité.
 
 </details>
-
-### Parcours low-code (portail et commandes simples)
-
-Les étapes 1, 2 et 5 sont les mêmes dans les deux parcours, et les étapes 3 et 4 donnent déjà le chemin du portail. Seules
-leurs lignes de terminal lisent les sorties Terraform : dans le parcours low-code, utilisez plutôt les noms ci-dessous.
-
-```powershell
-$p = Get-Content .\.workshop\participant.tfvars.json -Raw | ConvertFrom-Json
-$id = "$($p.participant_prefix)lc"; $sfx = $p.resource_suffix.Substring(0, 10)
-$group = "rg-mcp-$id-$sfx"; $ai = "appi-mcp-$id-$sfx"; $apim = "apim-mcp-$id-$sfx"; $apic = "apic-mcp-$id-$sfx"
-# Étape 3 : le même fichier KQL, sur votre composant Application Insights.
-az monitor app-insights query --app $ai --resource-group $group --offset 24h `
-  --analytics-query '@modules/06-observe-inventory/queries/mcp-traffic.kql' --query 'tables[0].rows' -o json
-# Étape 4 : le centre d'API (plan Free) et son environnement gateway ; l'URL à coller sous Remotes.
-az apic create --resource-group $group --name $apic --location (az group show --name $group --query location --output tsv)
-az apic environment create --resource-group $group --service-name $apic --environment-id gateway --title "API Management gateway" --type development
-"https://$apim.azure-api.net/workshop-mcp/mcp"
-```
-
-> **Résultat réel** — parcours low-code, 2026-10-20, tenant de test de l'auteur. 7 des 102 lignes issues des vérifications
-> des modules 04 et 05, puis le centre d'API (`"sku": { "name": "Free" }`) et l'environnement `gateway`.
->
-> ```text
-> [ "2026-10-20T10:27:38.6207559Z", "tools/call", "create_ticket", "200", "True", 442.5, "", "" ]
-> [ "2026-10-20T10:27:51.7341172Z", "tools/call", "create_ticket", "403", "False", 3.3805, "", "" ]
-> [ "2026-10-20T10:32:02.3050838Z", "tools/call", "list_tickets", "200", "True", 51.4503, "", "" ]
-> [ "2026-10-20T10:46:54.2387598Z", "tools/call", "whoami", "200", "True", 1566.4731, "", "" ]
-> [ "2026-10-20T10:46:56.2391415Z", "tools/call", "read_report_as_user", "200", "True", 569.971, "", "" ]
-> [ "2026-10-20T10:46:57.2408390Z", "tools/call", "read_report_as_app", "200", "True", 258.4664, "", "" ]
-> [ "2026-10-20T10:47:08.3307894Z", "tools/call", "read_report_as_user", "200", "True", 292.3766, "", "" ]
-> ```
->
-> **Ce que cela signifie pour vous :** les mêmes métadonnées que dans le parcours full-code, car les stratégies de la
-> passerelle sont les mêmes. Les deux lignes `read_report_as_user` affichent HTTP 200, mais l'une est celle de Bob : Storage
-> l'a refusé dans le résultat de l'outil. Un succès HTTP n'est pas un succès de l'outil. Le `create_ticket` de Bob
-> (HTTP 403, 3 ms) n'a jamais atteint la Function.
 
 ### Étape 1 - Exécuter les vérifications hors ligne
 
@@ -212,7 +185,8 @@ pwsh ./modules/06-observe-inventory/validate.ps1 -Offline
 > RESULT: all offline checks passed
 > ```
 >
-> **Ce que cela signifie pour vous :** les fichiers du module existent et la requête KQL ne lit que des métadonnées. Rien n'a encore été vérifié dans Azure ; le code de sortie 0 signifie que toutes les règles hors ligne sont respectées.
+> **Ce que cela signifie pour vous :** les fichiers du module existent et la requête KQL ne lit que des métadonnées.
+> Le code de sortie 0 confirme les contrôles hors ligne ; cette exécution ne vérifie aucune ressource Azure.
 
 bash :
 
@@ -222,7 +196,7 @@ bash :
 
 > **Résultat attendu** — les mêmes lignes PASS/FAIL que l'exécution PowerShell ci-dessus.
 
-### Étape 2 - Confirmer que la journalisation des charges utiles est désactivée
+### Étape 2 - Vérifier que le contenu des échanges n'est pas journalisé
 
 Dans l'instance APIM, vérifiez que la journalisation des charges utiles est désactivée pour l'API MCP. N'activez pas la capture de `gen_ai.tool.call.arguments` ni de `gen_ai.tool.call.result` pour cet atelier.
 
@@ -230,7 +204,7 @@ Dans l'instance APIM, vérifiez que la journalisation des charges utiles est dé
 
 Ouvrez `modules/06-observe-inventory/queries/mcp-traffic.kql` et exécutez son contenu dans le volet **Logs** du composant Application Insights où écrit API Management.
 
-La requête exacte, prête à coller :
+Copiez la requête suivante :
 
 ```kql
 // Module 06 - MCP traffic in Application Insights (synthetic, metadata only).
@@ -270,7 +244,7 @@ az monitor app-insights query --app $ai --resource-group $group --offset 24h `
   --analytics-query '@modules/06-observe-inventory/queries/mcp-traffic.kql' --query 'tables[0].rows' -o json
 ```
 
-> **Résultat réel** — trafic de la passerelle issu des vérifications opérateur du module 04, 2026-10-18, tenant de test de l'auteur. Pas encore de trafic des personas. Noms et ID masqués.
+> **Résultat réel** — trafic de la passerelle issu des contrôles de configuration du module 04, 2026-10-18, tenant de test de l'auteur. Aucun appel d'Alice ou de Bob à ce stade. Noms et ID masqués.
 >
 > ```text
 > [
@@ -297,7 +271,7 @@ az monitor app-insights query --app $ai --resource-group $group --offset 24h `
 > ]
 > ```
 >
-> **Résultat réel** — trafic des personas des modules 04 et 05 (Alice et Bob), 2026-10-20, tenant de test de l'auteur.
+> **Résultat réel** — appels d'Alice et de Bob lors des modules 04 et 05, 2026-10-20, tenant de test de l'auteur.
 > 6 lignes sur 134 ; les colonnes suivent la requête : timestamp, operation, toolName, resultCode, success, duration (ms), errorType, clientApp.
 >
 > ```text
@@ -318,8 +292,9 @@ az monitor app-insights query --app $ai --resource-group $group --offset 24h `
 > et l'API REST exposée en MCP (partie B) journalise `mcp-backend`. Une liste vide est possible s'il n'y a pas eu de trafic
 > MCP au cours des dernières 24 heures ou si l'ingestion est encore en retard ; elle ne prouve ni réussite ni absence d'activité.
 
-La même requête dans le portail : composant Application Insights → **Logs**, passez en **KQL mode**, collez la requête,
-puis **Run** (capture réelle, 2026-10-19, tenant de test de l'auteur ; noms pseudonymisés ; portail en anglais). Le
+Pour obtenir la même vue dans le portail, ouvrez votre composant Application Insights → **Logs**, passez en **KQL mode**,
+collez la requête, puis sélectionnez **Run**. La capture ci-dessous provient du tenant de test de l'auteur
+(2026-10-19 ; noms pseudonymisés ; portail en anglais). Le
 premier cadre entoure le filtre qui ne garde que le trafic MCP ; le second entoure les lignes : opération, statut, durée et
 nom du client, rien d'autre.
 
@@ -356,9 +331,9 @@ Azure Copilot : passez cette étape, le module n'en dépend pas.
 > Le premier cadre montre la question ; le second, le tableau renvoyé par l'agent : les mêmes deux lignes `initialize`
 > refusées avec HTTP 401 qu'avec le fichier KQL.
 >
-> **Ce que cela signifie pour vous :** l'agent arrive au même résultat parce que les journaux ne contiennent que des
-> métadonnées. Il ne trouve que ce qui a été journalisé : ni prompt, ni jeton, ni corps de requête à divulguer. Le chat est
-> temporaire et limité à cette seule ressource.
+> **Ce que cela signifie pour vous :** comparez les lignes renvoyées par l'agent avec celles de la requête fournie.
+> Dans cet exemple, elles correspondent. L'agent ne peut retrouver que les données journalisées : ici, des métadonnées,
+> sans prompt, jeton ni corps de requête. Cette conversation est temporaire et limitée à la ressource sélectionnée.
 
 ![Capture réelle : chat de l'Observability Agent dans Logs, avec la question et les deux lignes de métadonnées renvoyées](../../assets/screenshots/azure-06-observability-agent-answer.png)
 
@@ -371,10 +346,10 @@ La requête générée par l'agent (encadrée) utilise le filtre `api.type` de l
 <details>
 <summary>Afficher la réponse</summary>
 
-Parce que le fichier est reproductible et relu : il donne toujours le même résultat, il est versionné dans Git et il
-s'exécute depuis Azure CLI et le validateur, sans portail ni IA. La requête de l'agent peut changer d'une fois à l'autre,
-et un contenu généré par l'IA peut être faux. Servez-vous de l'agent pour explorer et ébaucher ; gardez le fichier relu
-comme référence.
+Le fichier fournit une requête de référence, relue et versionnée dans Git. Vous pouvez l'exécuter avec Azure CLI,
+sans portail ni intelligence artificielle (IA). Ses résultats dépendent du trafic enregistré, mais sa logique reste la même.
+La requête produite par l'agent peut varier ou contenir des erreurs. Utilisez l'agent pour explorer les journaux ;
+gardez le fichier comme référence pour vos vérifications.
 
 </details>
 
@@ -382,7 +357,7 @@ comme référence.
 
 L'étape 3 compte les appels. Ici, vous suivez **un seul** appel, maillon par maillon : la passerelle, la Function,
 l'outil, puis les services que l'outil appelle. Rien à déployer : le serveur publié au module 02 envoie déjà à ce
-composant Application Insights un span OpenTelemetry par appel d'outil, plus un par étape en aval. Il s'authentifie avec
+composant Application Insights un segment de trace OpenTelemetry (span) par appel d'outil, plus un par étape en aval. Il s'authentifie avec
 son identité managée, sans clé.
 
 > [!NOTE]
@@ -401,8 +376,8 @@ API Management  POST /workshop-mcp/mcp            369 ms  HTTP 200
       └ HTTP    Azure blob <compte>/reports         5 ms  403
 ```
 
-À lire de haut en bas : pour la passerelle, tout va bien (HTTP 200). L'échange OBO avec Entra réussit. C'est Storage
-qui refuse Bob (403).
+Lisez la trace de haut en bas : la passerelle a renvoyé HTTP 200, puis l'échange OBO avec Entra a réussi.
+C'est Storage qui a refusé Bob (403). Le statut HTTP de la passerelle ne suffit donc pas à conclure que l'outil a réussi.
 
 | Ce qu'un span enregistre (métadonnées) | Ce qu'un span n'enregistre jamais |
 |---|---|
@@ -429,7 +404,7 @@ az monitor app-insights query --app $ai --resource-group $group --offset 24h `
   --analytics-query '@modules/06-observe-inventory/queries/tool-spans.kql' --query 'tables[0].rows' -o json
 ```
 
-> **Résultat réel** — vérifications des personas du module 05, 2026-10-20, tenant de test de l'auteur. Colonnes :
+> **Résultat réel** — tests avec les comptes d'Alice et de Bob au module 05, 2026-10-20, tenant de test de l'auteur. Colonnes :
 > horodatage, outil, issue, succès, durée (ms), appelant, ID d'opération. ID d'objet remplacés.
 >
 > ```text
@@ -472,7 +447,7 @@ Les attributs du span de l'outil (cadre 2). Rien d'autre n'est enregistré : ni 
 Dans les lignes rouges. Le span de l'outil porte `error.type = tool_error`, et la dernière étape est l'appel à Storage,
 refusé en HTTP 403. Juste avant, l'échange On-Behalf-Of avec Microsoft Entra a réussi : le jeton de Bob était valide.
 Ce qui lui manque, c'est un rôle Storage sur le conteneur du rapport. MCP renvoie les erreurs d'outil dans une réponse
-HTTP 200 : seule la trace montre où l'appel s'est arrêté.
+HTTP 200 : la trace permet de repérer précisément l'étape refusée.
 
 </details>
 
@@ -501,7 +476,7 @@ terraform -chdir=infra/workload output -raw gateway_mcp_endpoint
 > l'URL de la passerelle à coller sous **Remotes**. La première commande `az apic` propose d'installer l'extension Azure CLI
 > `apic-extension` : acceptez. Si la région n'est pas proposée pour API Center, créez-le dans une région prise en charge.
 
-Dans le portail Azure, cherchez **API Center**, ouvrez le centre API que vous avez créé, puis :
+Dans le portail Azure, cherchez **API Center**, ouvrez le centre créé pour l'atelier ou celui fourni par l'administrateur, puis :
 
 1. Ouvrez votre centre API et sélectionnez **Assets**.
 2. Choisissez **+ Register an asset**, puis **MCP server**.
@@ -511,19 +486,20 @@ Dans le portail Azure, cherchez **API Center**, ouvrez le centre API que vous av
 5. Sous **Version title**, saisissez `v1` et choisissez le cycle de vie **Development**. La licence est facultative.
 6. Choisissez **Create**. API Center génère les définitions MCP (SSE, et Streamable d'après la documentation).
 
-Contrôle : l'asset apparaît dans **Assets** avec l'environnement choisi.
+Vérifiez que la fiche apparaît dans **Assets** avec l'environnement choisi.
 
 ![Capture réelle : API Center, Assets, Register an asset, MCP server ; puis le panneau MCP Remote avec l'URL de la passerelle et l'environnement API Management gateway ; puis le nouvel asset MCP dans la liste](../../assets/screenshots/azure-06-apic-register.png)
 
 *Capture réelle, 2026-10-19, tenant de test de l'auteur (noms pseudonymisés). Cadres 1 à 3 : ouvrir le formulaire.
-Cadres 4 à 6 : ajouter l'URL d'exécution. Cadre 7 : l'asset apparaît comme **MCP**, cycle de vie **Development**.*
+Cadres 4 à 6 : ajouter l'adresse MCP de la passerelle. Cadre 7 : la fiche apparaît avec le type **MCP** et le cycle de vie **Development**.*
 
-Vérifiez aussi que l'URL d'exécution a bien été enregistrée. Dans le tenant de test de l'auteur, **Create** a créé l'asset
-mais a renvoyé une erreur pour l'URL d'exécution (HTTP 400), et seule une définition SSE a été générée. Si l'asset n'a
-aucun déploiement, ajoutez-le depuis votre terminal, avec les mêmes noms que ci-dessus :
+Vérifiez aussi que la fiche contient bien l'adresse MCP de la passerelle. Dans l'exemple de l'auteur, **Create** a créé la fiche,
+mais l'enregistrement de cette adresse a échoué avec HTTP 400 ; seule une définition SSE a été générée.
+Si votre fiche existe mais qu'aucun déploiement n'y est enregistré, ajoutez ce déploiement API Center depuis votre terminal,
+avec les mêmes noms que ci-dessus. Cette opération enregistre une adresse dans le catalogue ; elle ne déploie pas de serveur :
 
 ```powershell
-$server = Join-Path $env:TEMP 'apic-server.json'
+$server = Join-Path $PWD '.workshop\apic-server.json'
 @{ runtimeUri = @((terraform -chdir=infra/workload output -raw gateway_mcp_endpoint)) } | ConvertTo-Json -Compress | Set-Content $server
 az apic api deployment list --resource-group $group --service-name $apic --api-id contoso-governed-mcp-demo --query "[].name" --output tsv
 az apic api deployment create --resource-group $group --service-name $apic --api-id contoso-governed-mcp-demo --deployment-id gateway --title "API Management gateway" --environment-id /workspaces/default/environments/gateway --definition-id /workspaces/default/apis/contoso-governed-mcp-demo/versions/v1/definitions/default-sse --server "@$server"
@@ -540,7 +516,7 @@ Remove-Item $server
 
 Non. Une entrée d'inventaire n'autorise personne. API Center ne relaie pas les appels. Chaque appel passe toujours par
 API Management. La passerelle valide le jeton Microsoft Entra (émetteur, tenant, audience, expiration, scope), puis vérifie le rôle d'application (`Tools.Read` ou `Tools.Write`).
-Sans jeton valide ni le bon rôle, la passerelle refuse Eve.
+Sans jeton valide et sans le rôle requis, Eve ne peut pas accéder au serveur.
 
 </details>
 
@@ -553,17 +529,58 @@ Où regarder : connectez-vous au [centre d'administration Microsoft 365](https:/
 **Demandes** (**Requests**). Il faut un rôle d'administrateur pour le consulter : sinon, demandez à l'administrateur de vous
 montrer l'entrée.
 
-Contrôle : l'entrée affiche le nom du serveur et un état d'approbation. Cet état ne prouve pas que le serveur est sûr : ce sont toujours les modules 04 et 05 qui appliquent les contrôles.
+Vérifiez le nom du serveur et son état d'approbation. Cet état ne garantit pas la sécurité du serveur :
+les contrôles d'accès restent ceux des modules 04 et 05.
 
 ## Ce que vous devriez voir
 
 - Si du trafic MCP a été ingéré, la requête KQL renvoie les lignes disponibles avec `api.type` égal à `Mcp`, `pass-through-mcp` ou `mcp-backend`, pour `initialize`, `tools/list` et `tools/call`. Ce n'est pas un audit exhaustif.
 - Les colonnes contiennent des noms d'outils et des codes de statut, mais aucun corps de requête, corps de réponse, jeton, prompt ou argument d'outil.
 - Un appel d'outil forme une seule trace : la chronologie montre la passerelle, la Function, le span `tools/call` et chaque appel en aval.
-- L'asset API Center existe, avec une URL d'exécution et un environnement.
+- La fiche API Center contient l'adresse MCP de la passerelle et l'environnement associé.
 - Le validateur hors ligne affiche une ligne `PASS` par vérification et se termine avec le code de sortie 0.
 
+### Vérifier vous-même avec Azure CLI
+
+**Pourquoi :** vous devez pouvoir expliquer les refus sans enregistrer les données des appels.
+Cette requête compte les réponses par code HTTP sur les dernières 24 heures. Elle ne sélectionne ni corps,
+ni jeton, ni argument ou résultat d'outil. Dans PowerShell 7, à la racine du dépôt :
+
+```powershell
+$ErrorActionPreference = 'Stop'
+$inspectGroup = terraform '-chdir=infra\workload' output -raw resource_group_name
+if ($LASTEXITCODE -ne 0) { throw 'Groupe de ressources indisponible.' }
+$inspectNames = terraform '-chdir=infra\workload' output -json resource_names | ConvertFrom-Json
+if ($LASTEXITCODE -ne 0) { throw 'Noms des ressources indisponibles.' }
+```
+
+> **Résultat attendu** — aucune sortie : les variables reçoivent les noms de votre déploiement. Vérifiez avec `$inspectNames`.
+
+Copiez ensuite la requête Kusto Query Language (KQL) passée à Azure CLI :
+
+```powershell
+az monitor app-insights query -g $inspectGroup --app $inspectNames.application_insights --analytics-query 'requests | where timestamp >= ago(24h) | summarize calls=count() by resultCode | order by resultCode asc' -o json
+if ($LASTEXITCODE -ne 0) { throw 'Requête de supervision impossible. Vérifiez le composant et vos droits de lecture.' }
+```
+
+> **Résultat attendu** — `tables[0].columns` décrit `resultCode` et `calls` ; `rows` contient les codes et leurs compteurs.
+> Les nombres dépendent de vos essais. Une liste vide signifie qu'aucune donnée n'est disponible pour cette période ;
+> elle ne prouve pas l'absence de problème. Après un appel, laissez le temps à la collecte.
+
+![Résultat réel Azure CLI : deux colonnes, resultCode et calls, et des compteurs pour HTTP 200 et 401](../../assets/screenshots/terminal-06-az-counts.png)
+
+*Capture en lecture seule du 20 octobre 2026. Les compteurs de cet exemple ne sont pas des valeurs à reproduire.
+Cette vue agrégée ne prouve pas que tous les réglages de journalisation sont corrects :
+vérifiez aussi les diagnostics à zéro octet de corps avec le validateur.
+En cas de refus d'accès, faites vérifier le rôle de lecture sur le composant, sans élargir la collecte.*
+
 ## Valider
+
+> [!NOTE]
+> **Limites de validation :** ce parcours n'a pas été revalidé de bout en bout dans sa version actuelle.
+> Les sorties et captures datées proviennent de vérifications antérieures dans le tenant de test de l'auteur ;
+> elles ne valident pas votre environnement. Vérifiez vous-même les résultats KQL et la fiche API Center.
+> La déclaration BYO reste facultative et sa vérification relève de l'administrateur.
 
 Hors ligne (sans accès Azure) :
 
@@ -597,7 +614,8 @@ pwsh ./modules/06-observe-inventory/validate.ps1 -Offline
 > RESULT: all offline checks passed
 > ```
 >
-> **Ce que cela signifie pour vous :** toutes les règles hors ligne sont respectées. Les résultats KQL, l'asset API Center et l'entrée BYO restent à vérifier à la main.
+> **Ce que cela signifie pour vous :** les contrôles des fichiers ont réussi. Vous devez encore vérifier les résultats KQL,
+> la fiche API Center et, si elle a été créée, l'entrée BYO.
 
 ```bash
 ./modules/06-observe-inventory/validate.sh --offline
@@ -605,7 +623,9 @@ pwsh ./modules/06-observe-inventory/validate.ps1 -Offline
 
 > **Résultat attendu** — les mêmes lignes PASS/FAIL que l'exécution PowerShell ci-dessus.
 
-Chaque vérification affiche `PASS` ou `FAIL` sur une ligne. Une ligne `FAIL` indique le fichier ou la règle en cause. Dans cette version, vous faites à la main les vérifications réelles (résultats KQL, asset API Center, entrée BYO) : le script ne les exécute pas.
+Chaque vérification affiche `PASS` ou `FAIL`. En cas d'échec, la ligne indique le fichier ou la règle en cause.
+Le script ne consulte pas les résultats KQL, la fiche API Center ni l'entrée BYO : vérifiez-les manuellement,
+avec l'administrateur pour BYO si cette démonstration a été réalisée.
 
 **Question :** le contrôle `KQL selects no body, argument, result or token fields` passe. Pourquoi tester la requête elle-même, et pas seulement les journaux ?
 
@@ -632,9 +652,9 @@ la règle « métadonnées uniquement » dans le support lui-même.
 
 ## Nettoyer
 
-Terraform et les scripts de ce module ne créent aucune ressource Azure : le script de nettoyage se limite donc à un rapport,
-précédé d'un contrôle de sécurité. La seule ressource que vous pouvez ajouter à la main est le centre API facultatif de
-l'étape 4 : supprimez-le avec la commande à la fin de cette section.
+Le script de nettoyage affiche un rapport et vérifie ses garde-fous, mais ne supprime aucune ressource.
+Vous devez retirer manuellement la fiche API Center. Si vous avez créé un centre dédié à l'étape 4,
+supprimez-le avec la commande en fin de section. Conservez tout centre ou environnement partagé fourni par un administrateur.
 
 PowerShell :
 
@@ -660,7 +680,8 @@ pwsh ./modules/06-observe-inventory/cleanup.ps1 -Apply
 > Guard passed. No module-owned resources to remove.
 > ```
 >
-> **Ce que cela signifie pour vous :** les deux exécutions ne suppriment rien, car ce module n'a rien créé. Supprimez vous-même l'asset API Center dans le portail. Laissez l'entrée BYO et toute stratégie Agent 365 aux administrateurs.
+> **Ce que cela signifie pour vous :** aucune des deux exécutions ne supprime les éléments ajoutés manuellement.
+> Retirez votre fiche API Center dans le portail. Laissez l'entrée BYO et toute stratégie Agent 365 aux administrateurs.
 
 bash :
 
@@ -671,10 +692,11 @@ bash :
 
 > **Résultat attendu** — les mêmes lignes de rapport que l'exécution PowerShell ci-dessus.
 
-Sans `-Apply` (ou `--apply`), le script se contente d'un rapport. Avec l'option, il ne supprime que ce que ce module a créé, c'est-à-dire rien. Pour supprimer l'asset API Center, passez par le portail. Seul un administrateur peut retirer l'entrée BYO, et uniquement via le centre d'administration Microsoft 365.
+Même avec `-Apply` (ou `--apply`), ce script ne supprime rien. Retirez votre fiche dans le portail API Center.
+Seul un administrateur peut retirer l'entrée BYO, depuis le centre d'administration Microsoft 365.
 
 Si vous avez créé le centre API à l'étape 4, supprimez-le avec les mêmes noms. Cela supprime le centre API, son
-environnement et l'asset :
+environnement et la fiche du serveur :
 
 ```powershell
 $group = terraform -chdir=infra/workload output -raw resource_group_name
@@ -687,11 +709,13 @@ az apic delete --resource-group $group --name $apic --yes
 
 ## Aller plus loin
 
-- **Alertes** : créez une alerte de journal Azure Monitor sur le taux de réponses `403` de l'opération MCP. Appuyez-la sur des données fictives et agrégées.
-- **Agent 365 (Préversion, démo uniquement)** : Agent 365 peut inventorier les serveurs MCP exposés via API Management et bloquer un serveur que la stratégie n'autorise pas (l'appelant reçoit 403). Le contrôle outil par outil, l'observabilité et l'intégration avec Defender ou Purview nécessitent le niveau AI Gateway, lui aussi en Préversion. Seul un administrateur du tenant peut donner le consentement pour tout le tenant. C'est un argumentaire pour le présentateur, sans étape pour les participants.
+- **Alertes** : créez une alerte Azure Monitor sur le taux de réponses `403` de l'opération MCP. Testez-la avec des données fictives et agrégées.
+- **Agent 365 (Préversion, hors exercice pratique)** : Agent 365 peut inventorier les serveurs MCP exposés via API Management et bloquer un serveur que la stratégie n'autorise pas (l'appelant reçoit 403). Le contrôle outil par outil, l'observabilité et l'intégration avec Defender ou Purview nécessitent le niveau AI Gateway, lui aussi en Préversion. Cette option n'est pas requise pour terminer le module. Sa configuration et le consentement à l'échelle du tenant relèvent de l'administrateur ; vous n'avez aucune étape à exécuter.
 - **Rétention** : décidez de la durée de conservation de la télémétrie MCP et alignez-la sur votre politique de protection des données.
 
 ## Sources
+
+- [Interroger Application Insights avec Azure CLI](https://learn.microsoft.com/cli/azure/monitor/app-insights#az-monitor-app-insights-query), vérifié le 20 octobre 2026.
 
 `docs/sources.md` recense, sous le module 06, les pages officielles Microsoft Learn utilisées pour ce module, avec leur date de dernière vérification :
 
@@ -699,7 +723,7 @@ az apic delete --resource-group $group --name $apic --yes
 - [Intégration Application Insights](https://learn.microsoft.com/azure/api-management/api-management-howto-app-insights) : échantillonnage et corrélation.
 - [Inventaire API Center](https://learn.microsoft.com/azure/api-center/register-discover-mcp-server) (enregistrement en Préversion).
 - [Apporter son serveur MCP](https://learn.microsoft.com/microsoft-365/admin/manage/manage-byo-mcp-server) (Préversion).
-- [Agent 365 avec API Management](https://learn.microsoft.com/azure/api-management/agent-365) (Préversion ; argumentaire facultatif, non revérifié ici).
+- [Agent 365 avec API Management](https://learn.microsoft.com/azure/api-management/agent-365) (Préversion ; présentation facultative, non revérifiée ici).
 - [Azure Copilot Observability Agent](https://learn.microsoft.com/azure/azure-monitor/aiops/observability-agent-overview) et [dialoguer avec vos données d'observabilité](https://learn.microsoft.com/azure/azure-monitor/aiops/observability-agent-chat) : étape facultative. Les opérations autonomes et la ressource de l'agent sont en Préversion et ne sont pas utilisées ici. Dernière vérification : 2026-10-19.
 - [Utiliser OpenTelemetry avec Azure Functions](https://learn.microsoft.com/azure/azure-functions/opentelemetry-howto) : paquets du worker et `UseFunctionsWorkerDefaults` ; ce serveur n'exporte que les traces, avec son identité managée. Dernière vérification : 2026-10-20.
 - [Conventions sémantiques OpenTelemetry pour MCP](https://github.com/open-telemetry/semantic-conventions-genai/blob/547934afa90a34298441caf80c43b27255c3a292/docs/gen-ai/mcp.md) (statut : Development, commit épinglé) : nom de span `{mcp.method.name} {target}`, `error.type = tool_error` quand `isError` vaut true, arguments et résultats en Opt-In. Dernière vérification : 2026-10-20.

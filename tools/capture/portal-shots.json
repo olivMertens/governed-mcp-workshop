@@ -1,0 +1,132 @@
+[
+  {
+    "file": "azure-02-function-overview.png",
+    "module": "02",
+    "resource": "function",
+    "viewport": {
+      "width": 1440,
+      "height": 830
+    },
+    "waitFor": [
+      {
+        "exact": true,
+        "text": "Plan type"
+      },
+      {
+        "exact": true,
+        "text": "WhoAmI"
+      }
+    ],
+    "highlights": [
+      {
+        "targets": [
+          {
+            "exact": true,
+            "text": "Plan type"
+          }
+        ],
+        "extendRight": 260,
+        "pad": 3
+      },
+      {
+        "targets": [
+          {
+            "text": "CreateTicket",
+            "exact": true
+          },
+          {
+            "text": "mcpToolTrigger",
+            "exact": true,
+            "nth": 4
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "file": "azure-02-function-keys.png",
+    "module": "02",
+    "resource": "function",
+    "menu": [
+      "App keys"
+    ],
+    "viewport": {
+      "width": 1440,
+      "height": 620
+    },
+    "waitFor": [
+      {
+        "text": "mcp_extension",
+        "exact": true
+      }
+    ],
+    "highlights": [
+      {
+        "targets": [
+          {
+            "text": "mcp_extension",
+            "exact": true
+          },
+          {
+            "text": "Show value",
+            "nth": 0
+          }
+        ],
+        "extendRight": 24
+      },
+      {
+        "targets": [
+          {
+            "text": "_master",
+            "exact": true
+          },
+          {
+            "text": "Show value",
+            "nth": 2
+          }
+        ],
+        "extendRight": 24
+      }
+    ]
+  },
+  {
+    "file": "azure-04-function-networking.png",
+    "module": "04",
+    "resource": "function",
+    "blade": "/networkingHub",
+    "viewport": {
+      "width": 1440,
+      "height": 630
+    },
+    "waitFor": [
+      {
+        "exact": true,
+        "text": "Public network access"
+      }
+    ],
+    "highlights": [
+      {
+        "extendRight": 40,
+        "targets": [
+          {
+            "exact": true,
+            "text": "Public network access"
+          },
+          {
+            "exact": true,
+            "text": "1 private endpoint"
+          }
+        ]
+      },
+      {
+        "extendRight": 300,
+        "targets": [
+          {
+            "exact": true,
+            "text": "Virtual network integration"
+          }
+        ]
+      }
+    ]
+  }
+]
