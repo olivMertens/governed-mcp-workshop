@@ -119,6 +119,160 @@ de l'atelier) pour ajouter les informations d'identification fédérées et les 
 
 ## Étapes
 
+> [!TIP]
+> **Deux parcours, même résultat.** Gardez le parcours choisi aux modules 02 à 04 ([comment choisir](../../docs/fr/TRACKS.md)) :
+> le **parcours low-code** ci-dessous, ou le **parcours full-code** (sections PowerShell et Bash).
+
+### Parcours low-code (portail et commandes simples)
+
+Il vous faut la passerelle low-code du module 04, et l'administrateur d'identité pour l'étape L3. Un seul terminal de L1 à
+la fin.
+
+**L1. Les noms, et les deux nouvelles identités managées.** Portail : **Identités managées** → **Créer**, deux fois :
+`…-obo` signe l'échange On-Behalf-Of (OBO, « de la part de »), `…-report` lit le rapport en tant qu'application. Puis
+Function App → **Identité** → **Affectée par l'utilisateur** → **+ Ajouter** les deux.
+
+```powershell
+$p = Get-Content .\.workshop\participant.tfvars.json -Raw | ConvertFrom-Json
+$id = "$($p.participant_prefix)lc"; $sfx = $p.resource_suffix.Substring(0, 10)
+$rg = "rg-mcp-$id-$sfx"; $st = "st$id$sfx"; $fn = "func-mcp-$id-$sfx"; $apim = "apim-mcp-$id-$sfx"; $mi = "id-mcp-$id-$sfx"
+$obo = "$mi-obo"; $rep = "$mi-report"
+$tags = @('workshop=governed-mcp', "owner=$($p.owner)", "expiry=$($p.expiry)", 'track=low-code')
+$tenant = az account show --query tenantId -o tsv; $sub = az account show --query id -o tsv
+$apiClientId = az ad app list --display-name "Workshop MCP API ($id-$sfx)" --query "[0].appId" -o tsv
+az identity create -g $rg -n $obo --tags @tags -o none
+az identity create -g $rg -n $rep --tags @tags -o none
+$ids = foreach ($n in $mi, $obo, $rep) { az identity show -g $rg -n $n --query id -o tsv }
+az functionapp identity assign -g $rg -n $fn --identities @ids -o none
+(az functionapp identity show -g $rg -n $fn -o json | ConvertFrom-Json).userAssignedIdentities.PSObject.Properties.Name | ForEach-Object { ($_ -split '/')[-1] }
+```
+
+> **Résultat réel** — parcours low-code, 2026-10-20, tenant de test de l'auteur (noms raccourcis).
+>
+> ```text
+> id-mcp-<id>
+> id-mcp-<id>-obo
+> id-mcp-<id>-report
+> ```
+
+**L2. Le conteneur `reports` et ses trois rôles, puis les paramètres de la Function.** Portail : compte de stockage →
+**Conteneurs** → **+ Conteneur** `reports` ; sur le conteneur → **Contrôle d'accès (IAM)** → **Ajouter une attribution de
+rôle** : *Storage Blob Data Reader* pour l'identité `…-report` et pour Alice, *Storage Blob Data Contributor* pour vous
+(pour publier). Rien pour Bob ni pour l'identité `…-obo`. Function App → **Variables d'environnement** : ajoutez les sept
+paramètres `WORKSHOP_*` ci-dessous.
+
+```powershell
+$u = Get-Content .\.workshop\test-users.private.json -Raw | ConvertFrom-Json
+az storage container-rm create -g $rg --storage-account $st -n reports -o none
+$cont = (az storage account show -g $rg -n $st --query id -o tsv) + '/blobServices/default/containers/reports'
+az role assignment create --assignee-object-id (az identity show -g $rg -n $rep --query principalId -o tsv) --assignee-principal-type ServicePrincipal --role 'Storage Blob Data Reader' --scope $cont -o none
+az role assignment create --assignee-object-id $u.alice.objectId --assignee-principal-type User --role 'Storage Blob Data Reader' --scope $cont -o none
+az role assignment create --assignee-object-id (az ad signed-in-user show --query id -o tsv) --assignee-principal-type User --role 'Storage Blob Data Contributor' --scope $cont -o none
+# Un fichier de paramètres garde les guillemets du JSON (en ligne, Windows les retire).
+$f = New-TemporaryFile
+@{
+    WORKSHOP_DELEGATED_ACCESS = 'enabled'; WORKSHOP_TENANT_ID = $tenant; WORKSHOP_MCP_API_CLIENT_ID = $apiClientId
+    WORKSHOP_OBO_ASSERTION_CLIENT_ID = (az identity show -g $rg -n $obo --query clientId -o tsv)
+    WORKSHOP_REPORT_IDENTITY_CLIENT_ID = (az identity show -g $rg -n $rep --query clientId -o tsv)
+    WORKSHOP_REPORT_CONTAINER_URL = "https://$st.blob.core.windows.net/reports"
+    WORKSHOP_PERSONA_OBJECT_IDS = (@{ alice = $u.alice.objectId; bob = $u.bob.objectId } | ConvertTo-Json -Compress)
+} | ConvertTo-Json | Set-Content $f
+az functionapp config appsettings set -g $rg -n $fn --settings "@$f" -o none; Remove-Item $f
+az role assignment list --scope $cont --query "[].roleDefinitionName" -o tsv
+```
+
+> **Résultat réel** — parcours low-code, 2026-10-20.
+>
+> ```text
+> Storage Blob Data Reader
+> Storage Blob Data Reader
+> Storage Blob Data Contributor
+> ```
+>
+> **Ce que cela signifie pour vous :** deux lecteurs (l'identité applicative et Alice) et un publieur (vous). Bob n'a aucun
+> rôle : sa lecture en contexte utilisateur échoue donc en aval. Cet échec, c'est la leçon.
+
+**L3. Administrateur d'identité : faire confiance à l'identité OBO, demander deux scopes délégués, donner le
+consentement.** Portail : **Inscriptions d'applications** → *Workshop MCP API* → **Certificats et secrets** →
+**Informations d'identification fédérées** → **+ Ajouter** → *Identité managée* → l'identité `…-obo`. Puis **Autorisations
+d'API** → **+ Ajouter une autorisation** : Microsoft Graph *User.Read* et Azure Storage *user_impersonation* (toutes deux
+*Déléguées*) → **Accorder le consentement administrateur**. Les commandes font la même chose avec Microsoft Graph.
+
+```powershell
+$h = @{ Authorization = "Bearer $(az account get-access-token --resource-type ms-graph --query accessToken -o tsv)" }
+$g = 'https://graph.microsoft.com/v1.0'
+$app = Invoke-RestMethod "$g/applications(appId='$apiClientId')?`$select=id" -Headers $h
+$sp = (Invoke-RestMethod "$g/servicePrincipals?`$filter=appId eq '$apiClientId'&`$select=id" -Headers $h).value[0]
+$fic = @{ name = 'workshop-obo-lowcode'; issuer = "https://login.microsoftonline.com/$tenant/v2.0"; audiences = @('api://AzureADTokenExchange')
+    subject = (az identity show -g $rg -n $obo --query principalId -o tsv); description = 'Module 05: the OBO managed identity proves this API. No secret.' }
+Invoke-RestMethod -Method Post "$g/applications/$($app.id)/federatedIdentityCredentials" -Headers $h -ContentType 'application/json' -Body ($fic | ConvertTo-Json) | Out-Null
+$down = @(@{ app = '00000003-0000-0000-c000-000000000000'; scope = 'User.Read' }, @{ app = 'e406a681-f3d4-42a8-90b6-c2b029497af1'; scope = 'user_impersonation' })
+$access = foreach ($d in $down) {
+    $r = (Invoke-RestMethod "$g/servicePrincipals?`$filter=appId eq '$($d.app)'&`$select=id,oauth2PermissionScopes" -Headers $h).value[0]; $d.sp = $r.id
+    @{ resourceAppId = $d.app; resourceAccess = @(@{ id = ($r.oauth2PermissionScopes | Where-Object value -eq $d.scope).id; type = 'Scope' }) }
+}
+Invoke-RestMethod -Method Patch "$g/applications/$($app.id)" -Headers $h -ContentType 'application/json' -Body (@{ requiredResourceAccess = @($access) } | ConvertTo-Json -Depth 5) | Out-Null
+foreach ($d in $down) {
+    $grant = @{ clientId = $sp.id; consentType = 'AllPrincipals'; resourceId = $d.sp; scope = $d.scope } | ConvertTo-Json
+    (Invoke-RestMethod -Method Post "$g/oauth2PermissionGrants" -Headers $h -ContentType 'application/json' -Body $grant).scope
+}
+```
+
+> **Résultat réel** — parcours low-code, 2026-10-20.
+>
+> ```text
+> User.Read
+> user_impersonation
+> ```
+>
+> **Ce que cela signifie pour vous :** l'inscription de l'API fait confiance à une seule identité managée (aucun secret
+> client). Elle peut appeler Graph et Storage *pour* l'utilisateur connecté, rien d'autre. Lancez ce bloc une seule fois :
+> une deuxième exécution crée des doublons.
+
+**L4. Publier le rapport synthétique.** Si votre compte de stockage est joignable (vous avez sauté l'étape L4 du module
+02), lancez la première ligne. S'il est privé, lancez la seconde : elle dépose le rapport depuis un conteneur de courte
+durée dans le réseau virtuel, puis le supprime.
+
+```powershell
+& .\modules\05-delegated-and-app-only\publish-report.ps1 -TenantId $tenant -SubscriptionId $sub -StorageAccount $st
+& .\modules\05-delegated-and-app-only\publish-report.ps1 -TenantId $tenant -SubscriptionId $sub -StorageAccount $st -InsideVirtualNetwork -ResourceGroup $rg -SubnetPrefix 10.52.1.64/28
+```
+
+> **Résultat réel** — parcours low-code, 2026-10-20, stockage privé (seconde ligne).
+>
+> ```text
+> PASS explicit Azure context (expected HTTP 200 from Azure Resource Manager).
+> INFO temporary subnet, identity and container-scoped role created; waiting 60 s for the role to apply.
+> PASS synthetic report published as reports/monthly-usage.json from inside the virtual network, with a managed identity, no key or SAS (expected HTTP 201).
+> INFO temporary container, identity, role, subnet and its network security group deleted.
+> ```
+
+**L5. Vérifier votre travail, puis en tant qu'Alice et Bob.** Le même script de validation que le parcours full-code,
+avec des noms au lieu des sorties Terraform. Pour les personas, connectez chaque compte de test dans son propre
+`AZURE_CONFIG_DIR` (voir [Valider](#valider)).
+
+```powershell
+$lc = @{ ResourceGroup = $rg; FunctionApp = $fn; GatewayName = $apim; ApiClientId = $apiClientId; StorageAccount = $st; OboIdentityName = $obo }
+& .\modules\05-delegated-and-app-only\validate.ps1 -TenantId $tenant -SubscriptionId $sub @lc
+& .\modules\05-delegated-and-app-only\validate.ps1 -TenantId $tenant -Persona Alice @lc
+& .\modules\05-delegated-and-app-only\validate.ps1 -TenantId $tenant -Persona Bob @lc
+```
+
+> **Résultat réel** — parcours low-code, 2026-10-20 (extrait).
+>
+> ```text
+> PASS MCP API registration: no client secret, exactly one federated credential trusting the OBO managed identity (expected HTTP 200 from Microsoft Graph).
+> PASS report container: 2 Storage Blob Data Reader assignment(s) (app-only identity, Alice), none for the OBO identity or Bob (expected HTTP 200 from Azure Resource Manager).
+> PASS module 05 operator checks complete. Persona checks are still required for validation.
+> PASS Alice whoami: On-Behalf-Of to Microsoft Graph returns the synthetic persona 'alice' and no name or email (expected HTTP 200).
+> PASS Alice read_report_as_user returns the synthetic report with her own Storage role (expected HTTP 200, isError false).
+> PASS Bob read_report_as_user: the MCP call succeeds but the tool result is an error, because Storage refuses Bob downstream (expected HTTP 200, isError true, downstream HTTP 403).
+> PASS read_report_as_app returned the same result for Alice and Bob: the managed identity, not the caller, carries the rights (expected HTTP 200).
+> ```
+>
+> **Ce que cela signifie pour vous :** même jeton, deux réponses différentes pour l'outil utilisateur, une réponse
+> identique pour l'outil applicatif. Continuez avec le parcours low-code du module 06.
+
 ### PowerShell
 
 Exécutez les commandes depuis la racine du dépôt. Les étapes 2 à 5 modifient Azure ou Microsoft Entra : ne les exécutez qu'après approbation du plan.
@@ -328,12 +482,13 @@ managée `-obo` de signer l'échange de jetons à sa place. Aucun secret n'exist
 
 > [!NOTE]
 > Si vous avez activé `mcp_private_storage = true` au module 02, l'accès réseau public du compte de stockage est désactivé et ce
-> dépôt échoue depuis l'extérieur du réseau virtuel. C'est ce qui s'est produit dans le tenant de test de l'auteur le
-> 2026-10-18. Lancez alors le même dépôt **depuis** le réseau virtuel ; n'activez jamais l'accès public ni les clés
-> partagées. L'auteur a utilisé une Azure Container Instance de courte durée dans un sous-réseau délégué, avec une identité
-> managée affectée par l'utilisateur qui détenait le rôle Storage Blob Data Contributor sur le seul conteneur `reports`.
-> Le conteneur a affiché `UPLOADED`. Supprimez l'instance de conteneur, son identité temporaire et son attribution de rôle
-> juste après le dépôt.
+> dépôt échoue depuis l'extérieur du réseau virtuel. C'est ce qui s'est produit dans le tenant de test de l'auteur. Lancez
+> alors le même dépôt **depuis** le réseau virtuel ; n'activez jamais l'accès public ni les clés partagées. Ajoutez
+> `-InsideVirtualNetwork -SubnetPrefix <un /28 libre de votre réseau virtuel>`. Le script crée une Azure Container Instance
+> de courte durée dans un sous-réseau temporaire, avec une identité managée temporaire qui détient Storage Blob Data
+> Contributor sur le seul conteneur `reports`. Il dépose le rapport, puis supprime le tout. Résultat réel, 2026-10-20 :
+> `PASS synthetic report published as reports/monthly-usage.json from inside the virtual network, with a managed identity,
+> no key or SAS (expected HTTP 201).`
 
 **6. Essayer dans VS Code.** Avec le serveur `workshop-governed` du module 04, connecté en tant qu'Alice, collez ce prompt
 dans Copilot Chat (mode **Agent**). Recommencez en tant que Bob dans un autre profil VS Code et comparez.
@@ -553,7 +708,7 @@ configuration cassée aurait l'air de fonctionner. Le contrôle oblige le serveu
 | Alice obtient `isError: true` seulement sur `read_report_as_user` | Son rôle Storage est encore en cours de propagation (quelques minutes), ou `delegated_persona_object_ids.alice` est faux. |
 | `read_report_as_app` renvoie `isError: true` | Rapport non publié (étape 5), ou rôle de l'identité `-report` encore en propagation. |
 | `publish-report.ps1` échoue systématiquement | Vous avez besoin du rôle Storage Blob Data Contributor sur `reports` ; renseignez `delegated_report_publisher_object_id` si Terraform a été exécuté par quelqu'un d'autre. |
-| `publish-report.ps1` échoue alors que vous avez le rôle, et vous avez activé `mcp_private_storage = true` au module 02 | L'accès réseau public du compte de stockage est désactivé : un dépôt depuis l'extérieur du réseau virtuel est refusé. Lancez le même dépôt depuis le réseau virtuel (par exemple une Azure Container Instance de courte durée dans un sous-réseau délégué, avec une identité managée affectée par l'utilisateur qui détient Storage Blob Data Contributor sur le seul conteneur `reports`), puis supprimez-la. N'activez jamais l'accès public ni les clés partagées. L'auteur l'a fait le 2026-10-18 (le conteneur a affiché `UPLOADED`). |
+| `publish-report.ps1` échoue alors que vous avez le rôle, et vous avez activé `mcp_private_storage = true` au module 02 | L'accès réseau public du compte de stockage est désactivé : un dépôt depuis l'extérieur du réseau virtuel est refusé. Relancez le script avec `-InsideVirtualNetwork -SubnetPrefix <un /28 libre>` : il dépose le rapport depuis une Azure Container Instance de courte durée, avec une identité managée temporaire qui détient Storage Blob Data Contributor sur le seul conteneur `reports`, puis les supprime. N'activez jamais l'accès public ni les clés partagées. |
 | `Invalid index` sur `oauth2_permission_scope_ids` dans `infra/entra` | Le principal de service Azure Storage est absent du tenant ; un administrateur doit le créer (`az ad sp create --id e406a681-f3d4-42a8-90b6-c2b029497af1`). |
 | Les outils renvoient encore des résultats de « démonstration » | Le code déployé est antérieur au module 05, ou `WORKSHOP_DELEGATED_ACCESS` ne vaut pas `enabled`. Publiez le code (avant l'étape 2 du module 04). |
 | HTTP 403 de la passerelle pour chaque appel | Le refus vient du module 04 (rôle ou scope). Un refus en aval n'est jamais un HTTP 403 externe. |
