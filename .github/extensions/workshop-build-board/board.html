@@ -175,6 +175,13 @@
     .services img, .services svg { flex-shrink: 0; }
     .toolbar-actions, .languages { display: flex; align-items: center; gap: 8px; }
     .languages button { padding: 5px 9px; border: 1px solid var(--line); border-radius: 5px; color: var(--ink); background: var(--surface); font-size: 12px; }
+    .track-picker { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0 0 18px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+    .track-picker .track-label { font-weight: 700; }
+    .track-picker button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 14px; border: 1px solid var(--line); border-radius: 10px; background: transparent; color: var(--ink); cursor: pointer; text-align: left; }
+    .track-picker button small { color: var(--muted); font-size: 12px; }
+    .track-picker button[aria-pressed="true"] { border: 2px solid var(--blue); background: var(--wash); }
+    .track-picker button[aria-pressed="true"] strong::before { content: "\2713  "; color: var(--blue); }
+    .track-picker .track-note { flex-basis: 100%; margin: 0; }
     .languages button[aria-pressed="true"] { background: var(--wash); color: var(--blue); border-color: var(--blue); font-weight: 650; }
     .symbol { width: 19px; height: 19px; flex-shrink: 0; vertical-align: middle; }
     .notice.warning { border-left-color: #896300; }
@@ -1131,9 +1138,23 @@
       row.append(button, element("span", "Opens the print dialog: choose \"Save as PDF\". The PDF holds the whole guide, answers and captures included.", "field-message"));
       return row;
     }
-    function lessonSteps(text) {
+    // Splits a guide into reading steps. track = "full" or "low" keeps the shared steps and that track's own steps only.
+    function lessonSteps(text, track = null) {
       const steps = [];
+      const budget = 260;
+      // Visible reading load of a page: words, plus a fixed weight for diagrams and screenshots. Long commands and
+      // disclosures are closed references, not visible reading load.
+      function readingWeight(text) {
+        let extra = 0;
+        const rest = text
+          .replace(/^<details>[\s\S]*?^<\/details>$/gm, "")
+          .replace(/```reveal\n[\s\S]*?\n```/g, () => { extra += 200; return ""; })
+          .replace(/```[^\n]*\n([\s\S]*?)\n```/g, (fence, code) => code.split("\n").length > 12 || code.length > 1200 ? "" : fence)
+          .replace(/^!\[[^\]]*\]\(([^)]+)\)$/gm, (image, source) => { extra += /assets\/screenshots\//.test(source) ? 90 : 160; return ""; });
+        return extra + (rest.match(/\S+/g)?.length || 0);
+      }
       let title = "Before you begin", section = null, lines = [], fenced = false, depth = 0;
+      let trackState = null, stepTrack = null, stepLevel = 2;
       function flush() {
         const blocks = [];
         let block = [], code = false, details = 0;
@@ -1143,7 +1164,7 @@
               const header = block.slice(0, 2);
               let rows = [...header];
               for (const row of block.slice(2)) {
-                if (rows.length > 2 && [...rows, row].join("\n").split(/\s+/).length > 180) {
+                if (rows.length > 2 && [...rows, row].join("\n").split(/\s+/).length > 240) {
                   blocks.push(rows.join("\n"));
                   rows = [...header];
                 }
@@ -1177,22 +1198,23 @@
         const join = (items) => items.reduce((text, block, at) =>
           at === 0 ? block : text + (kind(block) && kind(block) === kind(items[at - 1]) ? "\n" : "\n\n") + block, "");
         for (const block of blocks) {
-          // Long commands and disclosures are closed references, not visible reading load.
-          const visible = block.startsWith("<details>") ? "" :
-            block.replace(/```[^\n]*\n([\s\S]*?)\n```/g, (fence, code) =>
-              code.split("\n").length > 12 || code.length > 1200 ? "" : fence);
-          const count = visible.match(/\S+/g)?.length || 0;
+          const count = readingWeight(block);
           // A result box explains the command just above it: never separate them across pages.
           const isResult = /^> \*\*(?:Real result|Expected result|Résultat réel|Résultat attendu)\b/.test(block);
-          if (page.length && words + count > 180 && !isResult) {
-            pages.push(join(page));
+          // The next piece of a split table always starts a new page, under its repeated header.
+          const tableContinues = page.length && /^\|/.test(block) && page.at(-1).startsWith(block.split("\n").slice(0, 2).join("\n"));
+          if (page.length && (words + count > budget || tableContinues) && !isResult) {
+            pages.push(page);
             page = []; words = 0;
           }
           page.push(block); words += count;
         }
-        if (page.length) pages.push(join(page));
-        pages.forEach((content, index) => steps.push({
-          title, content, ...(section ? { section } : {}), ...(pages.length > 1 ? { part: index + 1, parts: pages.length } : {}),
+        if (page.length) pages.push(page);
+        // A last page with a few lines only joins the page before it.
+        if (pages.length > 1 && readingWeight(join(pages.at(-1))) < 70) pages.splice(-2, 2, [...pages.at(-2), ...pages.at(-1)]);
+        pages.map(join).forEach((content, index, all) => steps.push({
+          title, content, level: stepLevel, ...(section ? { section } : {}), ...(stepTrack ? { track: stepTrack } : {}),
+          ...(all.length > 1 ? { part: index + 1, parts: all.length } : {}),
         }));
         lines = [];
       }
@@ -1201,9 +1223,20 @@
         if (!fenced && depth === 0) {
           if (/^# /.test(line) || /^\[(?:Français|English)\]\([^)]+\)$/.test(line)) continue;
           const heading = /^#{2,4} (.+)$/.exec(line);
-          const action = /^\*\*(\d+[.)]\s+[^*]+)\*\*(.*)$/.exec(line);
+          // "**1. Do this.**", and the low-code "**L1.**" or Foundry "**A1.**" steps, each open a step of their own.
+          const action = /^\*\*((?:\d+|[LA]\d+|L-[A-Z])[.)]\s+[^*]+)\*\*(.*)$/.exec(line);
           if (heading || action) {
             flush();
+            if (heading) {
+              // Track of the steps that follow: "Low-code track" until the next heading; "PowerShell" or "Bash" (the
+              // full-code track) until the next level-2 heading. Everything else is shared by both tracks.
+              const level = /^#+/.exec(line)[0].length;
+              if (level === 2) trackState = null;
+              if (/^(?:Low-code track|Parcours low-code)\b/.test(heading[1])) trackState = "low";
+              else if (/^(?:PowerShell|Bash)$/.test(heading[1])) trackState = "full";
+              else if (trackState === "low") trackState = null;
+            }
+            stepTrack = trackState;
             title = (heading ? heading[1] : action[1]).replace(/^\d+[.)]\s+/, "");
             // A numbered "## 10. Title" section can be opened directly, for example #/concepts/10.
             if (heading && /^## /.test(line)) section = Number(/^(\d+)[.)]\s/.exec(heading[1])?.[1]) || null;
@@ -1217,11 +1250,29 @@
       }
       flush();
       if (!steps.length) throw new Error("A guided document needs at least one step.");
-      return steps;
+      const chosen = track ? steps.filter((step) => !step.track || step.track === track) : steps;
+      // Short neighbouring sections share one page; the second keeps its title as a subheading. Validation, review,
+      // clean-up, sources, numbered sections and request series stay on their own steps.
+      const alone = /^(?:Validate|Valider|Vérifier avant de poursuivre|Go further|Pour aller plus loin|Aller plus loin|Clean up|Nettoyer|Nettoyage|Sources|Troubleshooting|Dépannage|(?:Request|Requête) \d)/;
+      const merged = [];
+      for (const step of chosen) {
+        const last = merged.at(-1);
+        const near = last && last.section === step.section && last.track === step.track;
+        const further = near && /^(?:Go further|Aller plus loin|Pour aller plus loin)$/.test(last.title) && step.title === "Sources" && !last.parts && !step.parts;
+        if (further || (near && !last.parts && !step.parts && !alone.test(last.title) && !alone.test(step.title) &&
+            readingWeight(last.content) + readingWeight(step.content) <= budget)) {
+          last.content = `${last.content}\n\n### ${step.title}\n\n${step.content}`;
+        } else if (near && last.level >= 3 && !last.parts && step.part === 1 && !alone.test(last.title) && !alone.test(step.title) &&
+            readingWeight(last.content) < 70) {
+          // A short introduction (for example "PowerShell: run from the repository root") opens the next section.
+          merged[merged.length - 1] = { ...step, content: `${last.content}\n\n${step.content}` };
+        } else merged.push({ ...step });
+      }
+      return merged;
     }
     function guidedDocument(text, path, startSection = null, extras = {}) {
-      const { finish = null, validate = null, review = null } = extras;
-      const steps = lessonSteps(text);
+      const { finish = null, validate = null, review = null, track = null } = extras;
+      const steps = lessonSteps(text, track);
       // The module validator is shown inside the guide's own "Validate" step, where the README asks for it.
       const validateIndex = validate ? steps.findLastIndex((step) => /^(?:Validate|Valider|Vérifier avant de poursuivre)$/.test(step.title)) : -1;
       // Review questions become one step near the end of the guide, before the optional "Go further" reading.
@@ -1389,9 +1440,9 @@
     }
     function hasQuestion(text) { return /^\*\*Question\s?:\*\*/m.test(text.replace(/```[\s\S]*?```/g, "")); }
     // Gathers every "Question:" with its hidden answer, for the review step at the end of a module guide.
-    function collectQuestions(text) {
+    function collectQuestions(text, track = null) {
       const items = [];
-      lessonSteps(text).forEach((step, stepIndex) => {
+      lessonSteps(text, track).forEach((step, stepIndex) => {
         const lines = step.content.split("\n");
         let fenced = false;
         for (let i = 0; i < lines.length; i++) {
@@ -1835,11 +1886,14 @@
         return block;
       } };
       // Module 00 checks the environment: no review questions there.
-      const items = module.guide !== null && module.module !== "00" ? collectQuestions(module.guide) : [];
+      // A module with a low-code section shows one track at a time; the reader picks it, and the choice is remembered.
+      const tracked = module.guide !== null && /^#{2,4} (?:Low-code track|Parcours low-code)\b/m.test(module.guide);
+      const track = tracked ? (preferences.get("track") === "low" ? "low" : "full") : null;
+      const items = module.guide !== null && module.module !== "00" ? collectQuestions(module.guide, track) : [];
       let lesson = null;
       const review = items.length ? { render: (jump) => reviewList(items, module.sourcePath, jump,
         (original) => (original >= lesson.reviewIndex ? original + 2 : original + 1)) } : null;
-      lesson = guidedDocument(module.guide ?? module.outline, module.sourcePath, null, { validate, review });
+      lesson = guidedDocument(module.guide ?? module.outline, module.sourcePath, null, { validate, review, track });
       // A short map tells a first-time reader what to do on this page, in which order.
       const map = element("nav", undefined, "page-map");
       map.setAttribute("aria-label", t("How this page works"));
@@ -1861,7 +1915,27 @@
       });
       map.append(stops);
       content.insertBefore(map, content.children[2] || null);
-      content.append(guideTitle, lesson);
+      content.append(guideTitle);
+      if (tracked) {
+        const picker = element("div", undefined, "track-picker");
+        picker.setAttribute("role", "group");
+        picker.setAttribute("aria-label", t("Your track"));
+        picker.append(element("span", "Your track:", "track-label"));
+        for (const [value, name, detail] of [["full", "Full-code", "Terraform and scripts"], ["low", "Low-code", "Azure portal and short commands"]]) {
+          const button = element("button");
+          button.type = "button";
+          button.setAttribute("aria-pressed", String(track === value));
+          button.append(element("strong", name), element("small", detail));
+          button.addEventListener("click", () => { if (track !== value) { preferences.set("track", value); render(true); } });
+          picker.append(button);
+        }
+        const note = element("p", undefined, "field-message track-note");
+        note.append(document.createTextNode(`${t("The guide shows only the steps of this track. Keep the same track for every module.")} `),
+          link("How to choose", "#/tracks"));
+        picker.append(note);
+        content.append(picker);
+      }
+      content.append(lesson);
       // Optional material comes after the lesson, so the main path reads strictly top to bottom.
       content.append(furtherTitle,
         disclosure("Architecture and security flow", architecture(module)));

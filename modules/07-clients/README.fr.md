@@ -195,6 +195,9 @@ terraform '-chdir=infra\workload' apply '..\..\.workshop\module07.tfplan'
 > Apply complete! Resources: 0 added, 6 changed, 0 destroyed.
 > ```
 
+<details>
+<summary>Parcours low-code : A2 et A3 sans Terraform (à ouvrir seulement si vous avez choisi le parcours low-code)</summary>
+
 **A2 et A3 dans le parcours low-code** ([comment choisir](../../docs/fr/TRACKS.md)). A1 et A4 à A7 sont identiques dans
 les deux parcours. Lancez A2 avec les deux premières lignes ci-dessous au lieu de sa ligne `terraform`. Ensuite, au lieu
 des plans Terraform de A3, ajoutez le client Foundry à la main aux trois contrôles : les clients préautorisés de l'API
@@ -241,6 +244,8 @@ foreach ($m in @(@('workshop-mcp', 'mcp-server'), @('contoso-tickets-api', 'rest
 > **Ce que cela signifie pour vous :** trois listes, trois ID chacune (VS Code, Azure CLI, client Foundry). Un client absent
 > d'une seule d'entre elles est refusé à ce contrôle. À l'étape A4, utilisez `https://<apim>.azure-api.net/workshop-mcp/mcp`
 > comme point de terminaison et `api://<mcpApp>/user_impersonation offline_access` comme scopes.
+
+</details>
 
 **A4. Ajouter l'outil MCP dans le portail Foundry.** Ouvrez [Foundry](https://ai.azure.com/nextgen), choisissez votre
 projet, puis **Build** → **Tools** → **Connect a tool** → **Custom** → **Model Context Protocol (MCP)** → **Create**
