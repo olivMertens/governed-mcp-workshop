@@ -13,6 +13,7 @@ Take one MCP server from **open** to **governed** on Azure, alone, in **your own
 |---|---|
 | Presenter | [Publish one shared portal](docs/PRESENTER.md) · [Guide présentateur](docs/fr/PRESENTER.md) |
 | Participant | [Follow the workshop](docs/GETTING-STARTED.md) · [Guide participant](docs/fr/GETTING-STARTED.md) |
+| Public guides (EN/FR) | [English](https://olivmertens.github.io/governed-mcp-workshop/?lang=en#/start) · [Français](https://olivmertens.github.io/governed-mcp-workshop/?lang=fr#/start): read-only, no Azure connection |
 
 The presenter shares the deployed portal's `?lang=fr#/start` or `?lang=en#/start` link. Paths such as `/fr/` return 404 by design: language is set by query string only.
 Participants do not deploy another portal or use the presenter's administrator account.

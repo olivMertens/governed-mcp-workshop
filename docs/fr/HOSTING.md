@@ -41,7 +41,7 @@ Pour reconstruire, choisissez un nouveau dossier avec `--output` ; ne supprimez 
 Servez le dossier avec un serveur HTTP, pas via `file://`.
 La sortie portable contient le HTML, la traduction JavaScript, le parcours public en JSON et seulement les icônes et schémas autorisés.
 Elle ne contient ni dépôt complet, ni `.git`, ni `.workshop`, ni identifiants, ni état Terraform, ni serveur canvas, ni accès au poste local.
-Les chemins relatifs fonctionnent aussi sous `/workshop-mcp/`.
+Les chemins relatifs fonctionnent aussi sous `/governed-mcp-workshop/`.
 
 Accueil : `#/start`. Français : `?lang=fr#/start`. Anglais : `?lang=en#/start`.
 La navigation repose sur le fragment d'URL (`#`) : ni serveur applicatif ni règle de réécriture sur GitHub Pages.
@@ -64,9 +64,9 @@ Il n'utilise aucun identifiant Azure ni secret client. Son identité GitHub temp
 5. Vérifiez le résultat et l'adresse affichée. Contrôlez l'accueil, les versions EN/FR, les schémas et la préparation du client
    sur le site réel avant d'en partager l'adresse.
 
-Adresse attendue après une publication réussie pour ce dépôt : `https://olivmertens.github.io/workshop-mcp/`.
-**Cela ne signifie pas que le site est en ligne.** Pages était désactivé pendant la préparation :
-personne n'a lancé le workflow ni modifié de réglage distant. Vérifiez les droits, la visibilité et les limites Pages/Actions de votre offre.
+Pour ce dépôt, les guides sont en ligne à l'adresse `https://olivmertens.github.io/governed-mcp-workshop/`
+(Pages activé avec **GitHub Actions** comme source, workflow lancé sur `main` le 2026-10-20). Relancez le workflow après
+chaque fusion à publier : il ne publie jamais tout seul. Vérifiez les droits, la visibilité et les limites Pages/Actions de votre offre.
 
 </details>
 
