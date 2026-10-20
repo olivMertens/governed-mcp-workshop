@@ -36,14 +36,14 @@ ne contournez pas les règles de votre poste.
 $ErrorActionPreference = 'Stop'
 New-Item -ItemType Directory -Path "$HOME\source" -Force | Out-Null
 Set-Location "$HOME\source"
-git clone --branch main https://github.com/olivMertens/workshop-mcp.git
+git clone --branch main https://github.com/olivMertens/governed-mcp-workshop.git
 if ($LASTEXITCODE -ne 0) { throw 'Le clonage a echoue. Ne poursuivez pas dans un autre dossier.' }
-Set-Location .\workshop-mcp
+Set-Location .\governed-mcp-workshop
 ```
 
 **Résultat attendu :** `README.md`, `scripts` et `infra` sont présents dans le dossier courant.
 Toutes les commandes suivantes s'exécutent depuis ce dossier. Si VS Code est installé, ouvrez-le avec `code .`.
-Chaque participant utilise sa propre copie. Une fois le dépôt public, vous pouvez le cloner sans compte GitHub ni GitHub CLI.
+Chaque participant utilise sa propre copie. Le dépôt est public : vous pouvez le cloner sans compte GitHub ni GitHub CLI.
 Tant qu'il reste privé, le présentateur doit vous donner accès au dépôt ou vous partager le portail des guides.
 
 <details>
@@ -70,7 +70,7 @@ Ne partagez ni `.workshop` ni l'état Terraform. Ne supprimez pas ces fichiers, 
 |---|---|---|
 | VS Code avec un conteneur de développement | VS Code, l'extension Dev Containers et un moteur de conteneurs Linux autorisé par votre organisation | Ouvrir le dépôt avec `code .`, puis choisir **Dev Containers: Reopen in Container** dans la palette de commandes. |
 | Terminal local | Git, PowerShell 7.4+, Azure CLI, Terraform, SDK .NET, Node.js, Functions Core Tools | Garder la copie locale. Installer les outils selon les règles de votre organisation. |
-| Codespaces, facultatif | Un compte GitHub avec un quota disponible et l'accord pour d'éventuels frais | [Choisir la branche et la machine](https://codespaces.new/olivMertens/workshop-mcp). Seuls les fichiers publiés sur cette branche seront disponibles. |
+| Codespaces, facultatif | Un compte GitHub avec un quota disponible et l'accord pour d'éventuels frais | [Choisir la branche et la machine](https://codespaces.new/olivMertens/governed-mcp-workshop). Seuls les fichiers publiés sur cette branche seront disponibles. |
 
 Ne rendez pas publics les ports de MCP Inspector. Ne partagez pas votre dossier de connexion Azure avec le conteneur.
 La configuration du conteneur a été vérifiée, mais personne n'a encore testé son démarrage ni celui de Codespaces.

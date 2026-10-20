@@ -589,12 +589,12 @@
           const parts = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(token);
           const target = parts ? parts[2] : token.replace(/[.,;:]+$/, "");
           const label = parts ? parts[1] : target;
-          const url = new URL(target, `https://github.com/olivMertens/workshop-mcp/blob/main/${path}`);
+          const url = new URL(target, `https://github.com/olivMertens/governed-mcp-workshop/blob/main/${path}`);
           if (["https:", "http:"].includes(url.protocol)) {
             const repositoryUrl = url.origin === "https://github.com" &&
-              url.pathname.startsWith("/olivMertens/workshop-mcp/blob/main/");
+              url.pathname.startsWith("/olivMertens/governed-mcp-workshop/blob/main/");
             const repositoryPath = repositoryUrl ?
-              decodeURIComponent(url.pathname).replace(/^\/olivMertens\/workshop-mcp\/blob\/main\//, "") : null;
+              decodeURIComponent(url.pathname).replace(/^\/olivMertens\/governed-mcp-workshop\/blob\/main\//, "") : null;
             const local = Object.entries(state.documents).find(([, doc]) => doc.sourcePath === repositoryPath);
             const localModule = state.modules.find((module) => module.guide !== null && module.sourcePath === repositoryPath);
             const asset = repositoryPath && (
@@ -1493,7 +1493,7 @@
             element("p", "Install the officially documented tools using your approved process. No script installs workstation tools automatically. Run from this checkout."));
         } else if (mode === "codespaces") {
           content.append(element("h2", "Codespaces (optional)"),
-            externalLink("Open Codespaces setup", "https://codespaces.new/olivMertens/workshop-mcp", "secondary"),
+            externalLink("Open Codespaces setup", "https://codespaces.new/olivMertens/governed-mcp-workshop", "secondary"),
             element("p", "Codespaces opens GitHub's creation flow. Review quota, costs and the published branch before creating a machine. Local unpushed changes are not included."));
         }
         if (mode && state.environment.tools) content.append(
@@ -1581,8 +1581,8 @@
       const launch = disclosure("Workspace and launch options");
       launch.append(element("h2", "Start your workspace"));
       const actions = element("div", undefined, "action-row");
-      actions.append(externalLink("Open Codespaces setup", "https://codespaces.new/olivMertens/workshop-mcp", "primary"),
-        externalLink("Open repository", "https://github.com/olivMertens/workshop-mcp", "secondary"));
+      actions.append(externalLink("Open Codespaces setup", "https://codespaces.new/olivMertens/governed-mcp-workshop", "primary"),
+        externalLink("Open repository", "https://github.com/olivMertens/governed-mcp-workshop", "secondary"));
       launch.append(actions, element("p", "Codespaces opens GitHub's creation flow. Review quota, costs and the published branch before creating a machine. Local unpushed changes are not included.", "field-message"));
       launch.append(notice(state.environment.devcontainer ? "Dev container configuration found." : "Workshop dev container not published yet.",
         state.environment.devcontainer ? "A configuration file is not evidence that its tools have been validated. Follow module 00." :
@@ -1592,9 +1592,9 @@
       const clone = element("details");
       clone.append(element("summary", "No local checkout yet?"),
         commandBlock("Clone a new checkout / PowerShell",
-          "git clone https://github.com/olivMertens/workshop-mcp.git\nif ($LASTEXITCODE -ne 0) { throw 'Clone failed. Use an existing checkout or choose an empty destination.' }\ncode .\\workshop-mcp"),
+          "git clone https://github.com/olivMertens/governed-mcp-workshop.git\nif ($LASTEXITCODE -ne 0) { throw 'Clone failed. Use an existing checkout or choose an empty destination.' }\ncode .\\governed-mcp-workshop"),
         commandBlock("Clone a new checkout / bash",
-          "git clone https://github.com/olivMertens/workshop-mcp.git && code ./workshop-mcp"));
+          "git clone https://github.com/olivMertens/governed-mcp-workshop.git && code ./governed-mcp-workshop"));
       launch.append(clone);
       launch.append(link("Explore module 00", "#/module/00", "secondary"));
       const connection = element("section", undefined, "launch-panel");

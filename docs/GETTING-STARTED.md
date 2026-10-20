@@ -36,14 +36,14 @@ Do not bypass workstation policies.
 $ErrorActionPreference = 'Stop'
 New-Item -ItemType Directory -Path "$HOME\source" -Force | Out-Null
 Set-Location "$HOME\source"
-git clone --branch main https://github.com/olivMertens/workshop-mcp.git
+git clone --branch main https://github.com/olivMertens/governed-mcp-workshop.git
 if ($LASTEXITCODE -ne 0) { throw 'Clone failed. Do not continue in another directory.' }
-Set-Location .\workshop-mcp
+Set-Location .\governed-mcp-workshop
 ```
 
 **Expected:** `README.md`, `scripts` and `infra` are in the current folder.
 Run the following commands from this folder. If VS Code is installed, open it with `code .`.
-Each participant needs their own checkout. Once this repository is public, cloning needs no GitHub account or GitHub CLI.
+Each participant needs their own checkout. The repository is public: cloning needs no GitHub account or GitHub CLI.
 While it is private, your presenter must grant repository access or share the documentation portal instead.
 
 <details>
@@ -70,7 +70,7 @@ Keep `.workshop` and Terraform state private. Do not delete them, clone again to
 |---|---|---|
 | VS Code dev container | VS Code, Dev Containers extension, approved reachable Linux container engine, internet for public packages | Open this checkout with `code .`, then **Dev Containers: Reopen in Container**. |
 | Local terminal | Git, PowerShell 7.4+, Azure CLI, Terraform, .NET SDK, Node.js, Functions Core Tools | Keep the checkout local. Install the tools below using your organization's approved process. |
-| Codespaces (optional) | GitHub access, quota and cost approval | [Choose branch and machine](https://codespaces.new/olivMertens/workshop-mcp). It uses the same `.devcontainer`, but only after these files are published. |
+| Codespaces (optional) | GitHub access, quota and cost approval | [Choose branch and machine](https://codespaces.new/olivMertens/governed-mcp-workshop). It uses the same `.devcontainer`, but only after these files are published. |
 
 The container mounts the checkout. It does **not** mount your host Azure credential directory or engine socket,
 sign you into Azure, or provision resources. Review feature install scripts and VS Code's Git credential sharing
