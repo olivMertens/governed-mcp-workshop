@@ -18,6 +18,33 @@ Every module reaches the same result in two ways. Pick **one** track for the who
 > the next Terraform plan, and the module 99 script refuses plans that touch unknown objects. If you started with one
 > track, finish with it, or clean up and start again.
 
+> [!TIP]
+> On a workshop day with a 90-minute afternoon, pick your track here, then follow the next step:
+> **The 90-minute afternoon path**.
+
+## The 90-minute afternoon path
+
+This morning, the presenters showed an MCP server in TypeScript, protected by the `Mcp.Read` permission. This
+afternoon, you build the same levels yourself in your own non-production subscription: a .NET server on Azure
+Functions, the app roles `Tools.Read` and `Tools.Write`, and the test users Alice, Bob and Eve. Same ideas, your code.
+
+| When | What you do | Module | Done when |
+|---|---|---|---|
+| Before the day | Install the tools, sign in, choose your non-production subscription | [00](../modules/00-prerequisites/README.md) | The module 00 validator passes |
+| Before the day | Send the identity administrator request, so the module 03 objects exist or are approved | [Identity request](requests/identity-request.md) | You have the API client ID and the test users |
+| First | Call a local MCP server, with no Azure | [01](../modules/01-discover-mcp/README.md) | Inspector lists the tools |
+| Then | Deploy the open server and see the risk | [02](../modules/02-open-server/README.md) | A call without the key is refused; a call with the key works |
+| Then | Protect it with Microsoft Entra | [03](../modules/03-entra-authentication/README.md) | Alice and Bob get HTTP 200; a token for another audience is refused |
+| Stretch | Put API Management in front | [04](../modules/04-governed-gateway/README.md) | Bob's `create_ticket` gets HTTP 403; Alice's gets HTTP 200 |
+| Before you leave | Clean up everything you created | [99](../modules/99-cleanup/README.md) | The report shows no workshop resource left |
+| After the day | Module 04 part B, then 05, 06 and 07, at your own pace | [05](../modules/05-delegated-and-app-only/README.md) | Each module's validator passes |
+
+> [!WARNING]
+> Modules 02 and 04 create billed resources. Run module 99 before you leave, even if you stopped early.
+
+No subscription, or no identity administrator approval? Join the observation plan on the prepared environment: you
+call the same levels without deploying anything.
+
 ## What stays identical
 
 - The security rules: one audience per token, no token passthrough, app roles per user, no long-lived secret,

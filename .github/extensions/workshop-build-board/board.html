@@ -304,6 +304,67 @@
     .pdf-button { align-items: center; gap: 8px; font-weight: 600; cursor: pointer; }
     .pdf-button .symbol { color: #e5484d; }
     #print-root { display: none; }
+    /* Reveal diagram: an architecture that builds one fragment at a time, like reveal.js fragments. */
+    .reveal-diagram { margin: 24px 0; padding: 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+    .reveal-diagram:focus-visible { outline: 3px solid var(--blue); outline-offset: 4px; }
+    .reveal-diagram > h3 { margin: 0 0 4px; }
+    .reveal-diagram > .reveal-hint { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
+    .reveal-canvas { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+    .reveal-canvas svg { display: block; width: 100%; min-width: 760px; height: auto; font-family: inherit; }
+    .reveal-canvas .lane rect { fill: var(--wash); opacity: .55; }
+    .reveal-canvas .lane text { fill: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+    .reveal-canvas .node rect.box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; transition: stroke .4s ease, stroke-width .4s ease; }
+    .reveal-canvas .node text.title { fill: var(--ink); font-size: 14px; font-weight: 700; }
+    .reveal-canvas .node text.detail { fill: var(--muted); font-size: 11.5px; font-family: Consolas, "Cascadia Mono", monospace; }
+    .reveal-canvas .node.tone-governed rect.box { stroke: var(--blue); }
+    .reveal-canvas .node.tone-morning rect.box { stroke: var(--success); }
+    .reveal-canvas .node.tone-risk rect.box { stroke: var(--error); stroke-dasharray: 6 4; }
+    .reveal-canvas .node.tone-preview rect.box { stroke: var(--tip); stroke-dasharray: 3 3; }
+    .reveal-canvas .edge path { fill: none; stroke: var(--muted); stroke-width: 2; }
+    .reveal-canvas .edge.tone-governed path { stroke: var(--blue); }
+    .reveal-canvas .edge.tone-morning path { stroke: var(--success); }
+    .reveal-canvas .edge.tone-risk path { stroke: var(--error); stroke-dasharray: 7 5; }
+    .reveal-canvas .edge.tone-preview path { stroke: var(--tip); stroke-dasharray: 3 4; }
+    .reveal-canvas .edge text { fill: var(--ink); font-size: 11.5px; font-weight: 600; paint-order: stroke; stroke: var(--paper); stroke-width: 5px; stroke-linejoin: round; }
+    .reveal-canvas .arrow { fill: var(--muted); }
+    .reveal-canvas .frag { transition: opacity .55s ease, transform .55s ease; transform-box: fill-box; }
+    .reveal-canvas .frag.waiting { opacity: 0; transform: translateY(14px); pointer-events: none; }
+    .reveal-canvas .edge.frag.waiting { transform: none; }
+    .reveal-canvas .edge.frag:not(.tone-risk):not(.tone-preview) path { stroke-dasharray: 1; stroke-dashoffset: 0; transition: stroke-dashoffset .8s ease; }
+    .reveal-canvas .edge.frag.waiting:not(.tone-risk):not(.tone-preview) path { stroke-dashoffset: 1; }
+    .reveal-canvas .frag.past { opacity: .32; }
+    .reveal-canvas .frag.past.tone-risk text { text-decoration: line-through; }
+    .reveal-canvas .frag.past .strike { opacity: 1; }
+    .reveal-canvas .strike { stroke: var(--error); stroke-width: 3; opacity: 0; transition: opacity .4s ease; }
+    .reveal-canvas .node.current rect.box { stroke: var(--gold); stroke-width: 4; }
+    :root[data-theme="light"] .reveal-canvas .node.current rect.box { stroke: #b58100; }
+    :root[data-theme="light"] .reveal-step .reveal-show { border-left-color: #b58100; }
+    .reveal-canvas .edge.current path { stroke-width: 3.5; }
+    .reveal-canvas .node.current { animation: reveal-pulse .9s ease 1; }
+    @keyframes reveal-pulse { 0% { transform: scale(.96); } 60% { transform: scale(1.03); } 100% { transform: scale(1); } }
+    .reveal-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 14px 0 6px; }
+    .reveal-controls .reveal-count { color: var(--muted); font-size: 13px; margin-right: auto; }
+    .reveal-dots { display: flex; gap: 6px; }
+    .reveal-dots button { width: 14px; height: 14px; padding: 0; border-radius: 50%; border: 1px solid var(--blue); background: transparent; cursor: pointer; }
+    .reveal-dots button[aria-current="step"], .reveal-dots button.seen { background: var(--blue); }
+    .reveal-step { margin-top: 8px; animation: reveal-fade-up .5s ease 1; }
+    .reveal-step h4 { margin: 0 0 6px; font-size: 18px; }
+    .reveal-step .reveal-show { padding: 10px 14px; border-left: 4px solid var(--gold); background: var(--wash); border-radius: 0 8px 8px 0; }
+    .reveal-step .reveal-simple { font-size: 20px; line-height: 1.45; font-weight: 600; margin: 4px 0 12px; }
+    .reveal-step .reveal-say { color: var(--muted); }
+    @keyframes reveal-fade-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+    @media (prefers-reduced-motion: reduce) {
+      .reveal-canvas .frag, .reveal-canvas .edge path, .reveal-canvas .strike, .reveal-canvas rect.box { transition: none !important; }
+      .reveal-canvas .node.current, .reveal-step { animation: none !important; }
+      .reveal-canvas .frag.waiting { transform: none; }
+    }
+    @media print {
+      .reveal-canvas .frag.waiting { opacity: 1; transform: none; }
+      .reveal-canvas .edge.frag.waiting path { stroke-dashoffset: 0; }
+      .reveal-diagram .reveal-step[hidden] { display: block !important; }
+      .reveal-diagram .reveal-controls, .reveal-diagram .reveal-hint { display: none; }
+      .reveal-canvas .node.current rect.box { stroke: #b58100; }
+    }
     @media print {
       @page { margin: 16mm 14mm; }
       html:has(body.printing), body.printing { background: #fff !important; color-scheme: light !important; }
@@ -537,8 +598,8 @@
             const local = Object.entries(state.documents).find(([, doc]) => doc.sourcePath === repositoryPath);
             const localModule = state.modules.find((module) => module.guide !== null && module.sourcePath === repositoryPath);
             const asset = repositoryPath && (
-              /^assets\/architecture\/(?:00|01|02|03|04|05|06|07|99)\.(?:en|fr)\.(?:svg|png)$/.test(repositoryPath) ||
-              repositoryPath === "assets/architecture/workshop.drawio" ||
+              /^assets\/architecture\/(?:00|01|02|03|04|05|06|07|99|session2)\.(?:en|fr)\.(?:svg|png)$/.test(repositoryPath) ||
+              repositoryPath === "assets/architecture/workshop.drawio" || repositoryPath === "assets/architecture/session2.drawio" ||
               /^assets\/icons\/(?:azure|microsoft|entra|apim|functions|storage|insights|api-center|subscription|foundry-agent-service|copilot-studio)\.svg$/.test(repositoryPath));
             const anchor = link(label, local ? `#/${local[0]}` : localModule ? `#/module/${localModule.module}` :
               asset ? `${staticSite ? "" : "/"}${repositoryPath}` : url.href);
@@ -581,6 +642,33 @@
           continue;
         }
         if (diagramImage) {
+          // The Session 2 overview has its own editable source; it renders like a module diagram, without Mermaid.
+          const session = /^(?:\.\.\/)+assets\/architecture\/session2\.(en|fr)\.svg$/.exec(diagramImage[2]);
+          if (session) {
+            if (session[1] !== language) throw new Error("Document images must use a published workshop diagram in the current language.");
+            const base = `${staticSite ? "" : "/"}assets/architecture/session2`;
+            const figure = element("figure", undefined, "architecture inline-architecture");
+            const scroll = element("div", undefined, "diagram-scroll");
+            scroll.tabIndex = 0;
+            scroll.setAttribute("role", "region");
+            scroll.setAttribute("aria-label", diagramImage[1]);
+            const image = element("img");
+            image.src = `${base}.${language}.svg`;
+            image.alt = diagramImage[1];
+            image.addEventListener("error", () => {
+              image.hidden = true;
+              scroll.append(notice("Warning", "Diagram unavailable. Check the published assets and refresh; no deployment is implied.", "warning"));
+            }, { once: true });
+            scroll.append(image);
+            const actions = element("div", undefined, "action-row");
+            actions.append(externalLink("Open SVG", `${base}.${language}.svg`, "secondary"),
+              externalLink("Open PNG", `${base}.${language}.png`, "secondary"),
+              externalLink("Editable draw.io source", `${base}.drawio`, "secondary"));
+            figure.append(scroll, element("figcaption", "Scroll the diagram or open its full-size SVG."), actions);
+            body.append(figure);
+            i++;
+            continue;
+          }
           const asset =  /^(?:\.\.\/)+assets\/architecture\/(\d{2})\.(en|fr)\.svg$/.exec(diagramImage[2]);
           const module = asset && state.modules.find((item) => item.module === asset[1]);
           if (!module || asset[2] !== language) throw new Error("Document images must use a published workshop diagram in the current language.");
@@ -665,6 +753,10 @@
             const module = state.modules.find((item) => item.diagramSource.content === code.join("\n"));
             if (!module) throw new Error("Mermaid source does not match a published workshop diagram.");
             body.append(architecture(module));
+            continue;
+          }
+          if (line.trim() === "```reveal") {
+            body.append(revealDiagram(code.join("\n"), path));
             continue;
           }
           // "```powershell exchange" pairs this request with the result box below it, side by side.
@@ -765,6 +857,185 @@
         body.append(node);
       }
       return body;
+    }
+    // A "```reveal" block is a JSON architecture that the presenter builds one fragment at a time, like reveal.js
+    // fragments: each step fades in its nodes and links, highlights them, and shows the real command to run.
+    function revealDiagram(source, path) {
+      let spec;
+      try { spec = JSON.parse(source); } catch { throw new Error("A reveal diagram must be valid JSON."); }
+      const { title = "", width = 1000, height = 460, lanes = [], nodes = [], edges = [], steps = [] } = spec;
+      if (!Array.isArray(steps) || !steps.length) throw new Error("A reveal diagram needs at least one step.");
+      const icons = ["azure", "microsoft", "entra", "apim", "functions", "storage", "insights", "api-center", "foundry-agent-service", "copilot-studio"];
+      const byId = new Map();
+      for (const node of nodes) {
+        if (!node.id || byId.has(node.id)) throw new Error("Reveal diagram nodes need unique ids.");
+        if (node.icon && !icons.includes(node.icon)) throw new Error("Reveal diagram icons must be published workshop icons.");
+        byId.set(node.id, node);
+      }
+      for (const item of [...nodes, ...edges]) {
+        if (!Number.isInteger(item.step) || item.step < 0 || item.step >= steps.length) throw new Error("Reveal diagram fragments need a valid step.");
+      }
+      for (const edge of edges) if (!byId.has(edge.from) || !byId.has(edge.to)) throw new Error("Reveal diagram links must join known nodes.");
+      const ns = "http://www.w3.org/2000/svg";
+      const make = (tag, attributes = {}, text) => {
+        const node = document.createElementNS(ns, tag);
+        for (const [name, value] of Object.entries(attributes)) node.setAttribute(name, value);
+        if (text !== undefined) node.textContent = text;
+        return node;
+      };
+      const figure = element("figure", undefined, "reveal-diagram");
+      figure.tabIndex = 0;
+      figure.setAttribute("aria-roledescription", t("Animated diagram"));
+      if (title) figure.append(element("h3", title));
+      figure.append(element("p", "Presenter walk-through: reveal one fragment at a time with the buttons or the arrow keys. The page runs nothing.", "reveal-hint"));
+      const canvas = element("div", undefined, "reveal-canvas");
+      const svg = make("svg", { viewBox: `0 0 ${width} ${height}`, role: "img", "aria-label": title || t("Animated diagram") });
+      const defs = make("defs");
+      const marker = make("marker", { id: `reveal-arrow-${Math.random().toString(36).slice(2, 8)}`, viewBox: "0 0 10 10", refX: "9", refY: "5",
+        markerUnits: "userSpaceOnUse", markerWidth: "11", markerHeight: "11", orient: "auto-start-reverse" });
+      marker.append(make("path", { d: "M0 0 10 5 0 10z", class: "arrow" }));
+      defs.append(marker);
+      svg.append(defs);
+      for (const lane of lanes) {
+        const group = make("g", { class: "lane" });
+        group.append(make("rect", { x: lane.x, y: 8, width: lane.width, height: height - 16, rx: 10 }),
+          make("text", { x: lane.x + 12, y: 28 }, lane.label));
+        svg.append(group);
+      }
+      const fragments = [];
+      const fragment = (group, item) => {
+        group.classList.add("frag", `tone-${item.tone || "default"}`);
+        group.dataset.step = item.step;
+        if (Number.isInteger(item.until)) group.dataset.until = item.until;
+        fragments.push(group);
+        return group;
+      };
+      const edgeLayer = make("g");
+      const nodeLayer = make("g");
+      svg.append(edgeLayer, nodeLayer);
+      for (const node of nodes) {
+        const h = node.height || 58 + 15 * Math.max(0, (node.detail || []).length - 1);
+        node.box = { x: node.x, y: node.y, w: node.width || 200, h };
+        const group = fragment(make("g", { class: "node" }), node);
+        group.append(make("rect", { class: "box", x: node.x, y: node.y, width: node.box.w, height: h, rx: 8 }));
+        const textX = node.x + (node.icon ? 40 : 12);
+        if (node.icon) group.append(make("image", { href: `${staticSite ? "" : "/"}assets/icons/${node.icon}.svg`,
+          x: node.x + 10, y: node.y + 10, width: 22, height: 22 }));
+        group.append(make("text", { class: "title", x: textX, y: node.y + 26 }, node.title));
+        (node.detail || []).forEach((line, index) => group.append(make("text", { class: "detail", x: textX, y: node.y + 44 + index * 15 }, line)));
+        if (node.tone === "risk") group.append(make("line", { class: "strike", x1: node.x + 6, y1: node.y + h - 6, x2: node.x + node.box.w - 6, y2: node.y + 6 }));
+        nodeLayer.append(group);
+      }
+      const side = (box, name, shift) => ({
+        left: [[box.x, box.y + box.h / 2 + shift], [-1, 0]], right: [[box.x + box.w, box.y + box.h / 2 + shift], [1, 0]],
+        top: [[box.x + box.w / 2 + shift, box.y], [0, -1]], bottom: [[box.x + box.w / 2 + shift, box.y + box.h], [0, 1]],
+      })[name];
+      for (const edge of edges) {
+        const a = byId.get(edge.from).box, b = byId.get(edge.to).box;
+        const dx = (b.x + b.w / 2) - (a.x + a.w / 2), dy = (b.y + b.h / 2) - (a.y + a.h / 2);
+        const horizontal = Math.abs(dx) > Math.abs(dy);
+        const [p0, d0] = side(a, edge.fromSide || (horizontal ? (dx > 0 ? "right" : "left") : (dy > 0 ? "bottom" : "top")), edge.fromOffset ?? edge.offset ?? 0);
+        const [p3, d3] = side(b, edge.toSide || (horizontal ? (dx > 0 ? "left" : "right") : (dy > 0 ? "top" : "bottom")), edge.toOffset ?? edge.offset ?? 0);
+        const bend = edge.bend ?? Math.max(20, Math.abs(d0[0] ? p3[0] - p0[0] : p3[1] - p0[1]) / 2);
+        const p1 = [p0[0] + d0[0] * bend, p0[1] + d0[1] * bend], p2 = [p3[0] + d3[0] * bend, p3[1] + d3[1] * bend];
+        const group = fragment(make("g", { class: "edge" }), edge);
+        const dashed = ["risk", "preview"].includes(edge.tone);
+        group.append(make("path", { d: `M${p0} C${p1} ${p2} ${p3}`, ...(dashed ? {} : { pathLength: "1" }), "marker-end": `url(#${marker.id})` }));
+        if (edge.label) {
+          const mid = [0, 1].map((axis) => (p0[axis] + 3 * p1[axis] + 3 * p2[axis] + p3[axis]) / 8);
+          group.append(make("text", { x: mid[0], y: mid[1] - 6 + (edge.labelDy || 0), "text-anchor": "middle" }, edge.label));
+        }
+        edgeLayer.append(group);
+      }
+      canvas.append(svg);
+      const controls = element("div", undefined, "reveal-controls");
+      const count = element("span", undefined, "reveal-count");
+      count.setAttribute("aria-live", "polite");
+      const dots = element("div", undefined, "reveal-dots");
+      const back = element("button", undefined, "secondary");
+      const next = element("button", undefined, "primary");
+      const all = element("button", "Show everything", "secondary");
+      for (const button of [back, next, all]) button.type = "button";
+      back.append(symbol("arrowLeft"), element("span", "Back"));
+      next.append(element("span", "Reveal next"), symbol("arrowRight"));
+      controls.append(count, dots, back, next, all);
+      const titles = { powershell: "PowerShell", bash: "Bash", json: "JSON", text: "Text", prompt: "Prompt to paste in the chat" };
+      const panels = steps.map((step, index) => {
+        const panel = element("section", undefined, "reveal-step");
+        panel.append(element("h4", step.title));
+        if (step.simple) {
+          const simple = element("p", undefined, "reveal-simple");
+          simple.append(element("strong", language === "fr" ? "En clair : " : "In plain words: "));
+          inline(simple, step.simple, path);
+          panel.append(simple);
+        }
+        if (step.say) {
+          const say = element("p", undefined, "reveal-say");
+          say.append(element("strong", language === "fr" ? "Pour le présentateur : " : "For the presenter: "));
+          inline(say, step.say, path);
+          panel.append(say);
+        }
+        if (step.show) {
+          const show = element("p", undefined, "reveal-show");
+          show.append(element("strong", language === "fr" ? "À montrer : " : "Show: "));
+          inline(show, step.show, path);
+          panel.append(show);
+        }
+        for (const block of step.blocks || []) {
+          const node = commandBlock(titles[block.language] || block.language || "Code", block.code, "Copy code", false);
+          if (block.output) {
+            node.classList.add("output");
+            node.querySelector(".command-head span").textContent = t("Output");
+            node.querySelector(".copy")?.remove();
+          } else if (["powershell", "bash"].includes(block.language)) {
+            node.append(element("p", "Copy, review, then run in your own terminal. Replace placeholders first. This page does not execute commands.", "field-message"));
+          }
+          panel.append(node);
+        }
+        const dot = element("button");
+        dot.type = "button";
+        dot.setAttribute("aria-label", `${index + 1}. ${step.title}`);
+        dot.title = step.title;
+        dot.addEventListener("click", () => show(index));
+        dots.append(dot);
+        return panel;
+      });
+      let current = 0;
+      function show(index) {
+        current = Math.max(0, Math.min(steps.length - 1, index));
+        for (const group of fragments) {
+          const step = Number(group.dataset.step);
+          const until = group.dataset.until === undefined ? Infinity : Number(group.dataset.until);
+          group.classList.toggle("waiting", current < step);
+          group.classList.toggle("past", current >= until);
+          group.classList.toggle("current", current === step);
+          group.setAttribute("aria-hidden", String(current < step));
+        }
+        panels.forEach((panel, index) => { panel.hidden = index !== current; });
+        [...dots.children].forEach((dot, index) => {
+          dot.classList.toggle("seen", index < current);
+          if (index === current) dot.setAttribute("aria-current", "step"); else dot.removeAttribute("aria-current");
+        });
+        count.textContent = `${t("Fragment")} ${current + 1} / ${steps.length}`;
+        back.disabled = current === 0;
+        next.disabled = all.disabled = current === steps.length - 1;
+      }
+      back.addEventListener("click", () => show(current - 1));
+      next.addEventListener("click", () => show(current + 1));
+      all.addEventListener("click", () => show(steps.length - 1));
+      figure.addEventListener("keydown", (event) => {
+        const moves = { ArrowRight: 1, PageDown: 1, " ": 1, ArrowLeft: -1, PageUp: -1 };
+        if (event.target !== figure) return;
+        if (event.key in moves) show(current + moves[event.key]);
+        else if (event.key === "Home") show(0);
+        else if (event.key === "End") show(steps.length - 1);
+        else return;
+        event.preventDefault();
+        event.stopPropagation();
+      });
+      figure.append(canvas, controls, ...panels);
+      show(0);
+      return figure;
     }
     function disclosure(title, ...children) {
       const section = element("details");

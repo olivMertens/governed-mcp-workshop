@@ -1,7 +1,9 @@
 # Editable workshop architecture
 
-`workshop.drawio` is the single architecture source: nine modules, with one English and one French page each.
+`workshop.drawio` is the single architecture source for the modules: nine modules, with one English and one French page each.
 `NN.en.svg` / `NN.fr.svg` and matching PNGs are generated, not hand-edited.
+`session2.drawio` is the separate source for the Session 2 presenter overview (`session2.en` and `session2.fr` pages).
+The same renderer and checks produce `session2.en.svg` / `session2.fr.svg` and their PNGs; it has no Mermaid step guide.
 `STEPS.md` and `STEPS.fr.md` contain the same components, edges and ownership boundaries as Mermaid.
 Start with [the step-by-step guide](STEPS.md), not this authoring reference.
 All views are **planned targets**, not evidence of deployed infrastructure.
