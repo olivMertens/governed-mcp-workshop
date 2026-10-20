@@ -407,13 +407,18 @@ def main():
     expected = {f"{module}.{language}" for module in ("00", "01", "02", "03", "04", "05", "06", "07", "99") for language in ("en", "fr")}
     if {page.get("id") for page in pages} != expected or len(pages) != len(expected):
         raise ValueError("Exactly one English and French page per module is required.")
+    # Session 2 has its own editable source: one English and one French page, no Mermaid step guide.
+    session = source.with_name("session2.drawio")
+    session_pages = ET.parse(session).findall("diagram")
+    if [page.get("id") for page in session_pages] != ["session2.en", "session2.fr"]:
+        raise ValueError("session2.drawio needs exactly the session2.en and session2.fr pages.")
     try:
         if not args.svg_only and not args.check:
             from playwright.sync_api import sync_playwright
 
             automation = sync_playwright().start()
             browser_process = automation.chromium.launch(executable_path=str(browser), headless=True)
-        for page in pages:
+        for page in pages + session_pages:
             output = source.with_name(page.get("id") + ".svg")
             width, height = render(page, output, args.check)
             if args.check:

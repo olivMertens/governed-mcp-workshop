@@ -350,6 +350,8 @@
     .reveal-step { margin-top: 8px; animation: reveal-fade-up .5s ease 1; }
     .reveal-step h4 { margin: 0 0 6px; font-size: 18px; }
     .reveal-step .reveal-show { padding: 10px 14px; border-left: 4px solid var(--gold); background: var(--wash); border-radius: 0 8px 8px 0; }
+    .reveal-step .reveal-simple { font-size: 20px; line-height: 1.45; font-weight: 600; margin: 4px 0 12px; }
+    .reveal-step .reveal-say { color: var(--muted); }
     @keyframes reveal-fade-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
     @media (prefers-reduced-motion: reduce) {
       .reveal-canvas .frag, .reveal-canvas .edge path, .reveal-canvas .strike, .reveal-canvas rect.box { transition: none !important; }
@@ -596,8 +598,8 @@
             const local = Object.entries(state.documents).find(([, doc]) => doc.sourcePath === repositoryPath);
             const localModule = state.modules.find((module) => module.guide !== null && module.sourcePath === repositoryPath);
             const asset = repositoryPath && (
-              /^assets\/architecture\/(?:00|01|02|03|04|05|06|07|99)\.(?:en|fr)\.(?:svg|png)$/.test(repositoryPath) ||
-              repositoryPath === "assets/architecture/workshop.drawio" ||
+              /^assets\/architecture\/(?:00|01|02|03|04|05|06|07|99|session2)\.(?:en|fr)\.(?:svg|png)$/.test(repositoryPath) ||
+              repositoryPath === "assets/architecture/workshop.drawio" || repositoryPath === "assets/architecture/session2.drawio" ||
               /^assets\/icons\/(?:azure|microsoft|entra|apim|functions|storage|insights|api-center|subscription|foundry-agent-service|copilot-studio)\.svg$/.test(repositoryPath));
             const anchor = link(label, local ? `#/${local[0]}` : localModule ? `#/module/${localModule.module}` :
               asset ? `${staticSite ? "" : "/"}${repositoryPath}` : url.href);
@@ -640,6 +642,33 @@
           continue;
         }
         if (diagramImage) {
+          // The Session 2 overview has its own editable source; it renders like a module diagram, without Mermaid.
+          const session = /^(?:\.\.\/)+assets\/architecture\/session2\.(en|fr)\.svg$/.exec(diagramImage[2]);
+          if (session) {
+            if (session[1] !== language) throw new Error("Document images must use a published workshop diagram in the current language.");
+            const base = `${staticSite ? "" : "/"}assets/architecture/session2`;
+            const figure = element("figure", undefined, "architecture inline-architecture");
+            const scroll = element("div", undefined, "diagram-scroll");
+            scroll.tabIndex = 0;
+            scroll.setAttribute("role", "region");
+            scroll.setAttribute("aria-label", diagramImage[1]);
+            const image = element("img");
+            image.src = `${base}.${language}.svg`;
+            image.alt = diagramImage[1];
+            image.addEventListener("error", () => {
+              image.hidden = true;
+              scroll.append(notice("Warning", "Diagram unavailable. Check the published assets and refresh; no deployment is implied.", "warning"));
+            }, { once: true });
+            scroll.append(image);
+            const actions = element("div", undefined, "action-row");
+            actions.append(externalLink("Open SVG", `${base}.${language}.svg`, "secondary"),
+              externalLink("Open PNG", `${base}.${language}.png`, "secondary"),
+              externalLink("Editable draw.io source", `${base}.drawio`, "secondary"));
+            figure.append(scroll, element("figcaption", "Scroll the diagram or open its full-size SVG."), actions);
+            body.append(figure);
+            i++;
+            continue;
+          }
           const asset =  /^(?:\.\.\/)+assets\/architecture\/(\d{2})\.(en|fr)\.svg$/.exec(diagramImage[2]);
           const module = asset && state.modules.find((item) => item.module === asset[1]);
           if (!module || asset[2] !== language) throw new Error("Document images must use a published workshop diagram in the current language.");
@@ -934,7 +963,18 @@
       const panels = steps.map((step, index) => {
         const panel = element("section", undefined, "reveal-step");
         panel.append(element("h4", step.title));
-        if (step.say) { const say = element("p"); inline(say, step.say, path); panel.append(say); }
+        if (step.simple) {
+          const simple = element("p", undefined, "reveal-simple");
+          simple.append(element("strong", language === "fr" ? "En clair : " : "In plain words: "));
+          inline(simple, step.simple, path);
+          panel.append(simple);
+        }
+        if (step.say) {
+          const say = element("p", undefined, "reveal-say");
+          say.append(element("strong", language === "fr" ? "Pour le présentateur : " : "For the presenter: "));
+          inline(say, step.say, path);
+          panel.append(say);
+        }
         if (step.show) {
           const show = element("p", undefined, "reveal-show");
           show.append(element("strong", language === "fr" ? "À montrer : " : "Show: "));

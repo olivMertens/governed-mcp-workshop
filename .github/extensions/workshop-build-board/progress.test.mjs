@@ -942,3 +942,50 @@ test("the Session 2 reveal diagram matches in both languages and only shows comm
     }
     assert.ok(en.steps.some((step) => /\*\*Preview\*\*/.test(step.say)), "Preview features stay labelled");
 });
+
+test("the Session 2 overview diagram renders like a module diagram, only in the current language", () => {
+    const html = readFileSync(new URL("./board.html", import.meta.url), "utf8");
+    const start = html.indexOf("function markdown(");
+    const end = html.indexOf("function disclosure(", start);
+    const element = (tag, text, className) => ({
+        tag, text, className, children: [], attributes: {},
+        append(...children) { this.children.push(...children); },
+        setAttribute(name, value) { this.attributes[name] = value; },
+        addEventListener() {},
+    });
+    const links = [];
+    const render = new Function("element", "state", "language", "staticSite", "externalLink", "notice",
+        `${html.slice(start, end)}; return markdown;`)(element, { modules: [] }, "fr", false,
+        (text, href) => { links.push([text, href]); return element("a"); }, () => element("div"));
+    const body = render("![Vue d'ensemble](../../assets/architecture/session2.fr.svg)", "docs/fr/INTEGRATION-OPTIONS.md");
+    const figure = body.children[0];
+    assert.equal(figure.className, "architecture inline-architecture");
+    const image = figure.children[0].children[0];
+    assert.equal(image.src, "/assets/architecture/session2.fr.svg");
+    assert.equal(image.alt, "Vue d'ensemble");
+    assert.deepEqual(links.map(([, href]) => href), ["/assets/architecture/session2.fr.svg",
+        "/assets/architecture/session2.fr.png", "/assets/architecture/session2.drawio"]);
+    for (const path of ["../../assets/architecture/session2.en.svg", "../../assets/architecture/session3.fr.svg"]) {
+        assert.throws(() => render(`![Non publié](${path})`, "docs/fr/INTEGRATION-OPTIONS.md"), /published workshop diagram/);
+    }
+});
+
+test("Session 2 explains every fragment in plain words and shows its architecture in both languages", () => {
+    for (const [file, image, depth] of [["docs/INTEGRATION-OPTIONS.md", "session2.en.svg", "../"],
+        ["docs/fr/INTEGRATION-OPTIONS.md", "session2.fr.svg", "../../"]]) {
+        const text = readFileSync(join(repository, ...file.split("/")), "utf8").replaceAll("\r\n", "\n");
+        const spec = JSON.parse(/^```reveal\n([\s\S]*?)\n```$/m.exec(text)[1]);
+        for (const step of spec.steps) {
+            assert.ok(typeof step.simple === "string" && step.simple.length <= 120 && !/`/.test(step.simple),
+                `${file}: "${step.title}" needs one short plain-language line without code`);
+        }
+        assert.ok(text.includes(`](${depth}assets/architecture/${image})`), `${file} embeds ${image}`);
+        for (const match of text.matchAll(/\]\(((?:\.\.\/)+)(?:modules|assets)\//g)) {
+            assert.equal(match[1], depth, `${file}: relative links must start with ${depth}`);
+        }
+        assert.match(text, /^<summary>(?:Advanced: read the diagram|Avancé : lire le schéma)<\/summary>$/m);
+    }
+    for (const name of ["session2.drawio", "session2.en.svg", "session2.en.png", "session2.fr.svg", "session2.fr.png"]) {
+        assert.ok(existsSync(join(repository, "assets", "architecture", name)), `${name} is published`);
+    }
+});

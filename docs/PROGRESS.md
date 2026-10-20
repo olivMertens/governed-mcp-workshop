@@ -114,6 +114,17 @@ Browser checks: EN/FR, dark/light, all 8 fragments by keyboard and buttons, no c
 Imported presentation skills (`reveal-slide-builder`, `build-presentation`; `architecture-diagram-author` unchanged) are
 pinned in `.github/skills/UPSTREAM.md` with their MIT notice.
 
+Audience layer (same day): every fragment now opens with one "In plain words" sentence (front door and badge
+image), the presenter detail follows. A new step, "The whole picture", shows a repo-style architecture from a separate
+editable source, `assets/architecture/session2.drawio` (EN/FR pages), rendered by `scripts/render-architecture.py`:
+four dashed frames in decision order (consume, expose, host, discover), verified workshop icons embedded, blue request
+arrows and a green dashed inventory arrow. `--check` PASS for all pages (routing, crossings, 16 px clearance,
+perpendicular arrows, text fit, embedded icons, PNG provenance); module exports and Mermaid guides unchanged.
+"Read it from left to right" gives four plain bullets and an "Advanced: read the diagram" disclosure (token per hop,
+no passthrough, private backend, PRM challenge, no subscription keys, inventory, Preview API version).
+The board, local server, static site and portal serve the five new assets (static site 91 files, portal 93/91);
+French module links in the walk-through now use `../../`. Suites 48/48 PASS.
+
 ## Open decisions
 
 - Network (module 04): implemented as recommended (Standard v2 outbound virtual network integration, Function private

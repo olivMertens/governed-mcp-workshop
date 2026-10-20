@@ -18,9 +18,9 @@ export const screenshots = ["azure-02-storage-public-access", "azure-02-storage-
     "terminal-04-operator", "terminal-04-bob", "terminal-05-bob",
     "azure-07-foundry-tool", "azure-07-foundry-approve", "azure-07-foundry-result", "terminal-07-foundry"];
 export const publicPaths = ["index.html", "locale-fr.js", "journey.json", ".nojekyll",
-    ...icons.map((icon) => `assets/icons/${icon}.svg`), "assets/architecture/workshop.drawio",
+    ...icons.map((icon) => `assets/icons/${icon}.svg`), "assets/architecture/workshop.drawio", "assets/architecture/session2.drawio",
     ...screenshots.map((name) => `assets/screenshots/${name}.png`)];
-for (const module of ["00", "01", "02", "03", "04", "05", "06", "07", "99"]) {
+for (const module of ["00", "01", "02", "03", "04", "05", "06", "07", "99", "session2"]) {
     for (const language of ["en", "fr"]) {
         for (const format of ["svg", "png"]) publicPaths.push(`assets/architecture/${module}.${language}.${format}`);
     }

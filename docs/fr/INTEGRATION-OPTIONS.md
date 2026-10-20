@@ -52,7 +52,8 @@ vraie commande derrière chacun. Sélectionnez **Révéler la suite** ou utilise
   "steps": [
     {
       "title": "Ce matin : un serveur local",
-      "say": "Rappel du [module 01](../modules/01-discover-mcp/README.fr.md). Le client démarre le serveur comme processus enfant et lui parle en **stdio** : pas de réseau, pas d'identité, un seul utilisateur. `tools/list` renvoie `get_service_health`.",
+      "simple": "Ce matin, l'outil vivait sur votre poste : vous seul pouviez l'utiliser.",
+      "say": "Rappel du [module 01](../../modules/01-discover-mcp/README.fr.md). Le client démarre le serveur comme processus enfant et lui parle en **stdio** : pas de réseau, pas d'identité, un seul utilisateur. `tools/list` renvoie `get_service_health`.",
       "show": "La ligne de commande de l'Inspector qui liste les outils du serveur local. Demandez à la salle : qui d'autre peut l'appeler ? Personne, et c'est la limite.",
       "blocks": [
         {
@@ -63,7 +64,8 @@ vraie commande derrière chacun. Sélectionnez **Révéler la suite** ou utilise
     },
     {
       "title": "Héberger : les mêmes outils sur Azure Functions",
-      "say": "Décision 1, **où il tourne**. Le [module 02](../modules/02-open-server/README.fr.md) déploie l'extension MCP sur Azure Functions. Le point de terminaison est public et seule une clé de fonction le protège : le niveau **ouvert**, montré pour rendre le risque visible.",
+      "simple": "On met le même outil dans le cloud. Il fonctionne, mais quiconque a la clé peut l'appeler.",
+      "say": "Décision 1, **où il tourne**. Le [module 02](../../modules/02-open-server/README.fr.md) déploie l'extension MCP sur Azure Functions. Le point de terminaison est public et seule une clé de fonction le protège : le niveau **ouvert**, montré pour rendre le risque visible.",
       "show": "L'URL `https://<function-app-host>/runtime/webhooks/mcp`. La clé va dans le presse-papiers, jamais à l'écran. Faites-la tourner juste après la démo.",
       "blocks": [
         {
@@ -74,7 +76,8 @@ vraie commande derrière chacun. Sélectionnez **Révéler la suite** ou utilise
     },
     {
       "title": "Exposer : API Management devient la porte d'entrée",
-      "say": "Décision 2, **comment les clients l'atteignent**. La partie A du [module 04](../modules/04-governed-gateway/README.fr.md) place API Management devant la Function. La passerelle valide un jeton Microsoft Entra émis pour l'audience du serveur, vérifie un rôle par outil et limite les appels par appelant. La clé de fonction disparaît et la Function n'est plus publiée.",
+      "simple": "On ajoute une porte d'entrée. Elle vérifie votre badge avant de vous laisser entrer.",
+      "say": "Décision 2, **comment les clients l'atteignent**. La partie A du [module 04](../../modules/04-governed-gateway/README.fr.md) place API Management devant la Function. La passerelle valide un jeton Microsoft Entra émis pour l'audience du serveur, vérifie un rôle par outil et limite les appels par appelant. La clé de fonction disparaît et la Function n'est plus publiée.",
       "show": "La configuration du client : une URL de passerelle, sans en-tête, sans clé, sans secret. `$vars` vient de l'étape 3 du module 04.",
       "blocks": [
         {
@@ -89,6 +92,7 @@ vraie commande derrière chacun. Sélectionnez **Révéler la suite** ou utilise
     },
     {
       "title": "Exposer, partie B : une API REST devient un serveur MCP",
+      "simple": "Une API existante peut aussi devenir des outils, sans nouveau code, derrière la même porte.",
       "say": "Personne n'écrit de code MCP. Chaque opération d'API cochée devient un outil sur la même passerelle, avec le même contrôle de jeton. Les serveurs MCP d'API Management sont en **Preview** pour l'infrastructure as code (`2025-09-01-preview`).",
       "show": "Portail Azure, API Management, **MCP Servers** : `contoso-tickets-mcp`, puis **Tools** : `list_tickets` et `get_ticket`.",
       "blocks": [
@@ -105,6 +109,7 @@ vraie commande derrière chacun. Sélectionnez **Révéler la suite** ou utilise
     },
     {
       "title": "Consommer : Alice appelle un outil",
+      "simple": "Alice montre son badge, demande un ticket et obtient la réponse.",
       "say": "Décision 4, **qui le consomme**. Dans VS Code, le serveur n'est qu'une URL. Alice se connecte, la passerelle vérifie son jeton et son rôle, et l'outil répond avec des tickets synthétiques.",
       "show": "Copilot Chat en mode **Agent**. Approuvez vous-même chaque appel d'outil.",
       "blocks": [
@@ -116,6 +121,7 @@ vraie commande derrière chacun. Sélectionnez **Révéler la suite** ou utilise
     },
     {
       "title": "Pas de jeton, pas d'outil",
+      "simple": "Pas de badge, pas d'entrée : la porte répond 401 et indique où obtenir un badge.",
       "say": "Le même appel sans jeton reçoit **HTTP 401** avec un challenge qui désigne les métadonnées de la passerelle. Un jeton pour une autre audience (Microsoft Graph) est refusé aussi. C'est le pont vers la séquence sécurité.",
       "show": "Les lignes PASS du validateur : chacune indique le statut HTTP attendu.",
       "blocks": [
@@ -132,19 +138,64 @@ vraie commande derrière chacun. Sélectionnez **Révéler la suite** ou utilise
     },
     {
       "title": "La même porte d'entrée pour tous les clients",
-      "say": "Foundry Agent Service et Copilot Studio utilisent la même URL de passerelle. Seule l'identité change : celle de l'utilisateur (On-Behalf-Of) ou celle de l'agent (app-only). Voir les modules [05](../modules/05-delegated-and-app-only/README.fr.md) et [07](../modules/07-clients/README.fr.md).",
+      "simple": "Tous les clients passent par la même porte. Seul le badge change.",
+      "say": "Foundry Agent Service et Copilot Studio utilisent la même URL de passerelle. Seule l'identité change : celle de l'utilisateur (On-Behalf-Of) ou celle de l'agent (app-only). Voir les modules [05](../../modules/05-delegated-and-app-only/README.fr.md) et [07](../../modules/07-clients/README.fr.md).",
       "show": "Une passerelle, plusieurs clients. L'URL du backend n'apparaît dans aucun client."
     },
     {
       "title": "Découvrir : inscrire la passerelle, pas le backend",
-      "say": "Décision 3, **comment les équipes le trouvent**. Azure API Center (**Preview** pour MCP) garde une entrée par serveur, avec propriétaire et environnement. Le catalogue d'outils privé de Foundry (**Preview**) lit cet inventaire. Étapes dans le portail au [module 06](../modules/06-observe-inventory/README.fr.md).",
+      "simple": "On inscrit l'adresse de la porte dans un catalogue : les autres équipes la réutilisent au lieu d'en refaire une.",
+      "say": "Décision 3, **comment les équipes le trouvent**. Azure API Center (**Preview** pour MCP) garde une entrée par serveur, avec propriétaire et environnement. Le catalogue d'outils privé de Foundry (**Preview**) lit cet inventaire. Étapes dans le portail au [module 06](../../modules/06-observe-inventory/README.fr.md).",
       "show": "L'entrée API Center : le point de terminaison est l'URL de la passerelle. Transition : « Ensuite : qui porte les droits à chaque appel, un jeton par saut. »"
     }
   ]
 }
 ```
 
-## 2. Les quatre décisions
+## 2. La vue d'ensemble
+
+**En une phrase :** où qu'un serveur MCP tourne, les personnes et les agents l'atteignent par une seule porte d'entrée
+qui vérifie qui ils sont, et les autres équipes le trouvent dans un seul inventaire.
+
+![Architecture de la séquence 2 : à gauche, les clients appellent une seule porte d'entrée API Management avec un jeton Microsoft Entra ; derrière, le serveur MCP Azure Functions (partie A) et une API REST dont les opérations deviennent des outils (partie B, Preview) ; l'URL de la passerelle est inscrite dans Azure API Center, que lit le catalogue d'outils Foundry (Preview)](../../assets/architecture/session2.fr.svg)
+
+#### Lire de gauche à droite
+
+1. **Consommer : qui appelle.** Une personne dans VS Code, un agent Foundry ou un agent Copilot Studio demande un outil.
+2. **Exposer : la porte d'entrée.** API Management vérifie le badge (un jeton Microsoft Entra émis pour ce serveur) et
+   le rôle, puis laisse passer l'appel. Sans badge : HTTP 401.
+3. **Héberger : où il tourne.** Derrière la porte, l'équipe garde son propre serveur (Azure Functions) ou transforme une
+   API REST existante en outils. Personne ne les appelle directement.
+4. **Découvrir : comment les équipes le trouvent.** L'adresse de la porte est inscrite dans un inventaire : les autres
+   équipes la réutilisent au lieu d'en refaire une.
+
+<details>
+<summary>Avancé : lire le schéma</summary>
+
+- **Un jeton par saut, une audience par jeton.** Les clients obtiennent un jeton Microsoft Entra pour l'audience du
+  serveur MCP (`api://<client-id>`). La passerelle valide émetteur, tenant, audience et expiration avec
+  `validate-azure-ad-token`, puis vérifie le rôle d'application par outil (`Tools.Read`, `Tools.Write`) et applique
+  une limite par identifiant d'objet de l'appelant ([module 04](../../modules/04-governed-gateway/README.fr.md)).
+- **Pas de transmission du jeton aux API en aval.** Les appels de la Function vers d'autres API utilisent On-Behalf-Of
+  ou une identité managée, choisi outil par outil ([module 05](../../modules/05-delegated-and-app-only/README.fr.md)).
+- **Le backend n'est jamais publié.** La partie A atteint la Function par un point de terminaison privé ; son accès
+  réseau public est désactivé. La partie B n'a pas de backend : des stratégies REST (`mock-response`) répondent avec
+  des tickets fictifs.
+- **Découverte pour les clients.** Un appel sans jeton reçoit HTTP 401 avec un challenge qui désigne les métadonnées de
+  ressource protégée de la passerelle (RFC 9728) : les clients comme VS Code savent où se connecter.
+- **Pas de clé d'abonnement.** Chaque API définit `subscriptionRequired = false` : l'accès dépend uniquement des jetons
+  Microsoft Entra et des rôles d'application.
+- **De l'inventaire, pas du trafic.** API Center (**Preview** pour MCP) conserve l'URL de la passerelle, le propriétaire
+  et l'environnement ([module 06](../../modules/06-observe-inventory/README.fr.md)) ; le catalogue d'outils privé de
+  Foundry (**Preview**) le lit.
+- **Infrastructure as code.** Les serveurs MCP d'API Management utilisent la version d'API `2025-09-01-preview`
+  (**Preview**) via le fournisseur azapi, dans `infra/workload/gateway.tf` et `infra/workload/rest-mcp.tf`.
+- Modifiez le schéma dans [session2.drawio](../../assets/architecture/session2.drawio), puis régénérez le SVG et le PNG
+  avec `scripts/render-architecture.py`.
+
+</details>
+
+## 3. Les quatre décisions
 
 | Décision | La question | La réponse Azure | Dans cet atelier |
 |---|---|---|---|
@@ -156,7 +207,7 @@ vraie commande derrière chacun. Sélectionnez **Révéler la suite** ou utilise
 **À dire en une phrase :** le choix de l'hébergement appartient à l'équipe qui possède le code ; la porte d'entrée,
 l'identité et l'inventaire appartiennent à la plateforme.
 
-## 3. Où héberger un serveur MCP
+## 4. Où héberger un serveur MCP
 
 | Option | À choisir quand | Remarques |
 |---|---|---|
@@ -179,7 +230,7 @@ une entrée dans l'inventaire.
 
 </details>
 
-## 4. Exposer : deux modèles avec Azure API Management
+## 5. Exposer : deux modèles avec Azure API Management
 
 | | Partie A : serveur MCP existant derrière la passerelle | Partie B : API REST exposée en serveur MCP |
 |---|---|---|
@@ -200,7 +251,7 @@ Bon à savoir :
 - L'infrastructure en code utilise la version d'API `2025-09-01-preview` d'API Management (**Preview**).
 - Ne lisez jamais le corps de la réponse dans une stratégie de serveur MCP : cela casse le streaming.
 
-## 5. Démo 3 : une API REST devient un serveur MCP (8 minutes environ)
+## 6. Démo 3 : une API REST devient un serveur MCP (8 minutes environ)
 
 Avant la séance : déployez la [partie B du module 04](../../modules/04-governed-gateway/README.fr.md) dans le tenant de
 test, lancez son validateur et gardez les captures réelles prêtes en solution de repli. Supprimez API Management le jour
@@ -231,7 +282,7 @@ Solution de repli si la démo en direct ne peut pas tourner : ces captures réel
 
 ![Sortie réelle du terminal : Alice liste les deux outils et les appelle à travers la passerelle](../../assets/screenshots/terminal-04b-alice.png)
 
-## 6. Inventaire et découverte
+## 7. Inventaire et découverte
 
 - **Azure API Center** sert d'inventaire : une entrée par serveur MCP, avec son propriétaire, son environnement et son
   point de terminaison. Enregistrez l'URL de la passerelle, jamais celle du backend
@@ -242,7 +293,7 @@ Solution de repli si la démo en direct ne peut pas tourner : ces captures réel
 - La gouvernance à l'échelle du tenant avec Agent 365 et les serveurs MCP « BYO » de Microsoft 365 (**Preview**) relève
   de la séquence Agent 365.
 
-## 7. Ce qu'un administrateur général doit vérifier quand une entité adopte Foundry
+## 8. Ce qu'un administrateur général doit vérifier quand une entité adopte Foundry
 
 1. **Le consentement.** Qui peut donner son consentement aux applications et aux agents, et le circuit de demande de
    consentement administrateur est-il activé ?
