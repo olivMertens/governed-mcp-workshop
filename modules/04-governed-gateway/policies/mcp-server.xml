@@ -103,7 +103,7 @@
             if (tool == "get_service_health" || tool == "whoami" || tool == "read_report_as_user" || tool == "read_report_as_app") { return "Tools.Read|" + tool; }
             return "deny:403|unknown-tool";
         }
-        if (rpcMethod == "initialize" || rpcMethod == "ping" || rpcMethod == "tools/list") { return "Tools.Read|" + rpcMethod; }
+        if (rpcMethod == "initialize" || rpcMethod == "ping" || rpcMethod == "tools/list" || rpcMethod == "server/discover") { return "Tools.Read|" + rpcMethod; }
         if (rpcMethod.StartsWith("notifications/")) { return "Tools.Read|notification"; }
         return "deny:403|unsupported-method";
     }" />

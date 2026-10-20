@@ -29,17 +29,19 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 
-# Reverse build order. Module 05 Entra must run before module 03 Entra.
+# Reverse build order. Module 07 first: it returns the allowed applications to their module 03 values and deletes the
+# Foundry resources. Module 05 Entra must run before module 03 Entra.
 # Module 04's clean-up removes the optional part B (REST API exposed as MCP, phase 0) before the gateway itself.
 # Each step needs the private files its own clean-up requires. Without them that clean-up cannot plan safely,
 # so the step is skipped with a visible reason instead of failing the whole run.
 $steps = @(
-    @{ Module = '05-delegated-and-app-only'; Scope = 'Workload'; Requires = @('module02.tfvars.json', 'module03.tfvars.json') },
-    @{ Module = '05-delegated-and-app-only'; Scope = 'Entra'; Requires = @('entra.tfvars.json') },
-    @{ Module = '04-governed-gateway'; Scope = $null; Requires = @('module02.tfvars.json', 'module03.tfvars.json') },
-    @{ Module = '03-entra-authentication'; Scope = 'Workload'; Requires = @('module02.tfvars.json') },
-    @{ Module = '03-entra-authentication'; Scope = 'Entra'; Requires = @('entra.tfvars.json') },
-    @{ Module = '02-open-server'; Scope = $null; Requires = @('participant.tfvars.json') }
+    @{ Module = '07-clients'; Scope = $null; Requires = @(); Done = @() },
+    @{ Module = '05-delegated-and-app-only'; Scope = 'Workload'; Requires = @('module02.tfvars.json', 'module03.tfvars.json'); Done = @('module05.tfvars.json') },
+    @{ Module = '05-delegated-and-app-only'; Scope = 'Entra'; Requires = @('entra.tfvars.json'); Done = @('entra-module05.tfvars.json') },
+    @{ Module = '04-governed-gateway'; Scope = $null; Requires = @('module02.tfvars.json', 'module03.tfvars.json'); Done = @('module04.tfvars.json', 'module04b.tfvars.json') },
+    @{ Module = '03-entra-authentication'; Scope = 'Workload'; Requires = @('module02.tfvars.json'); Done = @('module03.tfvars.json') },
+    @{ Module = '03-entra-authentication'; Scope = 'Entra'; Requires = @('entra.tfvars.json'); Done = @() },
+    @{ Module = '02-open-server'; Scope = $null; Requires = @('participant.tfvars.json'); Done = @('module02.tfvars.json') }
 )
 
 Write-Output "Module 99 clean-up. Mode: $(if ($Apply) { 'APPLY' } else { 'REPORT ONLY (no change)' })"
@@ -71,6 +73,16 @@ foreach ($step in $steps) {
             $_
         }
         if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { throw "exit code $LASTEXITCODE" }
+        # Once a stage is applied, its opt-in files must stop reaching later plans (they would recreate what it removed).
+        # Archive them in the ignored private folder instead of deleting them.
+        if ($Apply) {
+            $archive = Join-Path $root '.workshop' 'applied'
+            foreach ($file in @($step.Done | Where-Object { Test-Path -LiteralPath (Join-Path $root '.workshop' $_) -PathType Leaf })) {
+                $null = New-Item -ItemType Directory -Force -Path $archive
+                Move-Item -LiteralPath (Join-Path $root '.workshop' $file) -Destination (Join-Path $archive $file) -Force
+                Write-Output "INFO archived .workshop/$file to .workshop/applied/ (stage applied)."
+            }
+        }
     }
     catch {
         $reason = ($_.Exception.Message -split "`n")[0]

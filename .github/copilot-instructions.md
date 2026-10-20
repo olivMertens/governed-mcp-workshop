@@ -29,8 +29,11 @@ Build order, sources and expected results are in docs/BUILD-PLAN.md. Read it bef
    Never hand-write JWT validation.
 4. Scopes say what the client app may do for the user; app roles say what this user or app may do.
    Per-user authorization uses app roles.
-5. No secrets: managed identities and federated identity credentials only. Nothing secret in code, mcp.json,
-   scripts, tfvars or Terraform state committed to git.
+5. Secretless first: managed identities and federated identity credentials wherever the platform supports them.
+   When a client platform accepts only a client secret (for example Microsoft Foundry OAuth identity passthrough,
+   module 07), use a short-lived secret (one day) on a dedicated client app registration: create it and hand it to the
+   platform in the same command, never print it, never store it in code, mcp.json, scripts, tfvars, Terraform state or
+   any file, and delete it in the module clean-up. Nothing secret is ever committed to git.
 6. Write tools require an explicit role and human approval in the client.
 7. Logs never contain tokens, prompts, tool arguments or tool results (zero body bytes).
    Log tool name, caller object ID, status, latency and correlation ID.
@@ -65,4 +68,4 @@ participant's own subscription, or in an approved author-owned tenant. `authored
 
 ## When helping a participant
 Explain simply and point to the module's sources. Never suggest disabling a control, widening a role,
-using a client secret, or pasting a token into chat or a file as a workaround.
+using a long-lived client secret, or pasting a token or secret into chat or a file as a workaround.
