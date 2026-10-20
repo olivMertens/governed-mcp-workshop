@@ -21,7 +21,7 @@ test("public site exports only the allowlist, with no capability, root URLs, pri
     t.after(() => rmSync(temporary, { recursive: true, force: true }));
     const output = join(temporary, "public");
     const result = buildSite(root, output);
-    assert.equal(result.files, 79);
+    assert.equal(result.files, 81);
     assert.deepEqual(readdirSync(output).sort(), [".nojekyll", "assets", "index.html", "journey.json", "locale-fr.js"]);
     const html = readFileSync(join(output, "index.html"), "utf8");
     assert.match(html, /const staticSite = "true" === "true"/);
@@ -68,7 +68,7 @@ test("public site exports only the allowlist, with no capability, root URLs, pri
         assert.equal(entra.validation.powershell, "modules/03-entra-authentication/validate.ps1");
         assert.equal(entra.validation.bash, "modules/03-entra-authentication/validate.sh");
         const gateway = language.modules.find((module) => module.module === "04");
-        assert.equal(gateway.status, "authored");
+        assert.equal(gateway.status, "validated");
         assert.match(gateway.guide, /validate-azure-ad-token/);
         assert.match(gateway.guide, /Tools\.Write/);
         assert.match(gateway.guide, /HTTP 429/);
