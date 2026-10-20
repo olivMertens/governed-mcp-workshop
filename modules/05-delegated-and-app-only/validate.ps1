@@ -22,7 +22,14 @@ param(
     [ValidateSet('Alice', 'Bob')][string]$Persona,
     [string]$PersonaObjectIdsPath,
     [string]$EvidenceDirectory,
-    [switch]$SkipBuild
+    [switch]$SkipBuild,
+    # Low-code track: names instead of Terraform outputs.
+    [string]$ResourceGroup,
+    [string]$FunctionApp,
+    [string]$GatewayName,
+    [string]$ApiClientId,
+    [string]$StorageAccount,
+    [string]$OboIdentityName
 )
 
 Set-StrictMode -Version Latest
@@ -165,7 +172,25 @@ if ($Offline -or -not $TenantId -or $TenantId -eq [guid]::Empty) {
 
 . (Join-Path $root 'scripts' 'context-common.ps1')
 Assert-WorkshopInteractiveEnvironment
-$outputs = & terraform "-chdir=$workload" output -json | ConvertFrom-Json -AsHashtable
+if ($ResourceGroup -or $FunctionApp -or $GatewayName -or $ApiClientId -or $StorageAccount -or $OboIdentityName) {
+    if (-not ($ResourceGroup -and $FunctionApp -and $GatewayName -and $ApiClientId -and $StorageAccount -and $OboIdentityName)) {
+        Fail 'low-code track: pass -ResourceGroup, -FunctionApp, -GatewayName, -ApiClientId, -StorageAccount and -OboIdentityName together (expected HTTP N/A).'
+    }
+    # A test account has no Azure role; only the operator run reads the OBO identity.
+    $oboId = if ($Persona) { $null } else { (& az identity show -g $ResourceGroup -n $OboIdentityName --query principalId -o tsv --only-show-errors | Out-String).Trim() }
+    $outputs = @{
+        delegated_access_enabled = @{ value = $true }; gateway_enabled = @{ value = $true }
+        gateway_mcp_endpoint = @{ value = "https://$GatewayName.azure-api.net/workshop-mcp/mcp" }
+        mcp_auth_audience = @{ value = "api://$ApiClientId" }
+        mcp_auth_issuer = @{ value = "https://login.microsoftonline.com/$TenantId/v2.0" }
+        delegated_obo_identity_principal_id = @{ value = $oboId }
+        resource_group_name = @{ value = $ResourceGroup }; mcp_function_app_name = @{ value = $FunctionApp }
+        delegated_storage_account_name = @{ value = $StorageAccount }
+    }
+    $global:LASTEXITCODE = 0
+} else {
+    $outputs = & terraform "-chdir=$workload" output -json | ConvertFrom-Json -AsHashtable
+}
 if ($LASTEXITCODE -ne 0 -or $null -eq $outputs) { Fail 'Terraform outputs unavailable; use the same private workload state as the deployment (expected HTTP N/A).' }
 $audience = $outputs.mcp_auth_audience?.value
 $issuer = $outputs.mcp_auth_issuer?.value
