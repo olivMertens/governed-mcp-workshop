@@ -106,6 +106,7 @@ const french = {
   "Read the expected answer": "Lisez la réponse attendue",
   "This step has a question": "Cette étape pose une question",
   "The MCP server and its answers": "Le serveur MCP et ses réponses",
+  "Choose your track": "Choisir son parcours",
   "Build runbook": "Construire avec Copilot",
   "Verified sources": "Références vérifiées",
   "Build decisions": "Choix techniques à confirmer",

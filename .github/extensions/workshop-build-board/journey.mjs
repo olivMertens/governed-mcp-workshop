@@ -101,6 +101,9 @@ export function readJourney(root, progress) {
                 concepts: document(french ? "Comprendre MCP et les agents" : "MCP and agent concepts", "MCP-CONCEPTS.md"),
                 gettingStarted: document(french ? "Choisir votre environnement" : "Choose your workspace", "GETTING-STARTED.md"),
                 practice: { title: french ? "Tester votre serveur MCP" : "Try your MCP", sourcePath: [...base, "PRACTICE.md"].join("/"), content: practice },
+                ...(available([...base, "TRACKS.md"]) ? {
+                    tracks: document(french ? "Choisir son parcours" : "Choose your track", "TRACKS.md"),
+                } : {}),
                 ...(available([...base, "MCP-SERVER.md"]) ? {
                     mcpServer: document(french ? "Le serveur MCP et ses réponses" : "The MCP server and its answers", "MCP-SERVER.md"),
                 } : {}),
