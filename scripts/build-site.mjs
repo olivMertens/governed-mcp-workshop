@@ -63,6 +63,9 @@ export function buildSite(root = repository, destination = join(root, "site-dist
         }
     }
     files.set("assets/architecture/workshop.drawio", read(["assets", "architecture", "workshop.drawio"]));
+    for (const name of ["session2.en.svg", "session2.en.png", "session2.fr.svg", "session2.fr.png", "session2.drawio"]) {
+        files.set(`assets/architecture/${name}`, read(["assets", "architecture", name]));
+    }
     for (const name of screenshots) files.set(`assets/screenshots/${name}.png`, read(["assets", "screenshots", `${name}.png`]));
     mkdirSync(destination);
     for (const [path, content] of files) {
