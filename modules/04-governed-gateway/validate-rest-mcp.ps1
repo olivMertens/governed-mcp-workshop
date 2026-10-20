@@ -21,7 +21,11 @@ param(
     [guid]$SubscriptionId,
     [ValidateSet('Alice', 'Bob')][string]$Persona,
     [string]$PersonaObjectIdsPath,
-    [switch]$SkipBuild
+    [switch]$SkipBuild,
+    # Low-code track: name what you created in the portal instead of reading Terraform outputs.
+    [string]$ResourceGroup,
+    [string]$GatewayName,
+    [string]$ApiClientId
 )
 
 Set-StrictMode -Version Latest
@@ -148,7 +152,22 @@ if ($Offline -or -not $TenantId -or $TenantId -eq [guid]::Empty) {
 
 . (Join-Path $root 'scripts' 'context-common.ps1')
 Assert-WorkshopInteractiveEnvironment
-$outputs = & terraform "-chdir=$workload" output -json | ConvertFrom-Json -AsHashtable
+if ($ResourceGroup -or $GatewayName -or $ApiClientId) {
+    if (-not ($ResourceGroup -and $GatewayName -and $ApiClientId)) { Fail 'low-code track: pass -ResourceGroup, -GatewayName and -ApiClientId together (expected HTTP N/A).' }
+    $gw = "https://$GatewayName.azure-api.net"
+    $outputs = @{
+        rest_mcp_enabled = @{ value = $true }; rest_mcp_endpoint = @{ value = "$gw/contoso-tickets-mcp/mcp" }
+        rest_mcp_resource_metadata_url = @{ value = "$gw/.well-known/oauth-protected-resource/contoso-tickets-mcp/mcp" }
+        rest_api_endpoint = @{ value = "$gw/contoso-tickets" }
+        mcp_auth_audience = @{ value = "api://$ApiClientId" }; mcp_auth_scope = @{ value = "api://$ApiClientId/user_impersonation" }
+        mcp_auth_issuer = @{ value = "https://login.microsoftonline.com/$TenantId/v2.0" }
+        resource_group_name = @{ value = $ResourceGroup }; gateway_name = @{ value = $GatewayName }
+        rest_mcp_api_name = @{ value = 'contoso-tickets-mcp' }; rest_api_name = @{ value = 'contoso-tickets-api' }
+    }
+    $global:LASTEXITCODE = 0
+} else {
+    $outputs = & terraform "-chdir=$workload" output -json | ConvertFrom-Json -AsHashtable
+}
 if ($LASTEXITCODE -ne 0 -or $null -eq $outputs) { Fail 'Terraform outputs unavailable; use the same private workload state as the deployment (expected HTTP N/A).' }
 $endpoint = $outputs.rest_mcp_endpoint?.value
 $metadataUrl = $outputs.rest_mcp_resource_metadata_url?.value

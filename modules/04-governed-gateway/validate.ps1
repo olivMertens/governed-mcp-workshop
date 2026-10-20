@@ -24,7 +24,14 @@ param(
     [string]$PersonaObjectIdsPath,
     [switch]$Burst,
     [switch]$CheckTelemetry,
-    [switch]$SkipBuild
+    [switch]$SkipBuild,
+    # Low-code track: name what you created in the portal instead of reading Terraform outputs.
+    [string]$ResourceGroup,
+    [string]$FunctionApp,
+    [string]$GatewayName,
+    [string]$ApiClientId,
+    [string]$LogAnalyticsWorkspace,
+    [int]$RateLimitCalls = 30
 )
 
 Set-StrictMode -Version Latest
@@ -153,7 +160,27 @@ if ($Offline -or -not $TenantId -or $TenantId -eq [guid]::Empty) {
 
 . (Join-Path $root 'scripts' 'context-common.ps1')
 Assert-WorkshopInteractiveEnvironment
-$outputs = & terraform "-chdir=$workload" output -json | ConvertFrom-Json -AsHashtable
+if ($ResourceGroup -or $FunctionApp -or $GatewayName -or $ApiClientId) {
+    if (-not ($ResourceGroup -and $FunctionApp -and $GatewayName -and $ApiClientId)) { Fail 'low-code track: pass -ResourceGroup, -FunctionApp, -GatewayName and -ApiClientId together (expected HTTP N/A).' }
+    # A test account has no Azure role; only the operator run reads the Function's network setting.
+    $locked = if ($Persona) { $true } else {
+        (& az functionapp show -g $ResourceGroup -n $FunctionApp --query 'properties.publicNetworkAccess || publicNetworkAccess' -o tsv --only-show-errors | Out-String).Trim() -eq 'Disabled' }
+    $outputs = @{
+        gateway_enabled = @{ value = $true }; gateway_function_public_access_disabled = @{ value = $locked }
+        gateway_mcp_endpoint = @{ value = "https://$GatewayName.azure-api.net/workshop-mcp/mcp" }
+        gateway_resource_metadata_url = @{ value = "https://$GatewayName.azure-api.net/.well-known/oauth-protected-resource/workshop-mcp/mcp" }
+        mcp_endpoint = @{ value = "https://$FunctionApp.azurewebsites.net/runtime/webhooks/mcp" }
+        mcp_auth_audience = @{ value = "api://$ApiClientId" }; mcp_auth_scope = @{ value = "api://$ApiClientId/user_impersonation" }
+        mcp_auth_issuer = @{ value = "https://login.microsoftonline.com/$TenantId/v2.0" }
+        resource_group_name = @{ value = $ResourceGroup }; mcp_function_app_name = @{ value = $FunctionApp }
+        gateway_name = @{ value = $GatewayName }; gateway_mcp_api_name = @{ value = 'workshop-mcp' }
+        resource_names = @{ value = @{ log_analytics = $LogAnalyticsWorkspace } }
+        gateway_rate_limit = @{ value = @{ calls = $RateLimitCalls } }
+    }
+    $global:LASTEXITCODE = 0
+} else {
+    $outputs = & terraform "-chdir=$workload" output -json | ConvertFrom-Json -AsHashtable
+}
 if ($LASTEXITCODE -ne 0 -or $null -eq $outputs) { Fail 'Terraform outputs unavailable; use the same private workload state as the deployment (expected HTTP N/A).' }
 $gateway = $outputs.gateway_mcp_endpoint?.value
 $metadataUrl = $outputs.gateway_resource_metadata_url?.value
