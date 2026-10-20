@@ -113,6 +113,21 @@
     .request-tabs button > .step-num { width: 22px; height: 22px; font-size: 12px; background: var(--line); color: var(--ink); }
     .request-tabs button[aria-current="step"] { border-color: var(--blue); font-weight: 650; }
     .request-tabs button[aria-current="step"] > .step-num { background: var(--blue); color: #fff; }
+    .guided-exercise { padding: 22px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+    .exercise-intro { margin-bottom: 16px; }
+    .exercise-intro h2 { margin: 8px 0; font-size: 21px; }
+    .exercise-intro p { margin: 8px 0; }
+    .exercise-intro[hidden] { display: none; }
+    .guided-exercise .lesson-page h2 { font-size: 20px; }
+    .guided-exercise .exchange { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+    .answer-preview { padding: 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); }
+    .answer-preview > summary { cursor: pointer; color: var(--blue); font-weight: 650; }
+    .answer-preview .result-box { margin: 14px 0 0; }
+    .guided-exercise .output pre { max-height: 20rem; overflow-y: auto; }
+    .exercise-meaning { border-left: 3px solid var(--blue); padding: 10px 14px; background: var(--wash); }
+    .exercise-observe { font-size: 14px; }
+    @container (max-width: 560px) { .guided-exercise .exchange { grid-template-columns: minmax(0, 1fr); } }
+    @media (max-width: 600px) { .guided-exercise { padding: 14px; } }
     mark.change { background: var(--gold); color: #1b1b1b; border-radius: 3px; padding: 0 2px; }
     .change-legend mark { margin-right: 6px; }
     .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin: 14px 0 20px; }
@@ -1201,9 +1216,10 @@
           const count = readingWeight(block);
           // A result box explains the command just above it: never separate them across pages.
           const isResult = /^> \*\*(?:Real result|Expected result|Résultat réel|Résultat attendu)\b/.test(block);
+          const requestStep = /^(?:Request|Requête) \d+ (?:of|sur) \d+\s*:/.test(title);
           // The next piece of a split table always starts a new page, under its repeated header.
           const tableContinues = page.length && /^\|/.test(block) && page.at(-1).startsWith(block.split("\n").slice(0, 2).join("\n"));
-          if (page.length && (words + count > budget || tableContinues) && !isResult) {
+          if (page.length && (words + count > budget || tableContinues) && !isResult && !requestStep) {
             pages.push(page);
             page = []; words = 0;
           }
@@ -1327,6 +1343,12 @@
       const requests = steps.map((step, stepIndex) => ({ stepIndex, match: /^(?:Request|Requête) (\d+) (?:of|sur) \d+\s*:\s*(.+)$/.exec(step.title) }))
         .filter((item) => item.match && !steps[item.stepIndex].part);
       const tabs = requests.length > 1 ? element("nav", undefined, "request-tabs") : null;
+      const exerciseIntro = tabs ? element("div", undefined, "exercise-intro") : null;
+      if (exerciseIntro) exerciseIntro.append(element("span", "Your turn", "pill"),
+        element("h2", "One request. One result. One lesson."),
+        element("p", "Complete the preparation steps above first. Keep the same terminal for every request."),
+        element("p", "Predict the answer, run the command in your terminal, then compare the important fields."),
+        element("p", "Reference answers are examples, not your execution. This page never runs a command, receives your output or asks for a token.", "field-message"));
       const tabButtons = (tabs ? requests : []).map(({ stepIndex, match }) => {
         const button = element("button");
         button.type = "button";
@@ -1341,8 +1363,13 @@
       const exchanges = [...text.matchAll(/^```\S+ exchange\r?\n([\s\S]*?)\r?\n```/gm)].map((match) => match[1].replaceAll("\r", ""));
       function show(focus = false) {
         const step = steps[index];
-        position.textContent = `${t("Step")} ${index + 1} / ${steps.length}`;
-        fill.style.width = `${Math.round(((index + 1) / steps.length) * 100)}%`;
+        const requestIndex = requests.findIndex((request) => request.stepIndex === index);
+        const exercising = requestIndex !== -1;
+        section.className = exercising ? "lesson guided-exercise" : "lesson";
+        if (exerciseIntro) exerciseIntro.hidden = !exercising;
+        position.textContent = exercising ? `${t("Request")} ${requestIndex + 1} / ${requests.length}` :
+          `${t("Step")} ${index + 1} / ${steps.length}`;
+        fill.style.width = `${Math.round((exercising ? (requestIndex + 1) / requests.length : (index + 1) / steps.length) * 100)}%`;
         summary.textContent = `${t("Outline: go to a step")} (${steps.length})`;
         for (const [jumpIndex, jump] of jumps.entries()) {
           if (jumpIndex === index) jump.setAttribute("aria-current", "step");
@@ -1357,10 +1384,11 @@
           following.part > 1 && following.title === step.title ? `${t("Next:")} ${t("continued")} (${partLabel(following)})` :
           `${t("Next:")} ${t(following.title)}`;
         next.replaceChildren(element("span", nextLabel), symbol(last ? (finish ? "arrowDown" : "finish") : "arrowRight"));
-        const heading = element("h2", step.title);
+        const heading = element("h2", exercising ? requests[requestIndex].match[2] : step.title);
         if (step.part) heading.append(element("span", partLabel(step), "part-badge"));
         heading.tabIndex = -1;
         const body = step.review ? review.render((original) => section.goTo(mapIndex(original))) : markdown(step.content, path);
+        if (exercising) prepareExercise(body);
         if (index === shiftedValidate) body.append(validate.render(step));
         for (const command of body.querySelectorAll(".command")) {
           const code = command.querySelector("code").textContent;
@@ -1397,13 +1425,44 @@
       // On the last step, a module page sends the reader on to the next section instead of a dead end.
       next.addEventListener("click", () => { if (index < steps.length - 1) { index++; show(true); } else if (finish) finish.action(); });
       navigation.append(previous, next);
-      section.append(header, ...(tabs ? [tabs] : []), page, navigation, outline);
+      section.append(...(exerciseIntro ? [exerciseIntro] : []), header, ...(tabs ? [tabs] : []), page, navigation, outline);
       section.goTo = (stepIndex) => { index = stepIndex; outline.open = false; show(true); };
       section.stepCount = steps.length;
       section.validateIndex = shiftedValidate;
       section.reviewIndex = reviewIndex;
+      section.exerciseIndex = requests[0]?.stepIndex ?? -1;
       show();
       return section;
+    }
+    function prepareExercise(body) {
+      for (const pair of body.querySelectorAll(".exchange")) {
+        const answer = pair.querySelector(".result-box");
+        const recorded = answer.classList.contains("real");
+        pair.querySelectorAll(".exchange-label")[0].lastChild.textContent = t("Run in your terminal");
+        pair.querySelectorAll(".exchange-label")[1].lastChild.textContent = t("Compare the answer");
+        const preview = element("details", undefined, "answer-preview");
+        preview.append(element("summary", recorded ? "Show recorded answer" : "Show expected answer"),
+          element("p", recorded ? "Recorded on the author's machine. Not a result from your terminal." :
+            "Expected example from the guide. Not a live response.", "field-message"));
+        answer.replaceWith(preview);
+        preview.append(answer);
+        for (const code of answer.querySelectorAll("code")) {
+          const text = code.textContent;
+          const pattern = /"(?:name|required|readOnlyHint|service|status|source|isError)"\s*:\s*(?:"[^"]*"|true|false|\[[^\]]*\])/g;
+          const parts = [];
+          let end = 0;
+          for (const match of text.matchAll(pattern)) {
+            parts.push(document.createTextNode(text.slice(end, match.index)), element("mark", match[0], "change"));
+            end = match.index + match[0].length;
+          }
+          if (parts.length) code.replaceChildren(...parts, document.createTextNode(text.slice(end)));
+        }
+        preview.append(element("p", "Highlighted fields are the evidence to compare. Opening this example does not validate your run.", "field-message"));
+      }
+      for (const paragraph of body.querySelectorAll(":scope > p")) {
+        if (/^(?:What it means for you|Ce que cela signifie pour vous)/.test(paragraph.textContent)) paragraph.classList.add("exercise-meaning");
+        if (/^(?:Look for|À repérer)/.test(paragraph.textContent)) paragraph.classList.add("exercise-observe");
+      }
     }
     // Wraps the tokens of a request that are new compared with the previous request (an id change alone is ignored).
     function markChanges(code, before) {
@@ -1597,6 +1656,19 @@
       }
       function showStart(mode) {
         content.append(element("h1", "Your workspace. Your resources."), workspaceChoices());
+        if (mode !== "codespaces") {
+          content.append(element("h2", "Clone the repository"),
+            element("p", "For a local terminal or VS Code dev container, install Git using your approved process, then run these commands in a folder where you keep projects. Codespaces creates its own checkout; no local clone is needed."),
+            externalLink("Open the workshop repository", "https://github.com/olivMertens/governed-mcp-workshop", "secondary"),
+            element("p", "Once the repository is public, HTTPS cloning needs no GitHub account. Until then, repository access is required."),
+            commandBlock("Clone repository / PowerShell",
+              "git clone --branch main https://github.com/olivMertens/governed-mcp-workshop.git\nif ($LASTEXITCODE -ne 0) { throw 'Clone failed. Do not continue in another directory.' }\nSet-Location .\\governed-mcp-workshop",
+              "Copy command", false),
+            disclosure("Using bash", commandBlock("Clone repository / bash",
+              "git clone --branch main https://github.com/olivMertens/governed-mcp-workshop.git && \\\n  cd governed-mcp-workshop",
+              "Copy command", false)),
+            element("p", "Already have a checkout? Use your existing folder. Keep your private .workshop files and Terraform state through cleanup; do not clone again to start over."));
+        }
         if (mode === "devcontainer") {
           content.append(element("h2", "VS Code dev container"),
             commandBlock("Open your existing local checkout in VS Code", "code ."),
@@ -1901,6 +1973,7 @@
       const stops = element("ol");
       const stepWord = (number) => `${t("Step")} ${number}`;
       const cards = [[t("Follow the guide"), `${lesson.stepCount} ${t("steps, one at a time")}`, () => { lesson.goTo(0); }]];
+      if (lesson.exerciseIndex !== -1) cards.push([t("Your turn"), t("Server built and Inspector ready? Start the guided requests."), () => lesson.goTo(lesson.exerciseIndex)]);
       if (lesson.validateIndex !== -1) cards.push([t("Check your work"), `${stepWord(lesson.validateIndex + 1)}${language === "fr" ? " : " : ": "}${module.module === "00" ? t("Review your Azure context") : t("Run the validator: PASS or FAIL")}`, () => lesson.goTo(lesson.validateIndex)]);
       if (lesson.reviewIndex !== -1) cards.push([t("Review questions"), `${stepWord(lesson.reviewIndex + 1)}${language === "fr" ? " : " : ": "}${items.length} ${t("questions, answers hidden")}`, () => lesson.goTo(lesson.reviewIndex)]);
       cards.push([t("Architecture and context"), t("Optional: architecture, prerequisites, why it matters"), () => goTo(furtherTitle), true]);

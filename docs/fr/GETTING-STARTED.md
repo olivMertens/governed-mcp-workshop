@@ -41,6 +41,13 @@ if ($LASTEXITCODE -ne 0) { throw 'Le clonage a echoue. Ne poursuivez pas dans un
 Set-Location .\governed-mcp-workshop
 ```
 
+Ou, avec bash dans un dossier où vous conservez vos projets :
+
+```bash
+git clone --branch main https://github.com/olivMertens/governed-mcp-workshop.git && \
+  cd governed-mcp-workshop
+```
+
 **Résultat attendu :** `README.md`, `scripts` et `infra` sont présents dans le dossier courant.
 Toutes les commandes suivantes s'exécutent depuis ce dossier. Si VS Code est installé, ouvrez-le avec `code .`.
 Chaque participant utilise sa propre copie. Le dépôt est public : vous pouvez le cloner sans compte GitHub ni GitHub CLI.

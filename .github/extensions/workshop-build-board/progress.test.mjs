@@ -192,6 +192,111 @@ test("long lessons paginate at intact content elements and label their continuat
     for (const row of rows) assert.equal(tables.filter((page) => page.content.includes(row)).length, 1);
 });
 
+test("explicit bilingual request steps keep purpose, command, answer and meaning together beyond the reading budget", () => {
+    const html = readFileSync(new URL("./board.html", import.meta.url), "utf8");
+    const start = html.indexOf("function lessonSteps(");
+    const end = html.indexOf("function guidedDocument(", start);
+    const split = new Function(`${html.slice(start, end)}; return lessonSteps;`)();
+    for (const title of ["Request 1 of 4: Discover", "Requête 1 sur 4 : Découvrir"]) {
+        const text = `### ${title}\n**Why:** ${"word ".repeat(190)}\n\n` +
+            "```powershell exchange\nGet-Location\n```\n\n> **Expected result** — example.\n>\n> ```text\n> result\n> ```\n\n" +
+            "**What it means for you:** a complete learning unit.\n\n**Look for:** one result.\n\n" +
+            "### Next section\nNot part of this request.";
+        const steps = split(text);
+        assert.equal(steps.length, 2);
+        assert.equal(steps[0].title, title);
+        assert.equal(steps[0].part, undefined);
+        for (const content of ["**Why:**", "Get-Location", "**Expected result**", "**What it means for you:**", "**Look for:**"]) {
+            assert.ok(steps[0].content.includes(content));
+        }
+        assert.equal(steps[1].title, "Next section");
+    }
+    const commands = [];
+    for (const suffix of ["", ".fr"]) {
+        const source = readFileSync(join(repository, "modules", "01-discover-mcp", `README${suffix}.md`), "utf8");
+        const requests = split(source).filter((step) => /^(Request|Requête) /.test(step.title));
+        assert.equal(requests.length, 4);
+        assert.ok(requests.every((step) => step.part === undefined));
+        const blocks = requests.map((step, index) => {
+            assert.match(step.title, new RegExp(`${index + 1} (?:of|sur) 4`));
+            assert.match(step.content, /\*\*(?:Why|Pourquoi)\s*:/);
+            assert.match(step.content, /\*\*(?:Predict|Anticipez)\s*:/);
+            assert.match(step.content, /\*\*(?:What it means for you|Ce que cela signifie pour vous)\s*:/);
+            assert.match(step.content, /\*\*(?:Look for|À repérer)\s*:/);
+            const match = /^```powershell exchange\r?\n([\s\S]*?)\r?\n```/m.exec(step.content);
+            assert.ok(match);
+            assert.match(match[1], new RegExp(`if \\(\\$LASTEXITCODE -ne ${index === 3 ? 5 : 0}\\) \\{ throw `));
+            assert.equal((step.content.match(/^> \*\*(?:Real result|Expected result|Résultat réel|Résultat attendu)/gm) ?? []).length, 1);
+            return match[1];
+        });
+        assert.match(blocks[0], /--method tools\/list/);
+        assert.match(blocks[1], /service=workshop-api/);
+        assert.match(blocks[2], /service=ticket-queue/);
+        assert.match(blocks[3], /service=billing/);
+        assert.match(requests[2].content, /"status": "degraded"[\s\S]*"isError": false/);
+        assert.match(requests[3].content, /"isError": true/);
+        const refusal = [...source.matchAll(/^```bash\r?\n([\s\S]*?)\r?\n```/gm)]
+            .find((match) => match[1].includes("service=billing"))?.[1];
+        assert.ok(refusal, "Bash must expose the same intentional refusal");
+        const bash = process.platform === "win32" ? "C:\\Program Files\\Git\\bin\\bash.exe" : "bash";
+        for (const exitCode of [5, 0, 1]) {
+            const result = spawnSync(bash, ["--noprofile", "--norc", "-c", `npx() { return ${exitCode}; }\n${refusal.replaceAll("\r", "")}`],
+                { encoding: "utf8", timeout: 10_000 });
+            assert.ifError(result.error);
+            assert.equal(result.status, exitCode === 5 ? 0 : 1, `${suffix || "en"}: accept only the expected tool-error code`);
+            if (exitCode !== 5) assert.match(result.stderr, /Expected Inspector exit code 5/);
+        }
+        commands.push(blocks);
+    }
+    assert.deepEqual(commands[0], commands[1], "Both languages must teach exactly the same commands");
+});
+
+test("exercise answers stay closed, label provenance and highlight evidence without changing output bytes", () => {
+    const html = readFileSync(new URL("./board.html", import.meta.url), "utf8");
+    const start = html.indexOf("function prepareExercise(");
+    const end = html.indexOf("function markChanges(", start);
+    const element = (tag, textContent = "", className) => ({
+        tag, textContent, className, children: [],
+        append(...children) { this.children.push(...children); },
+    });
+    const prepare = new Function("element", "t", "document", `${html.slice(start, end)}; return prepareExercise;`)(
+        element, (text) => `translated:${text}`, { createTextNode: (text) => element("#text", text) });
+    for (const recorded of [true, false]) {
+        const source = '"name": "get_service_health",\n"required": ["service"], "readOnlyHint": true,\n' +
+            '"service": "ticket-queue", "status": "degraded", "source": "synthetic", "isError": false';
+        const code = {
+            textContent: source,
+            replaceChildren(...nodes) { this.nodes = nodes; this.textContent = nodes.map((node) => node.textContent).join(""); },
+        };
+        let preview;
+        const answer = {
+            classList: { contains: (name) => name === "real" && recorded },
+            replaceWith(node) { preview = node; },
+            querySelectorAll(selector) { assert.equal(selector, "code"); return [code]; },
+        };
+        const labels = [{ lastChild: {} }, { lastChild: {} }];
+        const pair = {
+            querySelector(selector) { assert.equal(selector, ".result-box"); return answer; },
+            querySelectorAll(selector) { assert.equal(selector, ".exchange-label"); return labels; },
+        };
+        const paragraphs = ["What it means for you: success.", "À repérer : isError.", "Other text."].map((textContent) => ({
+            textContent, classes: [], classList: { add(name) { this.owner.classes.push(name); } },
+        }));
+        for (const paragraph of paragraphs) paragraph.classList.owner = paragraph;
+        prepare({ querySelectorAll: (selector) => selector === ".exchange" ? [pair] : paragraphs });
+        assert.equal(preview.tag, "details");
+        assert.equal(preview.open, undefined, "Opening the example is a deliberate comparison, not simulated execution");
+        assert.equal(preview.children[0].textContent, recorded ? "Show recorded answer" : "Show expected answer");
+        assert.match(preview.children[1].textContent, recorded ? /Not a result from your terminal/ : /Not a live response/);
+        assert.equal(preview.children[2], answer);
+        assert.equal(code.textContent, source, "Highlighting must not alter a single output byte");
+        assert.equal(code.nodes.filter((node) => node.tag === "mark").length, 7);
+        assert.equal(labels[0].lastChild.textContent, "translated:Run in your terminal");
+        assert.equal(labels[1].lastChild.textContent, "translated:Compare the answer");
+        assert.deepEqual(paragraphs.map((paragraph) => paragraph.classes), [["exercise-meaning"], ["exercise-observe"], []]);
+    }
+});
+
 test("guided controls show one page, preserve commands and require opening long reference blocks", () => {
     const html = readFileSync(new URL("./board.html", import.meta.url), "utf8");
     const start = html.indexOf("function lessonSteps(");

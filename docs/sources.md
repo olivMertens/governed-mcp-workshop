@@ -9,6 +9,21 @@ combination has been tested together.
 
 ## Concept and facilitator guides
 
+Guided local exercise (last verified 2026-10-20):
+[MCP tools](https://modelcontextprotocol.io/specification/2026-07-28/server/tools) distinguishes discovery,
+tool invocation, annotation hints and tool errors. [Transports](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports)
+and [architecture](https://modelcontextprotocol.io/specification/2026-07-28/architecture) explain client-launched stdio.
+The [pinned C# SDK quickstart](https://github.com/modelcontextprotocol/csharp-sdk/blob/6fa3825973949a9c4f0cd8af344e15a8db09dc35/docs/concepts/getting-started.md)
+and [Inspector guide](https://modelcontextprotocol.io/docs/tools/inspector) were reread without changing dependency pins.
+The [Inspector CLI reference](https://modelcontextprotocol.io/docs/2026-07-28/tools/inspector/cli) and a local run of
+all four requests confirm that version 2.9.0 reports a tool error with `tool_is_error` and exit code 5.
+Only the intentional refusal step accepts code 5; successful requests still require 0.
+[VS Code MCP configuration](https://code.visualstudio.com/docs/agent-customization/mcp-servers) and
+[approvals](https://code.visualstudio.com/docs/agents/run/approvals) remain separate from server authorization.
+Module 01 now teaches four explicit requests, with recorded versus expected provenance and field comparisons.
+The shared reader keeps each authored request together and reveals reference output without executing or accepting
+output in the browser. No authentication, transport, deployment or architecture change is implied.
+
 Reader repair and module 06/07 clarification (last verified 2026-10-16):
 [API Management telemetry](https://learn.microsoft.com/azure/api-management/api-management-howto-app-insights)
 documents sampling and request correlation; the shipped request query does not join `caller-oid` policy traces.
