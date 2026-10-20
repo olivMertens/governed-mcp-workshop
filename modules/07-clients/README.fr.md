@@ -47,6 +47,47 @@ Partie A seulement (facultative, facturée). Les parties B et C ne créent rien.
 
 ### Garder la même frontière d'autorisation
 
+
+
+**Construisez-le étape par étape.** Cliquez sur **Suivant** pour ajouter un élément à la fois ; le schéma complet suit.
+
+```reveal
+{
+  "title": "Un autre client, les mêmes règles",
+  "audience": "attendee",
+  "width": 760,
+  "height": 380,
+  "lanes": [
+    {"x": 8, "width": 232, "label": "Clients"},
+    {"x": 264, "width": 232, "label": "Entra et passerelle"},
+    {"x": 520, "width": 232, "label": "Serveur MCP"}
+  ],
+  "nodes": [
+    {"id":"vscode","step":0,"tone":"morning","x":30,"y":44,"width":188,"title":"VS Code + Copilot","detail":["modules 03 à 06"]},
+    {"id":"apim","step":0,"tone":"governed","x":286,"y":164,"width":188,"icon":"apim","title":"API Management","detail":["même URL","mêmes stratégies"]},
+    {"id":"fn","step":0,"x":542,"y":164,"width":188,"icon":"functions","title":"Serveur MCP","detail":["mêmes outils, rôles"]},
+    {"id":"entra","step":1,"x":286,"y":44,"width":188,"icon":"entra","title":"Microsoft Entra ID","detail":["nouvelle app cliente","préautorisée"]},
+    {"id":"foundry","step":2,"tone":"preview","x":30,"y":164,"width":188,"icon":"foundry-agent-service","title":"Agent Foundry","detail":["préversion","OAuth passthrough"]},
+    {"id":"approve","step":3,"tone":"governed","x":286,"y":284,"width":188,"title":"Approbation humaine","detail":["dans l'agent Foundry","puis contrôle du rôle"]},
+    {"id":"studio","step":4,"x":30,"y":284,"width":188,"icon":"copilot-studio","title":"Copilot Studio","detail":["présenté en résumé"]}
+  ],
+  "edges": [
+    {"from":"apim","to":"fn","step":0,"tone":"governed","label":"privé"},
+    {"from":"foundry","to":"entra","step":2,"label":"connexion"},
+    {"from":"foundry","to":"apim","step":2,"tone":"governed","label":"jeton"},
+    {"from":"approve","to":"apim","step":3,"label":"ensuite"},
+    {"from":"studio","to":"apim","step":4,"label":""}
+  ],
+  "steps": [
+    {"title": "Même serveur, même passerelle", "simple": "Rien ne change côté serveur : le nouveau client utilise la même URL de passerelle.", "say": "Les rôles d'application, la limite de débit et les journaux des modules 03 à 06 s'appliquent à tous les clients."},
+    {"title": "Inscrire le nouveau client", "simple": "Le nouveau client reçoit sa propre inscription d'application, autorisée à trois endroits.", "say": "Préautorisé sur l'API dans Entra, accepté par l'authentification intégrée de la Function, et listé dans les stratégies de la passerelle. Absent d'une liste : refusé à ce contrôle."},
+    {"title": "L'agent agit au nom de l'utilisateur (préversion)", "simple": "L'agent Foundry connecte l'utilisateur et appelle la passerelle avec le jeton de cet utilisateur.", "say": "OAuth identity passthrough est en **préversion**. L'utilisateur donne son consentement une fois ; ne partagez jamais un lien de consentement."},
+    {"title": "Une personne approuve les écritures", "simple": "Avant qu'un outil d'écriture s'exécute, une personne l'approuve. Le contrôle des rôles s'applique ensuite.", "say": "L'approbation ne donne aucun droit : le `create_ticket` approuvé de Bob reçoit toujours HTTP 403 de la passerelle."},
+    {"title": "Copilot Studio, mêmes règles", "simple": "Copilot Studio se connecterait à la même URL et rencontrerait les mêmes contrôles.", "say": "La partie B est seulement présentée en résumé. La même liste de vérification s'applique à tout client : audience du jeton, rôles, approbation, journaux."}
+  ]
+}
+```
+
 ![Les clients facultatifs utilisent les mêmes contrôles API Management et la même Function privée.](../../assets/architecture/07.fr.svg)
 
 Le client change, pas les droits exigés par le serveur.

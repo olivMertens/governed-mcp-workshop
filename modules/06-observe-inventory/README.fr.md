@@ -63,6 +63,51 @@ Ce module n'utilise pas Terraform. Il n'a pas de dossier `infra/` car il n'ajout
 
 ### Lire les trois circuits séparément
 
+
+
+
+
+**Construisez-le étape par étape.** Cliquez sur **Suivant** pour ajouter un élément à la fois ; le schéma complet suit.
+
+```reveal
+{
+  "title": "Ce que la plateforme enregistre",
+  "audience": "attendee",
+  "width": 760,
+  "height": 380,
+  "lanes": [
+    {"x": 8, "width": 232, "label": "Appels"},
+    {"x": 264, "width": 232, "label": "Télémétrie"},
+    {"x": 520, "width": 232, "label": "Inventaire"}
+  ],
+  "nodes": [
+    {"id":"apim","step":0,"x":30,"y":44,"width":188,"icon":"apim","title":"API Management","detail":["chaque appel MCP"]},
+    {"id":"fn","step":0,"x":30,"y":164,"width":188,"icon":"functions","title":"Serveur MCP","detail":["un span par outil"]},
+    {"id":"ai","step":1,"x":286,"y":44,"width":188,"icon":"insights","title":"App Insights","detail":["métadonnées seules","zéro octet de corps"]},
+    {"id":"kql","step":2,"x":286,"y":164,"width":188,"title":"Requêtes KQL","detail":["mcp-traffic.kql","tool-spans.kql"]},
+    {"id":"trace","step":3,"tone":"governed","x":286,"y":284,"width":188,"title":"Un appel, une trace","detail":["ID d'opération","passerelle → outil → 403"]},
+    {"id":"apic","step":4,"tone":"preview","x":542,"y":44,"width":188,"icon":"api-center","title":"API Center","detail":["préversion","URL passerelle seule"]},
+    {"id":"byo","step":5,"tone":"preview","x":542,"y":164,"width":188,"icon":"microsoft","title":"Microsoft 365","detail":["entrée BYO MCP","préversion"]}
+  ],
+  "edges": [
+    {"from":"apim","to":"fn","step":0,"label":"privé"},
+    {"from":"apim","to":"ai","step":1,"label":"requêtes"},
+    {"from":"fn","to":"ai","step":1,"label":"spans"},
+    {"from":"kql","to":"ai","step":2,"label":"lit"},
+    {"from":"fn","to":"trace","step":3,"tone":"governed","label":"arbre de spans"},
+    {"from":"apim","to":"apic","step":4,"tone":"preview","fromSide":"top","toSide":"top","bend":26,"label":"URL passerelle"}
+  ],
+  "steps": [
+    {"title": "Les appels passent par la passerelle", "simple": "Chaque appel MCP traverse API Management, puis atteint le serveur en privé.", "say": "Rien ne change pour le client. Ce module lit seulement ce que la plateforme enregistre déjà."},
+    {"title": "Les métadonnées vont dans Application Insights", "simple": "La passerelle journalise chaque requête, le serveur ajoute un span par appel d'outil. Ni contenu, ni jeton.", "say": "Journalisé : nom de l'outil, ID d'objet de l'appelant, statut, durée, ID de corrélation. Jamais journalisé : prompts, arguments, résultats, jetons."},
+    {"title": "Interroger avec KQL", "simple": "Deux requêtes enregistrées listent le trafic MCP et les appels d'outils des dernières 24 heures.", "say": "Lancez-les dans le portail (**Logs**) ou depuis votre terminal. Un résultat vide ne prouve ni un succès ni une absence d'activité."},
+    {"title": "Suivre un appel", "simple": "Un ID d'opération relie la passerelle, l'outil et l'appel en aval qui a refusé Bob.", "say": "Dans **Search**, collez l'ID d'opération, puis ouvrez **View timeline** : les lignes rouges montrent où l'appel s'est arrêté."},
+    {"title": "Inscrire la passerelle (préversion)", "simple": "API Center référence le serveur avec l'URL de la passerelle, jamais l'adresse du backend.", "say": "L'inventaire API Center est en **préversion**. L'inscription n'autorise rien : c'est toujours la passerelle qui décide."},
+    {"title": "Le déclarer dans Microsoft 365 (préversion)", "simple": "Un administrateur peut déclarer la même URL de passerelle dans le centre d'administration Microsoft 365.", "say": "L'entrée BYO MCP est en **préversion** et relève d'un administrateur du tenant, jamais d'un participant."}
+  ]
+}
+```
+
 ![Les appels passent par API Management ; les métadonnées vont dans Application Insights ; API Center inventorie seulement la passerelle.](../../assets/architecture/06.fr.svg)
 
 > [!NOTE]

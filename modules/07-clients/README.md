@@ -46,6 +46,49 @@ Part A only (optional, billed). Part B and part C create nothing.
 
 ### Keep the same authorization boundary
 
+
+
+
+
+**Build it step by step.** Select **Next** to add one piece at a time; the full diagram follows.
+
+```reveal
+{
+  "title": "Another client, the same rules",
+  "audience": "attendee",
+  "width": 760,
+  "height": 380,
+  "lanes": [
+    {"x": 8, "width": 232, "label": "Clients"},
+    {"x": 264, "width": 232, "label": "Entra and gateway"},
+    {"x": 520, "width": 232, "label": "MCP server"}
+  ],
+  "nodes": [
+    {"id":"vscode","step":0,"tone":"morning","x":30,"y":44,"width":188,"title":"VS Code + Copilot","detail":["modules 03 to 06"]},
+    {"id":"apim","step":0,"tone":"governed","x":286,"y":164,"width":188,"icon":"apim","title":"API Management","detail":["same URL","same policies"]},
+    {"id":"fn","step":0,"x":542,"y":164,"width":188,"icon":"functions","title":"MCP server","detail":["same tools, roles"]},
+    {"id":"entra","step":1,"x":286,"y":44,"width":188,"icon":"entra","title":"Microsoft Entra ID","detail":["new client app","pre-authorized"]},
+    {"id":"foundry","step":2,"tone":"preview","x":30,"y":164,"width":188,"icon":"foundry-agent-service","title":"Foundry agent","detail":["Preview","OAuth passthrough"]},
+    {"id":"approve","step":3,"tone":"governed","x":286,"y":284,"width":188,"title":"Human approval","detail":["in the Foundry agent","then the role check"]},
+    {"id":"studio","step":4,"x":30,"y":284,"width":188,"icon":"copilot-studio","title":"Copilot Studio","detail":["outline only"]}
+  ],
+  "edges": [
+    {"from":"apim","to":"fn","step":0,"tone":"governed","label":"private"},
+    {"from":"foundry","to":"entra","step":2,"label":"sign-in"},
+    {"from":"foundry","to":"apim","step":2,"tone":"governed","label":"token"},
+    {"from":"approve","to":"apim","step":3,"label":"then"},
+    {"from":"studio","to":"apim","step":4,"label":""}
+  ],
+  "steps": [
+    {"title": "Same server, same gateway", "simple": "Nothing changes on the server side: the new client uses the same gateway URL.", "say": "The app roles, the rate limit and the logs from modules 03 to 06 apply to every client."},
+    {"title": "Register the new client", "simple": "The new client gets its own app registration, allowed in three places.", "say": "Pre-authorized on the API in Entra, allowed by the Function's built-in authentication, and listed in the gateway policies. Missing from one list: refused at that gate."},
+    {"title": "The agent acts as the user (Preview)", "simple": "The Foundry agent signs the user in and calls the gateway with that user's token.", "say": "OAuth identity passthrough is **Preview**. The user consents once; never share a consent link."},
+    {"title": "A person approves writes", "simple": "Before a write tool runs, a person approves it. The role check still applies after that.", "say": "Approval grants no rights: Bob's approved `create_ticket` still gets HTTP 403 from the gateway."},
+    {"title": "Copilot Studio, same rules", "simple": "Copilot Studio would connect to the same URL and meet the same controls.", "say": "Part B is an outline only. The same checklist applies to every client: token audience, app roles, approval, logs."}
+  ]
+}
+```
+
 ![Optional clients use the same API Management authorization boundary and private Function.](../../assets/architecture/07.en.svg)
 
 The product changes; the server's authorization does not.
