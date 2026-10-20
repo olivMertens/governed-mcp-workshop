@@ -378,11 +378,13 @@ Remove-Item Env:\AZURE_CONFIG_DIR
 > **What it means for you:** the trust is in place with no secret: one federated credential, two separate identities, and
 > reader roles on the one container for the app-only identity and Alice only. File counts depend on your copy.
 
-> **Expected result** — persona validator messages; not captured: the test tenant requires MFA registration for the test accounts (excerpt).
+> **Real result** — persona checks, 2026-10-20, author's test tenant, Alice and Bob each signed in to their own
+> Azure CLI profile. Names and IDs withheld (excerpt).
 >
 > ```text
 > PASS Alice whoami: On-Behalf-Of to Microsoft Graph returns the synthetic persona 'alice' and no name or email (expected HTTP 200).
 > PASS Alice read_report_as_user returns the synthetic report with her own Storage role (expected HTTP 200, isError false).
+> PASS Bob whoami: On-Behalf-Of to Microsoft Graph returns the synthetic persona 'bob' and no name or email (expected HTTP 200).
 > PASS Bob read_report_as_user: the MCP call succeeds but the tool result is an error, because Storage refuses Bob downstream (expected HTTP 200, isError true, downstream HTTP 403).
 > PASS read_report_as_app returned the same result for Alice and Bob: the managed identity, not the caller, carries the rights (expected HTTP 200).
 > ```
@@ -391,6 +393,8 @@ Remove-Item Env:\AZURE_CONFIG_DIR
 > decide. With the app identity, everyone gets the same answer: the **application's** permissions decide.
 > Bob's "error inside HTTP 200" is not a bug: the gateway let him call the tool, Storage refused **him**.
 > Choose per tool which behavior you want ([OBO explained simply](../../docs/MCP-CONCEPTS.md)).
+
+![Real terminal output: module 05 persona check signed in as Bob; frame 1 marks whoami through On-Behalf-Of, frame 2 the Storage refusal inside HTTP 200, frame 3 the identical app-only result](../../assets/screenshots/terminal-05-bob.png)
 
 ### Bash
 

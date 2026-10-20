@@ -2,8 +2,8 @@
 
 [Français](fr/facilitator-guide.md)
 
-This guide supports a 4-hour core workshop. Modules 00, 02, 03 and 04 are validated live. Modules 05 and 06 passed their live
-operator checks in a test tenant but stay authored until the Alice, Bob and Eve persona checks pass.
+This guide supports a 4-hour core workshop. Modules 00 and 02 to 06 are validated live, with the Alice, Bob and Eve
+persona checks.
 Modules 01, 07 and 99 are authored (offline checks pass). Timings describe the planned delivery and must not be presented
 as validation evidence.
 

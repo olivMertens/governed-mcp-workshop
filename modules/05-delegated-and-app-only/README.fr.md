@@ -390,11 +390,13 @@ Remove-Item Env:\AZURE_CONFIG_DIR
 > fédérée, deux identités distinctes, et des rôles de lecteur sur l'unique conteneur pour l'identité applicative et pour
 > Alice seulement. Le nombre de fichiers dépend de votre copie.
 
-> **Résultat attendu** — messages du validateur par persona ; non capturé : le tenant de test exige l'enregistrement MFA des comptes de test (extrait).
+> **Résultat réel** — vérifications par persona, 2026-10-20, tenant de test de l'auteur ; Alice et Bob sont chacun
+> connectés dans leur propre profil Azure CLI. Noms et ID masqués (extrait).
 >
 > ```text
 > PASS Alice whoami: On-Behalf-Of to Microsoft Graph returns the synthetic persona 'alice' and no name or email (expected HTTP 200).
 > PASS Alice read_report_as_user returns the synthetic report with her own Storage role (expected HTTP 200, isError false).
+> PASS Bob whoami: On-Behalf-Of to Microsoft Graph returns the synthetic persona 'bob' and no name or email (expected HTTP 200).
 > PASS Bob read_report_as_user: the MCP call succeeds but the tool result is an error, because Storage refuses Bob downstream (expected HTTP 200, isError true, downstream HTTP 403).
 > PASS read_report_as_app returned the same result for Alice and Bob: the managed identity, not the caller, carries the rights (expected HTTP 200).
 > ```
@@ -404,6 +406,8 @@ Remove-Item Env:\AZURE_CONFIG_DIR
 > ce sont les droits **de l'application** qui décident. L'« erreur dans un HTTP 200 » de Bob n'est pas un bug : la
 > passerelle l'a laissé appeler l'outil, c'est Storage qui **le** refuse. Choisissez par outil le comportement voulu
 > ([OBO expliqué simplement](../../docs/fr/MCP-CONCEPTS.md)).
+
+![Sortie réelle du terminal : vérification par persona du module 05, connexion en tant que Bob ; le cadre 1 marque whoami par On-Behalf-Of, le cadre 2 le refus de Storage dans une réponse HTTP 200, le cadre 3 le résultat applicatif identique](../../assets/screenshots/terminal-05-bob.png)
 
 ### Bash
 
