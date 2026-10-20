@@ -55,8 +55,12 @@ public sealed class ManagedIdentityDownstreamCredentials : IDownstreamCredential
 
     public TokenCredential ForApp() => appIdentity.Value;
 
-    private async Task<string> GetAssertionAsync(CancellationToken cancellationToken) =>
-        (await assertionIdentity.Value.GetTokenAsync(new TokenRequestContext([TokenExchangeScope]), cancellationToken).ConfigureAwait(false)).Token;
+    private async Task<string> GetAssertionAsync(CancellationToken cancellationToken)
+    {
+        // Span name only: the assertion itself is a token and is never recorded.
+        using var step = ToolTelemetry.StartStep("Managed identity assertion (no secret)", "OBO assertion managed identity");
+        return (await assertionIdentity.Value.GetTokenAsync(new TokenRequestContext([TokenExchangeScope]), cancellationToken).ConfigureAwait(false)).Token;
+    }
 
     private string Require(string value) =>
         settings.Enabled && settings.ConfigurationError is null && !string.IsNullOrEmpty(value)

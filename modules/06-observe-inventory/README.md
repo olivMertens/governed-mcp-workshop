@@ -40,6 +40,7 @@ This module deploys **no new Azure resources**. It reuses the API Management ins
 | Item | Type | Where | Status |
 |---|---|---|---|
 | MCP traffic query | KQL file (`queries/mcp-traffic.kql`) | This module folder | Stable |
+| Tool-call spans and their query | OpenTelemetry in the server code, KQL file (`queries/tool-spans.kql`) | Published with the server in module 02; this module folder | Stable (MCP conventions: Development) |
 | API Center MCP server registration | Asset in an API center | Azure portal (manual steps) | **Preview** |
 | BYO MCP server listing | Entry in the Microsoft 365 admin center | Microsoft 365 admin center | **Preview** |
 | Agent 365 with API Management (demo only) | Optional talk track, see "Go further" | Not built by participants | **Preview** |
@@ -74,8 +75,8 @@ Kusto Query Language (KQL) queries read stored telemetry, not the agent's reason
 |---|---|---|
 | Time, operation, HTTP status, latency | Selected by the supplied query | Ingestion delay, sampling and the 200-row limit mean this is not a complete audit |
 | Tool name and error type | Selected when emitted by MCP diagnostics | A missing field does not mean no tool ran |
-| Caller object ID and correlation | Module 04 policy emits `caller-oid` in `workshop-mcp-gateway` traces; request telemetry has correlation | The supplied request query does not select caller identity or join traces; verify these separately |
-| Downstream refusal | Inspect the MCP result in the client | HTTP 200 can contain `isError: true`; HTTP success is not tool success |
+| Caller object ID and correlation | Module 04 policy emits `caller-oid` in `workshop-mcp-gateway` traces; the tool span records `workshop.caller`; one operation ID links gateway, Function and downstream calls (Step 3b) | The traffic query does not select caller identity; use the span query |
+| Downstream refusal | The tool span (`error.type = tool_error`) and the refused downstream call (Step 3b) | HTTP 200 can contain `isError: true`; HTTP success is not tool success |
 | Human approval, prompt, arguments, result | Not collected here | Do not claim the gateway proves approval or records the conversation |
 
 App-only downstream logs identify the application, not Alice or Bob.
@@ -326,6 +327,104 @@ and AI-generated content may be incorrect. Use the agent to explore and to draft
 
 </details>
 
+### Step 3b - Follow one tool call from end to end (OpenTelemetry)
+
+Step 3 counts calls. This step follows **one** call through every link of the chain: gateway, Function, tool, then the
+services the tool calls. Nothing to deploy: the server you published in module 02 already sends one OpenTelemetry span
+per tool call and one per downstream step to this Application Insights component, signed in with its managed identity.
+
+> [!NOTE]
+> The OpenTelemetry semantic conventions for MCP are in **Development** status: attribute names can still change.
+
+Bob calls `read_report_as_user`. This is what the trace shows (real durations, 2026-10-20):
+
+```text
+API Management  POST /workshop-mcp/mcp            369 ms  HTTP 200
+└ Function      ReadReportAsUser                  358 ms  failed
+  └ tool        tools/call read_report_as_user    324 ms  tool_error
+    └ step      Azure Storage read report         323 ms  failed
+      ├ step    Managed identity assertion          0 ms  ok
+      ├ HTTP    login.microsoftonline.com (OBO)   306 ms  200
+      └ HTTP    Azure blob <account>/reports        5 ms  403
+```
+
+Read it top down: the gateway sees a success (HTTP 200). The OBO exchange with Entra works. Storage refuses Bob (403).
+
+| A span records (metadata) | A span never records |
+|---|---|
+| Tool and method: `gen_ai.tool.name`, `mcp.method.name` | Tool arguments and results: the conventions mark them **Opt-In**; this server leaves them off |
+| Caller object ID (`workshop.caller`), outcome, `error.type = tool_error` | Tokens, including the On-Behalf-Of assertion |
+| Duration and status of each downstream call: host, path, HTTP status | Prompts, request and response bodies, query strings |
+
+**In the Azure portal:**
+
+1. Open your Application Insights resource `appi-mcp-<prefix>-<suffix>`, then **Investigate** → **Search**.
+2. In the search box, paste an operation ID from the query below (or type `read_report_as_user`), then press Enter.
+3. Select the trace row: **End-to-end transaction details** opens. Select **View timeline**.
+4. Select the `read_report_as_user` row: its attributes are under **Custom Properties**.
+
+**Or from your terminal.** The query lists the latest tool calls, with the operation ID to paste in step 2.
+
+PowerShell:
+
+```powershell
+$ai = (terraform -chdir=infra/workload output -json resource_names | ConvertFrom-Json).application_insights
+$group = terraform -chdir=infra/workload output -raw resource_group_name
+az monitor app-insights query --app $ai --resource-group $group --offset 24h `
+  --analytics-query '@modules/06-observe-inventory/queries/tool-spans.kql' --query 'tables[0].rows' -o json
+```
+
+> **Real result** — module 05 persona checks, 2026-10-20, author's test tenant. Columns: timestamp, tool, outcome,
+> success, duration (ms), caller, operation ID. Object IDs replaced.
+>
+> ```text
+> [ "2026-10-20T12:41:49.8297728Z", "read_report_as_app", "success", "True", 9.2244, "<bob-object-id>", "e87b9b4eb127eb41143869942a1ce275" ]
+> [ "2026-10-20T12:41:48.6026728Z", "read_report_as_user", "denied-downstream:403", "False", 323.6665, "<bob-object-id>", "08beb1cec8d288bfb679974b4222bcc1" ]
+> [ "2026-10-20T12:41:47.7550955Z", "whoami", "success", "True", 533.3178, "<bob-object-id>", "dc377674e8f2d0ce17bdbdfaed876754" ]
+> [ "2026-10-20T12:41:37.1243308Z", "read_report_as_app", "success", "True", 252.9528, "<alice-object-id>", "fac868e66169055f59c7860e473ea7e1" ]
+> [ "2026-10-20T12:41:36.4007953Z", "read_report_as_user", "success", "True", 350.2882, "<alice-object-id>", "e4953ce2d99878c9594c99d9d3d548e1" ]
+> [ "2026-10-20T12:41:34.3688446Z", "whoami", "success", "True", 1563.1348, "<alice-object-id>", "4227ea095c3caeca474221ab324ec16f" ]
+> ```
+>
+> **What it means for you:** the same tool, two outcomes. Alice's `read_report_as_user` succeeds; Bob's ends with
+> `denied-downstream:403`. Each row carries its operation ID: paste Bob's in the portal to see where the call stopped.
+
+bash:
+
+```bash
+ai=$(terraform -chdir=infra/workload output -json resource_names | jq -r .application_insights); group=$(terraform -chdir=infra/workload output -raw resource_group_name)
+az monitor app-insights query --app "$ai" --resource-group "$group" --offset 24h \
+  --analytics-query '@modules/06-observe-inventory/queries/tool-spans.kql' --query 'tables[0].rows' -o json
+```
+
+> **Expected result** — the same rows as the PowerShell run above.
+
+Bob's trace, in **View timeline** (real capture, 2026-10-20; names pseudonymised). Box 1: the gateway answers HTTP 200,
+in blue. Box 2: the tool span, in red. Box 3: the Storage call that refused Bob (HTTP 403).
+
+![Real capture: end-to-end transaction timeline of Bob's read_report_as_user call; the gateway row is blue, the tool span and the Storage call are red](../../assets/screenshots/azure-06-trace-waterfall.png)
+
+The attributes of the tool span (box 2). Nothing else is recorded: no argument, no result, no token.
+
+![Real capture: Custom Properties of the read_report_as_user span: mcp.method.name, gen_ai.operation.name, gen_ai.tool.name, workshop.caller, workshop.outcome and error.type](../../assets/screenshots/azure-06-trace-span-attributes.png)
+
+**Question:** the gateway logged HTTP 200 for Bob's call. Where does the trace show that it failed, and why?
+
+<details>
+<summary>Show answer</summary>
+
+In the red rows. The tool span carries `error.type = tool_error`, and the last step is the Storage call refused with
+HTTP 403. The step before it, the On-Behalf-Of exchange with Microsoft Entra, succeeded: Bob's token was valid. What he
+lacks is a Storage role on the report container. MCP returns tool errors inside HTTP 200, so only the trace shows where
+the call stopped.
+
+</details>
+
+> [!TIP]
+> **Building your own MCP server?** Keep the same habits: one span per tool call named `tools/call <tool>`, W3C trace
+> context passed from the gateway, metadata only (leave the Opt-In arguments and results off), and export with a managed
+> identity rather than a key.
+
 ### Step 4 - Register the MCP server in API Center (Preview)
 
 API Center inventory is in **Preview**.
@@ -403,6 +502,7 @@ Check: the listing shows the server name and an approval state. An approval stat
 
 - With ingested MCP traffic, the KQL query returns available rows with `api.type` equal to `Mcp`, `pass-through-mcp` or `mcp-backend`, for `initialize`, `tools/list` and `tools/call`. It is not an exhaustive audit.
 - Columns contain tool names and status codes, and no request body, response body, token, prompt or tool argument.
+- One tool call is one trace: the timeline shows the gateway, the Function, the `tools/call` span and each downstream call.
 - The API Center asset exists, with a remote URL and an environment.
 - The offline validator prints one `PASS` line per check and exits with code 0.
 
@@ -468,6 +568,7 @@ payload logging on, and it would suggest doing so. Testing the query keeps the "
 | The KQL query returns no rows | Traffic is older than the time window, or diagnostics are not enabled on the APIM API | Widen both `--offset` and the `ago(24h)` filter in `queries/mcp-traffic.kql`, then confirm the APIM diagnostic setting for the MCP API. |
 | Rows exist but `tool.name` is empty | Only `tools/list` was called, or the MCP operation was not classified | Call a tool once from the client, then rerun. |
 | Payload fields appear in the logs | Payload logging was turned on | Turn it off in APIM, remove the affected rows according to your retention policy, and report it as a finding. |
+| The span query returns no `tools/call` rows | No tool was called yet, or your server was published before the spans were added | Call a tool, wait 2 to 5 minutes, rerun. Otherwise publish the server again ([module 02, step 5](../02-open-server/README.md#steps)); after module 04 stage 2, publish before locking (see module 04). |
 | API Center asset cannot be created | The role is missing, or the environment does not exist | Confirm the role in RBAC and create the environment first. |
 | BYO listing is missing | Preview feature not enabled, or the administrator has not approved it | Ask the tenant IT administrator. Do not request the role yourself. |
 
@@ -541,5 +642,8 @@ Official Microsoft Learn pages used for this module are recorded with last-verif
 - [Bring your own MCP server](https://learn.microsoft.com/microsoft-365/admin/manage/manage-byo-mcp-server) (Preview).
 - [Agent 365 with API Management](https://learn.microsoft.com/azure/api-management/agent-365) (Preview; optional talk track, not revalidated here).
 - [Azure Copilot Observability Agent](https://learn.microsoft.com/azure/azure-monitor/aiops/observability-agent-overview) and [chat with your observability data](https://learn.microsoft.com/azure/azure-monitor/aiops/observability-agent-chat): optional step. Autonomous operations and the agent resource are Preview and not used here. Last verified: 2026-10-19.
+- [Use OpenTelemetry with Azure Functions](https://learn.microsoft.com/azure/azure-functions/opentelemetry-howto): worker packages and `UseFunctionsWorkerDefaults`; this server exports traces only, with its managed identity. Last verified: 2026-10-20.
+- [OpenTelemetry semantic conventions for MCP](https://github.com/open-telemetry/semantic-conventions-genai/blob/547934afa90a34298441caf80c43b27255c3a292/docs/gen-ai/mcp.md) (status: Development, pinned commit): span name `{mcp.method.name} {target}`, `error.type = tool_error` when `isError` is true, arguments and results Opt-In. Last verified: 2026-10-20.
+- [End-to-end transaction diagnostics](https://learn.microsoft.com/azure/azure-monitor/app/transaction-search-and-diagnostics): Search and the transaction timeline. Last verified: 2026-10-20.
 
-Last verified: 2026-10-19.
+Last verified: 2026-10-20.
