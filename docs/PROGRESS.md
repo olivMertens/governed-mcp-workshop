@@ -91,6 +91,29 @@ script, so bash output is identical). PASS/FAIL/INFO texts are unchanged. Real A
 published with pink frames on what to check; names are pseudonymised and IDs zeroed before capture. Terminal captures
 render the real, masked validator output in a terminal-style frame.
 
+## Session 2 presenter walk-through (2026-10-20)
+
+`docs/INTEGRATION-OPTIONS.md` (EN/FR) opens with a new step, "From this morning to the front door": an animated
+architecture that the presenter builds in 8 fragments (local stdio server, Functions open level, API Management part A,
+part B REST-as-MCP **Preview**, Alice's call, 401 without a token, other clients, API Center and Foundry catalog **Preview**).
+Each fragment shows the talk track, what to show, and the exact command or real output from modules 01, 02 and 04.
+The board renders a ` ```reveal ` JSON block as an inline SVG with reveal.js-style fragments (fade, draw, highlight,
+strike), buttons, dots and arrow keys; no reveal.js library, CDN, new dependency or execution path (CSP unchanged).
+It honours reduced motion, both themes and print. Later sections are renumbered 2 to 7; no inbound link used the numbers.
+
+Offline checks: board, static-site and portal suites 46/46 PASS, including two new tests (malformed specs and unknown
+icons are refused; EN/FR layouts match; every command line shown exists verbatim in a module guide).
+`terraform fmt -check`, `validate` (entra, workload) and mocked `terraform test` PASS (workload 53/53, entra 15/15);
+`validate.ps1 -Offline` and `validate-rest-mcp.ps1 -Offline` PASS. Diagram names, tools, paths, `2025-09-01-preview`
+and `subscriptionRequired = false` match `rest-mcp.tf`, `gateway.tf` and the policies.
+Read-only `terraform plan` 2026-10-20 against the author's test subscription after the full clean-up (participant and
+module 02, 03, 04, 04b var files): `48 to add, 1 to change, 0 to destroy`; part B renders its 10 documented resources;
+the one change is the known portal `app_settings` hint refresh. No apply; the plan file was deleted. Nothing deployed.
+Browser checks: EN/FR, dark/light, all 8 fragments by keyboard and buttons, no console error. No module status changes.
+
+Imported presentation skills (`reveal-slide-builder`, `build-presentation`; `architecture-diagram-author` unchanged) are
+pinned in `.github/skills/UPSTREAM.md` with their MIT notice.
+
 ## Open decisions
 
 - Network (module 04): implemented as recommended (Standard v2 outbound virtual network integration, Function private

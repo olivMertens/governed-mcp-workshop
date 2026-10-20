@@ -897,3 +897,48 @@ test("editable architecture, SVGs and PNG source provenance remain synchronized"
     assert.equal(result.stdout.match(/^PASS \d{2}\.(en|fr):/gm)?.length, 18);
     assert.equal(result.stdout.match(/^PASS STEPS(?:\.fr)?\.md:/gm)?.length, 2);
 });
+
+test("reveal diagrams validate their JSON before touching the page", () => {
+    const html = readFileSync(new URL("./board.html", import.meta.url), "utf8");
+    const start = html.indexOf("function revealDiagram(");
+    const end = html.indexOf("function disclosure(", start);
+    const render = new Function(`${html.slice(start, end)}; return revealDiagram;`)();
+    const step = { title: "One" };
+    const node = (extra = {}) => ({ id: "a", step: 0, x: 0, y: 0, title: "A", ...extra });
+    assert.throws(() => render("{ not json", "docs/X.md"), /valid JSON/);
+    assert.throws(() => render(JSON.stringify({ steps: [] }), "docs/X.md"), /at least one step/);
+    assert.throws(() => render(JSON.stringify({ steps: [step], nodes: [node(), node()] }), "docs/X.md"), /unique ids/);
+    assert.throws(() => render(JSON.stringify({ steps: [step], nodes: [node({ icon: "../../secret" })] }), "docs/X.md"), /published workshop icons/);
+    assert.throws(() => render(JSON.stringify({ steps: [step], nodes: [node({ step: 1 })] }), "docs/X.md"), /valid step/);
+    assert.throws(() => render(JSON.stringify({ steps: [step], nodes: [node()], edges: [{ from: "a", to: "b", step: 0 }] }), "docs/X.md"), /known nodes/);
+});
+
+test("the Session 2 reveal diagram matches in both languages and only shows commands from the module guides", () => {
+    const block = (file) => {
+        const text = readFileSync(join(repository, ...file.split("/")), "utf8").replaceAll("\r\n", "\n");
+        const blocks = [...text.matchAll(/^```reveal\n([\s\S]*?)\n```$/gm)];
+        assert.equal(blocks.length, 1, `${file} needs exactly one reveal block`);
+        return JSON.parse(blocks[0][1]);
+    };
+    const en = block("docs/INTEGRATION-OPTIONS.md");
+    const fr = block("docs/fr/INTEGRATION-OPTIONS.md");
+    const shape = (spec) => ({
+        size: [spec.width, spec.height, spec.lanes.map((lane) => [lane.x, lane.width])],
+        nodes: spec.nodes.map(({ id, step, until, tone, x, y, width, icon, detail }) => [id, step, until, tone, x, y, width, icon, detail?.length]),
+        edges: spec.edges.map(({ from, to, step, until, tone, fromSide, toSide }) => [from, to, step, until, tone, fromSide, toSide]),
+        steps: spec.steps.map((step) => (step.blocks || []).map((item) => [item.language, item.output === true,
+            item.language === "prompt" ? "" : item.code])),
+    });
+    assert.deepEqual(shape(fr), shape(en));
+    const guides = ["01-discover-mcp", "02-open-server", "04-governed-gateway"]
+        .map((folder) => readFileSync(join(repository, "modules", folder, "README.md"), "utf8")).join("\n");
+    const session = readFileSync(join(repository, "docs", "INTEGRATION-OPTIONS.md"), "utf8");
+    for (const step of en.steps) {
+        for (const item of step.blocks || []) {
+            for (const line of item.code.split("\n").map((value) => value.trim()).filter((value) => value.length > 2)) {
+                assert.ok(guides.includes(line) || session.includes(line), `"${line}" must come from a module guide`);
+            }
+        }
+    }
+    assert.ok(en.steps.some((step) => /\*\*Preview\*\*/.test(step.say)), "Preview features stay labelled");
+});
