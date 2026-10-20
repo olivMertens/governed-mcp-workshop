@@ -1,0 +1,14 @@
+// Module 06 - OpenTelemetry spans of MCP tool calls (synthetic, metadata only).
+// The Function exports one span per tool call ('tools/call <tool>') and one per downstream step.
+// Application Insights stores them in the dependencies table. Never select bodies, tool arguments,
+// tool results, tokens or prompts: the server never records them, and this query never asks for them.
+dependencies
+| where timestamp > ago(24h)
+| where name startswith 'tools/call'
+| extend
+    tool    = tostring(customDimensions['gen_ai.tool.name']),
+    outcome = tostring(customDimensions['workshop.outcome']),
+    caller  = tostring(customDimensions['workshop.caller'])
+| project timestamp, tool, outcome, success, duration, caller, operation_Id
+| order by timestamp desc
+| take 50

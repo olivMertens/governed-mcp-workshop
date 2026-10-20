@@ -112,6 +112,20 @@ Check 'KQL filters on api.type Mcp, pass-through-mcp and mcp-backend' {
         ($kql -match '[''"]pass-through-mcp[''"]') -and ($kql -match '[''"]mcp-backend[''"]')
 } 'KQL does not filter on api.type Mcp, pass-through-mcp and mcp-backend'
 
+# 6b. OpenTelemetry spans: the span query and the server code stay metadata only.
+$spanKqlPath = Join-Path $moduleDir 'queries/tool-spans.kql'
+$spanKql = if (Test-Path $spanKqlPath) { Get-Content -Raw $spanKqlPath } else { '' }
+Check 'span KQL reads tools/call spans and no body, argument, result or token field' {
+    ($spanKql -match "name startswith 'tools/call'") -and
+        -not ($forbiddenKql | Where-Object { $spanKql.IndexOf($_, [StringComparison]::OrdinalIgnoreCase) -ge 0 })
+} 'queries/tool-spans.kql is missing or references a forbidden field'
+$telemetryPath = Join-Path $root 'src/FunctionsMcpServer/Logic/ToolTelemetry.cs'
+Check 'server spans never set the Opt-In arguments or result attributes' {
+    $code = if (Test-Path $telemetryPath) { Get-Content -Raw $telemetryPath } else { '' }
+    ($code -match '"gen_ai\.tool\.name"') -and ($code -notmatch 'SetTag\("gen_ai\.tool\.call\.(arguments|result)"') -and
+        ($code -notmatch 'AddException|RecordException')
+} 'ToolTelemetry.cs is missing or records arguments, results or exceptions'
+
 # 7. Payload logging is never enabled as an instruction.
 Check 'README does not instruct enabling payload logging' {
     -not ($readme -match '(?i)(turn on|enable|set)[^\n]{0,60}(payload logging|gen_ai\.tool\.call\.(arguments|result))' -and

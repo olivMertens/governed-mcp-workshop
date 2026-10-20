@@ -42,6 +42,7 @@ Ce module ne déploie **aucune nouvelle ressource Azure**. Il réutilise l'insta
 | Élément | Type | Emplacement | Statut |
 |---|---|---|---|
 | Requête KQL du trafic MCP | Fichier KQL (`queries/mcp-traffic.kql`) | Dossier de ce module | Stable |
+| Spans des appels d'outils et leur requête | OpenTelemetry dans le code du serveur, fichier KQL (`queries/tool-spans.kql`) | Publiés avec le serveur au module 02 ; dossier de ce module | Stable (conventions MCP : Development) |
 | Enregistrement du serveur MCP dans API Center | Asset d'un centre API | Portail Azure (étapes manuelles) | **Préversion** |
 | Entrée de serveur MCP BYO | Entrée dans le centre d'administration Microsoft 365 | Centre d'administration Microsoft 365 | **Préversion** |
 | Agent 365 avec API Management (démo uniquement) | Argumentaire facultatif, voir « Aller plus loin » | Non mis en place par les participants | **Préversion** |
@@ -76,8 +77,8 @@ Kusto Query Language (KQL) est le langage de requête des journaux. Il lit les t
 |---|---|---|
 | Heure, opération, statut HTTP, durée | Sélectionnés par la requête fournie | Délai d'ingestion, échantillonnage et limite de 200 lignes : ce n'est pas un audit exhaustif |
 | Nom de l'outil et type d'erreur | Sélectionnés si les diagnostics MCP les émettent | Un champ vide ne signifie pas qu'aucun outil n'a été exécuté |
-| ID d'objet de l'appelant et corrélation | La stratégie du module 04 émet `caller-oid` dans les traces `workshop-mcp-gateway` ; la télémétrie des requêtes porte un ID de corrélation | La requête fournie ne sélectionne pas l'identité de l'appelant et ne joint pas les traces : vérifiez-les séparément |
-| Refus du service en aval | Résultat MCP à examiner dans le client | HTTP 200 peut contenir `isError: true` ; un succès HTTP n'est pas un succès de l'outil |
+| ID d'objet de l'appelant et corrélation | La stratégie du module 04 émet `caller-oid` dans les traces `workshop-mcp-gateway` ; le span de l'outil enregistre `workshop.caller` ; un même ID d'opération relie la passerelle, la Function et les appels en aval (étape 3b) | La requête du trafic ne sélectionne pas l'appelant : utilisez la requête des spans |
+| Refus du service en aval | Le span de l'outil (`error.type = tool_error`) et l'appel en aval refusé (étape 3b) | HTTP 200 peut contenir `isError: true` ; un succès HTTP n'est pas un succès de l'outil |
 | Confirmation humaine, prompt, arguments, résultat | Non collectés ici | La passerelle ne prouve pas la confirmation et ne conserve pas la conversation |
 
 En accès applicatif (app-only), les journaux en aval identifient l'application, pas Alice ou Bob.
@@ -332,6 +333,109 @@ comme référence.
 
 </details>
 
+### Étape 3b - Suivre un appel d'outil de bout en bout (OpenTelemetry)
+
+L'étape 3 compte les appels. Ici, vous suivez **un seul** appel, maillon par maillon : la passerelle, la Function,
+l'outil, puis les services que l'outil appelle. Rien à déployer : le serveur publié au module 02 envoie déjà à ce
+composant Application Insights un span OpenTelemetry par appel d'outil, plus un par étape en aval. Il s'authentifie avec
+son identité managée, sans clé.
+
+> [!NOTE]
+> Les conventions sémantiques OpenTelemetry pour MCP sont encore au statut **Development** : les noms d'attributs
+> peuvent changer.
+
+Bob appelle `read_report_as_user`. Voici ce que montre la trace (durées réelles, 2026-10-20) :
+
+```text
+API Management  POST /workshop-mcp/mcp            369 ms  HTTP 200
+└ Function      ReadReportAsUser                  358 ms  échec
+  └ outil       tools/call read_report_as_user    324 ms  tool_error
+    └ étape     Azure Storage read report         323 ms  échec
+      ├ étape   Managed identity assertion          0 ms  ok
+      ├ HTTP    login.microsoftonline.com (OBO)   306 ms  200
+      └ HTTP    Azure blob <compte>/reports         5 ms  403
+```
+
+À lire de haut en bas : pour la passerelle, tout va bien (HTTP 200). L'échange OBO avec Entra réussit. C'est Storage
+qui refuse Bob (403).
+
+| Ce qu'un span enregistre (métadonnées) | Ce qu'un span n'enregistre jamais |
+|---|---|
+| L'outil et la méthode : `gen_ai.tool.name`, `mcp.method.name` | Les arguments et les résultats de l'outil : les conventions les classent en **Opt-In**, ce serveur ne les active pas |
+| L'ID d'objet de l'appelant (`workshop.caller`), l'issue de l'appel, `error.type = tool_error` | Les jetons, y compris l'assertion On-Behalf-Of |
+| La durée et le statut de chaque appel en aval : hôte, chemin, statut HTTP | Les prompts, les corps de requête et de réponse, les paramètres d'URL |
+
+**Dans le portail Azure** (portail en anglais) :
+
+1. Ouvrez votre ressource Application Insights `appi-mcp-<prefix>-<suffix>`, puis **Investigate** → **Search**.
+2. Dans la zone de recherche, collez un ID d'opération donné par la requête ci-dessous (ou tapez `read_report_as_user`),
+   puis appuyez sur Entrée.
+3. Cliquez sur la ligne de la trace : la page **End-to-end transaction details** s'ouvre. Cliquez sur **View timeline**.
+4. Cliquez sur la ligne `read_report_as_user` : ses attributs sont sous **Custom Properties**.
+
+**Ou depuis votre terminal.** La requête liste les derniers appels d'outils, avec l'ID d'opération à coller à l'étape 2.
+
+PowerShell :
+
+```powershell
+$ai = (terraform -chdir=infra/workload output -json resource_names | ConvertFrom-Json).application_insights
+$group = terraform -chdir=infra/workload output -raw resource_group_name
+az monitor app-insights query --app $ai --resource-group $group --offset 24h `
+  --analytics-query '@modules/06-observe-inventory/queries/tool-spans.kql' --query 'tables[0].rows' -o json
+```
+
+> **Résultat réel** — vérifications des personas du module 05, 2026-10-20, tenant de test de l'auteur. Colonnes :
+> horodatage, outil, issue, succès, durée (ms), appelant, ID d'opération. ID d'objet remplacés.
+>
+> ```text
+> [ "2026-10-20T12:41:49.8297728Z", "read_report_as_app", "success", "True", 9.2244, "<bob-object-id>", "e87b9b4eb127eb41143869942a1ce275" ]
+> [ "2026-10-20T12:41:48.6026728Z", "read_report_as_user", "denied-downstream:403", "False", 323.6665, "<bob-object-id>", "08beb1cec8d288bfb679974b4222bcc1" ]
+> [ "2026-10-20T12:41:47.7550955Z", "whoami", "success", "True", 533.3178, "<bob-object-id>", "dc377674e8f2d0ce17bdbdfaed876754" ]
+> [ "2026-10-20T12:41:37.1243308Z", "read_report_as_app", "success", "True", 252.9528, "<alice-object-id>", "fac868e66169055f59c7860e473ea7e1" ]
+> [ "2026-10-20T12:41:36.4007953Z", "read_report_as_user", "success", "True", 350.2882, "<alice-object-id>", "e4953ce2d99878c9594c99d9d3d548e1" ]
+> [ "2026-10-20T12:41:34.3688446Z", "whoami", "success", "True", 1563.1348, "<alice-object-id>", "4227ea095c3caeca474221ab324ec16f" ]
+> ```
+>
+> **Ce que cela signifie pour vous :** même outil, deux issues. Le `read_report_as_user` d'Alice aboutit ; celui de Bob
+> se termine par `denied-downstream:403`. Chaque ligne porte son ID d'opération : collez celui de Bob dans le portail
+> pour voir où l'appel s'est arrêté.
+
+bash :
+
+```bash
+ai=$(terraform -chdir=infra/workload output -json resource_names | jq -r .application_insights); group=$(terraform -chdir=infra/workload output -raw resource_group_name)
+az monitor app-insights query --app "$ai" --resource-group "$group" --offset 24h \
+  --analytics-query '@modules/06-observe-inventory/queries/tool-spans.kql' --query 'tables[0].rows' -o json
+```
+
+> **Résultat attendu** — les mêmes lignes qu'avec PowerShell ci-dessus.
+
+La trace de Bob dans **View timeline** (capture réelle, 2026-10-20 ; noms pseudonymisés). Cadre 1 : la passerelle répond
+HTTP 200, en bleu. Cadre 2 : le span de l'outil, en rouge. Cadre 3 : l'appel à Storage qui refuse Bob (HTTP 403).
+
+![Capture réelle : chronologie de la transaction de bout en bout pour l'appel read_report_as_user de Bob ; la ligne de la passerelle est bleue, le span de l'outil et l'appel à Storage sont rouges](../../assets/screenshots/azure-06-trace-waterfall.png)
+
+Les attributs du span de l'outil (cadre 2). Rien d'autre n'est enregistré : ni argument, ni résultat, ni jeton.
+
+![Capture réelle : Custom Properties du span read_report_as_user : mcp.method.name, gen_ai.operation.name, gen_ai.tool.name, workshop.caller, workshop.outcome et error.type](../../assets/screenshots/azure-06-trace-span-attributes.png)
+
+**Question :** la passerelle a journalisé HTTP 200 pour l'appel de Bob. Où la trace montre-t-elle l'échec, et pourquoi ?
+
+<details>
+<summary>Afficher la réponse</summary>
+
+Dans les lignes rouges. Le span de l'outil porte `error.type = tool_error`, et la dernière étape est l'appel à Storage,
+refusé en HTTP 403. Juste avant, l'échange On-Behalf-Of avec Microsoft Entra a réussi : le jeton de Bob était valide.
+Ce qui lui manque, c'est un rôle Storage sur le conteneur du rapport. MCP renvoie les erreurs d'outil dans une réponse
+HTTP 200 : seule la trace montre où l'appel s'est arrêté.
+
+</details>
+
+> [!TIP]
+> **Vous écrivez votre propre serveur MCP ?** Gardez les mêmes réflexes : un span par appel d'outil, nommé
+> `tools/call <outil>` ; le contexte de trace W3C reçu de la passerelle ; des métadonnées seulement (laissez désactivés
+> les arguments et résultats, classés Opt-In) ; un export avec une identité managée plutôt qu'une clé.
+
 ### Étape 4 - Enregistrer le serveur MCP dans API Center (Préversion)
 
 L'inventaire API Center est en **Préversion**.
@@ -410,6 +514,7 @@ Contrôle : l'entrée affiche le nom du serveur et un état d'approbation. Cet �
 
 - Si du trafic MCP a été ingéré, la requête KQL renvoie les lignes disponibles avec `api.type` égal à `Mcp`, `pass-through-mcp` ou `mcp-backend`, pour `initialize`, `tools/list` et `tools/call`. Ce n'est pas un audit exhaustif.
 - Les colonnes contiennent des noms d'outils et des codes de statut, mais aucun corps de requête, corps de réponse, jeton, prompt ou argument d'outil.
+- Un appel d'outil forme une seule trace : la chronologie montre la passerelle, la Function, le span `tools/call` et chaque appel en aval.
 - L'asset API Center existe, avec une URL d'exécution et un environnement.
 - Le validateur hors ligne affiche une ligne `PASS` par vérification et se termine avec le code de sortie 0.
 
@@ -476,6 +581,7 @@ la règle « métadonnées uniquement » dans le support lui-même.
 | La requête KQL ne renvoie aucune ligne | Le trafic est plus ancien que la période interrogée, ou les diagnostics ne sont pas activés sur l'API APIM | Élargissez à la fois `--offset` et le filtre `ago(24h)` de `queries/mcp-traffic.kql`, puis vérifiez le paramètre de diagnostic APIM pour l'API MCP. |
 | Des lignes existent mais `tool.name` est vide | Seul `tools/list` a été appelé, ou l'opération MCP n'a pas été classée | Appelez un outil une fois depuis le client, puis relancez la requête. |
 | Des champs de charge utile apparaissent dans les journaux | La journalisation des charges utiles a été activée | Désactivez-la dans APIM, supprimez les lignes concernées selon votre politique de rétention, et consignez-le comme constat. |
+| La requête des spans ne renvoie aucune ligne `tools/call` | Aucun outil n'a encore été appelé, ou votre serveur a été publié avant l'ajout des spans | Appelez un outil, attendez 2 à 5 minutes, relancez. Sinon, republiez le serveur ([module 02, étape 5](../02-open-server/README.fr.md#étapes)) ; après l'étape 2 du module 04, publiez avant le verrouillage (voir module 04). |
 | L'asset API Center ne peut pas être créé | Le rôle n'est pas attribué, ou l'environnement n'existe pas | Vérifiez le rôle dans RBAC et créez d'abord l'environnement. |
 | L'entrée BYO est absente | Fonctionnalité en préversion non activée, ou l'administrateur ne l'a pas approuvée | Adressez-vous à l'administrateur informatique du tenant. Ne demandez pas le rôle vous-même. |
 
@@ -550,5 +656,8 @@ az apic delete --resource-group $group --name $apic --yes
 - [Apporter son serveur MCP](https://learn.microsoft.com/microsoft-365/admin/manage/manage-byo-mcp-server) (Préversion).
 - [Agent 365 avec API Management](https://learn.microsoft.com/azure/api-management/agent-365) (Préversion ; argumentaire facultatif, non revérifié ici).
 - [Azure Copilot Observability Agent](https://learn.microsoft.com/azure/azure-monitor/aiops/observability-agent-overview) et [dialoguer avec vos données d'observabilité](https://learn.microsoft.com/azure/azure-monitor/aiops/observability-agent-chat) : étape facultative. Les opérations autonomes et la ressource de l'agent sont en Préversion et ne sont pas utilisées ici. Dernière vérification : 2026-10-19.
+- [Utiliser OpenTelemetry avec Azure Functions](https://learn.microsoft.com/azure/azure-functions/opentelemetry-howto) : paquets du worker et `UseFunctionsWorkerDefaults` ; ce serveur n'exporte que les traces, avec son identité managée. Dernière vérification : 2026-10-20.
+- [Conventions sémantiques OpenTelemetry pour MCP](https://github.com/open-telemetry/semantic-conventions-genai/blob/547934afa90a34298441caf80c43b27255c3a292/docs/gen-ai/mcp.md) (statut : Development, commit épinglé) : nom de span `{mcp.method.name} {target}`, `error.type = tool_error` quand `isError` vaut true, arguments et résultats en Opt-In. Dernière vérification : 2026-10-20.
+- [Diagnostic des transactions de bout en bout](https://learn.microsoft.com/azure/azure-monitor/app/transaction-search-and-diagnostics) : recherche et chronologie des transactions. Dernière vérification : 2026-10-20.
 
-Dernière vérification : 2026-10-19.
+Dernière vérification : 2026-10-20.
