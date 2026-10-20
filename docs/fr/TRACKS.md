@@ -31,4 +31,16 @@ Ouvrez le module, puis la section **Parcours low-code** au début des **Étapes*
 dans le portail, puis la commande `az` équivalente, puis le résultat réel obtenu par l'auteur. Gardez le même terminal
 PowerShell depuis l'étape L1 : les étapes suivantes réutilisent ses variables.
 
+| Module | Section low-code |
+|---|---|
+| 00, 01 | Inutile : ils ne construisent rien dans Azure, il n'y a donc qu'un chemin |
+| 02 à 05 | **Parcours low-code**, étapes L1, L2 et suivantes (L-B pour la partie B du module 04) |
+| 06 | **Parcours low-code**, avant l'étape 1 : seules les lignes de terminal changent |
+| 07 | **A2 et A3 dans le parcours low-code**, après l'étape A3 : les étapes Foundry sont les mêmes |
+| 99 | **Parcours low-code**, au début des Étapes : un groupe de ressources et deux inscriptions d'applications |
+
+L'auteur a suivi le parcours low-code en conditions réelles le 2026-10-20, du module 02 au module 99, avec Alice, Bob et
+Eve. Au module 07, seules A2 et A3 diffèrent : seules elles ont été rejouées ; les étapes Foundry ont été exécutées en
+conditions réelles dans le parcours full-code le même jour.
+
 Dernière vérification : 2026-10-20.

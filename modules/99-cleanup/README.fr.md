@@ -88,6 +88,77 @@ flowchart LR
 > N'utilisez cette option qu'après un accord explicite et la relecture de chaque plan.
 > Arrêtez-vous si un plan contient une ressource inattendue.
 
+### Parcours low-code (portail et commandes simples)
+
+Tout ce que vous avez construit à la main tient dans **un groupe de ressources** et **deux inscriptions d'applications** :
+le nettoyage est court. Vos utilisateurs de test restent. Portail : **Groupes de ressources** → votre groupe
+`rg-mcp-<préfixe>lc-…` → **Supprimer le groupe de ressources** ; **Inscriptions d'applications** → *Workshop MCP API (…)*
+et *workshop-mcp-foundry-client-…* → **Supprimer** ; puis **Services API Management** → **Gérer les services supprimés** →
+**Purger**. Les commandes font la même chose, rapport d'abord.
+
+```powershell
+$p = Get-Content .\.workshop\participant.tfvars.json -Raw | ConvertFrom-Json
+$id = "$($p.participant_prefix)lc"; $sfx = $p.resource_suffix.Substring(0, 10); $rg = "rg-mcp-$id-$sfx"; $apim = "apim-mcp-$id-$sfx"
+$tenant = az account show --query tenantId -o tsv; $sub = az account show --query id -o tsv
+# 1. Rapport : lisez la liste. Arrêtez-vous si le groupe n'a pas l'étiquette track=low-code ou contient autre chose que vos ressources.
+az group show -n $rg --query tags -o json
+az resource list -g $rg --query "[].type" -o tsv | Group-Object | ForEach-Object { "$($_.Count) $($_.Name)" }
+az ad app list --display-name "Workshop MCP API ($id-$sfx)" --query "[].displayName" -o tsv
+& .\modules\07-clients\cleanup.ps1 -TenantId $tenant -SubscriptionId $sub -LowCodeTrack   # seulement si vous avez fait le module 07
+```
+
+> **Résultat réel** — parcours low-code, 2026-10-20, tenant de test de l'auteur (extrait).
+>
+> ```text
+>   "track": "low-code",
+>   "workshop": "governed-mcp"
+> 1 Microsoft.ApiCenter/services
+> 1 Microsoft.ApiManagement/service
+> 4 Microsoft.ManagedIdentity/userAssignedIdentities
+> 3 Microsoft.Network/privateEndpoints
+> 1 Microsoft.Web/sites
+> Workshop MCP API (<id>)
+> PLAN delete the Foundry client app registration and its short-lived secret
+> DONE report only. Nothing was changed. Rerun with -Apply after reviewing every PLAN line.
+> ```
+
+```powershell
+# 2. Appliquer, après accord. Supprimer l'inscription de l'API retire aussi ses informations fédérées, préautorisations et consentements.
+& .\modules\07-clients\cleanup.ps1 -TenantId $tenant -SubscriptionId $sub -LowCodeTrack -Apply   # seulement si vous avez fait le module 07
+if ((az group show -n $rg --query tags.track -o tsv) -ne 'low-code') { throw 'Pas le groupe low-code de l''atelier : rien supprimé.' }
+$apps = @(az ad app list --display-name "Workshop MCP API ($id-$sfx)" --query "[].id" -o tsv)
+az group delete -n $rg --yes
+foreach ($a in $apps) { az ad app delete --id $a }
+# 3. API Management garde une instance supprimée 48 heures : purgez-la pour libérer le nom.
+$d = az apim deletedservice list -o json | ConvertFrom-Json | Where-Object name -eq $apim
+if ($d) { az apim deletedservice purge --service-name $d.name --location $d.location }
+"group exists: $(az group exists -n $rg); soft-deleted gateways: $((az apim deletedservice list --query '[].name' -o tsv) -join ',')"
+```
+
+> **Résultat réel** — parcours low-code, 2026-10-20 (extrait ; le premier `az group delete` s'est arrêté, voir la note
+> ci-dessous).
+>
+> ```text
+> PASS Foundry client app registration and secret deleted (expected HTTP 204 from Microsoft Graph).
+> DONE module 07 part A removed. Private module 07 files deleted.
+> group exists: false; soft-deleted gateways:
+> ```
+>
+> **Ce que cela signifie pour vous :** il ne reste rien du parcours low-code : ni groupe de ressources, ni inscription
+> d'application, ni passerelle en suppression réversible. Seuls vos utilisateurs de test restent, volontairement.
+
+> [!NOTE]
+> Le 2026-10-20, le premier `az group delete` s'est arrêté avec `ResourceGroupDeletionBlocked` et `Server farm with name
+> ASP-… not found` : le plan Flex Consumption avait déjà disparu, mais Azure Resource Manager le listait encore. Tout le
+> reste était supprimé. La solution : recréer le plan sous le même nom, le supprimer, puis supprimer à nouveau le groupe.
+>
+> ```powershell
+> $plan = az resource list -g $rg --resource-type Microsoft.Web/serverFarms --query "[0].name" -o tsv
+> $url = "https://management.azure.com/subscriptions/$sub/resourceGroups/$rg/providers/Microsoft.Web/serverFarms/$plan`?api-version=2024-04-01"
+> $f = New-TemporaryFile; '{"location":"westeurope","kind":"functionapp","sku":{"name":"FC1","tier":"FlexConsumption"},"properties":{"reserved":true}}' | Set-Content $f
+> az rest --method put --url $url --body "@$f" -o none; Remove-Item $f; az rest --method delete --url $url; az group delete -n $rg --yes
+> ```
+
 ### PowerShell
 
 ```powershell
