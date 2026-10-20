@@ -92,6 +92,41 @@ Check the client result and the available downstream evidence. An empty log quer
 
 </details>
 
+### Low-code track (portal and simple commands)
+
+Steps 1, 2 and 5 are the same in both tracks, and steps 3 and 4 already give the portal path. Only their terminal lines
+read Terraform outputs: in the low-code track, use the names below instead.
+
+```powershell
+$p = Get-Content .\.workshop\participant.tfvars.json -Raw | ConvertFrom-Json
+$id = "$($p.participant_prefix)lc"; $sfx = $p.resource_suffix.Substring(0, 10)
+$group = "rg-mcp-$id-$sfx"; $ai = "appi-mcp-$id-$sfx"; $apim = "apim-mcp-$id-$sfx"; $apic = "apic-mcp-$id-$sfx"
+# Step 3: the same KQL file, on your Application Insights component.
+az monitor app-insights query --app $ai --resource-group $group --offset 24h `
+  --analytics-query '@modules/06-observe-inventory/queries/mcp-traffic.kql' --query 'tables[0].rows' -o json
+# Step 4: the API center (Free plan) and its gateway environment; the URL to paste under Remotes.
+az apic create --resource-group $group --name $apic --location (az group show --name $group --query location --output tsv)
+az apic environment create --resource-group $group --service-name $apic --environment-id gateway --title "API Management gateway" --type development
+"https://$apim.azure-api.net/workshop-mcp/mcp"
+```
+
+> **Real result** — low-code track, 2026-10-20, author's test tenant. 7 of the 102 rows from the modules 04 and 05 checks,
+> then the API center (`"sku": { "name": "Free" }`) and the `gateway` environment.
+>
+> ```text
+> [ "2026-10-20T10:27:38.6207559Z", "tools/call", "create_ticket", "200", "True", 442.5, "", "" ]
+> [ "2026-10-20T10:27:51.7341172Z", "tools/call", "create_ticket", "403", "False", 3.3805, "", "" ]
+> [ "2026-10-20T10:32:02.3050838Z", "tools/call", "list_tickets", "200", "True", 51.4503, "", "" ]
+> [ "2026-10-20T10:46:54.2387598Z", "tools/call", "whoami", "200", "True", 1566.4731, "", "" ]
+> [ "2026-10-20T10:46:56.2391415Z", "tools/call", "read_report_as_user", "200", "True", 569.971, "", "" ]
+> [ "2026-10-20T10:46:57.2408390Z", "tools/call", "read_report_as_app", "200", "True", 258.4664, "", "" ]
+> [ "2026-10-20T10:47:08.3307894Z", "tools/call", "read_report_as_user", "200", "True", 292.3766, "", "" ]
+> ```
+>
+> **What it means for you:** the same metadata as in the full-code track, because the gateway policies are the same. Both
+> `read_report_as_user` rows show HTTP 200, but one of them is Bob's: Storage refused him inside the tool result. HTTP
+> success is not tool success. Bob's `create_ticket` (HTTP 403, 3 ms) never reached the Function.
+
 ### Step 1 - Run the offline checks
 
 Confirm the module files, the KQL query and the logging rules before you query anything.

@@ -117,7 +117,7 @@ az group update -n "rg-$name" --tags workshop=governed-mcp owner=$($p.owner) exp
 $mcpApp = terraform -chdir=infra/entra output -raw application_client_id
 $scopeId = az ad app show --id $mcpApp --query "api.oauth2PermissionScopes[?value=='user_impersonation'].id | [0]" -o tsv
 $f = New-TemporaryFile
-ConvertTo-Json -Depth 5 -AsArray @(@{ resourceAppId = $mcpApp; resourceAccess = @(@{ id = $scopeId; type = 'Scope' }) }) | Set-Content $f
+@{ resourceAppId = $mcpApp; resourceAccess = @(@{ id = $scopeId; type = 'Scope' }) } | ConvertTo-Json -Depth 5 -AsArray | Set-Content $f
 $app = az ad app create --display-name "workshop-mcp-foundry-client-$($p.participant_prefix)" --sign-in-audience AzureADMyOrg `
     --required-resource-accesses "@$f" --query "{appId:appId,id:id}" -o json | ConvertFrom-Json
 Remove-Item $f; az ad sp create --id $app.appId -o none
@@ -153,6 +153,53 @@ terraform '-chdir=infra\workload' apply '..\..\.workshop\module07.tfplan'
 > Plan: 0 to add, 6 to change, 0 to destroy.
 > Apply complete! Resources: 0 added, 6 changed, 0 destroyed.
 > ```
+
+**A2 et A3 dans le parcours low-code** ([comment choisir](../../docs/fr/TRACKS.md)). A1 et A4 à A7 sont identiques dans
+les deux parcours. Lancez A2 avec les deux premières lignes ci-dessous au lieu de sa ligne `terraform`. Ensuite, au lieu
+des plans Terraform de A3, ajoutez le client Foundry à la main aux trois contrôles : les clients préautorisés de l'API
+(Entra), les applications autorisées de la Function (authentification intégrée) et les stratégies de la passerelle
+(régénérées avec les mêmes modèles que Terraform).
+
+```powershell
+$p = Get-Content .\.workshop\participant.tfvars.json -Raw | ConvertFrom-Json; $id = "$($p.participant_prefix)lc"; $sfx = $p.resource_suffix.Substring(0, 10)
+$mcpApp = az ad app list --display-name "Workshop MCP API ($id-$sfx)" --query "[0].appId" -o tsv   # remplace la ligne terraform de A2
+# --- après A2 : $app contient le client Foundry ---
+$rg = "rg-mcp-$id-$sfx"; $fn = "func-mcp-$id-$sfx"; $apim = "apim-mcp-$id-$sfx"
+$tenant = az account show --query tenantId -o tsv; $sub = az account show --query id -o tsv
+$scopeId = az ad app show --id $mcpApp --query "api.oauth2PermissionScopes[?value=='user_impersonation'].id | [0]" -o tsv
+# 1. Entra (administrateur des identités) : préautoriser le client Foundry, garder VS Code et Azure CLI.
+$h = @{ Authorization = "Bearer $(az account get-access-token --resource-type ms-graph --query accessToken -o tsv)" }; $g = 'https://graph.microsoft.com/v1.0'
+$api = Invoke-RestMethod "$g/applications(appId='$mcpApp')?`$select=id,api" -Headers $h
+$pre = @($api.api.preAuthorizedApplications | Where-Object appId -ne $app.appId) + @(@{ appId = $app.appId; delegatedPermissionIds = @($scopeId) })
+Invoke-RestMethod -Method Patch "$g/applications/$($api.id)" -Headers $h -ContentType 'application/json' -Body (@{ api = @{ preAuthorizedApplications = $pre } } | ConvertTo-Json -Depth 5) | Out-Null
+# 2. Authentification intégrée de la Function : ajouter le client aux applications autorisées.
+$authUrl = "https://management.azure.com/subscriptions/$sub/resourceGroups/$rg/providers/Microsoft.Web/sites/$fn/config/authsettingsV2?api-version=2024-04-01"
+$auth = az rest --url $authUrl -o json | ConvertFrom-Json
+$pol = $auth.properties.identityProviders.azureActiveDirectory.validation.defaultAuthorizationPolicy
+$ids = @(@($pol.allowedApplications) + $app.appId | Select-Object -Unique); $pol.allowedApplications = $ids
+$f = New-TemporaryFile; [IO.File]::WriteAllText($f, (@{ properties = $auth.properties } | ConvertTo-Json -Depth 12 -Compress))
+az rest --method put --url $authUrl --body "@$f" --headers 'Content-Type=application/json' -o none; Remove-Item $f
+# 3. Passerelle : régénérer les stratégies avec la nouvelle liste, puis les coller (portail : chaque API → Policies), ou
+#    coller d'abord l'aide du module 04 L1 (la ligne $svcId et la fonction Put) et lancer la boucle.
+& .\modules\04-governed-gateway\render-policies.ps1 -TenantId $tenant -ApiClientId $mcpApp -GatewayName $apim -AllowedClientIds $ids
+foreach ($m in @(@('workshop-mcp', 'mcp-server'), @('contoso-tickets-api', 'rest-api'), @('contoso-tickets-mcp', 'rest-mcp-server'))) {
+    Put "apis/$($m[0])/policies/policy" @{ properties = @{ format = 'rawxml'; value = [IO.File]::ReadAllText("$PWD\.workshop\policy-$($m[1]).xml") } }
+}
+"pre-authorized: $($pre.Count); function allowed: $($ids.Count)"
+```
+
+> **Résultat réel** — parcours low-code, 2026-10-20, tenant de test de l'auteur. Le script de validation low-code du
+> module 04 passe toujours ensuite.
+>
+> ```text
+> pre-authorized: 3; function allowed: 3
+> PASS a valid token for another audience (Microsoft Graph) is refused by the gateway (expected HTTP 401).
+> PASS module 04 operator checks complete. Persona checks are still required for validation.
+> ```
+>
+> **Ce que cela signifie pour vous :** trois listes, trois ID chacune (VS Code, Azure CLI, client Foundry). Un client absent
+> d'une seule d'entre elles est refusé à ce contrôle. À l'étape A4, utilisez `https://<apim>.azure-api.net/workshop-mcp/mcp`
+> comme point de terminaison et `api://<mcpApp>/user_impersonation offline_access` comme scopes.
 
 **A4. Ajouter l'outil MCP dans le portail Foundry.** Ouvrez [Foundry](https://ai.azure.com/nextgen), choisissez votre
 projet, puis **Build** → **Tools** → **Connect a tool** → **Custom** → **Model Context Protocol (MCP)** → **Create**

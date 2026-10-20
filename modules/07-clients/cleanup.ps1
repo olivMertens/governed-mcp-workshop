@@ -13,6 +13,8 @@
       4. The Foundry client app registration (and with it its short-lived secret), only if its name starts with
          workshop-mcp-foundry-client-.
     Without -Apply it only reports. With -Apply it applies the exact reviewed plans. Nothing to do when part A was skipped.
+    -LowCodeTrack skips steps 1 and 2 (no Terraform state): module 99's low-code checklist deletes the MCP API registration
+    and the workload resource group, which removes those entries with them.
 .EXAMPLE
     pwsh ./modules/07-clients/cleanup.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID
 #>
@@ -20,7 +22,8 @@
 param(
     [Parameter(Mandatory)][guid]$TenantId,
     [Parameter(Mandatory)][guid]$SubscriptionId,
-    [switch]$Apply
+    [switch]$Apply,
+    [switch]$LowCodeTrack
 )
 
 Set-StrictMode -Version Latest
@@ -69,6 +72,9 @@ function Invoke-GuardedPhase([string]$Directory, [string[]]$Arguments, [hashtabl
 }
 
 # 1. Workload: same var files as deployed, minus module 07.
+if ($LowCodeTrack) {
+    Write-Output 'INFO low-code track: no Terraform state; the allowed-application entries go with the API registration and resource group (module 99).'
+} else {
 $workload = @('participant.tfvars.json', 'module02.tfvars.json', 'module03.tfvars.json', 'module04.tfvars.json', 'module04b.tfvars.json', 'module05.tfvars.json') |
     ForEach-Object { Join-Path $private $_ } | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | ForEach-Object { "-var-file=$_" }
 $allowed = @{ 'azurerm_function_app_flex_consumption.mcp' = 'update' }
@@ -79,9 +85,10 @@ Invoke-GuardedPhase (Join-Path $root 'infra' 'workload') $workload $allowed 'rem
 $entra = @('entra.tfvars.json', 'entra-module05.tfvars.json') | ForEach-Object { Join-Path $private $_ } |
     Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | ForEach-Object { "-var-file=$_" }
 Invoke-GuardedPhase (Join-Path $root 'infra' 'entra') $entra @{ 'azuread_application_pre_authorized.clients' = 'delete' } 'remove the Foundry client pre-authorization'
+}
 
 # 3. Foundry resource group (tag-checked), then purge the soft-deleted account so the name and quota are released.
-if ($state -and $state.foundry_resource_group) {
+if ($state -and $state.PSObject.Properties['foundry_resource_group'] -and $state.foundry_resource_group) {
     $group = [string]$state.foundry_resource_group
     $tags = az group show -n $group --query tags -o json --only-show-errors 2>$null | ConvertFrom-Json
     if (-not $tags) { Write-Output "PASS Foundry resource group already deleted (idempotent, expected HTTP 404 from Azure Resource Manager)." }

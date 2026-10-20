@@ -31,4 +31,15 @@ Open the module, then the section **Low-code track** at the top of **Steps**. Ea
 then the equivalent `az` command, then the real result the author got. Keep the same PowerShell terminal from step L1:
 later steps reuse its variables.
 
+| Module | Low-code section |
+|---|---|
+| 00, 01 | None needed: they build nothing in Azure, so there is one path |
+| 02 to 05 | **Low-code track**, steps L1, L2 and so on (L-B for module 04 part B) |
+| 06 | **Low-code track**, before Step 1: only the terminal lines differ |
+| 07 | **A2 and A3 in the low-code track**, after step A3: the Foundry steps are the same |
+| 99 | **Low-code track**, at the top of Steps: one resource group and two app registrations |
+
+The author ran the low-code track live on 2026-10-20, from module 02 to module 99, with Alice, Bob and Eve. In module
+07, only A2 and A3 differ, so only they were rerun; the Foundry steps were run live in the full-code track the same day.
+
 Last verified: 2026-10-20.
