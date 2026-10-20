@@ -23,33 +23,39 @@ public static partial class ToolAudit
     {
         ArgumentNullException.ThrowIfNull(logger);
         ArgumentNullException.ThrowIfNull(action);
+        using var span = ToolTelemetry.StartToolCall(tool, caller);
         var watch = Stopwatch.StartNew();
         try
         {
             var result = await action().ConfigureAwait(false);
+            ToolTelemetry.End(span, "success");
             Completed(logger, tool, caller, "success", watch.ElapsedMilliseconds, invocationId);
             return result;
         }
         catch (ToolInputException)
         {
+            ToolTelemetry.End(span, "rejected-input");
             Completed(logger, tool, caller, "rejected-input", watch.ElapsedMilliseconds, invocationId);
             throw;
         }
         catch (CallerRejectedException)
         {
             // Fixed text, no header or token value: safe to surface as the tool error.
+            ToolTelemetry.End(span, "rejected-caller");
             Completed(logger, tool, caller, "rejected-caller", watch.ElapsedMilliseconds, invocationId);
             throw;
         }
         catch (DownstreamAccessDeniedException denied)
         {
             // Expected for Bob on read_report_as_user: HTTP 200 for MCP, isError true in the tool result.
+            ToolTelemetry.End(span, $"denied-downstream:{denied.Status}");
             Completed(logger, tool, caller, $"denied-downstream:{denied.Status}", watch.ElapsedMilliseconds, invocationId);
             throw;
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             // Do not log the exception object: downstream messages can contain request details.
+            ToolTelemetry.End(span, "failed:" + exception.GetType().Name);
             Completed(logger, tool, caller, "failed:" + exception.GetType().Name, watch.ElapsedMilliseconds, invocationId);
             throw new InvalidOperationException($"The tool failed. Correlate with invocation {invocationId} in the server logs.");
         }
