@@ -1,276 +1,124 @@
-# 🔐 Governed MCP on Azure — hands-on workshop
+# Governed MCP on Azure
 
-> ⚠️ **Work in progress.** Every module can be followed today. The **Test status** column of the modules table below
-> says how far the author has tested each one in Azure.
-> Details: [what is available](docs/IMPLEMENTATION-STATUS.md).
+A hands-on workshop for platform, identity and Microsoft 365 administrators.
+Take a **Model Context Protocol (MCP)** server from a shared key to authenticated,
+role-controlled access through Azure API Management.
+Run the exercises in **your own approved non-production Azure subscription**, using synthetic data.
 
-Take one MCP server from **open** to **governed** on Azure, alone, in **your own non-production** subscription.
-🇫🇷 [Version française](docs/fr/GETTING-STARTED.md)
+**Open the workshop:** [English](https://olivmertens.github.io/governed-mcp-workshop/?lang=en#/start)
+| [Français](https://olivmertens.github.io/governed-mcp-workshop/?lang=fr#/start)
 
-## Choose your role
+> [!IMPORTANT]
+> The public website is hosted on **GitHub Pages**. It displays guides, commands, diagrams and captures.
+> It does not sign in to Azure, deploy resources or validate your environment.
+> You do not need to deploy a documentation portal or use a presenter's administrator account.
 
-| | Start here |
-|---|---|
-| Presenter | [Publish one shared portal](docs/PRESENTER.md) · [Guide présentateur](docs/fr/PRESENTER.md) |
-| Participant | [Follow the workshop](docs/GETTING-STARTED.md) · [Guide participant](docs/fr/GETTING-STARTED.md) |
-| Public guides (EN/FR) | [English](https://olivmertens.github.io/governed-mcp-workshop/?lang=en#/start) · [Français](https://olivmertens.github.io/governed-mcp-workshop/?lang=fr#/start): read-only, no Azure connection |
+## Start here
 
-### Choose one deployment track
+1. Choose one deployment track below.
+2. Follow the [getting-started guide](docs/GETTING-STARTED.md)
+   ([français](docs/fr/GETTING-STARTED.md)) to clone the repository and install your track's tools.
+3. Complete module 00, then follow the modules in order. Run each module's validator before continuing.
+4. Reserve time for module 99 whenever you create resources, even if you stop before the final module.
 
-| Track | English | Français |
+To try MCP without deploying anything to Azure, use the shared
+[module 01 exercise](modules/01-discover-mcp/README.md)
+([français](modules/01-discover-mcp/README.fr.md)) after installing its local prerequisites.
+
+## Choose your track
+
+| Track | What you use | Start |
 |---|---|---|
-| Low-code: portal first, terminal only when needed, no Terraform | [Start low-code](modules/00-prerequisites/LOW-CODE.md) | [Commencer en low-code](modules/00-prerequisites/LOW-CODE.fr.md) |
-| Terraform + PowerShell: reviewed plans and scripts | [Start Terraform](modules/00-prerequisites/README.md) | [Commencer avec Terraform](modules/00-prerequisites/README.fr.md) |
+| **Low-code** | Azure and Microsoft Entra portals, with PowerShell 7 and Azure CLI for publishing, settings and checks. **No Terraform required.** | [English](modules/00-prerequisites/LOW-CODE.md) · [Français](modules/00-prerequisites/LOW-CODE.fr.md) |
+| **Terraform + PowerShell** | Reviewed Terraform plans, PowerShell scripts and Azure CLI inspection commands. | [English](modules/00-prerequisites/README.md) · [Français](modules/00-prerequisites/README.fr.md) |
 
-The [track page](docs/TRACKS.md) ([français](docs/fr/TRACKS.md)) links every module for each track.
-Module 01 is shared. All other modules have separate guides, validation instructions and cleanup.
-The website keeps your choice in `?track=low-code` or `?track=terraform`; changing guides does not migrate resources.
+The website remembers your choice in its address: `?track=low-code` or `?track=terraform`.
+Module 01 is shared; the other modules have separate guides for each track.
+Follow only one track's deployment, validation and cleanup instructions.
+Changing the selected guide does not migrate resources: do not apply Terraform to resources created by the low-code track.
+See [track details](docs/TRACKS.md) ([français](docs/fr/TRACKS.md)).
 
-The presenter shares the deployed portal's `?lang=fr#/start` or `?lang=en#/start` link. Paths such as `/fr/` return 404 by design: language is set by query string only.
-Participants do not deploy another portal or use the presenter's administrator account.
-The presenter shares the portal link only after its deployment and HTTPS checks succeed; it is not listed in this repository.
-Working locally? Start with [clone and installation](docs/GETTING-STARTED.md#0-get-the-repository-onto-your-computer)
-or [clonage et installation en français](docs/fr/GETTING-STARTED.md#0-récupérer-le-dépôt-sur-votre-poste).
+Local terminal, dev container and Codespaces are workspace options, not additional deployment tracks.
+Container and Codespaces setup is optional reference material; the website does not require a workspace selection.
+The website uses PowerShell 7 examples. Bash alternatives remain in the repository guides.
 
-![The workshop board: choose your workspace](assets/screenshots/start.en.png)
+## Modules
 
-## 🚀 Use it in 5 steps
-
-| | Step | What you do | What you should see |
+| Module | What you learn | Low-code | Terraform + PowerShell |
 |---|---|---|---|
-| 1️⃣ | 🧭 **Choose** | Dev container, local terminal or Codespaces. One is enough. | The same tools in all three. |
-| 2️⃣ | 📖 **Read** | Open the [board](#-open-the-board) or the module README. | One page per module, with a diagram. |
-| 3️⃣ | 🛠️ **Prepare** | Run the module 00 checks. They only read. | `PASS` lines, then a private `.workshop` file. |
-| 4️⃣ | ▶️ **Do** | Follow the module steps, one module at a time. | The result written under "What you should see". |
-| 5️⃣ | ✅ **Validate, then clean up** | Run the published module's validator. Review cleanup before deleting anything. | Offline `PASS` does not prove Azure deployment. Module 00 preflight creates nothing. |
-
-### 💻 Terraform + PowerShell: run module 00
-
-The commands below belong to the Terraform track. For portal-first setup, follow
-[low-code module 00](modules/00-prerequisites/LOW-CODE.md) instead; it does not require Terraform.
-
-Open **PowerShell 7.4+** in the repository root, locally or in your chosen development container.
-Missing a tool? Follow the [installation guide](docs/GETTING-STARTED.md)
-([français](docs/fr/GETTING-STARTED.md)). Stop if any command fails.
-
-**1. Check the installed tools.** No Azure access:
-
-```powershell
-$ErrorActionPreference = 'Stop'
-& .\scripts\check-tools.ps1
-```
-
-**2. Prepare your private parameters once.** Replace the example labels and region with approved values:
-
-```powershell
-$expiry = [datetime]::UtcNow.AddDays(1).ToString('yyyy-MM-dd')
-& .\scripts\prepare-workshop.ps1 -ParticipantPrefix p01 -Location swedencentral -Owner alice -Expiry $expiry
-```
-
-Expected: `PASS private participant parameters created with a stable random suffix.`
-The ignored `.workshop\participant.tfvars.json` stores your names. Keep it and your Terraform state through cleanup.
-On later visits, reuse this file; do not regenerate the suffix or rerun preparation with a different expiry.
-For an administrator-provided resource group, add `-ExistingResourceGroupName` on this first preparation command.
-The expiry is a tag, **not automatic deletion**.
-
-**3. Choose your approved test tenant and subscription.** Keep the same terminal open:
-
-```powershell
-& .\scripts\select-azure-context.ps1 -Language en
-```
-
-For French prompts, use `-Language fr`. Enter your approved tenant and subscription IDs **in the terminal only**,
-then type `NONPROD`. The script signs in and selects that subscription; it creates no resources.
-Expected: `PASS context: tenant and subscription verified.`
-
-**4. Run the read-only Azure checks:**
-
-```powershell
-& .\modules\00-prerequisites\validate.ps1 `
-    -TenantId $env:ARM_TENANT_ID `
-    -SubscriptionId $env:ARM_SUBSCRIPTION_ID
-```
-
-Expected: `PASS module 00 foundation environment checks.`
-If a check fails, use [module 00 troubleshooting](modules/00-prerequisites/README.md#troubleshooting);
-do not register providers or widen permissions as a workaround.
-These commands do not deploy a resource group, MCP server, Entra identity or gateway.
-The [module 00 guide](modules/00-prerequisites/README.md) also covers offline checks and cleanup.
-
-### 🔍 PowerShell: run module 01 without Azure
-
-With .NET 10 and PowerShell 7 installed, run from the repository root:
-
-```powershell
-& .\modules\01-discover-mcp\validate.ps1
-```
-
-Expected: `PASS local MCP checks complete (expected HTTP N/A; stdio, no Azure).`
-Then follow the [EN guide](modules/01-discover-mcp/README.md) or [guide français](modules/01-discover-mcp/README.fr.md)
-to discover/call the tool with Inspector and observe approval in VS Code.
-**No presenter portal, Azure sign-in or Terraform is needed for this local exercise.**
-Module 02 deploys real Azure resources: start it only after module 00 validation and explicit plan/cost approval.
-
-📸 This is the module 00 guide, not a deployed Azure result:
-
-![Module 00 page with its architecture and security flow](assets/screenshots/module-00.en.png)
-
-## 🗺️ Modules
-
-> [!TIP]
-> There are two separate sets of guides: **low-code, portal first**, and **Terraform + PowerShell**.
-> Pick one for the whole workshop: [choose your track](docs/TRACKS.md). The table below links the Terraform guides;
-> the track page links both sets, including their French translations.
-
-| # | Module | Need it? | Test status | Guide |
-|---|---|---|---|---|
-| 00 | 🧰 Prerequisites and environment | ✅ Required | 🟢 Fully tested in Azure (2026-10-14) | [Open](modules/00-prerequisites/README.md) |
-| 01 | 🔍 Discover MCP (no Azure) | ✅ Required | 🟢 Tested on a laptop (no Azure); the VS Code approval prompt is a manual check | [Open](modules/01-discover-mcp/README.md) · [FR](modules/01-discover-mcp/README.fr.md) |
-| 02 | 🔑 Server protected by a key (level 0) | ✅ Required | 🟢 Fully tested in Azure (2026-10-16) | [Open](modules/02-open-server/README.md) · [FR](modules/02-open-server/README.fr.md) |
-| 03 | 🪪 Microsoft Entra identity (level 1) | ✅ Required | 🟢 Fully tested in Azure (2026-10-19): operator, Alice, Bob and Eve | [Open](modules/03-entra-authentication/README.md) · [FR](modules/03-entra-authentication/README.fr.md) |
-| 04 | 🚪 API Management as the only entry (level 2), optional part B: a REST API exposed as MCP | ✅ Required (part B optional) | 🟢 Fully tested in Azure (2026-10-20): operator, Alice, Bob and Eve; part B: Alice and Bob | [Open](modules/04-governed-gateway/README.md) · [FR](modules/04-governed-gateway/README.fr.md) |
-| 05 | 👤 On-Behalf-Of vs app-only (level 3) | ✅ Required | 🟢 Fully tested in Azure (2026-10-20): operator, Alice and Bob | [Open](modules/05-delegated-and-app-only/README.md) · [FR](modules/05-delegated-and-app-only/README.fr.md) |
-| 06 | 📊 Observe and inventory (level 4) | ✅ Required | 🟢 Fully tested in Azure (2026-10-20): KQL on Alice and Bob traffic, API Center | [Open](modules/06-observe-inventory/README.md) · [FR](modules/06-observe-inventory/README.fr.md) |
-| 07 | 🤖 Other clients (Foundry, Copilot Studio) | ➕ Optional | 🟢 Foundry tested in Azure (2026-10-20): Alice reads after approval, Bob's write refused; Copilot Studio outline only | [Open](modules/07-clients/README.md) · [FR](modules/07-clients/README.fr.md) |
-| 99 | 🧹 Clean up | ♻️ As soon as you create resources | 🟢 Fully tested in Azure (2026-10-20): modules 07 to 02 removed in order, test users kept | [Open](modules/99-cleanup/README.md) · [FR](modules/99-cleanup/README.fr.md) |
-
-> 💡 **What the test status means.** It describes the author's own tests, not your work. Every module is usable.
->
-> - 🟢 **Fully tested**: the author deployed the module in a test subscription and every check passed.
-> - 🟡 **Tested in Azure**: deployed and checked as the administrator. The checks signed in as the test users
->   (Alice, Bob, Eve) are not all done yet.
-> - ⚪ **Checked offline**: the guide, code and offline checks are ready; it was not yet deployed in Azure.
->
-> Whatever the colour, run the module's validator in **your** subscription: that is what proves it works for you.
-
-## 📸 What you will see (real captures)
-
-These are real captures from the author's test tenant. Names are pseudonymised and IDs are replaced by zeros.
-Pink frames mark what to check. Each module shows its own captures at the step where they appear.
-
-![Real capture: storage account Networking, Public access tab, with Public network access set to Disabled](assets/screenshots/azure-02-storage-public-access.png)
-
-*Module 02, optional private storage: public network access is disabled; the server reaches Storage only through private endpoints.*
-See [module 02, steps](modules/02-open-server/README.md#steps).
-
-![Real terminal output: module 03 operator checks with numbered Step headers, Why lines and PASS lines with the expected HTTP status](assets/screenshots/terminal-03-operator.png)
-
-*Module 03 validator: each `== Step N ==` header says what is checked, `Why:` says what it proves, then one `PASS` line per check with the expected HTTP status.*
-See [module 03, steps](modules/03-entra-authentication/README.md#steps).
-
-![Real terminal output: module 03 persona check signed in as Alice; the token for the MCP audience is accepted and the five tools are listed](assets/screenshots/terminal-03-alice.png)
-
-*Module 03, signed in as Alice (after her MFA registration): her token for the MCP server is accepted and she sees the five tools.*
-See [module 03, persona checks](modules/03-entra-authentication/README.md#steps).
-
-![Real capture: App roles blade listing Tools.Read and Tools.Write for users and Tools.Execute.All for applications](assets/screenshots/azure-03-app-roles.png)
-
-*Module 03 app roles: what a user or an application may do on the MCP server.*
-See [module 03, check the same result in the Azure portal](modules/03-entra-authentication/README.md#check-the-same-result-in-the-azure-portal).
-
-![Real capture: API Management MCP Servers list; frame 1 marks workshop-mcp with Source MCP server (passthrough to the Function), frame 2 contoso-tickets-mcp with Source API (REST API exposed as MCP)](assets/screenshots/azure-04-mcp-servers.png)
-
-*Module 04: API Management is the only entry. Two MCP servers on one gateway: the Azure Functions server (part A) and a REST API exposed as tools (optional part B).*
-See [module 04, steps](modules/04-governed-gateway/README.md#steps).
-
-![Real capture: Certificates and secrets blade with zero client secrets and one federated credential](assets/screenshots/azure-05-federated-credentials.png)
-
-*Module 05: no client secret, one federated credential for the On-Behalf-Of exchange.*
-See [module 05, identity administrator step](modules/05-delegated-and-app-only/README.md#identity-administrator-approve-trust-and-consent-before-applying).
-
-![On-Behalf-Of across three hops: the user is kept, but each hop issues a new token for the next audience and the client changes](assets/screenshots/diagram-05-obo-hops-en.png)
-
-*Module 05, good to know: what On-Behalf-Of keeps and loses on each hop.*
-See [module 05, go further](modules/05-delegated-and-app-only/README.md#good-to-know-obo-across-several-hops-and-rbac).
-
-![Real capture: Application Insights Logs in KQL mode with the MCP filter and metadata-only rows](assets/screenshots/azure-06-kql-logs.png)
-
-*Module 06 logs: only MCP traffic, and each row holds metadata only (operation, status, duration, client name); no body, token or prompt.*
-See [module 06, step 3](modules/06-observe-inventory/README.md#step-3---query-mcp-traffic-in-application-insights).
-
-![Real capture: Observability Agent chat in Logs, with the question and the two metadata-only rows it returned](assets/screenshots/azure-06-observability-agent-answer.png)
-
-*Module 06, optional: the Observability Agent answers the same question in plain English and finds the same rows.*
-See [module 06, ask the Observability Agent](modules/06-observe-inventory/README.md#optional---ask-the-observability-agent-the-same-question).
-
-## 🧭 Run order (presenter and attendees)
-
-Run the modules in this order. Each row ends with a checkpoint you can show the room before moving on.
-
-| Step | Module | Azure needed? | Who | Checkpoint before the next step |
-|---|---|---|---|---|
-| 1 | 00 Prerequisites | Test subscription only (no paid resources) | Attendee | Tools and sign-in confirmed |
-| 2 | 01 Discover MCP | No | Attendee | Local MCP server lists its tools in the Inspector |
-| 3 | 02 Open server (level 0) | Yes (paid stage, function key only) | Attendee | Anonymous call is refused (401); keyed call works, which shows the risk |
-| 4 | 03 Entra identity (level 1) | Yes, and identity administrator approval | Identity admin, then attendee | Alice and Bob get HTTP 200; a token for another audience is refused |
-| 5 | 04 Governed gateway (level 2) | Yes (billed per hour: deploy and clean up the same day) | Attendee | Bob's `create_ticket` returns HTTP 403; Alice's returns HTTP 200 |
-| 5b | 04 part B, optional: REST API exposed as MCP | Yes, on the same gateway (no new billed resource) | Attendee | Alice lists the two tools built from REST operations; a call without a token returns HTTP 401 |
-| 6 | 05 On-Behalf-Of vs app-only (level 3) | Yes, and identity administrator consent | Identity admin, then attendee | Bob's user-context report read returns `isError: true`; the app-only read gives the same result for Alice and Bob |
-| 7 | 06 Observe and inventory (level 4) | Yes | Attendee | Logs show tool, caller, status and latency (no bodies) |
-| 8 | 07 Other clients (optional) | Optional | Attendee | Foundry or Copilot Studio calls the governed endpoint |
-| 9 | 99 Clean up | Runs against your state | Attendee | Report shows only workshop-owned resources; apply after review |
-
-**Presenter flow:** publish the shared guides once (see [PRESENTER](docs/PRESENTER.md)), then walk steps 1 to 2 live, then let each attendee run steps 3 to 9 in their own subscription. Run step 9 after every paid stage, not only at the end.
-
-## 🧭 Open the board
-
-| Where | How |
-|---|---|
-| 🌐 Copilot app | Ask: "Show the workshop build board." |
-| 📄 No tool | Read the Markdown guides. Start with [GETTING-STARTED](docs/GETTING-STARTED.md). |
-
-The board has three parts: **Start** (environment, concepts, overview) · **Main route** (modules in order,
-optional ones are marked) · **Resources** (practice, Azure context, governance, architecture, sources). A
-**Facilitators and authors** menu holds the presenter guide, the Session 2 page on integration options and the hosting guide. Switch **EN / FR** at the top.
-
-Each module page reads **one step at a time**: use **Next** and **Previous**, or **Outline** to jump to a step.
-Below the steps:
-
-- **Try this stage**: the validator command to copy, and a hint.
-- **Go further (optional)**: the architecture diagram, prerequisites and why the boundary matters.
-- **Download as PDF**: opens the print dialog with the whole module (answers and captures included).
-  Choose **Save as PDF** to keep it offline, annotate it or share it. Nothing is generated on the server.
-
-## 🧪 Try your MCP
-
-Calls run in **your** MCP client (VS Code, Inspector…), never in the board. See the [practice guide](docs/PRACTICE.md).
-What does the server answer? [The MCP server and its answers](docs/MCP-SERVER.md) shows its five tools and their real
-responses at each level ([en français](docs/fr/MCP-SERVER.md)).
-
-### Agent 365 integration — Preview, optional
-
-[Microsoft Agent 365 + API Management (Preview)](https://learn.microsoft.com/azure/api-management/agent-365)
-is a **planned facilitator demo**, not an implemented exercise.
-API Management v2 supports inventory and server blocking; tool-level blocking requires the **AI Gateway tier (Preview)**.
-Tenant-wide administrator consent is required. The core workshop does not request it.
-See module 06 in the [governance guide](docs/LEARNING-GUIDE.md#06---observe-metadata-inventory-endpoints).
-
-## 📐 Architecture
-
-Each module has a diagram, with its security flow: [Mermaid guide](assets/architecture/STEPS.md) ·
-[en français](assets/architecture/STEPS.fr.md) · [editable Draw.io source](assets/architecture/README.md).
-
-| Icon | Meaning |
-|---|---|
-| 💡 | Tip |
-| ⚠️ | Important to keep in mind |
-| 🛑 | Danger: never do this |
-
-## 🛡️ Safety
-
-- 🧪 Non-production subscription and synthetic data only (Alice, Bob, Eve).
-- 🔒 No secret, token or tenant ID in the repository.
-- 🏷️ **Preview** features are labeled where used.
-- 🎲 Names get a random suffix. This avoids collisions, **not** quota limits.
-- 💸 Nothing is created in Azure without your approval of a reviewed plan.
-
-## 🏗️ For authors
-
-[`docs/BUILD-PLAN.md`](docs/BUILD-PLAN.md) · [`docs/PROGRESS.md`](docs/PROGRESS.md) ·
-[`docs/COPILOT-RUNBOOK.md`](docs/COPILOT-RUNBOOK.md) · [`.github/copilot-instructions.md`](.github/copilot-instructions.md) ·
-[hosting the guides](docs/HOSTING.md) · [verified sources](docs/sources.md) (last verified 2026-10-14).
-
-## ⚖️ Disclaimer
-
-Community workshop, not an official Microsoft product. Provided "as is" under the MIT License.
+| **00 — Prerequisites** | Check your tools, approved Azure target and required permissions without creating resources. | [EN](modules/00-prerequisites/LOW-CODE.md) · [FR](modules/00-prerequisites/LOW-CODE.fr.md) | [EN](modules/00-prerequisites/README.md) · [FR](modules/00-prerequisites/README.fr.md) |
+| **01 — Discover MCP** | List and call a local tool with MCP Inspector and VS Code, without Azure. | [EN](modules/01-discover-mcp/README.md) · [FR](modules/01-discover-mcp/README.fr.md) | Shared guide |
+| **02 — Server protected by a key** | Deploy five synthetic tools and see why a shared key does not identify the user. | [EN](modules/02-open-server/LOW-CODE.md) · [FR](modules/02-open-server/LOW-CODE.fr.md) | [EN](modules/02-open-server/README.md) · [FR](modules/02-open-server/README.fr.md) |
+| **03 — Microsoft Entra authentication** | Let Alice and Bob connect; refuse Eve. Distinguish server access from per-tool rights. | [EN](modules/03-entra-authentication/LOW-CODE.md) · [FR](modules/03-entra-authentication/LOW-CODE.fr.md) | [EN](modules/03-entra-authentication/README.md) · [FR](modules/03-entra-authentication/README.fr.md) |
+| **04 — Governed gateway** | Make API Management the only entry point and enforce each tool's role. Bob can read but cannot write. | [EN](modules/04-governed-gateway/LOW-CODE.md) · [FR](modules/04-governed-gateway/LOW-CODE.fr.md) | [EN](modules/04-governed-gateway/README.md) · [FR](modules/04-governed-gateway/README.fr.md) |
+| **05 — Delegated and app-only access** | Compare On-Behalf-Of user access with managed-identity access to downstream APIs. | [EN](modules/05-delegated-and-app-only/LOW-CODE.md) · [FR](modules/05-delegated-and-app-only/LOW-CODE.fr.md) | [EN](modules/05-delegated-and-app-only/README.md) · [FR](modules/05-delegated-and-app-only/README.fr.md) |
+| **06 — Observe and inventory** | Query metadata-only logs and register the governed endpoint in Azure API Center. | [EN](modules/06-observe-inventory/LOW-CODE.md) · [FR](modules/06-observe-inventory/LOW-CODE.fr.md) | [EN](modules/06-observe-inventory/README.md) · [FR](modules/06-observe-inventory/README.fr.md) |
+| **07 — Optional clients** | Connect a Microsoft Foundry agent and approve tool calls. Copilot Studio is reading-only. | [EN](modules/07-clients/LOW-CODE.md) · [FR](modules/07-clients/LOW-CODE.fr.md) | [EN](modules/07-clients/README.md) · [FR](modules/07-clients/README.fr.md) |
+| **99 — Clean up** | Inventory and remove only workshop-owned resources and identities, including optional Foundry resources. | [EN](modules/99-cleanup/LOW-CODE.md) · [FR](modules/99-cleanup/LOW-CODE.fr.md) | [EN](modules/99-cleanup/README.md) · [FR](modules/99-cleanup/README.fr.md) |
+
+Module 04 also includes an optional example that exposes REST API operations as MCP tools.
+The core gateway uses **API Management Standard v2**, not the Preview AI Gateway tier.
+Preview features, including the API Management MCP API and Foundry OAuth identity passthrough,
+are labelled in the relevant guides.
+
+## Validation and current limits
+
+- The repository contains the guides, server code, deployment scripts, offline checks and cleanup instructions.
+  Recorded live tests in the author's approved environment are documented in [build progress](docs/PROGRESS.md).
+- Earlier live tests do **not** certify every instruction in the current guides or every low-code path.
+  Follow your guide's validation notes and repeat its checks in your own environment.
+- Module 01 runs locally. Its SDK and Inspector checks do not verify the manual VS Code approval prompt.
+- The dev container and Codespaces configuration still require runtime validation on a suitable host.
+- Foundry captures show earlier real tests: Alice's approved read succeeds and Bob's approved write is refused.
+  **Copilot Studio is an unvalidated, reading-only overview**, not a hands-on connection with real screenshots.
+- An offline `PASS`, a screenshot or moving to the next page is not proof of a successful Azure deployment.
+
+## Diagrams, captures and practice
+
+The module guides place commands, expected results and relevant real captures beside the exercise.
+Private values in captures are masked; use your own names and compare the documented fields.
+The module 99 inventory capture is **before cleanup**, not evidence that resources have been deleted.
+
+The Terraform guides for modules 01 to 07 include step-by-step SVG animations; module 01 is shared.
+Those animations are not yet included in the separate low-code guides for modules 02 to 07.
+Static architecture diagrams are also available from the module pages.
+
+- [Practice guide](docs/PRACTICE.md) · [Exercices en français](docs/fr/PRACTICE.md)
+- [The five tools and their responses](docs/MCP-SERVER.md) · [Les outils et leurs réponses](docs/fr/MCP-SERVER.md)
+- [Architecture diagrams](assets/architecture/STEPS.md) · [Schémas en français](assets/architecture/STEPS.fr.md)
+- [Editable diagram sources and image notices](assets/architecture/README.md)
+
+## Safety and costs
+
+- Use non-production resources and synthetic Alice, Bob and Eve scenarios only.
+- Obtain the required identity administrator approval before changing Microsoft Entra applications or permissions.
+- Review resource creation, permissions and costs before deployment. In the Terraform track, review the plan before applying it.
+- Keep one token audience per service hop. Never forward an MCP client token to a downstream API.
+- Write tools require the documented role and explicit human approval. Do not weaken a control to make a test pass.
+- Keep credentials, tokens, private participant parameters and Terraform state out of Git and shared outputs.
+  Reuse your private naming parameters and state until cleanup is complete.
+- Azure resources can continue to incur charges while idle. An expiry tag does not delete them.
+  Follow module 99 for your track, including the separate Foundry resource group and identity objects.
+  Preserve administrator-provided and shared resources.
+
+## For presenters and contributors
+
+Share the public English or French workshop link above. Participants run their own commands and use their own
+approved subscriptions; publishing the documentation never deploys their MCP workloads.
+
+For another documentation host, use the [hosting guide](docs/HOSTING.md)
+([français](docs/fr/HOSTING.md)). An Azure-hosted copy is optional.
+The repository's **Publish workshop guides** GitHub Actions workflow publishes GitHub Pages from `main`
+when it is run manually; a push or pull request does not automatically redeploy the site.
+
+- [Build plan](docs/BUILD-PLAN.md)
+- [Build progress and validation evidence](docs/PROGRESS.md)
+- [Copilot authoring runbook](docs/COPILOT-RUNBOOK.md)
+- [Contribution instructions](.github/copilot-instructions.md)
+- [Sources and verification dates](docs/sources.md)
+
+## License and disclaimer
+
+Community workshop, not an official Microsoft product. Provided "as is" under the [MIT License](LICENSE).
+Third-party assets retain their own notices and usage terms.
 The official documentation linked in each module is the reference.

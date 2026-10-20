@@ -13,6 +13,28 @@ import { parseProgress } from "../.github/extensions/workshop-build-board/progre
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 
+test("the root README links every current guide and separates public hosting from live validation", () => {
+    const readme = readFileSync(join(root, "README.md"), "utf8");
+    for (const language of ["en", "fr"]) {
+        assert.ok(readme.includes(`https://olivmertens.github.io/governed-mcp-workshop/?lang=${language}#/start`));
+    }
+    for (const folder of readdirSync(join(root, "modules")).filter((name) => /^\d{2}-/.test(name))) {
+        for (const name of ["README.md", "README.fr.md", "LOW-CODE.md", "LOW-CODE.fr.md"]) {
+            if (existsSync(join(root, "modules", folder, name))) {
+                assert.ok(readme.includes(`](modules/${folder}/${name})`), `Missing root guide link: ${folder}/${name}`);
+            }
+        }
+    }
+    for (const match of readme.matchAll(/\]\(([^)]+)\)/g)) {
+        if (/^https?:\/\//.test(match[1])) continue;
+        assert.ok(existsSync(join(root, ...match[1].split("#")[0].split("/"))), `Broken root README link: ${match[1]}`);
+    }
+    assert.match(readme, /public website is hosted on \*\*GitHub Pages\*\*/);
+    assert.match(readme, /Copilot Studio is an unvalidated, reading-only overview/);
+    assert.match(readme, /do \*\*not\*\* certify every instruction/);
+    assert.doesNotMatch(readme, /start\.en\.png|module-00\.en\.png|Use it in 5 steps|Fully tested in Azure|planned facilitator demo/);
+});
+
 test("getting started offers tracks without a workspace choice and checks tools after cloning", () => {
     const html = readFileSync(join(root, ".github", "extensions", "workshop-build-board", "board.html"), "utf8");
     const source = html.slice(html.indexOf("function showStart()"), html.indexOf("function deploymentContext()"));
