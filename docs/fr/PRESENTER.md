@@ -4,9 +4,8 @@
 
 **Vous hébergez les guides. Les participants réalisent leurs propres exercices.**
 Publier le portail ne déploie pas le serveur Model Context Protocol (MCP).
-Les modules 00 et 02 sont validés en conditions réelles. Les modules 03 à 06 ont réussi leurs vérifications opérateur
-dans un tenant de test, mais restent au statut « rédigé » tant que les vérifications d'Alice, Bob et Eve ne sont pas toutes réussies.
-Les modules 01, 07 et 99 sont rédigés (contrôles hors ligne réussis).
+Les modules 00 et 02 à 07 (partie Foundry, préversion) et le nettoyage du module 99 sont validés en conditions réelles
+dans un tenant de test, avec les vérifications d'Alice, Bob et Eve. Le module 01 est rédigé (contrôles hors ligne réussis).
 Suivez l'ordre d'exécution du [README racine](../../README.md).
 Les participants peuvent faire le [module 01](../../modules/01-discover-mcp/README.fr.md) sans attendre votre portail ni un déploiement Azure.
 
