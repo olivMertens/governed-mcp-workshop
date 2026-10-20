@@ -107,9 +107,10 @@ Check 'KQL selects no body, argument, result or token fields' {
     -not $hits
 } 'KQL references a forbidden field'
 
-Check 'KQL filters on api.type Mcp' {
-    ($kql -match 'customDimensions\[[''"]api\.type[''"]\]') -and ($kql -match '[''"]Mcp[''"]')
-} 'KQL does not filter on api.type == Mcp'
+Check 'KQL filters on api.type Mcp, pass-through-mcp and mcp-backend' {
+    ($kql -match 'customDimensions\[[''"]api\.type[''"]\]') -and ($kql -match '[''"]Mcp[''"]') -and
+        ($kql -match '[''"]pass-through-mcp[''"]') -and ($kql -match '[''"]mcp-backend[''"]')
+} 'KQL does not filter on api.type Mcp, pass-through-mcp and mcp-backend'
 
 # 7. Payload logging is never enabled as an instruction.
 Check 'README does not instruct enabling payload logging' {
@@ -147,13 +148,13 @@ Check 'only placeholder GUIDs in module files' {
     -not $bad
 } 'a non-placeholder GUID was found'
 
-# 10. Status is authored, never validated.
+# 10. Status is never overclaimed: "validated" needs a date and a recorded live run.
 Step 'Offline - status, sources and log rules are recorded' 'Proves progress is not overclaimed, sources are dated, no infra is added and log rules are stated.'
 $progress = Get-Content -Raw (Join-Path $root 'docs/PROGRESS.md')
-Check 'PROGRESS row 06 is not claimed as validated before live run' {
+Check 'PROGRESS row 06 claims validated only with a date and a live run' {
     $row = ($progress -split "`n" | Where-Object { $_ -match '^\|\s*06\s*\|' }) | Select-Object -First 1
-    $row -and ($row -notmatch '\|\s*validated\s*\|')
-} 'row 06 must not be validated in the offline build'
+    $row -and (($row -notmatch '\|\s*validated\s*\|') -or ($row -match '\|\s*validated\s*\|\s*\d{4}-\d{2}-\d{2}\s*\|' -and $row -match 'live'))
+} 'row 06 is validated without a date and a recorded live run'
 
 # 11. Sources recorded with a last-verified date.
 $sources = Get-Content -Raw (Join-Path $root 'docs/sources.md')
