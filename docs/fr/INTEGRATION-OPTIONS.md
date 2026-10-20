@@ -235,7 +235,7 @@ une entrée dans l'inventaire.
 | | Partie A : serveur MCP existant derrière la passerelle | Partie B : API REST exposée en serveur MCP |
 |---|---|---|
 | Qui écrit le code MCP | L'équipe du serveur (ici, Azure Functions) | Personne : les opérations de l'API deviennent des outils |
-| Ce que reçoit le client | Des outils, et des ressources ou des prompts si le serveur en propose | Des outils seulement (ni ressources ni prompts) |
+| Ce que reçoit le client | Des outils et des ressources ; API Management ne prend pas encore en charge les prompts MCP | Des outils seulement (ni ressources ni prompts) |
 | Où l'identité est vérifiée | Par la passerelle, puis de nouveau par le serveur | Par la passerelle |
 | Logique côté serveur | Libre : plusieurs appels, On-Behalf-Of, identité managée | Une opération par outil |
 | À choisir quand | Les outils sont conçus pour des agents ou ont leur propre logique | Une API REST stable existe déjà et des appels simples suffisent |
