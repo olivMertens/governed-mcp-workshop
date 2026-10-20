@@ -145,8 +145,8 @@ $vars = '-var-file=..\..\.workshop\participant.tfvars.json', '-var-file=..\..\.w
 terraform '-chdir=infra\workload' init -lockfile=readonly
 terraform '-chdir=infra\workload' plan @vars '-out=..\..\.workshop\module04.tfplan'
 if ($LASTEXITCODE -ne 0) { throw 'Terraform plan failed.' }
-# Review: about 19 additions (network, DNS, private endpoint, API Management, APIs, policies, logger, diagnostics,
-# identity and one role assignment) and the known in-place Function App app_settings update. Then, after approval:
+# Review: about 20 additions (network, DNS, private endpoint, API Management, the Function backend, APIs, policies, logger,
+# diagnostics, identity and one role assignment) and the known in-place Function App app_settings update. Then, after approval:
 terraform '-chdir=infra\workload' apply '..\..\.workshop\module04.tfplan'
 ```
 
@@ -311,20 +311,25 @@ Start-Sleep -Seconds 300   # telemetry ingestion delay
 > **What it means for you:** there is now **one door**, and the Function behind it is unreachable from the internet.
 > A token for another audience is refused at the gateway, and the logs keep zero body bytes and no header.
 
-> **Expected result** — persona, `-Burst` and `-CheckTelemetry` messages; not captured: the test tenant requires MFA
-> registration for the test accounts (excerpt).
+![Real terminal output: module 04 operator checks; frame 1 marks the four refusals and the gateway metadata, frame 2 the private Function and the zero-body-byte diagnostics](../../assets/screenshots/terminal-04-operator.png)
+
+> **Real result** — persona, `-Burst` and `-CheckTelemetry` runs, 2026-10-20, author's test tenant, each test account
+> signed in to its own Azure CLI profile. Names and IDs withheld (excerpt).
 >
 > ```text
 > PASS Alice get_service_health is allowed with Tools.Read (expected HTTP 200).
-> PASS Bob create_ticket is denied by the gateway: Tools.Write is missing (expected HTTP 403).
 > PASS Alice create_ticket is allowed with Tools.Write and queues one synthetic ticket (expected HTTP 200).
+> PASS Bob create_ticket is denied by the gateway: Tools.Write is missing (expected HTTP 403).
 > PASS an unknown tool and a JSON-RPC message without a method are denied safely (expected HTTP 403 and HTTP 400).
-> PASS Bob burst of <count> calls is throttled per caller object ID (expected HTTP 429).
-> PASS Application Insights: <n> gateway requests and <n> tool traces with tool label and caller oid, no body, argument or token (expected HTTP 200 from Log Analytics).
+> PASS Bob burst of 40 calls is throttled per caller object ID (expected HTTP 429).
+> PASS Eve cannot obtain a token, so she never reaches the gateway (expected HTTP 400 from the token endpoint, AADSTS50105).
+> PASS Application Insights: 103 gateway requests and 60 tool traces with tool label and caller oid, no body, argument or token (expected HTTP 200 from Log Analytics).
 > ```
 >
 > **What it means for you:** being signed in no longer means "can do everything": Bob reads, only Alice writes, and
 > nobody can flood the server. The logs say **who** called **which tool**, never what they sent.
+
+![Real terminal output: module 04 persona check signed in as Bob; frame 1 marks the read allowed and the write refused with HTTP 403, frame 2 the burst throttled with HTTP 429](../../assets/screenshots/terminal-04-bob.png)
 
 ### Optional part B - Expose a REST API as an MCP server (API-first)
 
@@ -464,7 +469,7 @@ pink frames mark what to check). Select an image to open it full size.
 **API Management → MCP Servers.** Two servers on the same gateway: `contoso-tickets-mcp` (part B, built from a REST API)
 and `workshop-mcp` (part A, the Azure Functions server).
 
-![Real capture: API Management MCP Servers list with contoso-tickets-mcp (REST API exposed as MCP) and workshop-mcp (existing server)](../../assets/screenshots/azure-04-mcp-servers.png)
+![Real capture: API Management MCP Servers list; frame 1 marks workshop-mcp with Source MCP server (passthrough to the Function), frame 2 contoso-tickets-mcp with Source API (REST API exposed as MCP)](../../assets/screenshots/azure-04-mcp-servers.png)
 
 **contoso-tickets-mcp → Tools.** Each ticked API operation is one MCP tool: `GET /tickets` and `GET /tickets/{ticketId}`.
 
@@ -663,6 +668,8 @@ compares each answer with the expected status: a refusal you predicted is a succ
 | Code publish fails after stage 2 | Expected: deployment endpoints are private now. Publish before stage 2, or from inside the virtual network. |
 | Name already in use after a clean-up | API Management soft-delete: purge it (see Clean up). |
 | `ValidationError` ... `mcpProperties.endpoints` ... `JSON array` | Your copy predates the fix: the 2025-09-01-preview service expects `endpoints` as a map keyed by name; `infra/workload/gateway.tf` now sends `{ message = { uriTemplate = "/mcp" } }` (Preview API; the published REST reference still shows an array). |
+| Alice's `tools/list` through the gateway is empty (`{"tools":[]}`), but the Function lists five tools directly | The MCP server has no backend entity: API Management then treats it as a REST-backed MCP server and answers `tools/list` itself. `infra/workload/gateway.tf` creates `azapi_resource.mcp_backend` and sets `backendId` (Preview API; the published reference shows only `serviceUrl`). In the portal, **MCP Servers** must show **Source: MCP server** for `workshop-mcp`. |
+| The 401 challenge names `.../workshop-mcp/.well-known/oauth-protected-resource/workshop-mcp/mcp` | Expected in passthrough mode: API Management rewrites the metadata URL under the MCP server path. The MCP server policy answers that exact anonymous GET with the same metadata document; the root URL keeps working. |
 | Plan shows the portal service plan `F1` -> `B1` | Something outside Terraform changed the optional portal plan (in the author's tenant a cost automation does this nightly). Approve only if you want B1 back; otherwise keep the change out of scope. |
 
 ## Clean up

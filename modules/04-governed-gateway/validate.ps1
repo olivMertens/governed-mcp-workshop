@@ -193,17 +193,23 @@ Step 'Live - the gateway is the only way in and refuses wrong tokens' 'Proves no
 $anonymous = Invoke-Mcp $gateway $initialize $base
 $challenge = "$($anonymous.Headers['WWW-Authenticate'])"
 if ($anonymous.Status -ne 401) { Fail "gateway request without a token returned HTTP $($anonymous.Status) (expected HTTP 401)." }
-if ($challenge -notmatch 'resource_metadata="([^"]+)"' -or $Matches[1] -ne $metadataUrl -or $challenge -match 'azurewebsites') {
+# In passthrough mode API Management rewrites the announced URL under the MCP API path; both forms are served by the gateway.
+$metadataOrigin = ([uri]$metadataUrl).GetLeftPart([UriPartial]::Authority)
+$scopedMetadataUrl = $metadataOrigin + '/' + ([uri]$gateway).AbsolutePath.Trim('/').Split('/')[0] + ([uri]$metadataUrl).AbsolutePath
+$announced = if ($challenge -match 'resource_metadata="([^"]+)"') { $Matches[1] } else { '' }
+if ($announced -notin @($metadataUrl, $scopedMetadataUrl) -or $challenge -match 'azurewebsites') {
     Fail 'the gateway 401 challenge must name the gateway Protected Resource Metadata URL, never the Function host (expected HTTP 401).'
 }
 Pass 'gateway request without a token is refused with a challenge naming the gateway metadata (expected HTTP 401).'
 
-$prm = Invoke-WebRequest -Uri $metadataUrl -Method Get -SkipHttpErrorCheck -MaximumRedirection 0 -TimeoutSec 30
-$metadata = $null; try { $metadata = [string]$prm.Content | ConvertFrom-Json -AsHashtable } catch { $metadata = $null }
-if ([int]$prm.StatusCode -ne 200 -or $null -eq $metadata -or (Get-Value $metadata 'resource') -ne $gateway -or
-    @(Get-Value $metadata 'authorization_servers') -notcontains $issuer -or @(Get-Value $metadata 'scopes_supported') -notcontains $scope -or
-    [string]$prm.Content -match 'azurewebsites') {
-    Fail "gateway Protected Resource Metadata returned HTTP $($prm.StatusCode) without the gateway resource, tenant issuer and scope (expected HTTP 200)."
+foreach ($url in @($metadataUrl, $announced) | Select-Object -Unique) {
+    $prm = Invoke-WebRequest -Uri $url -Method Get -SkipHttpErrorCheck -MaximumRedirection 0 -TimeoutSec 30
+    $metadata = $null; try { $metadata = [string]$prm.Content | ConvertFrom-Json -AsHashtable } catch { $metadata = $null }
+    if ([int]$prm.StatusCode -ne 200 -or $null -eq $metadata -or (Get-Value $metadata 'resource') -ne $gateway -or
+        @(Get-Value $metadata 'authorization_servers') -notcontains $issuer -or @(Get-Value $metadata 'scopes_supported') -notcontains $scope -or
+        [string]$prm.Content -match 'azurewebsites') {
+        Fail "gateway Protected Resource Metadata returned HTTP $($prm.StatusCode) without the gateway resource, tenant issuer and scope (expected HTTP 200)."
+    }
 }
 Pass 'gateway Protected Resource Metadata names the gateway resource, the tenant and the user_impersonation scope (expected HTTP 200).'
 
@@ -334,7 +340,7 @@ try {
     Pass "$Persona tools/list through the gateway returns the five workshop tools (expected HTTP 200)."
 
     $health = Invoke-Mcp $gateway @{ jsonrpc = '2.0'; id = 3; method = 'tools/call'; params = @{ name = 'get_service_health'; arguments = @{ service = 'workshop-api' } } } $authorized
-    if ($health.Status -ne 200 -or $null -eq $health.Payload?.result -or $health.Payload.result.isError) {
+    if ($health.Status -ne 200 -or $null -eq (Get-Value $health.Payload 'result') -or (Get-Value $health.Payload 'result.isError')) {
         Fail "$Persona get_service_health returned HTTP $($health.Status) or a tool error (expected HTTP 200, Tools.Read)."
     }
     Pass "$Persona get_service_health is allowed with Tools.Read (expected HTTP 200)."
@@ -345,7 +351,7 @@ try {
         if ($ticket.Status -ne 403) { Fail "Bob create_ticket returned HTTP $($ticket.Status); the gateway must deny a write without Tools.Write (expected HTTP 403)." }
         Pass 'Bob create_ticket is denied by the gateway: Tools.Write is missing (expected HTTP 403).'
     } else {
-        if ($ticket.Status -ne 200 -or $null -eq $ticket.Payload?.result -or $ticket.Payload.result.isError) {
+        if ($ticket.Status -ne 200 -or $null -eq (Get-Value $ticket.Payload 'result') -or (Get-Value $ticket.Payload 'result.isError')) {
             Fail "Alice create_ticket returned HTTP $($ticket.Status) or a tool error (expected HTTP 200 with Tools.Write)."
         }
         Pass 'Alice create_ticket is allowed with Tools.Write and queues one synthetic ticket (expected HTTP 200).'

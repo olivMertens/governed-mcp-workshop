@@ -151,8 +151,8 @@ $vars = '-var-file=..\..\.workshop\participant.tfvars.json', '-var-file=..\..\.w
 terraform '-chdir=infra\workload' init -lockfile=readonly
 terraform '-chdir=infra\workload' plan @vars '-out=..\..\.workshop\module04.tfplan'
 if ($LASTEXITCODE -ne 0) { throw 'Terraform plan failed.' }
-# Relire : environ 19 ajouts (réseau, DNS, point de terminaison privé, API Management, API, stratégies, journaliseur,
-# diagnostics, identité et une attribution de rôle) et la mise à jour en place connue des app_settings. Puis, après approbation :
+# Relire : environ 20 ajouts (réseau, DNS, point de terminaison privé, API Management, le backend de la Function, API,
+# stratégies, journaliseur, diagnostics, identité et une attribution de rôle) et la mise à jour en place connue des app_settings. Puis, après approbation :
 terraform '-chdir=infra\workload' apply '..\..\.workshop\module04.tfplan'
 ```
 
@@ -320,20 +320,25 @@ Start-Sleep -Seconds 300   # délai d'ingestion de la télémétrie
 > injoignable depuis Internet. La passerelle refuse un jeton émis pour une autre audience, et les journaux
 > ne contiennent aucun octet de corps ni aucun en-tête.
 
-> **Résultat attendu** — messages des contrôles par persona, `-Burst` et `-CheckTelemetry` ; non capturé, car le tenant de
-> test exige que les comptes de test s'inscrivent à l'authentification multifacteur (MFA) (extrait).
+![Sortie réelle du terminal : contrôles opérateur du module 04 ; le cadre 1 marque les quatre refus et les métadonnées de la passerelle, le cadre 2 la Function privée et les diagnostics à 0 octet de corps](../../assets/screenshots/terminal-04-operator.png)
+
+> **Résultat réel** — contrôles par persona, `-Burst` et `-CheckTelemetry`, 2026-10-20, tenant de test de l'auteur ; chaque
+> compte de test est connecté dans son propre profil Azure CLI. Noms et ID masqués (extrait).
 >
 > ```text
 > PASS Alice get_service_health is allowed with Tools.Read (expected HTTP 200).
-> PASS Bob create_ticket is denied by the gateway: Tools.Write is missing (expected HTTP 403).
 > PASS Alice create_ticket is allowed with Tools.Write and queues one synthetic ticket (expected HTTP 200).
+> PASS Bob create_ticket is denied by the gateway: Tools.Write is missing (expected HTTP 403).
 > PASS an unknown tool and a JSON-RPC message without a method are denied safely (expected HTTP 403 and HTTP 400).
-> PASS Bob burst of <count> calls is throttled per caller object ID (expected HTTP 429).
-> PASS Application Insights: <n> gateway requests and <n> tool traces with tool label and caller oid, no body, argument or token (expected HTTP 200 from Log Analytics).
+> PASS Bob burst of 40 calls is throttled per caller object ID (expected HTTP 429).
+> PASS Eve cannot obtain a token, so she never reaches the gateway (expected HTTP 400 from the token endpoint, AADSTS50105).
+> PASS Application Insights: 103 gateway requests and 60 tool traces with tool label and caller oid, no body, argument or token (expected HTTP 200 from Log Analytics).
 > ```
 >
 > **Ce que cela signifie pour vous :** être connecté ne veut plus dire « tout faire » : Bob lit, seule Alice écrit, et
 > personne ne peut saturer le serveur. Les journaux indiquent **qui** a appelé **quel outil**, jamais ce qu'il a envoyé.
+
+![Sortie réelle du terminal : contrôle par persona du module 04, connexion en tant que Bob ; le cadre 1 marque la lecture autorisée et l'écriture refusée avec HTTP 403, le cadre 2 la rafale limitée avec HTTP 429](../../assets/screenshots/terminal-04-bob.png)
 
 ### Partie B facultative - Exposer une API REST en serveur MCP (approche API-first)
 
@@ -476,7 +481,7 @@ pour l'agrandir.
 **API Management → MCP Servers.** Deux serveurs sur la même passerelle : `contoso-tickets-mcp` (partie B, construit à
 partir d'une API REST) et `workshop-mcp` (partie A, le serveur Azure Functions).
 
-![Capture réelle : liste MCP Servers d'API Management avec contoso-tickets-mcp (API REST exposée en MCP) et workshop-mcp (serveur existant)](../../assets/screenshots/azure-04-mcp-servers.png)
+![Capture réelle : liste MCP Servers d'API Management ; le cadre 1 marque workshop-mcp avec la source MCP server (relais vers la Function), le cadre 2 contoso-tickets-mcp avec la source API (API REST exposée en MCP)](../../assets/screenshots/azure-04-mcp-servers.png)
 
 **contoso-tickets-mcp → Tools.** Chaque opération cochée devient un outil MCP : `GET /tickets` et `GET /tickets/{ticketId}`.
 
@@ -680,6 +685,8 @@ compare chaque réponse au statut attendu : un refus prévu est une réussite. C
 | La publication du code échoue après l'étape 2 | Normal : les points de terminaison de déploiement sont désormais privés. Publiez avant l'étape 2, ou depuis le réseau virtuel. |
 | Nom déjà utilisé après un nettoyage | Suppression réversible d'API Management : purgez l'instance (voir Nettoyer). |
 | `ValidationError` ... `mcpProperties.endpoints` ... `JSON array` | Votre copie est antérieure à la correction : le service 2025-09-01-preview attend `endpoints` sous forme de table indexée par nom ; `infra/workload/gateway.tf` envoie désormais `{ message = { uriTemplate = "/mcp" } }` (API Preview ; la référence REST publiée montre encore un tableau). |
+| Le `tools/list` d'Alice par la passerelle est vide (`{"tools":[]}`), alors que la Function liste cinq outils en direct | Le serveur MCP n'a pas d'entité backend : API Management le traite alors comme un serveur MCP construit à partir d'une API REST et répond lui-même à `tools/list`. `infra/workload/gateway.tf` crée `azapi_resource.mcp_backend` et renseigne `backendId` (API Preview ; la référence publiée ne montre que `serviceUrl`). Dans le portail, **MCP Servers** doit afficher **Source : MCP server** pour `workshop-mcp`. |
+| Le challenge 401 indique `.../workshop-mcp/.well-known/oauth-protected-resource/workshop-mcp/mcp` | Normal en mode passthrough : API Management réécrit l'URL des métadonnées sous le chemin du serveur MCP. La stratégie du serveur MCP répond à ce GET anonyme précis avec le même document de métadonnées ; l'URL à la racine fonctionne toujours. |
 | Le plan affiche le plan de service du portail `F1` -> `B1` | Un élément extérieur à Terraform a modifié le plan du portail facultatif (dans le tenant de l'auteur, une automatisation de réduction des coûts le fait chaque nuit). N'approuvez que si vous voulez revenir en B1 ; sinon, laissez ce changement de côté. |
 
 ## Nettoyer

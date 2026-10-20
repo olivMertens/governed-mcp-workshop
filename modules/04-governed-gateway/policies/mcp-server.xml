@@ -18,6 +18,24 @@
 <policies>
   <inbound>
     <base />
+    <!-- Passthrough mode: API Management rewrites the resource_metadata URL of the 401 challenge under this API's own
+         path (verified live 2026-10-19). Answer that exact anonymous GET with the same static metadata document as the
+         gateway-level metadata API. Nothing is forwarded to the Function. -->
+    <choose>
+      <when condition="@(context.Request.Method == "GET" && context.Request.OriginalUrl.Path.EndsWith("/.well-known/oauth-protected-resource/${mcp_path}/mcp"))">
+        <rate-limit-by-key calls="60" renewal-period="60" counter-key="@("workshop-prm-" + context.Request.IpAddress)" />
+        <return-response>
+          <set-status code="200" reason="OK" />
+          <set-header name="Content-Type" exists-action="override">
+            <value>application/json</value>
+          </set-header>
+          <set-header name="Cache-Control" exists-action="override">
+            <value>public, max-age=3600</value>
+          </set-header>
+          <set-body>{"resource":"${resource}","authorization_servers":["${issuer}"],"scopes_supported":["${scope}"],"bearer_methods_supported":["header"]}</set-body>
+        </return-response>
+      </when>
+    </choose>
 %{ if length(ip_ranges) > 0 ~}
     <!-- Optional network filter. Non-matching sources get HTTP 403 before any token work. -->
     <ip-filter action="allow">
