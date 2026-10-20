@@ -13,7 +13,10 @@ param(
     [guid]$TenantId,
     [guid]$SubscriptionId,
     [switch]$DemonstrateWrite,
-    [switch]$SkipBuild
+    [switch]$SkipBuild,
+    # Low-code track: name the resources you created in the portal instead of reading Terraform outputs.
+    [string]$ResourceGroup,
+    [string]$FunctionApp
 )
 
 Set-StrictMode -Version Latest
@@ -100,10 +103,15 @@ Step 'Live - Azure context and Function App state' 'Proves you target the approv
 Assert-WorkshopAzureContext -TenantId $TenantId -SubscriptionId $SubscriptionId
 Pass 'explicit Azure context matches the approved test target (expected HTTP 200 from Azure Resource Manager).'
 
-$outputs = & terraform "-chdir=$workload" output -json | ConvertFrom-Json -AsHashtable
-if ($LASTEXITCODE -ne 0 -or $null -eq $outputs) { Fail 'Terraform outputs unavailable; use the same private state as the deployment (expected HTTP N/A).' }
-$app = $outputs.mcp_function_app_name?.value
-$group = $outputs.resource_group_name?.value
+if ($ResourceGroup -or $FunctionApp) {
+    if (-not ($ResourceGroup -and $FunctionApp)) { Fail 'low-code track: pass both -ResourceGroup and -FunctionApp (expected HTTP N/A).' }
+    $app = $FunctionApp; $group = $ResourceGroup
+} else {
+    $outputs = & terraform "-chdir=$workload" output -json | ConvertFrom-Json -AsHashtable
+    if ($LASTEXITCODE -ne 0 -or $null -eq $outputs) { Fail 'Terraform outputs unavailable; use the same private state as the deployment, or the low-code parameters (expected HTTP N/A).' }
+    $app = $outputs.mcp_function_app_name?.value
+    $group = $outputs.resource_group_name?.value
+}
 if (-not $app -or -not $group) { Fail 'module 02 is not deployed in this state (enable_mcp_server is false). Deploy it first, or use -Offline.' }
 
 $site = Invoke-WorkshopAzureJson -Arguments @('functionapp', 'show', '--resource-group', $group, '--name', $app,

@@ -102,6 +102,10 @@ Module 02 deploys real Azure resources: start it only after module 00 validation
 
 ## 🗺️ Modules
 
+> [!TIP]
+> Each module offers two tracks: **low-code** (Azure portal or one short `az` command per step) or **full-code**
+> (Terraform and scripts). Pick one for the whole workshop: [choose your track](docs/TRACKS.md).
+
 | # | Module | Need it? | Test status | Guide |
 |---|---|---|---|---|
 | 00 | 🧰 Prerequisites and environment | ✅ Required | 🟢 Fully tested in Azure (2026-10-14) | [Open](modules/00-prerequisites/README.md) |

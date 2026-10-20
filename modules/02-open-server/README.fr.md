@@ -86,6 +86,192 @@ Aucune modification Microsoft Entra n'est nécessaire dans ce module.
 
 ## Étapes
 
+> [!TIP]
+> **Deux parcours, même résultat.** Choisissez-en un pour tout l'atelier ([comment choisir](../../docs/fr/TRACKS.md)) :
+> le **parcours low-code** ci-dessous (portail Azure ou une courte commande `az` par étape), ou le **parcours full-code**
+> (Terraform et scripts, sections PowerShell et Bash). Ne les mélangez pas : Terraform ne voit pas ce que vous créez à la main.
+
+### Parcours low-code (portail et commandes simples)
+
+Chaque étape donne le chemin dans le portail, puis la commande `az` équivalente. Utilisez l'un ou l'autre. Lancez les
+commandes dans PowerShell depuis la racine du dépôt (Cloud Shell fonctionne aussi). Les noms viennent de votre fichier de
+participant, comme dans le parcours full-code, avec `lc` en plus pour que les deux parcours ne se croisent jamais.
+
+**L1. Noms et étiquettes.**
+
+```powershell
+$p = Get-Content .\.workshop\participant.tfvars.json -Raw | ConvertFrom-Json
+$id = "$($p.participant_prefix)lc"; $sfx = $p.resource_suffix.Substring(0, 10); $loc = 'westeurope'
+$rg = "rg-mcp-$id-$sfx"; $st = "st$id$sfx"; $fn = "func-mcp-$id-$sfx"; $mi = "id-mcp-$id-$sfx"
+$ai = "appi-mcp-$id-$sfx"; $law = "log-mcp-$id-$sfx"; $vn = "vnet-mcp-$id-$sfx"
+$tags = @('workshop=governed-mcp', "owner=$($p.owner)", "expiry=$($p.expiry)", 'track=low-code')
+```
+
+> **Résultat attendu** — aucune sortie. Gardez ce terminal ouvert : toutes les étapes suivantes réutilisent ces variables.
+
+**L2. Groupe de ressources, identité, stockage et supervision.** Portail : **Créer une ressource** → **Groupe de
+ressources**, puis **Identités managées**, **Compte de stockage** (onglet **Avancé** : *Autoriser l'accès par clé du
+compte de stockage* désactivé, *Autoriser l'accès anonyme* désactivé), **Espace de travail Log Analytics** et
+**Application Insights** (basé sur l'espace de travail).
+
+```powershell
+az group create -n $rg -l $loc --tags @tags -o none
+az identity create -g $rg -n $mi --tags @tags -o none
+az storage account create -g $rg -n $st -l $loc --sku Standard_LRS --kind StorageV2 --min-tls-version TLS1_2 `
+    --allow-blob-public-access false --allow-shared-key-access false --tags @tags -o none
+az monitor log-analytics workspace create -g $rg -n $law --tags @tags -o none
+az monitor app-insights component create -g $rg -a $ai -l $loc --workspace $law --tags @tags -o none
+```
+
+> **Résultat réel** — 2026-10-20, tenant de test de l'auteur : aucune sortie. La stratégie du tenant a fixé l'accès
+> réseau public du compte de stockage à **Désactivé** dès sa création : l'étape L4 devient alors obligatoire.
+
+**L3. Conteneur de déploiement, file des tickets et les trois rôles de l'identité.** Portail : compte de stockage →
+**Conteneurs** → **+ Conteneur** `app-package` ; **Files d'attente** → **+ File d'attente** `tickets` ; puis **Contrôle
+d'accès (IAM)** → **Ajouter une attribution de rôle** pour l'identité managée : *Storage Blob Data Owner* sur le compte de
+stockage, *Storage Queue Data Message Sender* sur la seule file `tickets`, *Monitoring Metrics Publisher* sur
+Application Insights.
+
+```powershell
+az storage container-rm create -g $rg --storage-account $st -n app-package -o none
+$stId = az storage account show -g $rg -n $st --query id -o tsv
+az rest --method put --url "https://management.azure.com$stId/queueServices/default/queues/tickets?api-version=2023-05-01" --body '{}' -o none
+$miPid = az identity show -g $rg -n $mi --query principalId -o tsv
+$aiId = az monitor app-insights component show -g $rg -a $ai --query id -o tsv
+az role assignment create --assignee-object-id $miPid --assignee-principal-type ServicePrincipal --role 'Storage Blob Data Owner' --scope $stId -o none
+az role assignment create --assignee-object-id $miPid --assignee-principal-type ServicePrincipal --role 'Storage Queue Data Message Sender' --scope "$stId/queueServices/default/queues/tickets" -o none
+az role assignment create --assignee-object-id $miPid --assignee-principal-type ServicePrincipal --role 'Monitoring Metrics Publisher' --scope $aiId -o none
+az role assignment list --assignee $miPid --all --query "[].roleDefinitionName" -o tsv
+```
+
+> **Résultat réel** — 2026-10-20, tenant de test de l'auteur.
+>
+> ```text
+> Storage Blob Data Owner
+> Storage Queue Data Message Sender
+> Monitoring Metrics Publisher
+> ```
+
+**L4. Stockage privé (seulement si votre compte de stockage affiche un accès réseau public *Désactivé*).** Portail :
+**Réseaux virtuels** → **Créer** (deux sous-réseaux : `snet-functions` délégué à *Microsoft.App/environments*,
+`snet-private-endpoints`), puis compte de stockage → **Mise en réseau** → **Connexions de point de terminaison privé** →
+**+ Point de terminaison privé** pour `blob` et pour `queue`, chacun avec **Intégrer à une zone DNS privée** = Oui.
+
+```powershell
+az network vnet create -g $rg -n $vn --address-prefixes 10.52.0.0/23 -o none
+az network vnet subnet create -g $rg --vnet-name $vn -n snet-functions --address-prefixes 10.52.1.32/27 --delegations Microsoft.App/environments -o none
+az network vnet subnet create -g $rg --vnet-name $vn -n snet-private-endpoints --address-prefixes 10.52.1.0/27 -o none
+foreach ($svc in 'blob', 'queue') {
+    $zone = "privatelink.$svc.core.windows.net"
+    az network private-dns zone create -g $rg -n $zone -o none
+    az network private-dns link vnet create -g $rg -z $zone -n "link-$svc" -v $vn -e false -o none
+    az network private-endpoint create -g $rg -n "pe-$st-$svc" --vnet-name $vn --subnet snet-private-endpoints `
+        --private-connection-resource-id $stId --group-id $svc --connection-name "pe-$svc" -o none
+    az network private-endpoint dns-zone-group create -g $rg --endpoint-name "pe-$st-$svc" -n default --private-dns-zone $zone --zone-name $svc -o none
+}
+az network private-endpoint list -g $rg --query "[].privateLinkServiceConnections[0].privateLinkServiceConnectionState.status" -o tsv
+```
+
+> **Résultat réel** — 2026-10-20, tenant de test de l'auteur.
+>
+> ```text
+> Approved
+> Approved
+> ```
+
+**L5. La Function App.** Portail : **Créer une ressource** → **Function App** → **Flex Consumption** ; runtime **.NET 10
+(isolé)**, 2048 Mo ; **Stockage** : votre compte, authentification **Identité managée affectée par l'utilisateur** (votre
+identité) ; **Mise en réseau** : votre réseau virtuel, sous-réseau `snet-functions` (si vous avez fait L4) ;
+**Supervision** : votre Application Insights. Sans L4, retirez `--vnet` et `--subnet` de la commande.
+
+```powershell
+$miId = az identity show -g $rg -n $mi --query id -o tsv
+az functionapp create -g $rg -n $fn --storage-account $st --flexconsumption-location $loc --runtime dotnet-isolated --runtime-version 10 `
+    --instance-memory 2048 --deployment-storage-name $st --deployment-storage-container-name app-package `
+    --deployment-storage-auth-type UserAssignedIdentity --deployment-storage-auth-value $miId --assign-identity $miId `
+    --app-insights $ai --https-only true --vnet $vn --subnet snet-functions --tags @tags -o none
+az functionapp show -g $rg -n $fn --query "{state:properties.state || state, https:properties.httpsOnly || httpsOnly}" -o json
+```
+
+> **Résultat réel** — 2026-10-20, tenant de test de l'auteur (l'avertissement indique seulement que le sous-réseau est
+> dans le même groupe de ressources).
+>
+> ```text
+> {
+>   "https": true,
+>   "state": "Running"
+> }
+> ```
+>
+> Sans L4, dans un tenant qui impose le stockage privé, la commande s'arrête avec *« The storage account you selected ...
+> has networking restrictions »* : faites d'abord L4.
+
+**L6. Remplacer le paramètre de stockage à clé par l'identité.** La commande de création écrit une chaîne de connexion
+`AzureWebJobsStorage` qui contient une **clé de compte** : inutilisable (les clés sont désactivées) et c'est un secret dans
+votre configuration. Portail : Function App → **Paramètres** → **Variables d'environnement** : supprimez
+`AzureWebJobsStorage`, ajoutez les paramètres ci-dessous, puis **Configuration** → **Paramètres généraux** :
+*Informations d'identification de publication SCM de base* **Désactivé**.
+
+```powershell
+$cid = az identity show -g $rg -n $mi --query clientId -o tsv
+az functionapp config appsettings delete -g $rg -n $fn --setting-names AzureWebJobsStorage -o none
+az functionapp config appsettings set -g $rg -n $fn -o none --settings "AzureWebJobsStorage__credential=managedidentity" `
+    "AzureWebJobsStorage__clientId=$cid" "AzureWebJobsStorage__blobServiceUri=https://$st.blob.core.windows.net/" `
+    "AzureWebJobsStorage__queueServiceUri=https://$st.queue.core.windows.net/" "APPLICATIONINSIGHTS_AUTHENTICATION_STRING=ClientId=$cid;Authorization=AAD" `
+    "TICKET_QUEUE_SERVICE_URI=https://$st.queue.core.windows.net/" "TICKET_QUEUE_NAME=tickets" "WORKSHOP_IDENTITY_CLIENT_ID=$cid"
+az resource update -g $rg -n scm --namespace Microsoft.Web --resource-type basicPublishingCredentialsPolicies --parent "sites/$fn" --set properties.allow=false -o none
+az functionapp config appsettings list -g $rg -n $fn --query "[].name" -o tsv
+```
+
+> **Résultat réel** — 2026-10-20, tenant de test de l'auteur : plus aucun paramètre ne contient de clé.
+>
+> ```text
+> APPLICATIONINSIGHTS_CONNECTION_STRING
+> AzureWebJobsStorage__credential
+> AzureWebJobsStorage__clientId
+> AzureWebJobsStorage__blobServiceUri
+> AzureWebJobsStorage__queueServiceUri
+> APPLICATIONINSIGHTS_AUTHENTICATION_STRING
+> TICKET_QUEUE_SERVICE_URI
+> TICKET_QUEUE_NAME
+> WORKSHOP_IDENTITY_CLIENT_ID
+> ```
+
+**L7. Publier le code du serveur.** Dans VS Code avec l'extension Azure Functions : clic droit sur
+`src/FunctionsMcpServer` → **Deploy to Function App...** → votre application. Ou les trois mêmes commandes que dans le
+parcours full-code :
+
+```powershell
+dotnet publish .\src\FunctionsMcpServer --configuration Release --output .\.workshop\lowcode-publish
+Compress-Archive -Path .\.workshop\lowcode-publish\* -DestinationPath .\.workshop\lowcode.zip -Force
+az functionapp deployment source config-zip -g $rg -n $fn --src .\.workshop\lowcode.zip -o none
+```
+
+> **Résultat réel** — 2026-10-20, tenant de test de l'auteur : les lignes de compilation, puis trois avertissements
+> pendant qu'Azure termine le déploiement (`responded with status code 202`, `Waiting for sync triggers...`,
+> `Checking the health of the function app`). Code de sortie 0.
+
+**L8. Vérifier : la clé est le seul verrou.** Le validateur prend vos noms à la place des sorties Terraform :
+
+```powershell
+& .\modules\02-open-server\validate.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID -ResourceGroup $rg -FunctionApp $fn -DemonstrateWrite
+```
+
+> **Résultat réel** — parcours low-code, 2026-10-20, tenant de test de l'auteur (extrait).
+>
+> ```text
+> PASS Function App is running and HTTPS-only (expected HTTP 200 from Azure Resource Manager).
+> PASS MCP request without the mcp_extension key is refused (expected HTTP 401).
+> PASS anonymous access disabled: a random wrong key is refused (expected HTTP 401).
+> PASS MCP initialize with the key succeeds; negotiated protocol 2025-06-18 (expected HTTP 200).
+> PASS tools/list with the key returns exactly the five workshop tools (expected HTTP 200).
+> PASS RISK SHOWN: create_ticket succeeds with only the key; no user or role was checked (expected HTTP 200).
+> PASS module 02 live checks complete. Rotate or remove the key after the exercise (see README).
+> ```
+>
+> **Ce que cela signifie pour vous :** le même serveur et le même risque que dans le parcours full-code : toute personne
+> qui a la clé peut écrire. Le module 03 corrige cela. Continuez ensuite avec le parcours low-code du module 03.
+
 ### PowerShell
 
 Exécutez les commandes depuis la racine du dépôt. Arrêtez-vous dès qu'une commande échoue.
