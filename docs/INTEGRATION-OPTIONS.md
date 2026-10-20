@@ -230,7 +230,7 @@ token for the server's own audience, one gateway in front, metadata-only logs an
 | | Part A: existing MCP server behind the gateway | Part B: REST API exposed as an MCP server |
 |---|---|---|
 | Who writes MCP code | The server team (here, Azure Functions) | Nobody: API operations become tools |
-| What the client gets | Tools, and resources or prompts if the server offers them | Tools only (no resources, no prompts) |
+| What the client gets | Tools and resources; API Management does not support MCP prompts yet | Tools only (no resources, no prompts) |
 | Where identity is checked | Gateway, then the server again | Gateway |
 | Server-side logic | Free: several calls, On-Behalf-Of, managed identity | One operation per tool |
 | Choose it when | Tools are designed for agents, or need their own logic | A stable REST API already exists and simple calls are enough |
