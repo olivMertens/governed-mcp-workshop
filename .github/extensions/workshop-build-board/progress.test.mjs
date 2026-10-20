@@ -943,6 +943,47 @@ test("the Session 2 reveal diagram matches in both languages and only shows comm
     assert.ok(en.steps.some((step) => /\*\*Preview\*\*/.test(step.say)), "Preview features stay labelled");
 });
 
+test("every module from 01 to 07 builds its architecture step by step for attendees, identically in both languages", () => {
+    const folders = ["01-discover-mcp", "02-open-server", "03-entra-authentication", "04-governed-gateway",
+        "05-delegated-and-app-only", "06-observe-inventory", "07-clients"];
+    const html = readFileSync(new URL("./board.html", import.meta.url), "utf8");
+    const start = html.indexOf("function revealDiagram(");
+    const end = html.indexOf("function disclosure(", start);
+    const render = new Function(`${html.slice(start, end)}; return revealDiagram;`)();
+    assert.throws(() => render(JSON.stringify({ audience: "everyone", steps: [{ title: "One" }] }), "docs/X.md"), /presenter or attendee/);
+    const shape = (spec) => ({
+        size: [spec.width, spec.height, spec.audience, spec.lanes.map((lane) => [lane.x, lane.width])],
+        nodes: spec.nodes.map(({ id, step, until, tone, x, y, width, icon, detail }) => [id, step, until, tone, x, y, width, icon, detail?.length]),
+        edges: spec.edges.map(({ from, to, step, until, tone, fromSide, toSide }) => [from, to, step, until, tone, fromSide, toSide]),
+        steps: spec.steps.length,
+    });
+    for (const folder of folders) {
+        const specs = {};
+        for (const [language, name] of [["en", "README.md"], ["fr", "README.fr.md"]]) {
+            const text = readFileSync(join(repository, "modules", folder, name), "utf8").replaceAll("\r\n", "\n");
+            const blocks = [...text.matchAll(/^```reveal\n([\s\S]*?)\n```$/gm)];
+            assert.equal(blocks.length, 1, `${folder}/${name} needs exactly one reveal block`);
+            const spec = JSON.parse(blocks[0][1]);
+            assert.equal(spec.audience, "attendee", `${folder}/${name}: module diagrams speak to attendees`);
+            assert.ok(spec.width <= 760, `${folder}/${name}: keep module diagrams narrow enough to read without scrolling`);
+            const image = text.indexOf(`assets/architecture/${folder.slice(0, 2)}.${language}.svg`);
+            assert.ok(image > blocks[0].index, `${folder}/${name}: the step-by-step diagram comes before the full diagram`);
+            for (const node of spec.nodes) {
+                const [title, detail] = node.icon ? [18, 20] : [22, 24];
+                assert.ok(node.title.length <= title, `${folder}/${name}: "${node.title}" fits its box`);
+                for (const line of node.detail || []) assert.ok(line.length <= detail, `${folder}/${name}: "${line}" fits its box`);
+            }
+            for (const step of spec.steps) {
+                assert.ok(typeof step.simple === "string" && step.simple.length <= 120 && !/`/.test(step.simple),
+                    `${folder}/${name}: "${step.title}" needs one short plain-language line without code`);
+                assert.ok(!step.blocks && !step.show, `${folder}/${name}: module diagrams explain; the guide steps hold the commands`);
+            }
+            specs[language] = spec;
+        }
+        assert.deepEqual(shape(specs.fr), shape(specs.en), `${folder}: the French diagram has the same shape as the English one`);
+    }
+});
+
 test("the Session 2 overview diagram renders like a module diagram, only in the current language", () => {
     const html = readFileSync(new URL("./board.html", import.meta.url), "utf8");
     const start = html.indexOf("function markdown(");

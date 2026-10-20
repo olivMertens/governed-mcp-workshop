@@ -86,6 +86,51 @@ l'hôte Functions).
 | `obo_identity_principal_id` | `azuread_application_federated_identity_credential` | Fait confiance à l'identité `-obo` (sujet = son ID de principal). |
 | `grant_downstream_admin_consent` | `azuread_service_principal_delegated_permission_grant` | Consentement administrateur à l'échelle du tenant pour ces deux scopes exactement (décision de l'administrateur des identités). |
 
+
+
+
+
+**Construisez-le étape par étape.** Cliquez sur **Suivant** pour ajouter un élément à la fois ; le schéma complet suit.
+
+```reveal
+{
+  "title": "Qui porte les droits en aval ?",
+  "audience": "attendee",
+  "width": 760,
+  "height": 380,
+  "lanes": [
+    {"x": 8, "width": 232, "label": "Appelants"},
+    {"x": 264, "width": 232, "label": "Serveur MCP"},
+    {"x": 520, "width": 232, "label": "Entra et données"}
+  ],
+  "nodes": [
+    {"id":"alice","step":0,"x":30,"y":44,"width":188,"title":"Alice","detail":["rôle de lecteur Storage"]},
+    {"id":"fn","step":0,"x":286,"y":44,"width":188,"icon":"functions","title":"Serveur MCP","detail":["vérifie votre jeton","ne le transmet pas"]},
+    {"id":"obo","step":1,"tone":"governed","x":286,"y":164,"width":188,"title":"Identité OBO","detail":["identité managée","aucun secret client"]},
+    {"id":"entra","step":1,"x":542,"y":44,"width":188,"icon":"entra","title":"Microsoft Entra ID","detail":["On-Behalf-Of","échange de jeton"]},
+    {"id":"storage","step":2,"x":542,"y":164,"width":188,"icon":"storage","title":"Azure Storage","detail":["conteneur reports","rôle par utilisateur"]},
+    {"id":"bob","step":3,"x":30,"y":164,"width":188,"title":"Bob","detail":["aucun rôle Storage"]},
+    {"id":"deny","step":3,"tone":"risk","x":542,"y":284,"width":188,"title":"Bob : Storage 403","detail":["MCP : HTTP 200","isError: true"]},
+    {"id":"app","step":4,"x":286,"y":284,"width":188,"title":"Identité applicative","detail":["identité managée","la même pour tous"]}
+  ],
+  "edges": [
+    {"from":"alice","to":"fn","step":0,"tone":"governed","label":"jeton MCP"},
+    {"from":"fn","to":"entra","step":1,"tone":"governed","label":"échange"},
+    {"from":"obo","to":"fn","step":1,"label":"preuve"},
+    {"from":"fn","to":"storage","step":2,"tone":"governed","labelDy":26,"label":"jeton Storage"},
+    {"from":"bob","to":"fn","step":3,"label":"même outil"},
+    {"from":"app","to":"storage","step":4,"label":"accès applicatif"}
+  ],
+  "steps": [
+    {"title": "Votre jeton s'arrête ici", "simple": "Alice appelle le serveur avec un jeton fait pour le serveur MCP seulement. Il ne va pas plus loin.", "say": "Un jeton par appel : le jeton MCP n'est jamais transmis à Graph ni à Storage (pas de token passthrough)."},
+    {"title": "Échanger, pas transmettre", "simple": "Le serveur demande à Entra un nouveau jeton au nom d'Alice, et prouve son identité sans aucun secret.", "say": "On-Behalf-Of : le serveur envoie le jeton d'Alice et une assertion signée par son identité managée, grâce à une information d'identification fédérée."},
+    {"title": "Lire en tant qu'Alice", "simple": "Avec le nouveau jeton, le serveur lit le rapport avec les droits d'Alice.", "say": "Storage vérifie le rôle d'Alice sur le conteneur `reports`. `whoami` suit le même chemin vers Microsoft Graph."},
+    {"title": "Même outil, Bob est refusé", "simple": "Bob appelle le même outil, mais Storage le refuse : il n'y a aucun rôle.", "say": "MCP répond quand même HTTP 200, avec `isError: true` dans le résultat de l'outil. Un succès HTTP n'est pas un succès de l'outil."},
+    {"title": "Ou lire en tant qu'application", "simple": "read_report_as_app utilise l'identité de l'application : Alice et Bob obtiennent le même résultat.", "say": "Accès applicatif : l'identité managée détient le rôle, l'appelant ne compte plus en aval. Ce choix se fait outil par outil, en connaissance de cause."}
+  ]
+}
+```
+
 ![Architecture du niveau 3](../../assets/architecture/05.fr.svg)
 
 **Preview :** aucun nouvel élément en Preview dans ce module. Les métadonnées de ressource protégée sur la Function (module 03) et l'API de serveur

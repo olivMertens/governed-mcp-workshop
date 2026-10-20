@@ -74,6 +74,51 @@ privés. Les variables d'activation valent false par défaut : tant que `enable_
 La **partie B** facultative (`enable_rest_mcp_demo`, voir Étapes) ajoute une API REST fictive et un second serveur MCP adossé à
 cette API REST (**Preview**) sur la même passerelle, avec les mêmes règles de jeton, de rôle, de débit et de journalisation.
 
+
+
+
+
+**Construisez-le étape par étape.** Cliquez sur **Suivant** pour ajouter un élément à la fois ; le schéma complet suit.
+
+```reveal
+{
+  "title": "Une seule porte d'entrée gouvernée",
+  "audience": "attendee",
+  "width": 760,
+  "height": 380,
+  "lanes": [
+    {"x": 8, "width": 232, "label": "Appelants"},
+    {"x": 264, "width": 232, "label": "API Management"},
+    {"x": 520, "width": 232, "label": "Réseau privé"}
+  ],
+  "nodes": [
+    {"id":"alice","step":0,"x":30,"y":164,"width":188,"title":"Alice","detail":["Tools.Read + Write"]},
+    {"id":"fn","step":0,"x":542,"y":164,"width":188,"icon":"functions","title":"Azure Functions","detail":["serveur MCP","derrière Entra"]},
+    {"id":"apim","step":1,"tone":"governed","x":286,"y":164,"width":188,"icon":"apim","title":"API Management","detail":["vérifie le jeton","une URL pour tous"]},
+    {"id":"bob","step":2,"x":30,"y":284,"width":188,"title":"Bob","detail":["Tools.Read seul"]},
+    {"id":"rate","step":3,"tone":"governed","x":286,"y":284,"width":188,"title":"Limite de débit","detail":["30 appels par minute","puis HTTP 429"]},
+    {"id":"direct","step":4,"tone":"risk","x":30,"y":44,"width":188,"title":"Appel direct","detail":["depuis Internet"]},
+    {"id":"ai","step":5,"x":542,"y":284,"width":188,"icon":"insights","title":"App Insights","detail":["qui, quel outil","zéro octet de corps"]}
+  ],
+  "edges": [
+    {"from":"alice","to":"fn","step":0,"until":1,"tone":"morning","label":"jeton (module 03)"},
+    {"from":"alice","to":"apim","step":1,"tone":"governed","label":"jeton"},
+    {"from":"apim","to":"fn","step":1,"tone":"governed","label":"privé"},
+    {"from":"bob","to":"apim","step":2,"tone":"risk","label":"create_ticket : 403"},
+    {"from":"direct","to":"fn","step":4,"tone":"risk","toSide":"top","label":"HTTP 403"},
+    {"from":"apim","to":"ai","step":5,"label":"métadonnées"}
+  ],
+  "steps": [
+    {"title": "Partir du module 03", "simple": "Le serveur vérifie déjà les jetons Entra, mais il répond encore sur Internet.", "say": "Chaque client parle directement à la Function, et chaque nouveau client doit connaître son adresse."},
+    {"title": "Une seule porte d'entrée", "simple": "API Management devient la seule entrée. Elle vérifie le jeton, puis appelle le serveur en privé.", "say": "La passerelle applique `validate-azure-ad-token` et joint la Function par un point de terminaison privé. Les clients ne connaissent que l'URL de la passerelle."},
+    {"title": "Un rôle par outil", "simple": "Bob peut lire mais pas écrire : la passerelle refuse son appel create_ticket en HTTP 403.", "say": "La stratégie associe chaque outil à un rôle d'application : `Tools.Write` pour `create_ticket`. Alice obtient HTTP 200, Bob HTTP 403."},
+    {"title": "Limiter les rafales", "simple": "Un utilisateur qui appelle trop vite reçoit HTTP 429, et le serveur n'est jamais sollicité.", "say": "La limite se compte par utilisateur : 30 appels par 60 secondes par défaut."},
+    {"title": "Verrouiller le serveur", "simple": "L'accès public à la Function est coupé : un appel direct depuis Internet reçoit HTTP 403.", "say": "Seul le point de terminaison privé reste. La passerelle est désormais la seule entrée."},
+    {"title": "Voir qui a appelé quoi", "simple": "La passerelle journalise qui a appelé quel outil et le statut, jamais le contenu.", "say": "Application Insights reçoit l'ID d'objet de l'appelant, le nom de l'outil, le statut et la durée, sans aucun octet de corps ni jeton."}
+  ]
+}
+```
+
 ![Architecture du niveau 2](../../assets/architecture/04.fr.svg)
 
 L'URL client devient `https://apim-mcp-<prefix>-<suffix>.azure-api.net/workshop-mcp/mcp`. Les clients ne reçoivent

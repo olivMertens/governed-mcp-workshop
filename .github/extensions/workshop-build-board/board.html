@@ -310,7 +310,7 @@
     .reveal-diagram > h3 { margin: 0 0 4px; }
     .reveal-diagram > .reveal-hint { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
     .reveal-canvas { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
-    .reveal-canvas svg { display: block; width: 100%; min-width: 760px; height: auto; font-family: inherit; }
+    .reveal-canvas svg { display: block; width: 100%; height: auto; font-family: inherit; }
     .reveal-canvas .lane rect { fill: var(--wash); opacity: .55; }
     .reveal-canvas .lane text { fill: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
     .reveal-canvas .node rect.box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; transition: stroke .4s ease, stroke-width .4s ease; }
@@ -336,15 +336,36 @@
     .reveal-canvas .frag.past.tone-risk text { text-decoration: line-through; }
     .reveal-canvas .frag.past .strike { opacity: 1; }
     .reveal-canvas .strike { stroke: var(--error); stroke-width: 3; opacity: 0; transition: opacity .4s ease; }
-    .reveal-canvas .node.current rect.box { stroke: var(--gold); stroke-width: 4; }
-    :root[data-theme="light"] .reveal-canvas .node.current rect.box { stroke: #b58100; }
+    .reveal-canvas .node.current rect.box { stroke: var(--ink); stroke-width: 3.5; }
+    .reveal-canvas .badge { display: none; }
+    .reveal-canvas .node.current .badge { display: inline; }
+    .reveal-canvas .badge rect { fill: var(--gold); }
+    .reveal-canvas .badge text { fill: #1b1b1b; font-size: 11px; font-weight: 800; letter-spacing: .04em; }
+    :root[data-theme="light"] .reveal-canvas .badge rect { fill: #b58100; }
+    :root[data-theme="light"] .reveal-canvas .badge text { fill: #fff; }
     :root[data-theme="light"] .reveal-step .reveal-show { border-left-color: #b58100; }
     .reveal-canvas .edge.current path { stroke-width: 3.5; }
     .reveal-canvas .node.current { animation: reveal-pulse .9s ease 1; }
     @keyframes reveal-pulse { 0% { transform: scale(.96); } 60% { transform: scale(1.03); } 100% { transform: scale(1); } }
     .reveal-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 14px 0 6px; }
+    .reveal-controls button:disabled { opacity: .4; cursor: not-allowed; filter: grayscale(.6); }
     .reveal-controls .reveal-count { color: var(--muted); font-size: 13px; margin-right: auto; }
     .reveal-dots { display: flex; gap: 6px; }
+    .reveal-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 10px 2px 0; color: var(--muted); font-size: 12.5px; list-style: none; padding: 0; }
+    .reveal-legend li { display: inline-flex; align-items: center; gap: 6px; }
+    .reveal-legend .swatch { display: inline-block; width: 22px; height: 0; border-top: 3px solid var(--muted); }
+    .reveal-legend .swatch.tone-governed { border-top-color: var(--blue); }
+    .reveal-legend .swatch.tone-morning { border-top-color: var(--success); }
+    .reveal-legend .swatch.tone-risk { border-top: 3px dashed var(--error); }
+    .reveal-legend .swatch.tone-preview { border-top: 3px dotted var(--tip); }
+    .reveal-legend .swatch.past { opacity: .35; }
+    .reveal-legend .chip { background: var(--gold); color: #1b1b1b; font-size: 10.5px; font-weight: 800; border-radius: 4px; padding: 1px 5px; }
+    :root[data-theme="light"] .reveal-legend .chip { background: #b58100; color: #fff; }
+    .reveal-dots button.reveal-number { width: 28px; height: 28px; font-size: 12.5px; font-weight: 700; line-height: 1; color: var(--muted); border-color: var(--line); }
+    .reveal-dots button.reveal-number.seen { background: var(--wash); color: var(--ink); border-color: var(--blue); }
+    .reveal-dots button.reveal-number[aria-current="step"] { background: var(--blue); color: var(--paper); border-color: var(--blue); }
+    .reveal-diagram:fullscreen { overflow: auto; padding: 28px 40px; }
+    .reveal-diagram:fullscreen .reveal-canvas svg { max-height: 68vh; }
     .reveal-dots button { width: 14px; height: 14px; padding: 0; border-radius: 50%; border: 1px solid var(--blue); background: transparent; cursor: pointer; }
     .reveal-dots button[aria-current="step"], .reveal-dots button.seen { background: var(--blue); }
     .reveal-step { margin-top: 8px; animation: reveal-fade-up .5s ease 1; }
@@ -863,8 +884,10 @@
     function revealDiagram(source, path) {
       let spec;
       try { spec = JSON.parse(source); } catch { throw new Error("A reveal diagram must be valid JSON."); }
-      const { title = "", width = 1000, height = 460, lanes = [], nodes = [], edges = [], steps = [] } = spec;
+      const { title = "", width = 1000, height = 460, lanes = [], nodes = [], edges = [], steps = [], audience = "presenter" } = spec;
       if (!Array.isArray(steps) || !steps.length) throw new Error("A reveal diagram needs at least one step.");
+      if (!["presenter", "attendee"].includes(audience)) throw new Error("A reveal diagram audience is presenter or attendee.");
+      const attendee = audience === "attendee";
       const icons = ["azure", "microsoft", "entra", "apim", "functions", "storage", "insights", "api-center", "foundry-agent-service", "copilot-studio"];
       const byId = new Map();
       for (const node of nodes) {
@@ -887,9 +910,13 @@
       figure.tabIndex = 0;
       figure.setAttribute("aria-roledescription", t("Animated diagram"));
       if (title) figure.append(element("h3", title));
-      figure.append(element("p", "Presenter walk-through: reveal one fragment at a time with the buttons or the arrow keys. The page runs nothing.", "reveal-hint"));
+      figure.append(element("p", attendee
+        ? "Build the diagram one step at a time: select Next, or click the diagram and use the arrow keys."
+        : "Presenter walk-through: reveal one fragment at a time with the buttons or the arrow keys. The page runs nothing.", "reveal-hint"));
       const canvas = element("div", undefined, "reveal-canvas");
       const svg = make("svg", { viewBox: `0 0 ${width} ${height}`, role: "img", "aria-label": title || t("Animated diagram") });
+      // Shrink to the page width, but never so far that the text becomes unreadable: wider diagrams scroll instead.
+      svg.style.minWidth = `${Math.round(Math.min(width * 0.7, 760))}px`;
       const defs = make("defs");
       const marker = make("marker", { id: `reveal-arrow-${Math.random().toString(36).slice(2, 8)}`, viewBox: "0 0 10 10", refX: "9", refY: "5",
         markerUnits: "userSpaceOnUse", markerWidth: "11", markerHeight: "11", orient: "auto-start-reverse" });
@@ -924,6 +951,13 @@
         group.append(make("text", { class: "title", x: textX, y: node.y + 26 }, node.title));
         (node.detail || []).forEach((line, index) => group.append(make("text", { class: "detail", x: textX, y: node.y + 44 + index * 15 }, line)));
         if (node.tone === "risk") group.append(make("line", { class: "strike", x1: node.x + 6, y1: node.y + h - 6, x2: node.x + node.box.w - 6, y2: node.y + 6 }));
+        // "New" badge: only visible on the nodes the current step adds.
+        const label = t("New").toUpperCase();
+        const badgeWidth = 12 + label.length * 7.5;
+        const badge = make("g", { class: "badge", "aria-hidden": "true" });
+        badge.append(make("rect", { x: node.x + node.box.w - badgeWidth - 6, y: node.y - 9, width: badgeWidth, height: 18, rx: 4 }),
+          make("text", { x: node.x + node.box.w - 6 - badgeWidth / 2, y: node.y + 4, "text-anchor": "middle" }, label));
+        group.append(badge);
         nodeLayer.append(group);
       }
       const side = (box, name, shift) => ({
@@ -948,21 +982,46 @@
         edgeLayer.append(group);
       }
       canvas.append(svg);
+      // Legend: only the line styles this diagram uses, plus the "New" badge and the faded state.
+      const legend = element("ul", undefined, "reveal-legend");
+      legend.setAttribute("aria-label", t("Legend"));
+      const used = new Set([...nodes, ...edges].map((item) => item.tone).filter(Boolean));
+      const legendText = { governed: "Governed path", morning: "Seen earlier", risk: "Risk or refused", preview: "Preview feature" };
+      const legendItem = (swatch, text) => { const item = element("li"); item.append(swatch, element("span", text)); legend.append(item); };
+      legendItem(element("span", "New", "chip"), "Added at this step");
+      for (const tone of ["governed", "morning", "risk", "preview"]) {
+        if (used.has(tone)) legendItem(element("span", undefined, `swatch tone-${tone}`), legendText[tone]);
+      }
+      if ([...nodes, ...edges].some((item) => Number.isInteger(item.until))) legendItem(element("span", undefined, "swatch past"), "Faded: replaced later");
       const controls = element("div", undefined, "reveal-controls");
       const count = element("span", undefined, "reveal-count");
       count.setAttribute("aria-live", "polite");
       const dots = element("div", undefined, "reveal-dots");
       const back = element("button", undefined, "secondary");
       const next = element("button", undefined, "primary");
-      const all = element("button", "Show everything", "secondary");
+      const all = element("button", undefined, "secondary");
+      const allLabel = element("span", "Show everything");
+      all.append(allLabel);
       for (const button of [back, next, all]) button.type = "button";
-      back.append(symbol("arrowLeft"), element("span", "Back"));
-      next.append(element("span", "Reveal next"), symbol("arrowRight"));
+      back.append(symbol("arrowLeft"), element("span", attendee ? "Previous" : "Back"));
+      next.append(element("span", attendee ? "Next" : "Reveal next"), symbol("arrowRight"));
       controls.append(count, dots, back, next, all);
+      if (document.fullscreenEnabled && figure.requestFullscreen) {
+        const full = element("button", "Full screen", "secondary");
+        full.type = "button";
+        full.addEventListener("click", () => {
+          if (document.fullscreenElement === figure) document.exitFullscreen();
+          else figure.requestFullscreen().catch(() => {});
+        });
+        document.addEventListener("fullscreenchange", () => {
+          full.textContent = t(document.fullscreenElement === figure ? "Exit full screen" : "Full screen");
+        });
+        controls.append(full);
+      }
       const titles = { powershell: "PowerShell", bash: "Bash", json: "JSON", text: "Text", prompt: "Prompt to paste in the chat" };
       const panels = steps.map((step, index) => {
         const panel = element("section", undefined, "reveal-step");
-        panel.append(element("h4", step.title));
+        panel.append(element("h4", attendee ? `${index + 1}. ${step.title}` : step.title));
         if (step.simple) {
           const simple = element("p", undefined, "reveal-simple");
           simple.append(element("strong", language === "fr" ? "En clair : " : "In plain words: "));
@@ -971,13 +1030,13 @@
         }
         if (step.say) {
           const say = element("p", undefined, "reveal-say");
-          say.append(element("strong", language === "fr" ? "Pour le présentateur : " : "For the presenter: "));
+          if (!attendee) say.append(element("strong", language === "fr" ? "Pour le présentateur : " : "For the presenter: "));
           inline(say, step.say, path);
           panel.append(say);
         }
         if (step.show) {
           const show = element("p", undefined, "reveal-show");
-          show.append(element("strong", language === "fr" ? "À montrer : " : "Show: "));
+          show.append(element("strong", attendee ? (language === "fr" ? "À essayer : " : "Try it: ") : (language === "fr" ? "À montrer : " : "Show: ")));
           inline(show, step.show, path);
           panel.append(show);
         }
@@ -992,7 +1051,8 @@
           }
           panel.append(node);
         }
-        const dot = element("button");
+        const dot = element("button", undefined, "reveal-number");
+        dot.textContent = String(index + 1);
         dot.type = "button";
         dot.setAttribute("aria-label", `${index + 1}. ${step.title}`);
         dot.title = step.title;
@@ -1016,13 +1076,16 @@
           dot.classList.toggle("seen", index < current);
           if (index === current) dot.setAttribute("aria-current", "step"); else dot.removeAttribute("aria-current");
         });
-        count.textContent = `${t("Fragment")} ${current + 1} / ${steps.length}`;
+        count.textContent = attendee ? `${current + 1} / ${steps.length}` : `${t("Fragment")} ${current + 1} / ${steps.length}`;
+        count.setAttribute("aria-label", `${current + 1} / ${steps.length}: ${steps[current].title}`);
         back.disabled = current === 0;
-        next.disabled = all.disabled = current === steps.length - 1;
+        next.disabled = current === steps.length - 1;
+        // At the end, the same button starts over, so the reader never meets a dead button.
+        allLabel.textContent = t(current === steps.length - 1 ? "Start over" : "Show everything");
       }
       back.addEventListener("click", () => show(current - 1));
       next.addEventListener("click", () => show(current + 1));
-      all.addEventListener("click", () => show(steps.length - 1));
+      all.addEventListener("click", () => show(current === steps.length - 1 ? 0 : steps.length - 1));
       figure.addEventListener("keydown", (event) => {
         const moves = { ArrowRight: 1, PageDown: 1, " ": 1, ArrowLeft: -1, PageUp: -1 };
         if (event.target !== figure) return;
@@ -1033,7 +1096,7 @@
         event.preventDefault();
         event.stopPropagation();
       });
-      figure.append(canvas, controls, ...panels);
+      figure.append(canvas, legend, controls, ...panels);
       show(0);
       return figure;
     }

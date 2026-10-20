@@ -18,6 +18,48 @@ Rien dans Azure. Votre client lance un processus C# et communique avec lui par s
 Il expose uniquement `get_service_health`, avec des données fictives fixes, sans appeler d'autre service.
 Il n'y a ni adresse HTTP, ni données persistantes, ni écriture, ni journalisation du contenu des échanges.
 
+
+
+
+
+
+
+**Construisez-le étape par étape.** Cliquez sur **Suivant** pour ajouter un élément à la fois ; le schéma complet suit.
+
+```reveal
+{
+  "title": "Un appel d'outil, sur votre poste",
+  "audience": "attendee",
+  "width": 760,
+  "height": 380,
+  "lanes": [
+    {"x": 8, "width": 232, "label": "Client"},
+    {"x": 264, "width": 232, "label": "Messages (stdio)"},
+    {"x": 520, "width": 232, "label": "Serveur local"}
+  ],
+  "nodes": [
+    {"id":"c","step":0,"x":30,"y":44,"width":188,"title":"VS Code ou Inspector","detail":["démarre le serveur","en processus enfant"]},
+    {"id":"s","step":0,"x":542,"y":44,"width":188,"title":"Serveur MCP local","detail":["Workshop.LocalMcp","stdio, sans réseau"]},
+    {"id":"tool","step":1,"x":542,"y":164,"width":188,"title":"get_service_health","detail":["lecture seule","entrée : service"]},
+    {"id":"human","step":2,"tone":"governed","x":30,"y":164,"width":188,"title":"Vous approuvez","detail":["Manual permissions","arguments affichés"]},
+    {"id":"limit","step":4,"tone":"risk","x":286,"y":284,"width":188,"title":"Vous seul, ici","detail":["pas de réseau","pas d'identité"]}
+  ],
+  "edges": [
+    {"from":"c","to":"s","step":0,"label":"initialize"},
+    {"from":"c","to":"tool","step":1,"label":"tools/list"},
+    {"from":"human","to":"tool","step":2,"offset":-10,"label":"tools/call"},
+    {"from":"tool","to":"human","step":3,"offset":10,"label":"résultat"}
+  ],
+  "steps": [
+    {"title": "Le client démarre le serveur", "simple": "Pas d'Azure : le client lance le serveur sur votre poste, et ils dialoguent en stdio.", "say": "Ils échangent des messages JSON-RPC. `initialize` fixe d'abord la version du protocole."},
+    {"title": "Découvrir l'outil", "simple": "Le client demande la liste des outils et lit ce que chacun attend.", "say": "`tools/list` renvoie un seul outil en lecture, `get_service_health`, avec son schéma d'entrée : un texte `service` obligatoire. Rien ne s'exécute encore."},
+    {"title": "Vous approuvez l'appel", "simple": "Rien ne s'exécute tant que vous n'avez pas dit oui dans le client.", "say": "En mode **Manual permissions**, le client affiche l'outil et ses arguments, puis n'envoie `tools/call` qu'après votre accord."},
+    {"title": "Lire le résultat", "simple": "Le serveur répond avec des données synthétiques. Vérifiez le résultat, pas seulement le code de sortie.", "say": "`structuredContent` contient `status: healthy` et `source: synthetic`. Un service inconnu renvoie une erreur d'outil (`isError: true`)."},
+    {"title": "Voir la limite", "simple": "Personne d'autre ne peut utiliser ce serveur : ni réseau, ni identité.", "say": "Le module 02 déplace les mêmes outils dans Azure. Les vraies questions commencent alors : qui peut appeler, et avec quels droits ?"}
+  ]
+}
+```
+
 ![Découverte locale : architecture](../../assets/architecture/01.fr.svg)
 
 Ce schéma explique le parcours ; il ne prouve pas qu'un service est déployé.

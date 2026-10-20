@@ -81,6 +81,51 @@ can only ever use the user's delegated rights. The app-only rights live on a dif
 | `obo_identity_principal_id` | `azuread_application_federated_identity_credential` | Trusts the `-obo` identity (subject = its principal ID). |
 | `grant_downstream_admin_consent` | `azuread_service_principal_delegated_permission_grant` | Tenant-wide admin consent for exactly those two scopes (the identity administrator decides). |
 
+
+
+
+
+**Build it step by step.** Select **Next** to add one piece at a time; the full diagram follows.
+
+```reveal
+{
+  "title": "Who carries the rights downstream?",
+  "audience": "attendee",
+  "width": 760,
+  "height": 380,
+  "lanes": [
+    {"x": 8, "width": 232, "label": "Callers"},
+    {"x": 264, "width": 232, "label": "MCP server"},
+    {"x": 520, "width": 232, "label": "Entra and data"}
+  ],
+  "nodes": [
+    {"id":"alice","step":0,"x":30,"y":44,"width":188,"title":"Alice","detail":["Storage reader role"]},
+    {"id":"fn","step":0,"x":286,"y":44,"width":188,"icon":"functions","title":"MCP server","detail":["checks your token","never forwards it"]},
+    {"id":"obo","step":1,"tone":"governed","x":286,"y":164,"width":188,"title":"OBO identity","detail":["managed identity","no client secret"]},
+    {"id":"entra","step":1,"x":542,"y":44,"width":188,"icon":"entra","title":"Microsoft Entra ID","detail":["On-Behalf-Of","token exchange"]},
+    {"id":"storage","step":2,"x":542,"y":164,"width":188,"icon":"storage","title":"Azure Storage","detail":["reports container","role per user"]},
+    {"id":"bob","step":3,"x":30,"y":164,"width":188,"title":"Bob","detail":["no Storage role"]},
+    {"id":"deny","step":3,"tone":"risk","x":542,"y":284,"width":188,"title":"Bob: Storage 403","detail":["MCP: HTTP 200","isError: true"]},
+    {"id":"app","step":4,"x":286,"y":284,"width":188,"title":"App identity","detail":["managed identity","same for everyone"]}
+  ],
+  "edges": [
+    {"from":"alice","to":"fn","step":0,"tone":"governed","label":"MCP token"},
+    {"from":"fn","to":"entra","step":1,"tone":"governed","label":"exchange"},
+    {"from":"obo","to":"fn","step":1,"label":"proof"},
+    {"from":"fn","to":"storage","step":2,"tone":"governed","labelDy":26,"label":"Storage token"},
+    {"from":"bob","to":"fn","step":3,"label":"same tool"},
+    {"from":"app","to":"storage","step":4,"label":"app-only"}
+  ],
+  "steps": [
+    {"title": "Your token stops here", "simple": "Alice calls the server with a token made for the MCP server only. It never goes further.", "say": "One token per hop: the MCP token is never sent to Graph or Storage (no token passthrough)."},
+    {"title": "Exchange, don't forward", "simple": "The server asks Entra for a new token on Alice's behalf, and proves itself without any secret.", "say": "On-Behalf-Of: the server sends Alice's token plus an assertion signed by its managed identity, through a federated credential."},
+    {"title": "Read as Alice", "simple": "With the new token, the server reads the report with Alice's own rights.", "say": "Storage checks Alice's role on the `reports` container. `whoami` follows the same path to Microsoft Graph."},
+    {"title": "Same tool, Bob is refused", "simple": "Bob calls the same tool, but Storage refuses him: he has no role there.", "say": "MCP still answers HTTP 200, with `isError: true` in the tool result. HTTP success is not tool success."},
+    {"title": "Or read as the app", "simple": "read_report_as_app uses the app's own identity: Alice and Bob get the same result.", "say": "App-only access: the managed identity holds the role, so the caller no longer matters downstream. Choose it per tool, on purpose."}
+  ]
+}
+```
+
 ![Level 3 architecture](../../assets/architecture/05.en.svg)
 
 **Preview:** nothing new in this module. Protected Resource Metadata on the Function (module 03) and the API Management MCP server

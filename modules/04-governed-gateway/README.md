@@ -71,6 +71,51 @@ modules 00 to 03 are unchanged when `enable_governed_gateway` is false.
 Optional **part B** (`enable_rest_mcp_demo`, see Steps) adds a synthetic REST API and a second, REST-backed MCP server
 (**Preview**) on the same gateway, with the same token, role, rate-limit and logging rules.
 
+
+
+
+
+**Build it step by step.** Select **Next** to add one piece at a time; the full diagram follows.
+
+```reveal
+{
+  "title": "One governed front door",
+  "audience": "attendee",
+  "width": 760,
+  "height": 380,
+  "lanes": [
+    {"x": 8, "width": 232, "label": "Callers"},
+    {"x": 264, "width": 232, "label": "API Management"},
+    {"x": 520, "width": 232, "label": "Private network"}
+  ],
+  "nodes": [
+    {"id":"alice","step":0,"x":30,"y":164,"width":188,"title":"Alice","detail":["Tools.Read + Write"]},
+    {"id":"fn","step":0,"x":542,"y":164,"width":188,"icon":"functions","title":"Azure Functions","detail":["MCP server","behind Entra"]},
+    {"id":"apim","step":1,"tone":"governed","x":286,"y":164,"width":188,"icon":"apim","title":"API Management","detail":["checks the token","one URL for all"]},
+    {"id":"bob","step":2,"x":30,"y":284,"width":188,"title":"Bob","detail":["Tools.Read only"]},
+    {"id":"rate","step":3,"tone":"governed","x":286,"y":284,"width":188,"title":"Rate limit","detail":["30 calls per minute","then HTTP 429"]},
+    {"id":"direct","step":4,"tone":"risk","x":30,"y":44,"width":188,"title":"Direct call","detail":["from the internet"]},
+    {"id":"ai","step":5,"x":542,"y":284,"width":188,"icon":"insights","title":"App Insights","detail":["who, which tool","zero body bytes"]}
+  ],
+  "edges": [
+    {"from":"alice","to":"fn","step":0,"until":1,"tone":"morning","label":"token (module 03)"},
+    {"from":"alice","to":"apim","step":1,"tone":"governed","label":"token"},
+    {"from":"apim","to":"fn","step":1,"tone":"governed","label":"private"},
+    {"from":"bob","to":"apim","step":2,"tone":"risk","label":"create_ticket: 403"},
+    {"from":"direct","to":"fn","step":4,"tone":"risk","toSide":"top","label":"HTTP 403"},
+    {"from":"apim","to":"ai","step":5,"label":"metadata"}
+  ],
+  "steps": [
+    {"title": "Start from module 03", "simple": "The server already checks Entra tokens, but it still answers on the internet.", "say": "Every client talks to the Function directly, and each new client must know its address."},
+    {"title": "One front door", "simple": "API Management becomes the only way in. It checks the token, then calls the server privately.", "say": "The gateway runs `validate-azure-ad-token` and reaches the Function through a private endpoint. Clients only know the gateway URL."},
+    {"title": "One role per tool", "simple": "Bob may read but not write: the gateway refuses his create_ticket call with HTTP 403.", "say": "The policy maps each tool to an app role: `Tools.Write` for `create_ticket`. Alice gets HTTP 200, Bob HTTP 403."},
+    {"title": "Limit bursts", "simple": "A user who calls too fast gets HTTP 429, and the server is never reached.", "say": "The limit is counted per user: 30 calls per 60 seconds by default."},
+    {"title": "Lock the server", "simple": "Public access to the Function is turned off: a direct call from the internet gets HTTP 403.", "say": "Only the private endpoint remains. The gateway is now the only way in."},
+    {"title": "See who called what", "simple": "The gateway logs who called which tool and the status, never the content.", "say": "Application Insights receives the caller object ID, the tool name, the status and the latency, with zero body bytes and no token."}
+  ]
+}
+```
+
 ![Level 2 architecture](../../assets/architecture/04.en.svg)
 
 The client URL becomes `https://apim-mcp-<prefix>-<suffix>.azure-api.net/workshop-mcp/mcp`. The private Function URL is
