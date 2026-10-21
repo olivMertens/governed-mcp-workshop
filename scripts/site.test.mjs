@@ -78,6 +78,74 @@ test("getting started offers tracks without a workspace choice and checks tools 
     }
 });
 
+test("practice explains both client workflows in EN/FR and only prepares commands in the browser", () => {
+    const html = readFileSync(join(root, ".github", "extensions", "workshop-build-board", "board.html"), "utf8");
+    const source = html.slice(html.indexOf("function showPractice()"), html.indexOf("function overview()"));
+    const prepare = html.slice(html.indexOf("function connectionCommands("), html.indexOf("function validationCommands("));
+    const french = runInNewContext(`${readFileSync(join(root, ".github", "extensions", "workshop-build-board", "locale-fr.js"), "utf8")}\nfrench;`);
+    for (const language of ["en", "fr"]) {
+        const t = (text) => language === "fr" ? french[text] ?? text : text;
+        const element = (tag, text, className) => ({
+            tag, text: t(text), className, children: [], attributes: {}, listeners: {},
+            append(...items) { this.children.push(...items); },
+            replaceChildren(...items) { this.children = items; },
+            setAttribute(key, value) { this.attributes[key] = value; },
+            removeAttribute(key) { delete this.attributes[key]; },
+            addEventListener(event, listener) { this.listeners[event] = listener; },
+        });
+        const wrapper = (tag) => (title, ...children) => {
+            const node = element(tag, title);
+            node.append(...children.map((child) => typeof child === "string" ? t(child) : child));
+            return node;
+        };
+        const content = element("main");
+        runInNewContext(`${prepare}\n${source}\nshowPractice();`, {
+            language, t, element, content, URL, participant: null,
+            state: { environment: { devcontainer: true }, documents: { practice: { content: "guide", sourcePath: "guide.md" } } },
+            link: element, externalLink: element, markdown: element, deploymentContext: () => element("context"),
+            notice: wrapper("notice"), disclosure: wrapper("details"), commandBlock: wrapper("command"),
+        });
+        const flatten = (node) => typeof node === "object" ? [node, ...node.children.flatMap(flatten)] : [];
+        const nodes = flatten(content);
+        assert.equal(nodes[1].text, language === "fr" ?
+            "Connecter et tester depuis votre propre client" : "Connect and test from your own client");
+        assert.equal(nodes[2].text, t("This website does not run tests."));
+        assert.equal(nodes[2].children[0], t("Use VS Code or MCP Inspector on your computer."));
+        const lists = nodes.filter((node) => node.tag === "ol");
+        assert.deepEqual(lists.map((list) => list.children.length), [5, 6]);
+        assert.match(lists[0].children[0].text, /MCP: Add Server/);
+        assert.match(lists[0].children[3].text, /Agent/);
+        assert.match(lists[1].children[4].text, /Call Tool/);
+        if (language === "fr") {
+            for (const list of lists) {
+                for (const step of list.children) assert.ok(Object.values(french).includes(step.text), step.text);
+            }
+        }
+        const rendered = JSON.stringify(content);
+        for (const term of ["get_service_health", "PASS", "FAIL", "low-code", "Ctrl+C"]) assert.ok(rendered.includes(term), term);
+        assert.ok(nodes.some((node) => node.text === t("Prompts to paste into VS Code Copilot Chat")));
+        const input = nodes.find((node) => node.id === "mcp-endpoint");
+        const feedback = nodes.find((node) => node.id === "endpoint-feedback");
+        const commands = nodes.find((node) => node.id === "connection-commands");
+        assert.equal(commands.children.length, 0);
+        input.value = "https://workshop.example.invalid/mcp";
+        input.listeners.input();
+        assert.equal(feedback.textContent, t("Commands prepared locally. No network test has run; nothing has been saved."));
+        assert.equal(commands.children[0].text, t("Start Inspector / PowerShell"));
+        assert.ok(JSON.stringify(commands).includes(input.value));
+        input.value += "?code=synthetic";
+        input.listeners.input();
+        assert.equal(input.attributes["aria-invalid"], "true");
+        assert.equal(commands.children.length, 0);
+    }
+    for (const path of [["docs", "PRACTICE.md"], ["docs", "fr", "PRACTICE.md"]]) {
+        const guide = readFileSync(join(root, ...path), "utf8");
+        for (const term of ["Option A", "Option B", "MCP: Add Server", "Call Tool", "get_service_health", "low-code"]) {
+            assert.ok(guide.includes(term), `${path.join("/")}: ${term}`);
+        }
+    }
+});
+
 test("Git preserves SVG bytes and binary PNG provenance on Windows checkouts", () => {
     const attributes = readFileSync(join(root, ".gitattributes"), "utf8");
     assert.match(attributes, /^\*\.svg text eol=lf$/m);
@@ -87,7 +155,7 @@ test("Git preserves SVG bytes and binary PNG provenance on Windows checkouts", (
 test("the shared navigation omits the technical source register but keeps its authoring document", () => {
     const html = readFileSync(join(root, ".github", "extensions", "workshop-build-board", "board.html"), "utf8");
     const navigation = html.slice(html.indexOf('["resource-group",'), html.indexOf('["author-group",'));
-    assert.ok(navigation.includes('["practice", "Try your MCP", "terminal"]'));
+    assert.ok(navigation.includes('["practice", "Connect your MCP", "terminal"]'));
     assert.doesNotMatch(navigation, /"sources"|Verified sources/);
     const journey = readJourney(root, parseProgress(readFileSync(join(root, "docs", "PROGRESS.md"), "utf8")));
     for (const language of [journey, journey.translations.fr]) {

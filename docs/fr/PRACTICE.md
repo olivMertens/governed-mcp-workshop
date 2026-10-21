@@ -1,22 +1,63 @@
-# Tester votre serveur MCP
+# Connecter et tester depuis votre propre client
 
-Ce guide sert à tester **votre serveur déjà déployé**, pas à le déployer.
+> [!IMPORTANT]
+> **Ce site web ne lance aucun test. Utilisez VS Code ou MCP Inspector sur votre ordinateur.**
+
+Ce guide vous aide à vous connecter à **votre serveur Model Context Protocol (MCP) déjà déployé**.
+La page prépare des instructions, des commandes et des prompts. C'est votre client qui contacte le serveur
+et exécute le vrai test. La page ne déploie pas l'atelier et ne certifie pas votre déploiement.
 **Sans Azure :** commencez par le [module 01 local](../../modules/01-discover-mcp/README.fr.md),
 que vous exécutez sur votre poste, sans adresse distante à saisir.
-La page de l'atelier vous indique les commandes ; vous les lancez dans votre terminal ou votre client MCP.
 Un résultat attendu décrit dans le guide ne prouve pas qu'un test a réussi.
 
-## Commencer par un test simple
+## Option A : VS Code (recommandé)
 
-1. Ouvrez l'environnement choisi au module 00 et sélectionnez uniquement le serveur de l'atelier.
-2. Affichez les outils disponibles : **Tools / List Tools** dans Inspector, ou **MCP: List Servers**
-   et le sélecteur d'outils dans VS Code.
-3. Commencez par `get_service_health` s'il est disponible. Lisez les informations demandées par l'outil
-   et utilisez seulement des données fictives. S'il n'est pas disponible, arrêtez-vous.
-4. Lancez **Call Tool** dans Inspector ou, dans VS Code, utilisez le prompt proposé par le guide.
-   Vérifiez la trace de l'exécution, pas seulement la réponse de l'assistant.
-5. Comparez le résultat avec celui qu'annonce le module. Un code HTTP 200 peut contenir une erreur MCP.
-   Lancez ensuite le script de vérification du module.
+Vous pouvez utiliser Visual Studio Code (VS Code) sans rien saisir sur la page de l'atelier.
+
+1. Terminez le déploiement et les prérequis du module en cours. Copiez l'adresse HTTPS exacte du serveur.
+   À partir du module 04, utilisez uniquement celle de la passerelle API Management.
+2. Sur votre ordinateur, ouvrez VS Code, puis la palette de commandes : **Ctrl+Maj+P** sous Windows
+   ou **Cmd+Maj+P** sous macOS. Lancez **MCP: Add Server**, choisissez **HTTP**, collez l'adresse
+   et nommez le serveur `workshop`. Choisissez votre configuration utilisateur privée.
+   Conservez les autres serveurs et n'ajoutez aucun identifiant de connexion à Git.
+3. Lancez **MCP: List Servers**, sélectionnez `workshop` et démarrez-le. Examinez la demande de confiance.
+   Suivez l'authentification du module : saisie protégée de la clé au module 02,
+   connexion Microsoft Entra à partir du module 03. Une adresse seule ne donne pas accès au serveur.
+4. Ouvrez GitHub Copilot Chat en mode **Agent**. Sélectionnez uniquement les outils du serveur workshop.
+   Copiez le prompt **Afficher les outils disponibles, sans les exécuter** depuis la page dans le **chat**,
+   pas dans le terminal. Vérifiez la liste avant d'envoyer **Tester un outil sans modifier de données**.
+5. Examinez la trace de l'appel réel à `get_service_health` et son résultat. Si l'outil manque, arrêtez-vous.
+   Une réponse rédigée ou un indicateur de connexion ne prouve pas la réussite de l'appel.
+
+## Option B : MCP Inspector
+
+Inspector est un client distinct pour examiner les appels manuellement, sans conversation avec une IA.
+Choisissez cette option à la place de VS Code ; les deux ne sont pas nécessaires.
+
+1. Vérifiez PowerShell 7 et Node.js 22.19.0 ou plus récent, selon le module 00.
+   Pour Microsoft Entra, vérifiez les paramètres approuvés de client public propres à Inspector.
+   L'accord donné à VS Code ne vaut pas pour Inspector.
+2. Saisissez uniquement l'adresse HTTPS dans la page de l'atelier. Elle vérifie son format et génère
+   une commande ; elle ne se connecte pas au serveur.
+3. Copiez **Lancer MCP Inspector / PowerShell** dans **PowerShell sur votre ordinateur** et exécutez-la.
+   Examinez la demande d'installation, puis ouvrez l'adresse locale privée affichée. Ne la partagez pas.
+4. Dans Inspector, vérifiez **Streamable HTTP** et l'adresse. Configurez l'authentification selon le module,
+   puis choisissez **Connect**. La commande générée ne fournit aucun identifiant.
+5. Ouvrez **Tools / List Tools**, sélectionnez `get_service_health` et examinez les arguments attendus.
+   Fournissez uniquement les arguments fictifs requis, puis choisissez **Call Tool** une seule fois.
+   Lisez le résultat. Ne collez pas les prompts Copilot Chat dans Inspector.
+6. Arrêtez Inspector avec **Ctrl+C**. N'exportez ni en-têtes d'authentification ni traces Network/Protocol.
+
+## Comment savoir si le test a réussi
+
+Pour le premier test en lecture seule, le client doit afficher `get_service_health` et son appel réel doit
+renvoyer le résultat fictif attendu par le module, sans erreur d'outil MCP. Un code HTTP 200 ne suffit pas.
+Une commande préparée ou la lecture d'un résultat attendu ne prouve pas qu'un test a eu lieu.
+
+Retournez ensuite au module en cours et lancez sa commande de vérification depuis la racine du dépôt
+dans votre terminal. Utilisez celle de votre parcours, avec les paramètres explicites du guide low-code.
+Comparez les lignes `PASS`/`FAIL` et les statuts HTTP attendus. Certains tests ultérieurs doivent être refusés :
+n'ajoutez pas de droits pour faire disparaître un refus prévu.
 
 > [!IMPORTANT]
 > Ne collez jamais de clé ou de jeton dans la page de l'atelier. Ne désactivez pas la confirmation manuelle.

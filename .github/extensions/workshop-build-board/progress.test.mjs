@@ -407,8 +407,9 @@ test("guided controls show one page, preserve commands and require opening long 
 test("French labels use the reviewed wording and copied prompts preserve the safety instructions", () => {
     const source = readFileSync(new URL("./locale-fr.js", import.meta.url), "utf8");
     const french = new Function(`${source}; return french;`)();
-    assert.equal(french["Not sure what to ask?"], "Par quoi commencer ?");
-    assert.equal(french["Make the call. Understand the boundary."], "Testez votre serveur, puis vérifiez le résultat.");
+    assert.equal(french["Prompts to paste into VS Code Copilot Chat"], "Prompts à coller dans Copilot Chat dans VS Code");
+    assert.equal(french["Connect and test from your own client"], "Connecter et tester depuis votre propre client");
+    assert.equal(french["This website does not run tests."], "Ce site web ne lance aucun test.");
     assert.equal(french["Copy prompt"], "Copier la consigne");
     assert.equal(french["Why this boundary matters"], "Pour aller plus loin : comprendre les protections");
     assert.doesNotMatch(Object.values(french).join("\n"), /idée d'appel|Comprenez la frontière|vrai README|vrai guide/);
