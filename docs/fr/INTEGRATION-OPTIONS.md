@@ -7,14 +7,15 @@ Toutes les démonstrations utilisent des données fictives (Contoso, Alice, Bob,
 clients l'atteignent**, **comment les équipes le trouvent** et **qui l'utilise**. Azure API Management devient la porte
 d'entrée unique, quel que soit le serveur derrière.
 
-## 1. De ce matin à la porte d'entrée
+## 1. Du serveur local à une architecture sécurisée sur Azure
 
-Ouvrez la séquence avec ce déroulé animé. Il part du serveur local de ce matin et ajoute un élément par clic, avec la
-vraie commande derrière chacun. Sélectionnez **Révéler la suite** ou utilisez les flèches du clavier.
+Suivez le parcours d'un appel d'outil, depuis le serveur exécuté sur votre poste jusqu'à la passerelle Azure API Management.
+Faites avancer le schéma pour comprendre le rôle de chaque composant et retrouver les commandes associées.
+Utilisez le bouton **Étape suivante** ou les flèches du clavier.
 
 ```reveal
 {
-  "title": "De ce matin à la porte d'entrée",
+  "title": "Du serveur local à une architecture sécurisée sur Azure",
   "width": 1100,
   "height": 500,
   "lanes": [
@@ -51,10 +52,10 @@ vraie commande derrière chacun. Sélectionnez **Révéler la suite** ou utilise
   ],
   "steps": [
     {
-      "title": "Ce matin : un serveur local",
-      "simple": "Ce matin, l'outil vivait sur votre poste : vous seul pouviez l'utiliser.",
-      "say": "Rappel du [module 01](../../modules/01-discover-mcp/README.fr.md). Le client démarre le serveur comme processus enfant et lui parle en **stdio** : pas de réseau, pas d'identité, un seul utilisateur. `tools/list` renvoie `get_service_health`.",
-      "show": "La ligne de commande de l'Inspector qui liste les outils du serveur local. Demandez à la salle : qui d'autre peut l'appeler ? Personne, et c'est la limite.",
+      "title": "Point de départ : un serveur sur votre poste",
+      "simple": "Au départ, l'outil s'exécute sur votre poste. Le client qui lance ce processus peut l'appeler.",
+      "say": "Dans le [module 01](../../modules/01-discover-mcp/README.fr.md), le client démarre le serveur comme processus enfant et communique avec lui en **stdio** : les échanges restent sur votre poste. `tools/list` renvoie `get_service_health`.",
+      "show": "Listez les outils avec MCP Inspector. Vous devez retrouver `get_service_health`. Ce serveur local n'est pas accessible aux autres participants par le réseau.",
       "blocks": [
         {
           "language": "powershell",
@@ -311,6 +312,41 @@ Solution de repli si la démo en direct ne peut pas tourner : ces captures réel
 **Transition vers la séquence suivante :** « Nous savons où vivent les serveurs MCP et comment on les expose. Voyons
 maintenant qui porte les droits à chaque appel : un jeton par saut. »
 
+## 9. Pour conclure : qu'est-ce que Microsoft Agent 365 ?
+
+**Agent 365 est le plan de contrôle des agents, pas un nouvel outil de création d'agents ni un serveur MCP.**
+Il aide les administrateurs à observer, gouverner et sécuriser les agents de l'organisation, même lorsqu'ils
+proviennent de plateformes différentes. Son registre central rassemble l'inventaire, les propriétaires et la gestion
+du cycle de vie. Il s'appuie sur Microsoft Entra pour les identités et les accès, Microsoft Purview pour la gouvernance
+des données et Microsoft Defender pour la protection contre les menaces. Les fonctions disponibles dépendent
+des licences et de la configuration.
+
+Retenez trois responsabilités distinctes :
+
+| Composant | Responsabilité |
+|---|---|
+| Azure API Center | Cataloguer les serveurs MCP pour retrouver les adresses approuvées. Ce n'est pas une étape à l'exécution. |
+| Microsoft Agent 365 | Donner aux administrateurs une vue centrale et des décisions de gouvernance sur les agents et leurs outils. |
+| Azure API Management | Appliquer les contrôles configurés aux appels qui traversent la passerelle. |
+
+**Disponibilité :** Agent 365 est généralement disponible pour le segment Commercial depuis le 2026-05-01.
+Son **intégration avec API Management reste en Preview**. Sur API Management v2, elle permet l'inventaire des serveurs
+MCP et le blocage d'un serveur entier (HTTP 403). Le blocage d'un outil par Agent 365 exige le
+**niveau AI Gateway (Preview)** ; les stratégies par rôle et par outil de notre passerelle v2 sont un contrôle distinct.
+
+Cette intégration exige le consentement unique d'un administrateur du tenant pour le rôle
+**A365 MCP Gateway Policy Operator**. Ce droit permet de lire les ressources de passerelle et de lire ou modifier
+les stratégies des API dans les abonnements du tenant. Ce n'est pas un prérequis participant : gardez-le comme
+discussion facultative avec l'animateur, avec approbation séparée, licences et tenant de test. Cette page n'active rien.
+
+**Conservez la frontière :** Agent 365 ne redirige pas les clients vers API Management, ne remplace pas les contrôles
+d'audience et de rôle de la passerelle, ni l'approbation humaine des outils d'écriture. Les clients doivent toujours
+utiliser l'URL de la passerelle et l'accès direct au backend doit rester bloqué. L'atelier ne journalise que des
+métadonnées, jamais les prompts, les arguments ou les résultats.
+
+**À retenir :** API Center aide à trouver la porte ; Agent 365 aide les administrateurs à décider ce qui est permis ;
+API Management contrôle chaque appel à la porte.
+
 ## Sources
 
 - [Serveurs MCP dans Azure API Management](https://learn.microsoft.com/azure/api-management/mcp-server-overview)
@@ -320,5 +356,7 @@ maintenant qui porte les droits à chaque appel : un jeton par saut. »
 - [Choisir un service Azure pour votre serveur MCP](https://learn.microsoft.com/azure/container-apps/mcp-choosing-azure-service)
 - [Inscrire et découvrir des serveurs MCP dans Azure API Center](https://learn.microsoft.com/azure/api-center/register-discover-mcp-server)
 - [Créer un catalogue privé d'outils dans Foundry (préversion)](https://learn.microsoft.com/azure/foundry/agents/how-to/private-tool-catalog)
+- [Vue d'ensemble et disponibilité de Microsoft Agent 365](https://learn.microsoft.com/microsoft-agent-365/overview)
+- [Gouverner les outils avec Agent 365 et API Management (Preview)](https://learn.microsoft.com/azure/api-management/agent-365)
 
-Dernière vérification : 2026-10-20.
+Dernière vérification : 2026-10-21.

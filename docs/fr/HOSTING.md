@@ -47,6 +47,32 @@ Accueil : `#/start`. Français : `?lang=fr#/start`. Anglais : `?lang=en#/start`.
 La navigation repose sur le fragment d'URL (`#`) : ni serveur applicatif ni règle de réécriture sur GitHub Pages.
 Le site lit ses fichiers statiques. L'adresse saisie reste dans la mémoire de la page ; seuls vos outils de test appellent le serveur MCP.
 
+### Retrouver les schémas animés
+
+GitHub Pages et la copie App Service facultative utilisent le même lecteur participant. Les modules 01 à 07 affichent
+leur animation au-dessus de la leçon, dans les deux parcours. Le raccourci **Schéma animé** du plan du module y mène directement.
+Le titre **Comprendre avant de passer à la pratique** en fait la première activité du module.
+Le bouton **Passer à l'exercice du module** ouvre ensuite la première étape du guide.
+Chaque schéma du parcours complet propose aussi un lien vers son module, sans changer de parcours de déploiement.
+Ouvrez **Schéma animé** dans la navigation de démarrage (`#/integration/1`) pour le parcours complet en images.
+Utilisez **Suivant**, **Précédent**, les étapes numérotées ou les flèches du clavier.
+Ce sont des fragments dans l'esprit de reveal.js, rendus localement, pas un site de diapositives Reveal distinct.
+Les modules proposent aussi les schémas statiques complets.
+
+Les scripts de présentation, les instructions de publication et les notes internes restent dans le dépôt et dans
+le tableau de bord local. Ils sont exclus de la navigation publique et des données du parcours publié.
+Les modules publics conservent commandes, prérequis, coûts, avertissements de sécurité, résultats attendus,
+limites de validation et nettoyage.
+Le marqueur `<!-- module-animations -->` du guide d'architecture participant EN/FR est remplacé par les animations
+existantes à la publication. Les blocs `<!-- author-only -->` sont exclus du texte public ; le code reste intact.
+
+Les blocs de code utilisent une palette de terminal sombre : variables bleues, commandes jaunes, chaînes orange,
+paramètres et commentaires verts, mots-clés violets. Les lignes en pointillé ont une explication au survol, au toucher
+ou à la sélection au clavier ; Échap la ferme. La copie conserve le code original sans annotations ni numéros de ligne.
+La dernière étape de la séquence 2 (`#/integration/9`), également liée après le module 07, explique Agent 365
+et distingue sa disponibilité de son intégration Preview avec
+la passerelle. Chaque copie hébergée doit être reconstruite et publiée pour afficher les changements.
+
 ## Publier sur GitHub Pages
 
 Le workflow `.github/workflows/workshop-pages.yml` suit la procédure GitHub officielle, épingle chaque action sur un commit

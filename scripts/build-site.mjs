@@ -9,7 +9,35 @@ import { screenshots } from "./portal-server.mjs";
 const repository = fileURLToPath(new URL("../", import.meta.url));
 const icons = ["azure", "microsoft", "entra", "apim", "functions", "storage", "insights", "api-center", "subscription", "foundry-agent-service", "copilot-studio"];
 const modules = ["00", "01", "02", "03", "04", "05", "06", "07", "99"];
-export const authorOnlyDocuments = ["runbook", "implementation", "buildProgress", "plan", "originalPlan", "architectureAuthoring", "originalArchitecture"];
+export const authorOnlyDocuments = ["runbook", "implementation", "buildProgress", "plan", "originalPlan",
+    "architectureAuthoring", "originalArchitecture", "presenter", "hosting", "attendeeArchitecture"];
+
+export function participantContent(text) {
+    if (text === null) return null;
+    let fenced = false, authorOnly = false;
+    const lines = [];
+    for (const line of text.split(/\r?\n/)) {
+        if (/^\s*```/.test(line)) fenced = !fenced;
+        if (!fenced && line === "<!-- author-only -->") {
+            if (authorOnly) throw new Error("Nested author-only content is not supported.");
+            authorOnly = true;
+            continue;
+        }
+        if (!fenced && line === "<!-- /author-only -->") {
+            if (!authorOnly) throw new Error("Unexpected author-only closing marker.");
+            authorOnly = false;
+            continue;
+        }
+        if (authorOnly) continue;
+        lines.push(fenced ? line : line
+            .replace("This is a talk track for the presenter, with no participant step.", "This integration is optional reading, not a participant exercise.")
+            .replace("Do not run these steps in a participant tenant from the presenter side.", "Use your own approved account, not another participant's tenant.")
+            .replace("Optional talk track, see", "Optional reading, see")
+            .replace("optional talk track, not revalidated here", "optional reading, not revalidated here"));
+    }
+    if (authorOnly) throw new Error("An author-only block is missing its closing marker.");
+    return lines.join("\n");
+}
 
 function readSource(root, parts) {
     for (let index = 0; index <= parts.length; index++) {
@@ -30,7 +58,26 @@ export function buildSite(root = repository, destination = join(root, "site-dist
     // and the local authoring board; the published participant site never carries them.
     delete journey.openDecisions;
     for (const language of [journey, journey.translations.fr]) {
+        const attendee = language.documents.attendeeArchitecture;
+        if (!attendee?.content.includes("<!-- module-animations -->")) {
+            throw new Error("The participant architecture guide needs its module animation marker.");
+        }
+        const animations = language.modules.filter((module) => module.animation).map((module) => {
+            const french = language.language === "fr";
+            const label = french ? `Mettre en pratique dans le module ${module.module}` : `Try it in module ${module.module}`;
+            const target = `${french ? "../../" : "../"}${module.sourcePath}`;
+            return `## ${Number(module.module)}. ${module.title}\n\n\`\`\`reveal\n${module.animation.content}\n\`\`\`\n\n[${label}](${target})\n`;
+        }).join("\n");
+        language.documents.integration = { ...attendee,
+            content: attendee.content.replace("<!-- module-animations -->", animations) };
         for (const key of authorOnlyDocuments) delete language.documents[key];
+        for (const doc of Object.values(language.documents)) doc.content = participantContent(doc.content);
+        for (const module of language.modules) {
+            for (const key of ["notes", "evidence", "validatedOn", "outline", "status"]) delete module[key];
+            for (const key of ["guide", "learning", "hints"]) module[key] = participantContent(module[key]);
+            for (const guide of Object.values(module.guides)) guide.guide = participantContent(guide.guide);
+            if (module.originalGuide) module.originalGuide.content = participantContent(module.originalGuide.content);
+        }
     }
     for (const language of [journey, journey.translations.fr]) {
         for (const module of language.modules) {

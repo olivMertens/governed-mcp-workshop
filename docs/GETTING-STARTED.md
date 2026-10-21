@@ -1,16 +1,18 @@
 # Get started
 
-**Participant:** use the portal link your presenter sends, choose EN/FR and your deployment track, then start at module 00.
+Open the workshop website, choose EN/FR and your deployment track, then start at module 00.
 There is no workspace selection step in the portal. Run commands in your terminal.
 The site uses PowerShell 7 throughout, on Windows, macOS and Linux. There is no shell to choose.
 Bash alternatives remain in the repository guides and scripts, not in the site's lessons or PDF exports.
 The optional container and Codespaces setup details below are reference material, not another required choice.
-You do not need another App Service or the presenter's administrator account.
+You do not need another App Service or someone else's administrator account.
 Without a portal, follow these Markdown guides.
+<!-- author-only -->
 **Presenter:** use the separate [publishing how-to](PRESENTER.md).
+<!-- /author-only -->
 
 **Try MCP without Azure first:** after cloning and installing .NET 10/PowerShell 7,
-use [module 01](../modules/01-discover-mcp/README.md). The presenter portal is optional documentation hosting.
+use [module 01](../modules/01-discover-mcp/README.md). The website only hosts the instructions; it is optional.
 
 Use **Visual Studio Code (VS Code)** with a dev container, or use your own terminal.
 These workspace choices are independent of your deployment track.

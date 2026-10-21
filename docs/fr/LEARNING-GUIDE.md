@@ -168,6 +168,7 @@ il ne relaie pas les requêtes, n'authentifie pas les clients et ne donne aucun 
 > Ne conservez ni jetons, ni prompts, ni arguments, ni résultats d'outils et n'exportez pas les traces Inspector.
 > L'inventaire Microsoft 365, facultatif, est en **Preview**. Sa configuration est réservée à l'administrateur du tenant.
 
+<!-- author-only -->
 <details>
 <summary>Facultatif : Agent 365 et API Management — Preview, démonstration prévue</summary>
 
@@ -193,6 +194,7 @@ Ce sont les résultats documentés, pas la preuve d'un exercice validé.
 Dernière vérification : 2026-10-14.
 
 </details>
+<!-- /author-only -->
 
 **Résultat attendu :** des traces limitées aux métadonnées, des requêtes pour examiner les refus et l'adresse de la passerelle dans l'inventaire.
 **Suite :** module 99 pour arrêter les coûts. Le module 07 est un parcours facultatif, pas un prérequis.

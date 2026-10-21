@@ -1,17 +1,19 @@
 # Bien démarrer
 
-**Participant :** ouvrez le lien envoyé par le présentateur, choisissez EN/FR et votre parcours, puis commencez le module 00.
+Ouvrez le site de l'atelier, choisissez EN/FR et votre parcours, puis commencez le module 00.
 Le portail ne demande pas de choisir un environnement. Exécutez les commandes dans votre terminal.
 Le site utilise PowerShell 7 partout, sous Windows, macOS et Linux. Aucun terminal de commande à choisir.
 Les alternatives bash restent dans les guides et scripts du dépôt, pas dans les leçons ni les exports PDF du site.
 Les détails facultatifs sur les conteneurs et Codespaces ci-dessous restent une référence, pas un choix obligatoire.
-Vous n'avez besoin ni d'un autre App Service ni du compte administrateur du présentateur.
+Vous n'avez besoin ni d'un autre App Service ni du compte administrateur d'une autre personne.
 Pas de portail ? Suivez directement ces guides Markdown.
+<!-- author-only -->
 **Présentateur :** utilisez le [guide de publication séparé](PRESENTER.md).
+<!-- /author-only -->
 
 **Essayer MCP sans Azure :** après le clonage et l'installation de .NET 10/PowerShell 7,
 suivez le [module 01](../../modules/01-discover-mcp/README.fr.md).
-Le portail du présentateur ne fait qu'héberger les guides ; il est facultatif.
+Le site ne fait qu'héberger les guides ; il est facultatif.
 
 Choisissez où exécuter les commandes : sur votre poste, dans un conteneur de développement avec
 **Visual Studio Code (VS Code)**, ou dans GitHub Codespaces. Les exercices et les scripts sont les mêmes.

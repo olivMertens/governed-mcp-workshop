@@ -82,7 +82,10 @@ test("guided reading splits authored actions, never code fences or nested disclo
     assert.match(html, /content\.append\(intro, servicesList\(module\)\);/);
     assert.doesNotMatch(html, /disclosure\([^)]*servicesList/);
     // Commands and terminal checks stay in the main lesson flow, not in optional reading.
-    assert.match(html, /lesson = guidedDocument\(module\.guide \?\? module\.outline, module\.sourcePath, null, \{ validate, review \}\);/);
+    assert.match(html, /lesson = guidedDocument\(guide \?\? module\.outline, module\.sourcePath, null, \{ validate, review \}\);/);
+    assert.match(html, /const animation = module\.animation \? revealDiagram\(module\.animation\.content, module\.animation\.sourcePath\) : null;/);
+    assert.match(html, /if \(animation\) content\.append\(\s*element\("h2", "Understand before you start"[\s\S]*?"module-animation-intro"\),\s*animation\);/);
+    assert.match(html, /continueToExercise\.addEventListener\("click", \(\) => \{\s*lesson\.goTo\(0\);\s*goTo\(guideTitle\);/);
     assert.match(html, /if \(index === shiftedValidate\) body\.append\(validate\.render\(step\)\);/);
     // Learning aids carry an icon: questions, answers and hints, and command results.
     assert.match(html, /node\.classList\.add\("question"\);\s*node\.prepend\(symbol\("question"\)\);/);
@@ -570,7 +573,7 @@ test("every non-Mermaid code fence uses the copy control with untranslated code 
 
 test("copy controls preserve exact code, never execute it and report clipboard denial explicitly", async () => {
     const html = readFileSync(new URL("./board.html", import.meta.url), "utf8");
-    const start = html.indexOf("function commandBlock(");
+    const start = html.indexOf("function codeLanguage(");
     const end = html.indexOf("function connectionCommands(", start);
     const element = (tag, text, className) => ({
         tag, text, className, attributes: {}, children: [], listeners: {},
@@ -581,15 +584,18 @@ test("copy controls preserve exact code, never execute it and report clipboard d
     const message = {};
     const copied = [];
     const navigator = { clipboard: { writeText: async (text) => { copied.push(text); } } };
-    const block = new Function("element", "t", "language", "navigator", "message",
+    const document = { createTextNode: (text) => element("#text", text) };
+    const textContent = (node) => (node.textContent ?? node.text ?? "") + node.children.map(textContent).join("");
+    const block = new Function("element", "t", "language", "navigator", "message", "document",
         `${html.slice(start, end)}; return commandBlock;`)(element, (text) => `translated:${text}`,
-        "fr", navigator, message);
+        "fr", navigator, message, document);
     const text = '$env:EXAMPLE = "synthetic"\n<script>never execute</script>\n';
     const node = block("PowerShell", text, "Copy code", false);
     const copy = node.children[0].children[1];
     assert.equal(copy.type, "button");
     assert.equal(copy.attributes["aria-label"], "translated:Copy code : translated:PowerShell");
-    assert.equal(node.children[1].children[0].text, text);
+    assert.equal(textContent(node.children[1].children[0]), text);
+    assert.equal(node.children[1].className, "syntax");
     assert.equal(copied.length, 0);
     await copy.listeners.click();
     assert.deepEqual(copied, [text]);
@@ -602,7 +608,68 @@ test("copy controls preserve exact code, never execute it and report clipboard d
     delete navigator.clipboard;
     await copy.listeners.click();
     assert.equal(message.className, "error");
-    assert.equal(block("Prompt", "Original prompt").children[1].children[0].text, "translated:Original prompt");
+    assert.equal(textContent(block("Prompt", "Original prompt").children[1].children[0]), "translated:Original prompt");
+    const annotated = block("PowerShell", "$tenant = '<tenant-id>'\naz login --tenant $tenant", "Copy code", false);
+    const tooltip = annotated.children.at(-1);
+    const rows = annotated.children[1].children[0].children.filter((node) => node.tag === "span");
+    assert.equal(tooltip.attributes.role, "tooltip");
+    assert.equal(tooltip.hidden, true);
+    assert.equal(rows[1].tabIndex, 0);
+    assert.equal(rows[1].attributes["aria-describedby"], tooltip.id);
+    rows[1].listeners.focus();
+    assert.equal(tooltip.hidden, false);
+    assert.match(tooltip.textContent, /translated:Line 2: translated:Sign in/);
+    rows[1].listeners.keydown({ key: "Escape" });
+    assert.equal(tooltip.hidden, true);
+    rows[1].listeners.pointerenter();
+    assert.equal(tooltip.hidden, false);
+    rows[1].listeners.pointerleave();
+    assert.equal(tooltip.hidden, true);
+    rows[1].listeners.click();
+    assert.equal(tooltip.hidden, false);
+    rows[1].listeners.blur();
+    assert.equal(tooltip.hidden, true);
+    assert.notEqual(tooltip.id, node.children.at(-1).id);
+});
+
+test("terminal tokenization preserves literal code and localizes important-line explanations", () => {
+    const html = readFileSync(new URL("./board.html", import.meta.url), "utf8");
+    const source = html.slice(html.indexOf("function codeLanguage("), html.indexOf("function commandBlock("));
+    const { codeLanguage, codeTokens, codeExplanation } = new Function(`${source}; return { codeLanguage, codeTokens, codeExplanation };`)();
+    const samples = [
+        ["powershell", "$tenant = '<tenant-id>' # comment\naz login --tenant $tenant"],
+        ["powershell", '$p = Get-Content .\\.workshop\\participant.tfvars.json -Raw | ConvertFrom-Json'],
+        ["powershell", 'if ($p.existing_resource_group_name) { $rg = $p.existing_resource_group_name }'],
+        ["powershell", '<script>alert("never execute")</script>\r\nWrite-Output \'<svg onload="bad">\'\n'],
+        ["json", '{"ok": true, "value": 42, "text": "<script>literal</script>"}'],
+        ["shell", "az account set --subscription \"$sub\""],
+        ["", "Some unhighlighted output.\n"],
+    ];
+    for (const [language, text] of samples) {
+        assert.equal(codeTokens(text, language).map((token) => token.text).join(""), text);
+    }
+    assert.deepEqual(new Set(codeTokens(samples[0][1], "powershell").map((token) => token.kind).filter(Boolean)),
+        new Set(["variable", "operator", "string", "comment", "command", "parameter"]));
+    assert.equal(codeLanguage("JSON", "{}"), "json");
+    assert.equal(codeLanguage("PowerShell", "az login"), "powershell");
+    assert.equal(codeLanguage("Copy the context", "az account set --subscription $sub"), "powershell");
+    assert.equal(codeLanguage("Prompt", "az login"), "");
+    assert.equal(codeLanguage("Output", "$variable"), "");
+    const locale = readFileSync(new URL("./locale-fr.js", import.meta.url), "utf8");
+    for (const line of [
+        "$tenant = '<tenant-id>'", "$sub = '<subscription-id>'", "az login --tenant $tenant",
+        "az account set --subscription $sub", samples[1][1], samples[2][1],
+        "$id = $p.participant_prefix; $sfx = $p.resource_suffix", '$rg = "rg-mcp-$id-$sfx"',
+        "terraform plan", "terraform apply", "terraform destroy", ".\\validate-rest-mcp.ps1",
+        "az functionapp keys list | Set-Clipboard", "$result | ConvertFrom-Json",
+    ]) {
+        const explanation = codeExplanation(line, "powershell");
+        assert.ok(explanation, line);
+        assert.ok(locale.includes(JSON.stringify(explanation)), `Missing French explanation: ${line}`);
+    }
+    assert.equal(codeExplanation("# terraform apply", "powershell"), null);
+    assert.equal(codeExplanation("terraform apply", "json"), null);
+    assert.doesNotMatch(source, /innerHTML|eval\(|new Function/);
 });
 
 test("client commands reject credential URLs and quote endpoint data without executing it", () => {
@@ -1157,7 +1224,7 @@ test("legacy mixed-guide splitting stays compatible while published guides use s
     const shared = `## Steps\n### Low-code track\n${words(200)}\n\n### Step 1 - Run the checks\n${words(200)}`;
     assert.deepEqual(split(shared, "full").map((step) => step.title), ["Step 1 - Run the checks"]);
     assert.doesNotMatch(html, /preferences\.get\("track"\)/);
-    assert.match(html, /collectQuestions\(module\.guide\)/);
+    assert.match(html, /collectQuestions\(guide\)/);
     for (const folder of ["02-open-server", "03-entra-authentication", "04-governed-gateway", "05-delegated-and-app-only", "06-observe-inventory", "99-cleanup"]) {
         for (const file of ["README.md", "README.fr.md"]) {
             const text = readFileSync(join(repository, "modules", folder, file), "utf8");

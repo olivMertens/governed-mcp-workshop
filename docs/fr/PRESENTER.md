@@ -22,7 +22,7 @@ Les participants peuvent faire le [module 01](../../modules/01-discover-mcp/READ
    Déployez-le le jour où vous présentez le module 04 et supprimez-le le soir même.
 4. Ouvrez à l'avance les captures réelles listées ci-dessous : elles servent de solution de repli si une étape en direct échoue.
 
-Fil conducteur de la séquence architecture : [Séquence 2 - intégrer et exposer MCP](INTEGRATION-OPTIONS.md) (un déroulé animé du serveur local de ce matin jusqu'à la porte d'entrée, options d'hébergement, les deux modèles API Management, démo 3, inventaire, points de vigilance pour l'administrateur général).
+Fil conducteur de la séquence architecture : [Séquence 2 - intégrer et exposer MCP](INTEGRATION-OPTIONS.md) (du serveur local à une architecture sécurisée sur Azure, avec les options d'hébergement, les deux modèles API Management, la démo 3, l'inventaire et les points de vigilance pour l'administrateur général).
 
 ## Captures réelles en solution de repli
 
