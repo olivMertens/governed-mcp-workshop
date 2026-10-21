@@ -1888,11 +1888,32 @@
         return section;
       }
     function showPractice() {
-      content.append(element("h1", "Make the call. Understand the boundary."),
-        element("p", "Connect your own deployed MCP server in a real client. Discover a tool, make a controlled call, then compare what happened with what should happen.", "lead"),
+      content.append(element("h1", "Connect and test from your own client"),
+        notice("This website does not run tests.",
+          "Use VS Code or MCP Inspector on your computer."),
+        element("p", "This page helps you connect to a Model Context Protocol (MCP) server you have already deployed. It prepares instructions, commands and prompts. Your client connects to the server and runs the actual test.", "lead"),
         notice("No credentials in this page.",
           "Only the endpoint goes here, in page memory. The canvas does not call your server, save connection details or run code. Commands and prompts must be reviewed and run by you."));
       content.append(link("Get started", "#/start", "secondary"));
+      content.append(element("h2", "Before you connect"),
+        element("p", "Finish the deployment and prerequisites for your current module first. Copy the exact HTTPS MCP endpoint from your deployment. From module 04 onward, use only the API Management gateway endpoint, never the private Function address."),
+        element("p", "No remote server yet? Module 01 runs a local server over standard input/output (stdio). Follow that module instead; do not enter an HTTPS endpoint here."),
+        link("Open module 01: local MCP", "#/module/01", "secondary"),
+        notice("An address alone does not grant access.",
+          "For module 02, follow the module's secure system-key input flow in your client. From module 03 onward, follow its Microsoft Entra sign-in instructions. Never put a key, token or client secret in this website."));
+      const vscode = element("section", undefined, "launch-panel");
+      vscode.append(element("h2", "Option A: VS Code (recommended)"),
+        element("p", "Visual Studio Code (VS Code) is the simplest route if you already use GitHub Copilot Chat. You do not need to fill in the endpoint field on this website."));
+      const vscodeSteps = element("ol");
+      for (const text of [
+        "On your computer, open VS Code. Open the Command Palette (Ctrl+Shift+P on Windows or Cmd+Shift+P on macOS), run MCP: Add Server, and choose HTTP.",
+        "Paste your deployed MCP endpoint, name the server workshop, and choose your private user configuration. Keep any other server entries; do not commit connection credentials.",
+        "Run MCP: List Servers, select workshop, and start it. Review the trust prompt and follow your module's authentication instructions in VS Code.",
+        "Open GitHub Copilot Chat in Agent mode. In its tool picker, select only the workshop server's tools. Paste the discovery prompt below, then the read-only call prompt. Prompts go in chat, not in the terminal or this website.",
+        "Inspect the actual get_service_health tool-call entry and its result in chat. If the tool is missing, stop and check the module guide. A prose answer or a connected badge is not proof of a successful call.",
+      ]) vscodeSteps.append(element("li", text));
+      vscode.append(vscodeSteps);
+      content.append(vscode);
       const launch = disclosure("Workspace and launch options");
       launch.append(element("h2", "Start your workspace"));
       const actions = element("div", undefined, "action-row");
@@ -1911,8 +1932,18 @@
       launch.append(clone);
       launch.append(link("Explore module 00", "#/module/00", "secondary"));
       const connection = element("section", undefined, "launch-panel");
-      connection.append(element("h2", "Prepare your client connection"),
-        element("p", "Remote servers use Streamable HTTP. From module 04 onward, use only the API Management endpoint. Module 01 uses stdio instead: follow its local startup guide."));
+      connection.append(element("h2", "Option B: MCP Inspector"),
+        element("p", "MCP Inspector is a separate tool for listing and calling tools without an AI conversation. Use this option instead of VS Code if you want to inspect each call manually. Remote servers use Streamable HTTP."));
+      const inspectorSteps = element("ol");
+      for (const text of [
+        "Check module 00's prerequisites first: PowerShell 7 and Node.js 22.19.0 or newer. For Microsoft Entra sign-in, read Connection details and advanced settings below; Inspector needs its own approved public client settings.",
+        "Enter only your HTTPS MCP endpoint below. The page checks its format and prepares a command. It does not contact your server.",
+        "Copy Start Inspector / PowerShell into PowerShell on your computer and run it. Review the package-install prompt, then open the local URL printed in your terminal. Keep that private launch URL to yourself.",
+        "In Inspector, check Streamable HTTP and your endpoint. Complete your module's authentication setup in Inspector, then choose Connect. The generated command does not supply a system key or Microsoft Entra credentials.",
+        "Open Tools / List Tools. Select get_service_health, inspect its input schema, and supply only the synthetic arguments it requires. Choose Call Tool once. Do not paste the Copilot Chat prompts into Inspector.",
+        "Read the actual tool result in Inspector. Stop Inspector with Ctrl+C in your terminal when finished. Do not export authentication headers or Network/Protocol transcripts.",
+      ]) inspectorSteps.append(element("li", text));
+      connection.append(inspectorSteps);
       const label = element("label", "Your deployed HTTPS MCP endpoint", "connection-label");
       label.htmlFor = "mcp-endpoint";
       const input = element("input", undefined, "endpoint");
@@ -1968,18 +1999,19 @@
           connection.insertBefore(scope, commands);
         }
       }
-      if (language === "fr") connection.append(element("p",
-        "Dans VS Code, lancez MCP: Add Server, choisissez HTTP et saisissez l'adresse du serveur. Utilisez une configuration utilisateur privée. Pour Inspector, vérifiez d'abord les prérequis ci-dessous."));
-      else connection.append(element("p",
-        "In VS Code, run MCP: Add Server, choose HTTP and enter the server address. Use a private user configuration. For Inspector, check the prerequisites below first."));
       connection.append(technical);
-      content.append(connection, element("h2", "Not sure what to ask?"));
+      content.append(connection, element("h2", "Prompts to paste into VS Code Copilot Chat"),
+        element("p", "Use these only after connecting your server with Option A. Run them one at a time in Agent mode. If you chose Inspector, use List Tools and Call Tool instead."));
       content.append(commandBlock("Discover without invoking a tool",
         "Use only my connected workshop MCP server. List its available tools and describe their input schemas and read/write effects. Do not invoke any tool. If the server is not connected, say so; do not invent results.", "Copy prompt"));
       content.append(commandBlock("Make one read-only call",
         "Use only my connected workshop MCP server. If get_service_health is advertised, call it once with synthetic arguments that match its input schema. Show whether a real tool invocation succeeded or returned an MCP error. If it is not available, stop. Do not call any write tool.", "Copy prompt"));
       content.append(notice("Important",
         "A successful HTTP response can still contain a tool error. Check the actual tool result in your client, not just the assistant's answer."));
+      content.append(element("h2", "How to know whether the test passed"),
+        element("p", "For your first read-only test, check that get_service_health appears in the real tool list and that its actual call returns the module's expected synthetic result without an MCP tool error. A generated command is not a test result."),
+        element("p", "Then return to your current module and run its validation command from the repository root in your own terminal. Use the command for your selected track, including the low-code guide's explicit parameters. Compare each PASS or FAIL and expected HTTP status. Some later tests must be denied to prove that authorization works; do not grant extra rights to make them succeed."),
+        link("Return to the workshop modules", "#/overview", "secondary"));
       content.append(disclosure("Try a write operation (approval required)",
         commandBlock("Prepare a write, but do not execute it",
           "For my synthetic workshop environment only, inspect the advertised create_ticket schema and prepare one schema-valid synthetic request. Explain its side effect and required app role. Do not invoke it. Wait for my explicit approval of this individual call; keep the client's approval control enabled.", "Copy prompt")));
@@ -2010,7 +2042,7 @@
       const start = moduleLink(next, "primary");
       start.textContent = `${language === "fr" ? "Consulter le module" : "Explore module"} ${next.module}`;
       const actions = element("div", undefined, "action-row");
-      actions.append(start, link("Try your deployed MCP", "#/practice", "secondary"),
+      actions.append(start, link("Connect your deployed MCP", "#/practice", "secondary"),
         link("Your Azure context", "#/deployment", "secondary"),
         link("Understand governance", "#/governance", "secondary"));
       content.append(actions, element("h2", "The route"));
@@ -2317,7 +2349,7 @@
       for (const code of ["en", "fr"]) document.getElementById(`language-${code}`).setAttribute("aria-pressed", String(language === code));
       for (const [group, nav, title, icon, entries] of [
         ["resource-group", "resource-nav", "Resources", "book", [
-          ["practice", "Try your MCP", "terminal"],
+          ["practice", "Connect your MCP", "terminal"],
           ...(state?.documents.tracks ? [["tracks", "Choose your track", "layers"]] : []),
           ...(state?.documents.mcpServer ? [["mcpServer", "The MCP server and its answers", "layers"]] : []),
           ["deployment", "Your Azure context", "shield"],

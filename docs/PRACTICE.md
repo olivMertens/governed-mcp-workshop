@@ -1,10 +1,61 @@
-# Try your MCP server
+# Connect and test from your own client
 
-This is a client-side practice guide for a server you have already deployed. It does not deploy the workshop.
+> [!IMPORTANT]
+> **This website does not run tests. Use VS Code or MCP Inspector on your computer.**
+
+This guide helps you connect to a Model Context Protocol (MCP) server you have already deployed.
+The page only prepares instructions, commands and prompts. Your client connects to the server and makes the real calls.
+It does not deploy the workshop or certify your deployment.
 **Starting without Azure?** Use [module 01's local stdio exercise](../modules/01-discover-mcp/README.md) first.
 It has real commands and does not use the remote-endpoint field below.
-The canvas prepares commands and prompts; your chosen MCP client makes the real calls.
 An example or an expected result is not a recorded test result.
+
+## Option A: VS Code (recommended)
+
+You can use Visual Studio Code (VS Code) without entering anything on the practice page.
+
+1. Finish your current module's deployment and prerequisites. Copy its exact HTTPS MCP endpoint.
+   From module 04 onward, use only the API Management gateway endpoint.
+2. In VS Code on your computer, open the Command Palette: **Ctrl+Shift+P** on Windows or **Cmd+Shift+P**
+   on macOS. Run **MCP: Add Server**, choose **HTTP**, paste the endpoint and name the server `workshop`.
+   Choose your private user configuration. Preserve other servers and never commit credentials.
+3. Run **MCP: List Servers**, select `workshop`, and start it. Review the trust prompt.
+   Follow the current module's authentication instructions: secure system-key input for module 02,
+   Microsoft Entra sign-in from module 03 onward. An address alone does not grant access.
+4. Open GitHub Copilot Chat in **Agent** mode and select only the workshop server's tools in its tool picker.
+   Copy **Discover without invoking a tool** from the practice page into **chat**, not the terminal.
+   Check the discovered tool list before sending **Make one read-only call**.
+5. Inspect the actual `get_service_health` tool-call entry and result. If the tool is unavailable, stop.
+   A connected badge or the assistant's prose alone is not evidence of a successful call.
+
+## Option B: MCP Inspector
+
+Inspector is a separate client for inspecting calls manually, without an AI conversation. Choose this
+instead of VS Code; you do not need both.
+
+1. Check PowerShell 7 and Node.js 22.19.0 or newer from module 00. For Microsoft Entra authentication,
+   check that Inspector has its own approved public client settings; VS Code approval does not cover it.
+2. Enter only your HTTPS endpoint in the practice page. This checks its format and generates a command;
+   it does not connect to the server.
+3. Copy **Start Inspector / PowerShell** into **PowerShell on your computer** and run it.
+   Review the installation prompt, then open the private local URL printed in the terminal. Do not share it.
+4. In Inspector, check **Streamable HTTP** and the endpoint. Follow the module's authentication setup,
+   then choose **Connect**. The generated command does not supply credentials.
+5. Open **Tools / List Tools**, select `get_service_health` and inspect its input schema.
+   Supply only required synthetic arguments, then choose **Call Tool** once and read the result.
+   Do not paste the Copilot Chat prompts into Inspector.
+6. Stop Inspector with **Ctrl+C** when finished. Never export authentication headers or Network/Protocol transcripts.
+
+## What counts as a successful test?
+
+For the first read-only test, the client must list `get_service_health` and its actual call must return
+the module's expected synthetic result without an MCP tool error. An HTTP 200 alone is not enough.
+Neither a prepared command nor reading the expected result proves that a test ran.
+
+Then return to your current module and run its validation command from the repository root in your own
+terminal. Use the command for your selected track, including the low-code guide's explicit parameters.
+Compare the `PASS`/`FAIL` lines and expected HTTP statuses. Later exercises deliberately test denied
+access: do not grant extra rights to make an expected refusal disappear.
 
 ## Choose where to work
 
