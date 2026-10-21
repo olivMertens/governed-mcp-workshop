@@ -59,6 +59,8 @@ Utilisez **Suivant**, **Précédent**, les étapes numérotées ou les flèches 
 Ce sont des fragments dans l'esprit de reveal.js, rendus localement, pas un site de diapositives Reveal distinct.
 Les modules proposent aussi les schémas statiques complets.
 
+Le registre technique des sources (`#/sources`) reste réservé aux auteurs. Il est exclu des données publiques : son URL directe affiche une page introuvable. Les liens vers les sources de chaque module restent disponibles.
+
 Les scripts de présentation, les instructions de publication et les notes internes restent dans le dépôt et dans
 le tableau de bord local. Ils sont exclus de la navigation publique et des données du parcours publié.
 Les modules publics conservent commandes, prérequis, coûts, avertissements de sécurité, résultats attendus,

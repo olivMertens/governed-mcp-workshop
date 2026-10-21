@@ -10,7 +10,7 @@ const repository = fileURLToPath(new URL("../", import.meta.url));
 const icons = ["azure", "microsoft", "entra", "apim", "functions", "storage", "insights", "api-center", "subscription", "foundry-agent-service", "copilot-studio"];
 const modules = ["00", "01", "02", "03", "04", "05", "06", "07", "99"];
 export const authorOnlyDocuments = ["runbook", "implementation", "buildProgress", "plan", "originalPlan",
-    "architectureAuthoring", "originalArchitecture", "presenter", "hosting", "attendeeArchitecture"];
+    "architectureAuthoring", "originalArchitecture", "presenter", "hosting", "attendeeArchitecture", "sources"];
 
 export function participantContent(text) {
     if (text === null) return null;
