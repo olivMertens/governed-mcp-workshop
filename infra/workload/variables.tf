@@ -57,13 +57,6 @@ variable "existing_resource_group_name" {
   }
 }
 
-variable "public_portal_enabled" {
-  type        = bool
-  default     = false
-  nullable    = false
-  description = "Explicit opt-in to a paid B1 Linux App Service for public documentation only. Not an MCP server or tenant deployment control plane."
-}
-
 variable "enable_mcp_server" {
   type        = bool
   default     = false

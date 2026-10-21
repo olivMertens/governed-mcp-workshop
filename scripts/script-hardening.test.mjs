@@ -43,26 +43,30 @@ if (-not $failed) { throw 'Cleanup accepted an impossible date.' }
     for (const module of ["02-open-server", "03-entra-authentication", "04-governed-gateway", "05-delegated-and-app-only"]) {
         assert.match(readFileSync(join(root, "modules", module, "cleanup.ps1"), "utf8"), /Read-WorkshopParameters -Path \$ParametersPath -AllowExpired/);
     }
-    for (const script of ["preflight.ps1", "deploy-portal.ps1"]) {
+    for (const script of ["preflight.ps1"]) {
         assert.doesNotMatch(readFileSync(join(root, "scripts", script), "utf8"), /Read-WorkshopParameters[^\r\n]*-AllowExpired/);
     }
 });
 
-test("portal cleanup refuses other tiers, reverse Always On changes and unknown planned values", () => {
+test("retired portal parameters fail closed and module cleanup has no portal update exception", (t) => {
+    const directory = fixture(t);
+    const path = join(directory, "parameters.json");
+    writeFileSync(path, JSON.stringify({ participant_prefix: "p01", resource_suffix: "0123456789abcdef",
+        owner: "alice", location: "westeurope", existing_resource_group_name: null,
+        expiry: "2099-12-31", public_portal_enabled: true }));
     run(`
 . '${quote(join(root, "scripts", "context-common.ps1"))}'
-function C($before,$after,$unknown=@{}) {
-    @{address='azurerm_service_plan.portal[0]';change=@{actions=@('update');before=@{sku_name=$before};after=@{sku_name=$after};after_unknown=$unknown}}
-}
-if (-not (Test-WorkshopPortalTierRestore (C 'F1' 'B1'))) { throw 'Exact restore refused.' }
-foreach ($pair in @(@('B1','P3v3'),@('F1','P3v3'),@('B1','F1'),@('B1','B1'))) {
-    if (Test-WorkshopPortalTierRestore (C $pair[0] $pair[1])) { throw 'Unreviewed tier accepted.' }
-}
-if (Test-WorkshopPortalTierRestore (C 'F1' 'B1' @{sku_name=$true})) { throw 'Unknown value accepted.' }
-$app=@{address='azurerm_linux_web_app.portal[0]';change=@{actions=@('update');before=@{site_config=@(@{always_on=$true})};after=@{site_config=@(@{always_on=$false})}}}
-if (Test-WorkshopPortalTierRestore $app) { throw 'Reverse Always On accepted.' }
-if (Test-WorkshopPortalTierRestore @{address='malformed'}) { throw 'Malformed change accepted.' }
+function az { throw 'Retired configuration must not contact Azure.' }
+$before=[IO.File]::ReadAllText('${quote(path)}')
+$rejected=$false
+try { Read-WorkshopParameters -Path '${quote(path)}' -AllowExpired | Out-Null }
+catch { if ($_.Exception.Message -notmatch 'hosting is retired') { throw }; $rejected=$true }
+if (-not $rejected -or [IO.File]::ReadAllText('${quote(path)}') -cne $before) { throw 'Retired configuration accepted or modified.' }
 `);
+    for (const module of ["02-open-server", "03-entra-authentication", "04-governed-gateway", "05-delegated-and-app-only", "07-clients"]) {
+        assert.doesNotMatch(readFileSync(join(root, "modules", module, "cleanup.ps1"), "utf8"),
+            /Test-WorkshopPortalTierRestore|Write-WorkshopPortalTierNotes|WORKSHOP_MCP_ENDPOINT/);
+    }
 });
 
 test("policy renderer enforces every boundary before writing files and renders /8, /24 and /32 exactly", (t) => {

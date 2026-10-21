@@ -455,7 +455,7 @@ Keep module 00's private parameters/state. No Azure teardown is needed for modul
 Explain why `degraded` with `isError: false` differs from an unsupported service with `isError: true`.
 Explain why a read-only annotation is a hint, not an access check.
 Next: [module 02](../02-open-server/README.md) deploys the same server to Azure, protected only by a key.
-The presenter's optional portal hosts these instructions only.
+GitHub Pages hosts these instructions only.
 
 ## Sources
 

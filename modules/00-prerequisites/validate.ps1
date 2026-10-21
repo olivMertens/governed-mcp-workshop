@@ -4,7 +4,7 @@ param(
     [switch]$Offline,
     [guid]$TenantId,
     [guid]$SubscriptionId,
-    [ValidateSet('foundation', 'portal', 'mcp')][string]$Stage = 'foundation',
+    [ValidateSet('foundation', 'mcp')][string]$Stage = 'foundation',
     [ValidateSet('terraform', 'low-code')][string]$Track = 'terraform',
     [string]$ParametersPath,
     [string]$CapacityReviewPath
@@ -19,11 +19,10 @@ function Step([string]$Title, [string]$Why) {
 }
 Write-Output 'Module 00 validator - your tools, scripts and Azure subscription are ready for the workshop.'
 if ($Offline) {
-    Step 'Offline - workspace, preflight and portal scripts behave (no Azure call)' 'Proves the helper scripts work on synthetic data before you touch Azure.'
+    Step 'Offline - workspace, preflight and static site scripts behave (no Azure call)' 'Proves the helper scripts work on synthetic data before you touch Azure.'
     & node --test --test-concurrency=1 (Join-Path $root 'scripts/workspace.test.mjs') (Join-Path $root 'scripts/preflight.test.mjs') `
         (Join-Path $root 'scripts/script-hardening.test.mjs') (Join-Path $root 'scripts/scaffold.test.mjs') `
-        (Join-Path $root 'scripts/site.test.mjs') (Join-Path $root 'scripts/tracks.test.mjs') `
-        (Join-Path $root 'scripts/portal.test.mjs') (Join-Path $root 'scripts/portal-deploy.test.mjs')
+        (Join-Path $root 'scripts/site.test.mjs') (Join-Path $root 'scripts/tracks.test.mjs')
     if ($LASTEXITCODE -ne 0) { throw 'FAIL local script/HTTP checks (expected HTTP N/A; synthetic context only).' }
     Write-Output 'PASS local script/HTTP checks (expected HTTP N/A; no Azure access)'
     if ($Track -eq 'terraform') {

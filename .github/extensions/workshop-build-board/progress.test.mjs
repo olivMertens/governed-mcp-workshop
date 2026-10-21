@@ -485,7 +485,7 @@ test("Markdown screenshots render only allowlisted, published portal captures", 
     const start = html.indexOf("function markdown(");
     const end = html.indexOf("function disclosure(", start);
     const list = JSON.parse(/const PORTAL_SCREENSHOTS = (\[[^\]]+\]);/.exec(html)[1].replace(/\s+/g, " "));
-    const { screenshots } = await import("../../../scripts/portal-server.mjs");
+    const { screenshots } = await import("../../../scripts/build-site.mjs");
     assert.deepEqual(list, screenshots);
     assert.equal(new Set(list).size, list.length, "Published capture names must be unique");
     for (const name of [
@@ -901,7 +901,7 @@ test("each language requires one Mermaid graph per module and exposes implementa
 
 test("only allowlisted public assets are served, with no API or private-file exposure", async (t) => {
     const { store, root } = setup(t);
-    const { screenshots } = await import("../../../scripts/portal-server.mjs");
+    const { screenshots } = await import("../../../scripts/build-site.mjs");
     const captures = join(root, "assets", "screenshots");
     mkdirSync(captures);
     for (const name of screenshots) {

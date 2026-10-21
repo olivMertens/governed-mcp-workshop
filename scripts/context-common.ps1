@@ -1,79 +1,5 @@
 #requires -Version 7.4
 
-# A clean-up plan may also restore the optional presenter portal to its reviewed tier when something outside Terraform
-# downgraded it (for example a tenant automation that switches App Service plans to F1 at night). Only two exact
-# changes qualify: the portal plan's sku_name, and the portal app's site_config.always_on (F1 cannot keep it on).
-# A clean-up may also refresh the portal's non-secret WORKSHOP_MCP_* hints (endpoint, scope) when the module it points
-# to is removed. Every other attribute must be identical, so a clean-up can never hide a real portal change.
-function Test-WorkshopPortalTierRestore {
-    param([Parameter(Mandatory)]$Change)
-    if ($Change -isnot [System.Collections.IDictionary] -or -not $Change.Contains('address') -or
-        -not $Change.Contains('change') -or $Change.change -isnot [System.Collections.IDictionary]) { return $false }
-    foreach ($name in @('actions', 'before', 'after')) { if (-not $Change.change.Contains($name)) { return $false } }
-    if ($Change.address -notin @('azurerm_service_plan.portal', 'azurerm_service_plan.portal[0]',
-        'azurerm_linux_web_app.portal', 'azurerm_linux_web_app.portal[0]')) { return $false }
-    if ($Change.change.Contains('after_unknown') -and
-        ($Change.change.after_unknown | ConvertTo-Json -Depth 100 -Compress) -match '\btrue\b') { return $false }
-    return Test-WorkshopPortalTierRestoreCore $Change
-}
-
-function Test-WorkshopPortalTierRestoreCore {
-    param([Parameter(Mandatory)]$Change)
-    if (($Change.change.actions -join ',') -ne 'update') { return $false }
-    $address = $Change.address -replace '\[[^\]]+\]$', ''
-    $before = $Change.change.before; $after = $Change.change.after
-    if ($before -isnot [System.Collections.IDictionary] -or $after -isnot [System.Collections.IDictionary]) { return $false }
-    $json = { param($value) $value | ConvertTo-Json -Depth 50 -Compress }
-    $keys = @(@($before.Keys) + @($after.Keys) | Sort-Object -Unique)
-    if ($address -eq 'azurerm_service_plan.portal') {
-        foreach ($key in $keys) { if ($key -ne 'sku_name' -and (& $json $before[$key]) -ne (& $json $after[$key])) { return $false } }
-        return $before.sku_name -ceq 'F1' -and $after.sku_name -ceq 'B1'
-    }
-    if ($address -eq 'azurerm_linux_web_app.portal') {
-        $changed = $false
-        foreach ($key in $keys) {
-            if ($key -eq 'app_settings') {
-                $bs = $before.app_settings; $as = $after.app_settings
-                if ($bs -isnot [System.Collections.IDictionary] -or $as -isnot [System.Collections.IDictionary]) { if ((& $json $bs) -ne (& $json $as)) { return $false }; continue }
-                foreach ($name in @(@($bs.Keys) + @($as.Keys) | Sort-Object -Unique)) {
-                    if ((& $json $bs[$name]) -eq (& $json $as[$name])) { continue }
-                    if ($name -notin @('WORKSHOP_MCP_ENDPOINT', 'WORKSHOP_MCP_SCOPE')) { return $false }
-                    $changed = $true
-                }
-                continue
-            }
-            if ($key -ne 'site_config') { if ((& $json $before[$key]) -ne (& $json $after[$key])) { return $false }; continue }
-            $b = @($before.site_config)[0]; $a = @($after.site_config)[0]
-            if ($b -isnot [System.Collections.IDictionary] -or $a -isnot [System.Collections.IDictionary]) { return $false }
-            foreach ($name in @(@($b.Keys) + @($a.Keys) | Sort-Object -Unique)) {
-                if ((& $json $b[$name]) -eq (& $json $a[$name])) { continue }
-                if ($name -ne 'always_on' -or $b[$name] -isnot [bool] -or $a[$name] -isnot [bool] -or
-                    $b[$name] -ne $false -or $a[$name] -ne $true) { return $false }
-                $changed = $true
-            }
-        }
-        return $changed
-    }
-    return $false
-}
-
-# Compares one top-level resource attribute, ignoring site_config.always_on (see Test-WorkshopPortalTierRestore).
-function Get-WorkshopPortalAttributeJson {
-    param([string]$Name, $Value)
-    if ($Name -eq 'site_config' -and $null -ne $Value) {
-        $copy = @(@($Value) | ForEach-Object { if ($_ -is [System.Collections.IDictionary]) { $c = [ordered]@{} + $_; $c.Remove('always_on'); $c } else { $_ } })
-        return $copy | ConvertTo-Json -Depth 50 -Compress
-    }
-    return $Value | ConvertTo-Json -Depth 50 -Compress
-}
-
-function Write-WorkshopPortalTierNotes {
-    param([object[]]$Changes)
-    foreach ($change in @($Changes | Where-Object { Test-WorkshopPortalTierRestore $_ })) {
-        Write-Output "NOTE plan also restores $($change.address) to its reviewed tier or refreshes its WORKSHOP_MCP_* hints. Not a module change; the portal is kept."
-    }
-}
-
 function Assert-WorkshopInteractiveEnvironment {
     foreach ($name in @('ARM_CLIENT_ID', 'ARM_CLIENT_SECRET', 'ARM_CLIENT_CERTIFICATE_PATH',
         'ARM_CLIENT_CERTIFICATE', 'ARM_CLIENT_CERTIFICATE_PASSWORD', 'ARM_USE_MSI',
@@ -170,7 +96,10 @@ function Read-WorkshopParameters {
         expiry = '^\d{4}-\d{2}-\d{2}$'
     }
     if ($value -isnot [System.Collections.IDictionary]) { throw 'Participant parameters must be an object.' }
-    $allowed = @($patterns.Keys) + 'existing_resource_group_name', 'public_portal_enabled'
+    if ($value.Contains('public_portal_enabled')) {
+        throw 'Azure portal hosting is retired. Follow docs/HOSTING.md to remove the old portal safely before removing public_portal_enabled from your private parameters. Keep the same suffix and state.'
+    }
+    $allowed = @($patterns.Keys) + 'existing_resource_group_name'
     if ($value.Keys | Where-Object { $_ -notin $allowed }) { throw 'Unexpected participant parameter; use the preparation script.' }
     foreach ($entry in $patterns.GetEnumerator()) {
         if ($value[$entry.Key] -isnot [string] -or $value[$entry.Key] -cnotmatch $entry.Value) {
@@ -193,9 +122,6 @@ function Read-WorkshopParameters {
          $value.existing_resource_group_name -notmatch '^[a-zA-Z0-9_().-]{1,90}$' -or
          $value.existing_resource_group_name.EndsWith('.')))) {
         throw 'Invalid existing resource group parameter.'
-    }
-    if ($value.Contains('public_portal_enabled') -and $value.public_portal_enabled -isnot [bool]) {
-        throw 'public_portal_enabled must be a Boolean.'
     }
     return $value
 }

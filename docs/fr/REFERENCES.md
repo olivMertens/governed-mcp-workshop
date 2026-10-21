@@ -38,10 +38,10 @@ Dernière vérification : 2026-10-14. Aucun moteur de conteneurs n'était dispon
 
 ## 00 - Environnement, tenant et abonnement
 
-- [Module 00 publié](../../modules/00-prerequisites/README.fr.md), [hébergement public facultatif](HOSTING.md) et [demande administrateur](../requests/identity-request.md).
+- [Module 00 publié](../../modules/00-prerequisites/README.fr.md), [publication sur GitHub Pages](HOSTING.md) et [demande administrateur](../requests/identity-request.md).
 - [Terraform 1.16.6](https://releases.hashicorp.com/terraform/1.16.6/) : binaire de test vérifié avec l'empreinte officielle ; conteneur toujours à construire.
 - [Autorisations effectives ARM](https://learn.microsoft.com/rest/api/authorization/permissions/list-for-resource-group) : actions moins exclusions, entrée par entrée ; pagination limitée au même périmètre.
-- [Node App Service](https://learn.microsoft.com/azure/app-service/configure-language-nodejs), [déploiement Entra](https://learn.microsoft.com/azure/app-service/deploy-authentication-types), [paquet en lecture seule](https://learn.microsoft.com/azure/app-service/deploy-run-package) : plan B1 facultatif, publication par authentification de base désactivée, aucune clé.
+- [Workflows GitHub Pages](https://docs.github.com/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages) : publication statique des guides, sans site documentaire Azure. Vérifié le 2026-10-21.
 - [Choisir tenant et abonnement](https://learn.microsoft.com/cli/azure/manage-azure-subscriptions-azure-cli) : contexte Azure CLI.
 - [Connexion interactive](https://learn.microsoft.com/cli/azure/authenticate-azure-cli-interactively) : navigateur et authentification multifacteur, jamais de mot de passe dans une commande.
 - [Attribution de rôles Azure](https://learn.microsoft.com/azure/role-based-access-control/role-assignments-cli) : autorisation distincte et périmètre minimal.

@@ -26,8 +26,8 @@ Un schéma explique l'objectif ; il ne prouve pas que des identités ou des ress
 
 **Les scripts de vérification ne créent aucune ressource.** Ils consultent votre configuration et vos droits.
 Plus tard, dans une étape distincte et après approbation, Terraform crée un groupe de ressources dédié
-ou réutilise celui fourni par l'administrateur. Le [portail public facultatif](../../docs/fr/HOSTING.md) est payant
-et désactivé par défaut. Aucun serveur Model Context Protocol (MCP) n'est encore déployé.
+ou réutilise celui fourni par l'administrateur. [GitHub Pages](../../docs/fr/HOSTING.md) héberge les guides :
+vous n'avez aucun site Azure à déployer. Aucun serveur Model Context Protocol (MCP) n'est encore déployé.
 
 ## Prérequis et droits nécessaires
 
@@ -199,11 +199,11 @@ Passez au module 01 seulement quand chaque contrôle affiche `PASS`.
 & .\modules\00-prerequisites\cleanup.ps1
 ```
 
-> **Résultat réel** — poste de l'auteur, 2026-10-17.
+> **Résultat attendu** — contrôles locaux uniquement.
 >
 > ```text
 > PASS module 00 preflight cleanup (expected HTTP N/A): checks create no Azure or Entra resources.
-> PASS private parameters and state preserved (expected HTTP N/A). Optional paid portal cleanup requires the reviewed Terraform destroy flow in docs/HOSTING.md.
+> PASS private parameters and state preserved (expected HTTP N/A). Use module 99 to clean up deployed workshop resources.
 > ```
 >
 > **Comment lire vos résultats :** les contrôles du module 00 n'ont créé aucune ressource à supprimer.
@@ -211,9 +211,8 @@ Passez au module 01 seulement quand chaque contrôle affiche `PASS`.
 
 Avec bash : `bash ./modules/00-prerequisites/cleanup.sh` (mêmes lignes PASS).
 Les vérifications n'ont rien créé. Ce script conserve vos paramètres privés et votre état Terraform.
-Si vous avez déployé le groupe ou le portail, suivez la
-[procédure de suppression à faire approuver](../../docs/fr/HOSTING.md#nettoyer).
-Arrêter le site n'arrête pas la facturation de son plan. Ne supprimez jamais un groupe partagé.
+Si vous avez déployé le groupe de ressources, suivez le [module 99](../99-cleanup/README.fr.md)
+pour examiner son nettoyage. Ne supprimez jamais un groupe partagé.
 
 ## Pour aller plus loin
 
@@ -282,8 +281,11 @@ Leur réussite ne valide **ni votre abonnement Azure ni le conteneur**.
 <details>
 <summary>Préparer une étape payante ultérieure</summary>
 
-Les options `-Stage portal` et `-Stage mcp` exigent une évaluation de la capacité disponible et du coût, conservée dans un fichier privé
-à fournir avec `-CapacityReviewPath`. Consultez le [guide d'hébergement](../../docs/fr/HOSTING.md).
+L'option `-Stage mcp` exige une revue de capacité et de coût, conservée en privé et fournie avec `-CapacityReviewPath`.
+Elle contient `subscriptionId`, `location`, `stage: "mcp"`, `unit: "MB"`, un entier `availableUnits`,
+une date UTC `checkedAtUtc` au format `yyyy-MM-ddTHH:mm:ssZ` et le booléen `costApproved: true`.
+La revue doit dater de moins de 24 heures et couvrir `FlexMemoryMB * FlexMaximumInstances` dans cet abonnement
+et cette région. Gardez les valeurs réelles privées.
 Le mode `mcp` vérifie les prérequis des modules suivants ; il ne valide pas leur déploiement.
 Il vérifie aussi que des rôles peuvent être attribués. Confiez ces attributions à l'administrateur,
 dans une étape séparée, plutôt que d'élargir les droits de tous les participants.

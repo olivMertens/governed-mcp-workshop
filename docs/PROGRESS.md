@@ -7,6 +7,33 @@ A module is `validated` only when its validate script passes live on a fresh sub
 The presenter cannot deploy into participants' tenants: live validation runs in each participant's own subscription,
 or in an approved author-owned non-production tenant.
 
+## GitHub Pages only: Azure documentation hosting retired — 2026-10-21
+
+Scoped user-approved cross-module exception on `cleanup/retire-azure-portal`: retire the duplicate documentation
+website, its deployment support and the cleanup exceptions that existed only for that website.
+GitHub Pages remains the participant site; presenter notes and construction tools remain repository/local-only.
+
+- Removed the Azure web app/plan Terraform, ZIP packaging, deployment scripts, Node hosting server and connection-hint
+  service. Endpoint selection is manual in the browser; real MCP tests still run in the participant's own client.
+- Preparation and parameter readers explicitly reject the retired `public_portal_enabled` key. Migration preserves
+  the same parameters, suffix and state. All module cleanup guards now refuse legacy portal updates; unrelated
+  policy normalization remains supported. The hosting guides explain safe, separately approved legacy retirement.
+- Live deletion in the approved author-owned non-production subscription: saved plan contained exactly two deletions,
+  the documentation web app and its dedicated plan. Applied that saved plan, verified both Azure objects and both
+  Terraform state addresses absent, and compared the resource inventory: the group and all 28 other resources remain.
+  No MCP, identity, role, authentication or logging change was applied. Private backups and evidence stay ignored.
+- Existing module validation statuses and dates below remain historical evidence, not a new end-to-end validation.
+  Older notes about optional App Service hosting and F1/B1 restoration are superseded by this retirement.
+  The depicted MCP architecture is unchanged, so no diagram edit is required.
+
+Offline evidence: workload Terraform fmt/schema PASS and `48/48` mocked plans PASS; changed PowerShell scripts parse.
+The focused Node run passed 107 of 109 checks initially; the two 30-second timeouts (mocked context and diagram
+provenance) both passed when rerun without concurrent Terraform work. No tests were skipped.
+Module 00 `-Offline` then passed its complete entry point: `48/48` script/export checks, Terraform schema and
+`48/48` mocked plans. Browser checks passed for EN/FR and both deployment tracks: endpoint fields start empty,
+Inspector commands are generated locally, and no request goes to `participant.json` or the entered MCP endpoint.
+The standalone scaffold was regenerated from the tracked files.
+
 ## Cross-module script hardening — 2026-10-21
 
 Scoped user-approved exception to one module per branch/session: correct the six audited cross-module defects on

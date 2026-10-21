@@ -189,7 +189,6 @@ const french = {
   "Not built": "À préparer",
   "Being built": "En préparation",
   "Authored, offline checks pass": "Rédigé, contrôles hors ligne réussis",
-  "Prefilled from your own portal deployment. Check that it is your endpoint before connecting.":   "Adresse préremplie à partir de votre propre déploiement du portail. Vérifiez qu'il s'agit bien de votre point de terminaison avant de vous connecter.",
     "Delegated scope to request at sign-in: ": "Scope délégué à demander à la connexion : ",
   "Validated": "Validé",
   "Build blocked": "Préparation bloquée",

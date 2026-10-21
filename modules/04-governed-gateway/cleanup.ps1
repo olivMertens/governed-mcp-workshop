@@ -59,24 +59,10 @@ function Invoke-GuardedPhase([string]$Directory, [string[]]$Arguments, [hashtabl
                 ($_.change.actions -join ',') -eq 'update' -and
                 ([Net.WebUtility]::HtmlDecode([string]$_.change.before.body.properties.value) -replace '\s', '') -ceq
                 ([Net.WebUtility]::HtmlDecode([string]$_.change.after.body.properties.value) -replace '\s', '')
-            # Module 04 pointed the optional portal's non-secret WORKSHOP_MCP_ENDPOINT hint at the gateway; removing the
-            # gateway points it back. Accept that update only when nothing else on the portal changes.
-            $portalHint = (Test-WorkshopPortalTierRestore $_) -and $address -eq 'azurerm_linux_web_app.portal' -and ($_.change.actions -join ',') -eq 'update' -and $(
-                $before = $_.change.before; $after = $_.change.after; $only = $true
-                foreach ($name in $before.Keys) {
-                    if ($name -eq 'app_settings') {
-                        foreach ($key in @(@($before.app_settings.Keys) + @($after.app_settings.Keys) | Sort-Object -Unique)) {
-                            if ($key -ne 'WORKSHOP_MCP_ENDPOINT' -and $before.app_settings[$key] -cne $after.app_settings[$key]) { $only = $false }
-                        }
-                    }
-                    elseif ((Get-WorkshopPortalAttributeJson $name $before[$name]) -ne (Get-WorkshopPortalAttributeJson $name $after[$name])) { $only = $false }
-                }
-                $only)
-            -not $whitespaceOnly -and -not $portalHint -and -not (Test-WorkshopPortalTierRestore $_) -and (-not $Allowed.ContainsKey($address) -or ($_.change.actions -join ',') -ne $Allowed[$address]) })
+            -not $whitespaceOnly -and (-not $Allowed.ContainsKey($address) -or ($_.change.actions -join ',') -ne $Allowed[$address]) })
         if ($foreign.Count -gt 0) {
             throw "FAIL '$Label' plan contains $($foreign.Count) change(s) outside module 04; nothing was applied. Review 'terraform plan' privately (expected HTTP N/A)."
         }
-        Write-WorkshopPortalTierNotes $changes
         $work = @($changes | Where-Object { & $Relevant $_ })
         if ($work.Count -eq 0) {
             Write-Output "PASS '$Label': nothing to do in this state (idempotent, expected HTTP N/A)."

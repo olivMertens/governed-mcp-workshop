@@ -123,7 +123,7 @@ Optional **part B** (`enable_rest_mcp_demo`, see Steps) adds a synthetic REST AP
 ![Level 2 architecture](../../assets/architecture/04.en.svg)
 
 The client URL becomes `https://apim-mcp-<prefix>-<suffix>.azure-api.net/workshop-mcp/mcp`. The private Function URL is
-never given to clients (the optional portal also prefills the gateway URL only).
+never given to clients. Configure your client with the gateway URL from your deployment outputs.
 
 **Preview:** the API Management MCP server resource type and API version `2025-09-01-preview` are **Preview**, as is Protected
 Resource Metadata on the Function (module 03). MCP server support is documented for Standard v2; the AI Gateway tier (Preview)
@@ -233,9 +233,9 @@ terraform '-chdir=infra\workload' apply '..\..\.workshop\module04.tfplan'
 > took about 2.5 minutes. The author's first apply failed on `mcpProperties.endpoints`: the Preview service expects a map,
 > not the array shown in the published reference. Your copy of `infra/workload/gateway.tf` already sends the map, so one
 > apply should finish; if you see this error, see Troubleshooting. The author's plan had 17 additions because module 02
-> already created the virtual network, and **3** changes: the Function App settings, plus two on the optional portal
-> (its plan was restored to B1 and its `WORKSHOP_MCP_ENDPOINT` hint now points to the gateway). Without a portal, expect 1 change. If your plan
-> also shows the portal plan, see Troubleshooting. The repeated in-place update of `prm_operation_policy` is a known
+> already created the virtual network, and **3** changes: the Function App settings and two historical documentation-hosting
+> changes. Azure documentation hosting was retired on 2026-10-21; current plans expect 1 change.
+> The repeated in-place update of `prm_operation_policy` is a known
 > whitespace normalisation of the azapi policy (no functional change). Any `to destroy` in the plan means a var file is
 > missing: do not apply.
 
@@ -729,7 +729,7 @@ compares each answer with the expected status: a refusal you predicted is a succ
 | Alice's `tools/list` through the gateway is empty (`{"tools":[]}`), but the Function lists five tools directly | The MCP server has no backend entity: API Management then treats it as a REST-backed MCP server and answers `tools/list` itself. `infra/workload/gateway.tf` creates `azapi_resource.mcp_backend` and sets `backendId` (Preview API; the published reference shows only `serviceUrl`). In the portal, **MCP Servers** must show **Source: MCP server** for `workshop-mcp`. |
 | The 401 challenge names `.../workshop-mcp/.well-known/oauth-protected-resource/workshop-mcp/mcp` | Expected in passthrough mode: API Management rewrites the metadata URL under the MCP server path. The MCP server policy answers that exact anonymous GET with the same metadata document; the root URL keeps working. |
 | Foundry (module 07) gets `Access denied ... while enumerating tools (HTTP 403)` | Recent clients call `server/discover` (MCP 2026-07-28) before `initialize`. The policy accepts it with `Tools.Read` (read-only: versions and capabilities, no tool runs). An older copy of `policies/mcp-server.xml` returns 403 `unsupported-method`. |
-| Plan shows the portal service plan `F1` -> `B1` | Something outside Terraform changed the optional portal plan (in the author's tenant a cost automation does this nightly). Approve only if you want B1 back; otherwise keep the change out of scope. |
+| Plan includes legacy documentation-hosting resources | Stop. Follow the reviewed retirement procedure in [hosting](../../docs/HOSTING.md#retire-an-older-azure-copy) separately. Do not include those changes in a module apply. |
 
 ## Clean up
 
@@ -795,7 +795,7 @@ az apim deletedservice purge --service-name "apim-mcp-$($p.participant_prefix)-$
 > PASS the Function is back at level 1 (Entra only). Remove .workshop/module04.tfvars.json; use modules/03-entra-authentication/cleanup.ps1 next if you continue cleaning up.
 > ```
 >
-> The `changed` count includes the optional presenter portal returning to its reviewed tier (`NOTE` lines, not shown).
+> The historical `changed` count includes documentation hosting, retired on 2026-10-21. Current cleanup refuses unrelated changes.
 >
 > With `-Apply` after stage 2 (expected, from the script messages):
 >

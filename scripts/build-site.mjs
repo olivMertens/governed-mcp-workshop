@@ -1,10 +1,23 @@
 import { lstatSync, readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { createHash } from "node:crypto";
 import { parseProgress } from "../.github/extensions/workshop-build-board/progress.mjs";
 import { readJourney } from "../.github/extensions/workshop-build-board/journey.mjs";
-import { screenshots } from "./portal-server.mjs";
+
+export const screenshots = ["azure-02-storage-public-access", "azure-02-storage-private-endpoints",
+    "terminal-00-az-context", "terminal-02-az-runtime", "terminal-03-az-auth", "terminal-04-az-network",
+    "terminal-05-az-identities", "terminal-06-az-counts", "terminal-07-az-gateway", "terminal-99-az-inventory",
+    "azure-02-function-overview", "azure-02-function-keys", "azure-04-function-networking", "terminal-00-validate",
+    "azure-03-function-authentication", "azure-03-app-registration-overview", "azure-03-app-roles",
+    "azure-03-enterprise-app-properties", "terminal-03-operator", "terminal-03-alice",
+    "azure-05-api-permissions", "azure-05-federated-credentials", "azure-06-kql-logs",
+    "azure-06-observability-agent-answer", "azure-06-observability-agent-query", "azure-06-trace-span-attributes", "azure-06-trace-waterfall",
+    "diagram-05-obo-hops-en", "diagram-05-obo-hops-fr", "diagram-05-rbac-checks-en", "diagram-05-rbac-checks-fr",
+    "diagram-02-server-levels-en", "diagram-02-server-levels-fr",
+    "client-01-inspector", "client-03-vscode", "azure-06-apic-register",
+    "azure-04-mcp-servers", "azure-04b-mcp-tools", "azure-04b-mcp-policy", "terminal-04b-operator", "terminal-04b-alice",
+    "terminal-04-operator", "terminal-04-bob", "terminal-05-bob",
+    "azure-07-foundry-tool", "azure-07-foundry-approve", "azure-07-foundry-result", "terminal-07-foundry"];
 
 const repository = fileURLToPath(new URL("../", import.meta.url));
 const icons = ["azure", "microsoft", "entra", "apim", "functions", "storage", "insights", "api-center", "subscription", "foundry-agent-service", "copilot-studio"];
@@ -121,21 +134,6 @@ export function buildSite(root = repository, destination = join(root, "site-dist
         writeFileSync(join(destination, ...parts), content, { flag: "wx" });
     }
     return { destination, files: files.size, paths: [...files.keys()] };
-}
-
-export function buildPortal(root = repository, destination = join(root, "portal-dist")) {
-    const server = readSource(root, ["scripts", "portal-server.mjs"]);
-    const result = buildSite(root, destination);
-    const manifest = {
-        schema: 1,
-        files: result.paths.map((path) => ({
-            path,
-            sha256: createHash("sha256").update(readFileSync(join(destination, ...path.split("/")))).digest("hex"),
-        })),
-    };
-    writeFileSync(join(destination, "site-manifest.json"), JSON.stringify(manifest), { flag: "wx" });
-    writeFileSync(join(destination, "server.mjs"), server, { flag: "wx" });
-    return { destination, files: result.files + 2 };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {

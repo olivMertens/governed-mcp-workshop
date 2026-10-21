@@ -6,8 +6,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { runInNewContext } from "node:vm";
-import { buildSite, authorOnlyDocuments, participantContent } from "./build-site.mjs";
-import { screenshots } from "./portal-server.mjs";
+import { buildSite, authorOnlyDocuments, participantContent, screenshots } from "./build-site.mjs";
 import { readJourney } from "../.github/extensions/workshop-build-board/journey.mjs";
 import { parseProgress } from "../.github/extensions/workshop-build-board/progress.mjs";
 
@@ -100,7 +99,7 @@ test("practice explains both client workflows in EN/FR and only prepares command
         };
         const content = element("main");
         runInNewContext(`${prepare}\n${source}\nshowPractice();`, {
-            language, t, element, content, URL, participant: null,
+            language, t, element, content, URL,
             state: { environment: { devcontainer: true }, documents: { practice: { content: "guide", sourcePath: "guide.md" } } },
             link: element, externalLink: element, markdown: element, deploymentContext: () => element("context"),
             notice: wrapper("notice"), disclosure: wrapper("details"), commandBlock: wrapper("command"),
@@ -163,7 +162,7 @@ test("the shared navigation omits the technical source register but keeps its au
     }
 });
 
-test("both public bundles expose animation entry points and the sourced Agent 365 closing step", (t) => {
+test("the GitHub Pages export exposes animation entry points and the sourced Agent 365 closing step", (t) => {
     const temporary = mkdtempSync(join(tmpdir(), "workshop-animation-links-"));
     t.after(() => rmSync(temporary, { recursive: true, force: true }));
     buildSite(root, join(temporary, "site"));
@@ -194,6 +193,25 @@ test("both public bundles expose animation entry points and the sourced Agent 36
             const prefix = language.language === "fr" ? "../../" : "../";
             assert.ok(integration.includes(`[${label}](${prefix}${module.sourcePath})`));
         }
+    }
+});
+
+test("GitHub Pages is the only publication target and the reader never fetches Azure connection hints", () => {
+    for (const file of ["build-portal.mjs", "deploy-portal.ps1", "deploy-portal.sh", "package-portal.ps1", "portal-server.mjs"]) {
+        assert.equal(existsSync(join(root, "scripts", file)), false, file);
+    }
+    assert.equal(existsSync(join(root, "infra", "workload", "portal.tf")), false);
+    const html = readFileSync(join(root, ".github", "extensions", "workshop-build-board", "board.html"), "utf8");
+    assert.doesNotMatch(html, /participant\.json|participantChecked|WORKSHOP_MCP_ENDPOINT|Prefilled from your own portal/);
+    const terraform = readdirSync(join(root, "infra", "workload")).filter((name) => name.endsWith(".tf"))
+        .map((name) => readFileSync(join(root, "infra", "workload", name), "utf8")).join("\n");
+    assert.doesNotMatch(terraform, /public_portal_enabled|public_portal_url|portal_participant_settings|resource "azurerm_linux_web_app" "portal"/);
+    for (const parts of [["docs", "HOSTING.md"], ["docs", "fr", "HOSTING.md"], ["docs", "PRESENTER.md"], ["docs", "fr", "PRESENTER.md"],
+        ["docs", "GETTING-STARTED.md"], ["docs", "fr", "GETTING-STARTED.md"],
+        ["docs", "IMPLEMENTATION-STATUS.md"], ["docs", "fr", "IMPLEMENTATION-STATUS.md"]]) {
+        const guide = readFileSync(join(root, ...parts), "utf8");
+        assert.match(guide, /GitHub Pages/);
+        assert.doesNotMatch(guide, /EnablePublicPortal|deploy-portal|build-portal|output -raw public_portal_url|explicit paid opt-in|B1 facultatif/);
     }
 });
 

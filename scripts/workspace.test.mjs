@@ -46,12 +46,14 @@ foreach ($change in @(@{Owner='bob';Expiry=$expiry}, @{Owner='alice';Expiry='200
   catch { $rejected++ }
 }
 if ($rejected -ne 3 -or [IO.File]::ReadAllText($path) -cne $before) { throw 'Unsafe changes were accepted.' }
-& $scriptOne -ParticipantPrefix p01 -Location westeurope -Owner alice -Expiry $expiry -EnablePublicPortal
-$opted = [IO.File]::ReadAllText($path)
-$portal = $opted | ConvertFrom-Json
-if (-not $portal.public_portal_enabled -or $portal.resource_suffix -cne $first.resource_suffix) { throw 'Portal opt-in changed resource names.' }
-& $scriptOne -ParticipantPrefix p01 -Location westeurope -Owner alice -Expiry $expiry
-if ([IO.File]::ReadAllText($path) -cne $opted) { throw 'Rerun removed persistent portal opt-in.' }
+$retired = $before | ConvertFrom-Json -AsHashtable
+$retired.public_portal_enabled = $true
+$retired | ConvertTo-Json | Set-Content -LiteralPath $path
+$saved = [IO.File]::ReadAllText($path)
+$rejected = 0
+try { & $scriptOne -ParticipantPrefix p01 -Location westeurope -Owner alice -Expiry $expiry }
+catch { if ($_.Exception.Message -notmatch 'hosting is retired') { throw }; $rejected++ }
+if ($rejected -ne 1 -or [IO.File]::ReadAllText($path) -cne $saved) { throw 'Retired hosting was silently accepted or migrated.' }
 Write-Output 'PASS stable parameters and safe rejection'
 `, t);
     if (!result) return;

@@ -188,7 +188,7 @@ Lancez ensuite la validation du module pour tester les accès.
 Terminez les vérifications du [module 00](../../modules/00-prerequisites/README.fr.md), puis l'exercice local
 du module 01 lorsqu'il sera disponible. Sélectionner un abonnement ne valide pas un module.
 
-Le code Terraform actuel prépare le groupe et un portail public facultatif sur App Service, désactivé par défaut.
+Le code Terraform prépare le groupe. Les guides sont hébergés sur GitHub Pages, sans application documentaire Azure.
 Le serveur MCP et les modules suivants ne sont pas encore implémentés. Attendez leurs guides de déploiement,
 de vérification et de nettoyage. Ce tableau ne propose aucun bouton pour déployer tout l'atelier.
 

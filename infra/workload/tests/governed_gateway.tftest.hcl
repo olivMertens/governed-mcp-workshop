@@ -284,29 +284,6 @@ run "gateway_ip_filter_renders_ranges" {
   }
 }
 
-run "gateway_portal_advertises_only_the_gateway" {
-  command = plan
-  variables {
-    public_portal_enabled       = true
-    enable_mcp_server           = true
-    enable_entra_auth           = true
-    entra_tenant_id             = "00000000-0000-4000-8000-000000000000"
-    mcp_api_client_id           = "44444444-4444-4444-8444-444444444444"
-    mcp_api_identifier_uri      = "api://44444444-4444-4444-8444-444444444444"
-    mcp_allowed_client_ids      = ["aebc6443-996d-45c2-90f0-388ff96faa56"]
-    entra_auth_replace_key_gate = true
-    enable_governed_gateway     = true
-    gateway_lock_function       = true
-  }
-  assert {
-    condition = alltrue([
-      azurerm_linux_web_app.portal[0].app_settings["WORKSHOP_MCP_ENDPOINT"] == "https://apim-mcp-p01-0123456789.azure-api.net/workshop-mcp/mcp",
-      !strcontains(jsonencode(azurerm_linux_web_app.portal[0].app_settings), "azurewebsites.net"),
-    ])
-    error_message = "At level 2 the portal prefills the gateway endpoint only; the private Function host is never advertised."
-  }
-}
-
 run "gateway_requires_module_03_stage_2" {
   command = plan
   variables {

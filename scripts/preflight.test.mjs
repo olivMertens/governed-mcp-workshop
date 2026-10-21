@@ -47,7 +47,6 @@ function global:az {
         'provider list' { @('Microsoft.Resources','Microsoft.Web','Microsoft.App','Microsoft.Storage','Microsoft.ManagedIdentity',
             'Microsoft.Network','Microsoft.Insights','Microsoft.OperationalInsights','Microsoft.ApiManagement','Microsoft.ApiCenter') |
             ForEach-Object { @{ namespace=$_; registrationState=$(if ($global:scenario -eq 'missing-provider' -and $_ -eq 'Microsoft.Web') { 'NotRegistered' } else { 'Registered' }) } }; break }
-        'appservice list-locations' { @(@{name='West Europe'}); break }
         'functionapp list-flexconsumption-locations' { @(@{name=$(if ($global:scenario -eq 'wrong-region') { 'eastus' } else { 'westeurope' })}); break }
         'functionapp list-flexconsumption-runtimes' { @(@{name='dotnet-isolated';version=$(if ($global:scenario -eq 'wrong-runtime') { '8.0' } else { '10.0' })}); break }
         'rest --method' {
@@ -79,13 +78,13 @@ $directory = '${directory.replaceAll("'", "''")}'
 $path = Join-Path $directory 'parameters.json'
 $reviewPath = Join-Path $directory 'capacity.json'
 foreach ($global:scenario in @('valid', 'pagination', 'wrong-context', 'override', 'permission-denied', 'group-quota',
-    'missing-provider', 'cli-error', 'invalid-json', 'unsafe-pagination', 'portal-valid', 'mcp-valid', 'wrong-runtime',
+    'missing-provider', 'cli-error', 'invalid-json', 'unsafe-pagination', 'retired-portal', 'mcp-valid', 'wrong-runtime',
     'wrong-region', 'missing-review', 'stale-review', 'future-review', 'wrong-review-target', 'insufficient-review', 'unsafe-parameters', 'invalid-locations', 'invalid-groups',
     'low-code-new-group', 'low-code-existing-group')) {
     $global:pageCount=0
     $global:calls.Clear()
-    $stage = if ($global:scenario -in @('portal-valid','missing-provider','missing-review','stale-review','future-review','wrong-review-target','insufficient-review')) { 'portal' }
-        elseif ($global:scenario -in @('mcp-valid','wrong-runtime','wrong-region','low-code-new-group','low-code-existing-group')) { 'mcp' } else { 'foundation' }
+    $stage = if ($global:scenario -eq 'retired-portal') { 'portal' }
+        elseif ($global:scenario -in @('missing-provider','missing-review','stale-review','future-review','wrong-review-target','insufficient-review','mcp-valid','wrong-runtime','wrong-region','low-code-new-group','low-code-existing-group')) { 'mcp' } else { 'foundation' }
     $parameters = @{participant_prefix='p01';resource_suffix='0123456789';location='westeurope';owner='alice';
         expiry=[datetime]::UtcNow.AddDays(1).ToString('yyyy-MM-dd');existing_resource_group_name=$(if ($stage -ne 'foundation' -and $global:scenario -ne 'low-code-new-group') { 'rg-synthetic-admin' } else { $null })}
     if ($global:scenario -eq 'unsafe-parameters') { $parameters.resource_suffix='../../outside' }
@@ -95,7 +94,7 @@ foreach ($global:scenario in @('valid', 'pagination', 'wrong-context', 'override
     if ($global:scenario -eq 'stale-review') { $checked=$checked.AddDays(-2) }
     if ($global:scenario -eq 'future-review') { $checked=$checked.AddDays(1) }
     @{subscriptionId=$(if ($global:scenario -eq 'wrong-review-target') { [guid]::NewGuid().ToString() } else { $global:subscription.ToString() });
-        location='westeurope';stage=$stage;unit=$(if ($stage -eq 'portal') { 'workers' } else { 'MB' });
+        location='westeurope';stage=$stage;unit='MB';
         availableUnits=$(if ($global:scenario -eq 'insufficient-review') { 0 } else { 512000 });
         checkedAtUtc=$checked.ToString('yyyy-MM-ddTHH:mm:ssZ');costApproved=$true } | ConvertTo-Json | Set-Content -LiteralPath $reviewPath
     $arguments = @{TenantId=$global:tenant;SubscriptionId=$global:subscription;ParametersPath=$path;Stage=$stage}
@@ -106,7 +105,7 @@ foreach ($global:scenario in @('valid', 'pagination', 'wrong-context', 'override
     try { $output = & '${script}' @arguments | Out-String }
     catch { $failed=$true; $output=$_.Exception.Message + ' ' + $_.ScriptStackTrace }
     finally { Remove-Item Env:ARM_CLIENT_ID -ErrorAction SilentlyContinue }
-    $expected = $global:scenario -in @('valid','pagination','portal-valid','mcp-valid','low-code-new-group','low-code-existing-group')
+    $expected = $global:scenario -in @('valid','pagination','mcp-valid','low-code-new-group','low-code-existing-group')
     if ($failed -eq $expected) { throw "Unexpected result for $global:scenario : $output" }
     if ($output -match 'synthetic private error must not be printed') { throw 'Private CLI error leaked.' }
     if ((Get-Content -LiteralPath $path -Raw) -cne $before) { throw 'Preflight changed participant parameters.' }

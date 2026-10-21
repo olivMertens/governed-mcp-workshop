@@ -29,16 +29,16 @@ provider "azurerm" {
 }
 
 locals {
-  stem           = "mcp-${var.participant_prefix}-${var.resource_suffix}"
-  compact_prefix = substr(var.participant_prefix, 0, 6)
-  legacy_suffix  = length(var.resource_suffix) == 10
+  stem              = "mcp-${var.participant_prefix}-${var.resource_suffix}"
+  compact_prefix    = substr(var.participant_prefix, 0, 6)
+  legacy_suffix     = length(var.resource_suffix) == 10
+  workload_group    = var.existing_resource_group_name == null ? azurerm_resource_group.workshop[0].name : data.azurerm_resource_group.existing[0].name
+  workload_location = var.existing_resource_group_name == null ? azurerm_resource_group.workshop[0].location : var.location
   names = {
     resource_group       = coalesce(var.existing_resource_group_name, "rg-${local.stem}")
     storage              = local.legacy_suffix ? "stmcp${var.participant_prefix}${var.resource_suffix}" : "st${local.compact_prefix}${var.resource_suffix}"
     function_app         = local.legacy_suffix ? "func-${local.stem}" : "func-mcp-${local.compact_prefix}-${var.resource_suffix}"
     api_management       = "apim-${local.stem}"
-    portal_plan          = "plan-${local.stem}-portal"
-    portal_app           = "web-${local.stem}-portal"
     function_plan        = "plan-${local.stem}-func"
     function_identity    = "id-${local.stem}-func"
     obo_identity         = "id-${local.stem}-obo"
@@ -70,7 +70,7 @@ output "resource_group_name" {
 }
 
 output "resource_names" {
-  description = "Deterministic service names. Module 02 MCP resources exist only when enable_mcp_server is true; later names stay planned. The public portal is optional."
+  description = "Deterministic service names. Module 02 MCP resources exist only when enable_mcp_server is true; later names stay planned. Guides are hosted on GitHub Pages."
   value       = local.names
 }
 

@@ -119,8 +119,7 @@ pwsh ./modules/99-cleanup/cleanup.ps1 -TenantId $env:ARM_TENANT_ID -Subscription
 > Module 99 clean-up. Mode: REPORT ONLY (no change)
 > --> 05-delegated-and-app-only -Scope Workload
 > PASS explicit Azure context and private participant parameters (expected HTTP 200 from Azure Resource Manager).
-> NOTE plan also restores azurerm_linux_web_app.portal[0] to its reviewed tier (changed outside Terraform, for example F1 at night). Not a module change; the portal is kept.
-> NOTE plan also restores azurerm_service_plan.portal[0] to its reviewed tier (changed outside Terraform, for example F1 at night). Not a module change; the portal is kept.
+> ...
 > PASS 'remove module 05 workload resources': nothing to do in this state (idempotent, expected HTTP N/A).
 > --> 05-delegated-and-app-only -Scope Entra
 > PASS explicit tenant and interactive identity administrator sign-in (expected HTTP 200 from Microsoft Graph).
@@ -145,8 +144,6 @@ pwsh ./modules/99-cleanup/cleanup.ps1 -TenantId $env:ARM_TENANT_ID -Subscription
 > - `PLAN`: what this stage would change. Read every one.
 > - `nothing to do`: this stage has nothing left.
 > - `SKIP`: a private file is missing. Normal for a stage you never deployed; otherwise restore the file.
-> - `NOTE`: Terraform also puts the optional presenter portal back on its reviewed tier, because something outside
->   Terraform changed it (here a nightly switch to F1). Only that exact change is accepted; the portal is kept.
 > - `WAIT`: report mode applies nothing, so this stage still sees objects that an earlier stage only *plans* to remove.
 >   It is not an error. With `-Apply`, stages run in order and each one plans again after the previous one.
 > - `FAIL`: a guard refused a plan. Nothing was applied. Stop and read the message.
@@ -211,7 +208,8 @@ See [module 06 cleanup](../06-observe-inventory/README.md#clean-up) for the exac
 
 1. Delete the workshop test users (Alice, Bob, Eve) if you created them.
 2. Remove any role assignment you added by hand for the workshop.
-3. If a presenter published the optional portal, it is kept on purpose. Remove it only when the workshop is over, with the reviewed flow in [docs/HOSTING.md](../../docs/HOSTING.md#clean-up).
+3. GitHub Pages requires no Azure website. If you still have a legacy documentation copy, retire it separately
+   with the [reviewed migration](../../docs/HOSTING.md#retire-an-older-azure-copy) before running current module cleanup.
 4. Delete what Azure created outside Terraform, if present: the network security groups that a tenant policy adds to each
    subnet (`<vnet>-snet-...-nsg-<region>`) and the **Application Insights Smart Detection** action group (commands below).
 5. Run the tag check below.
@@ -230,16 +228,8 @@ $p = Get-Content -LiteralPath ./.workshop/participant.tfvars.json -Raw | Convert
 az resource list --tag "workshop=mcp-$($p.participant_prefix)-$($p.resource_suffix)" --query "[].{name:name, type:type}" -o table
 ```
 
-> **Real result** — 2026-10-20, after the complete clean-up, with the optional presenter portal kept on purpose.
->
-> ```text
-> Name
-> ---------------------------------------
-> plan-mcp-p01-<suffix>-portal
-> web-mcp-p01-<suffix>-portal
-> ```
->
-> Without a portal, the command prints nothing (an empty result has no table).
+> **Expected result** — the command prints nothing when no tagged resource remains (an empty result has no table).
+> GitHub Pages hosting adds no Azure resources to this inventory.
 >
 > **What it means for you:** an empty output is your proof that no tagged workshop resource remains. Any row is a leftover.
 
@@ -328,8 +318,8 @@ test makes sure nobody turns deletion into the default, so one wrong command can
 
 - **Participant parameters have expired.** Cleanup accepts the original valid date, suffix and state, with a warning.
   Do not change the date or regenerate names just to delete resources. Deployment and preflight still require a future date.
-- **The portal plan changes tier.** Only an exact F1 → B1 restoration is allowed alongside cleanup. Another tier, a downgrade,
-  unknown planned values or unrelated portal settings must stop the plan for review.
+- **An old documentation site is still tracked.** Stop and retire it separately with the hosting migration.
+  Cleanup no longer accepts documentation-site updates or tier changes.
 - **Foundry purge fails.** Keep the module 07 private inventory. Check the exact deleted-account permission with the
   administrator, then retry; a failed read or purge must never be reported as successful cleanup.
 - **A step stops with an exit code.** The script stops at the first failure and does not continue. Read the message, fix it,

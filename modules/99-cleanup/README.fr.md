@@ -169,8 +169,7 @@ pwsh ./modules/99-cleanup/cleanup.ps1 -TenantId $env:ARM_TENANT_ID -Subscription
 > Module 99 clean-up. Mode: REPORT ONLY (no change)
 > --> 05-delegated-and-app-only -Scope Workload
 > PASS explicit Azure context and private participant parameters (expected HTTP 200 from Azure Resource Manager).
-> NOTE plan also restores azurerm_linux_web_app.portal[0] to its reviewed tier (changed outside Terraform, for example F1 at night). Not a module change; the portal is kept.
-> NOTE plan also restores azurerm_service_plan.portal[0] to its reviewed tier (changed outside Terraform, for example F1 at night). Not a module change; the portal is kept.
+> ...
 > PASS 'remove module 05 workload resources': nothing to do in this state (idempotent, expected HTTP N/A).
 > --> 05-delegated-and-app-only -Scope Entra
 > PASS explicit tenant and interactive identity administrator sign-in (expected HTTP 200 from Microsoft Graph).
@@ -195,9 +194,6 @@ pwsh ./modules/99-cleanup/cleanup.ps1 -TenantId $env:ARM_TENANT_ID -Subscription
 > - `PLAN` : ce que cette étape modifierait. Lisez chaque ligne.
 > - `nothing to do` : il ne reste rien à retirer pour cette étape.
 > - `SKIP` : un fichier privé manque. Normal pour une étape jamais déployée ; sinon, restaurez le fichier.
-> - `NOTE` : dans cet exemple, Terraform rétablit aussi l'offre prévue pour le portail facultatif, modifiée en dehors
->   de Terraform (passage nocturne en F1). Cette correction précise est autorisée ; le portail est conservé.
->   Ne considérez pas ce message comme une autorisation d'appliquer d'autres changements inattendus.
 > - `WAIT` : le mode rapport n'applique rien, donc cette étape voit encore des objets qu'une étape précédente *prévoit*
 >   seulement de retirer. Ce n'est pas une erreur. Avec `-Apply`, les étapes s'exécutent dans l'ordre et chacune refait son
 >   plan après la précédente.
@@ -259,7 +255,8 @@ Le script n'effectue pas ces étapes :
 
 1. Supprimez les utilisateurs de test de l'atelier (Alice, Bob, Eve) si vous les avez créés.
 2. Retirez les attributions de rôle ajoutées à la main pour l'atelier.
-3. Si le portail facultatif est déployé, le script le conserve volontairement. Demandez à son responsable de le retirer seulement à la fin de l'atelier, avec la procédure de [docs/fr/HOSTING.md](../../docs/fr/HOSTING.md).
+3. GitHub Pages ne nécessite aucun site Azure. S'il reste une ancienne copie des guides, retirez-la séparément
+   avec la [procédure de migration](../../docs/fr/HOSTING.md#supprimer-une-ancienne-copie-azure) avant le nettoyage actuel.
 4. Supprimez ce qu'Azure a créé en dehors de Terraform, s'il existe : les groupes de sécurité réseau qu'une stratégie du
    tenant ajoute à chaque sous-réseau (`<vnet>-snet-...-nsg-<region>`) et le groupe d'actions **Application Insights Smart
    Detection** (commandes ci-dessous).
@@ -279,16 +276,8 @@ $p = Get-Content -LiteralPath ./.workshop/participant.tfvars.json -Raw | Convert
 az resource list --tag "workshop=mcp-$($p.participant_prefix)-$($p.resource_suffix)" --query "[].{name:name, type:type}" -o table
 ```
 
-> **Résultat réel** — 2026-10-20, après le nettoyage complet, avec le portail facultatif du présentateur conservé volontairement.
->
-> ```text
-> Name
-> ---------------------------------------
-> plan-mcp-p01-<suffix>-portal
-> web-mcp-p01-<suffix>-portal
-> ```
->
-> Sans portail, la commande n'affiche rien (un résultat vide ne produit pas de tableau).
+> **Résultat attendu** — la commande n'affiche rien lorsqu'il ne reste aucune ressource balisée
+> (un résultat vide ne produit pas de tableau). GitHub Pages n'ajoute aucune ressource Azure à cet inventaire.
 >
 > **Ce que cela signifie pour vous :** une sortie vide indique qu'il ne reste aucune ressource portant cette balise
 > d'atelier. Examinez chaque ligne restante : elle peut correspondre à un oubli ou à un élément conservé volontairement,
@@ -390,8 +379,8 @@ une commande lancée avec `-Apply` peut bien supprimer les ressources prévues.
 - **Les paramètres du participant ont expiré.** Le nettoyage accepte la date valide d'origine, le suffixe et l'état
   existants, avec un avertissement. Ne modifiez pas la date et ne régénérez pas les noms pour supprimer les ressources.
   Le déploiement et les contrôles préalables continuent d'exiger une date future.
-- **Le plan change la gamme du portail.** Seul le rétablissement exact F1 → B1 est accepté pendant le nettoyage.
-  Toute autre gamme, rétrogradation, valeur encore inconnue ou modification sans rapport doit bloquer le plan.
+- **Un ancien site documentaire est encore suivi.** Arrêtez-vous et retirez-le séparément selon le guide d'hébergement.
+  Le nettoyage n'accepte plus de mise à jour ni de changement de gamme pour ce site.
 - **La purge Foundry échoue.** Conservez l'inventaire privé du module 07. Faites vérifier la permission précise sur le
   compte supprimé par l'administrateur, puis relancez le nettoyage. Un échec de lecture ou de purge n'est jamais une réussite.
 - **Une étape s'arrête avec un code d'erreur.** Le script s'arrête à la première erreur. Lisez le message, corrigez le problème, puis
