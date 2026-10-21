@@ -62,6 +62,7 @@
     .connector::after { content: ""; width: 6px; height: 6px; border-top: 1px solid #b5b7f2; border-right: 1px solid #b5b7f2; transform: rotate(45deg); position: absolute; right: 0; top: -3px; }
     .boundary p { font-size: 12px; margin: 20px 0 0; color: #e4e5ff; }
     .primary { display: inline-flex; color: white; background: var(--blue); text-decoration: none; padding: 11px 18px; border-radius: 6px; font-weight: 600; }
+    .animation-exercise { border: 0; margin: 0 0 24px; }
     .notice { border-left: 3px solid var(--blue); background: var(--wash); padding: 16px 20px; margin: 24px 0; font-size: 14px; max-width: 760px; }
     .notice > strong { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
     .notice-body > :first-child { margin-top: 0; }
@@ -102,6 +103,25 @@
     .command { margin: 20px 0; min-width: 0; }
     .command-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 8px; font-weight: 600; font-size: 13px; }
     .command pre { margin: 0; padding: 16px; background: var(--paper); border: 1px solid var(--line); border-radius: 6px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; line-height: 1.7; }
+    .command pre.syntax { background: #1b263b; color: #eef3ff; border-color: #405474; }
+    .syntax .token-variable { color: #9cdcfe; }
+    .syntax .token-string { color: #ce9178; }
+    .syntax .token-comment { color: #91ba78; }
+    .syntax .token-keyword { color: #c5a3e8; }
+    .syntax .token-command { color: #f5df9b; }
+    .syntax .token-parameter { color: #b5cea8; }
+    .syntax .token-number { color: #b5cea8; }
+    .syntax .token-operator { color: #d4d4d4; }
+    .code-line.annotated { border-bottom: 1px dotted #9cdcfe; cursor: help; }
+    .code-line.annotated:hover, .code-line.annotated:focus { background: #304769; outline: 2px solid #9cdcfe; outline-offset: 2px; }
+    .code-help { margin: 8px 0 0; color: var(--muted); font-size: 12px; }
+    .code-tooltip { margin-top: 8px; padding: 10px 14px; background: var(--wash); border-left: 3px solid var(--blue); border-radius: 4px; font-size: 13px; overflow-wrap: anywhere; }
+    .code-tooltip[hidden] { display: none; }
+    @media print {
+      .command pre.syntax { background: #fff; color: #172c48; }
+      .syntax [class^="token-"] { color: inherit; }
+      .code-help, .code-tooltip { display: none; }
+    }
     .copy { font-size: 12px; background: var(--surface); color: var(--blue); border: 1px solid var(--line); border-radius: 5px; padding: 5px 10px; flex-shrink: 0; }
     .exercise { border-top: 2px solid var(--blue); padding-top: 4px; margin: 28px 0; }
     .quiz { border-top-color: #7650b3; }
@@ -1631,6 +1651,49 @@
       anchor.rel = "noopener noreferrer";
       return anchor;
     }
+    function codeLanguage(title, text) {
+      if (/\b(?:powershell|pwsh)\b/i.test(title)) return "powershell";
+      if (/\bjson\b/i.test(title)) return "json";
+      if (/\b(?:bash|shell)\b/i.test(title)) return "shell";
+      if (/^(?:Code|Text|Output|Prompt|Mermaid diagram)$/i.test(title)) return "";
+      return /^\s*(?:\$[\w{]|(?:az|terraform|git|dotnet|npx|npm|Get-\w+|Set-\w+|\.\\[\w\\.-]+\.ps1)\s)/m.test(text) ? "powershell" : "";
+    }
+    function codeTokens(text, language) {
+      if (!language) return [{ text }];
+      const pattern = language === "json" ?
+        /("(?:\\.|[^"\\])*")|\b(true|false|null)\b|\b(-?\d+(?:\.\d+)?)\b/g :
+        /(#.*$)|('(?:''|[^'])*'|"(?:`.|\\.|[^"\\])*")|(\$\{[^}]+\}|\$(?:[\w]+:)?[\w]+|@\w+)|(--?[\w-]+)|\b(if|else|elseif|foreach|in|function|return|throw|try|catch|finally|\$null|\$true|\$false)\b|\b([A-Za-z]+-[A-Za-z][\w-]*|az|terraform|git|dotnet|npx|npm|curl)\b|\b(\d+(?:\.\d+)?)\b|([|=;{}()[\]])/gm;
+      const kinds = language === "json" ? ["string", "keyword", "number"] :
+        ["comment", "string", "variable", "parameter", "keyword", "command", "number", "operator"];
+      const tokens = [];
+      let end = 0;
+      for (const match of text.matchAll(pattern)) {
+        if (match.index > end) tokens.push({ text: text.slice(end, match.index) });
+        tokens.push({ text: match[0], kind: kinds[match.slice(1).findIndex((value) => value !== undefined)] });
+        end = match.index + match[0].length;
+      }
+      if (end < text.length) tokens.push({ text: text.slice(end) });
+      return tokens;
+    }
+    function codeExplanation(line, language) {
+      if (language !== "powershell" || /^\s*#/.test(line)) return null;
+      const rules = [
+        [/\baz login\b/, "Sign in to the intended Microsoft Entra tenant. This does not select your subscription."],
+        [/\baz account set\b/, "Select the subscription for subsequent Azure CLI commands. Check it before creating resources."],
+        [/Get-Content.*participant\.tfvars\.json/, "Read your private participant parameters. Keep this file and its stable suffix through cleanup; never commit it."],
+        [/existing_resource_group_name/, "Reuse the administrator-provided resource group when configured. Do not delete a shared group."],
+        [/resource_suffix|participant_prefix/, "Build deterministic resource names from your participant prefix and saved suffix. New names do not reset Azure quotas."],
+        [/\baz functionapp keys list\b/, "Keep the function key off screen and out of files. A key is not user identity; rotate it after the open-server demonstration."],
+        [/\bterraform\b.*\bdestroy\b|cleanup[\w.-]*\.ps1/i, "Delete only approved workshop-owned resources. Keep the same private parameters and Terraform state; preserve shared resources."],
+        [/\bterraform\b.*\bplan\b/, "Prepare a plan for review. Check the target subscription and all additions, changes and deletions before applying it."],
+        [/\bterraform\b.*\bapply\b/, "This changes Azure or Microsoft Entra resources. Run only after explicit approval and review of the saved plan."],
+        [/validate[\w.-]*\.ps1/i, "Run the module checks in your own terminal. Compare each PASS or FAIL and expected HTTP status; reading this page does not validate a deployment."],
+        [/ConvertFrom-Json/, "Convert JSON text into a PowerShell object so later commands can read its named properties."],
+        [/^\s*\$(?:tenant|sub)\s*=/, "Replace this placeholder with your own approved tenant or subscription ID before running the command."],
+        [/^\s*\$(?:rg|st|fn|mi|ai|law|vn)\s*=/, "Name the workshop resources consistently. These assignments prepare values locally; they do not deploy anything."],
+      ];
+      return rules.find(([pattern]) => pattern.test(line))?.[1] ?? null;
+    }
     function commandBlock(title, text, copyLabel = "Copy command", translateText = true) {
       if (translateText) text = t(text);
       const section = element("section", undefined, "command");
@@ -1651,8 +1714,45 @@
       });
       heading.append(element("span", title), copy);
       const pre = element("pre");
-      pre.append(element("code", text));
+      const code = element("code");
+      const syntax = codeLanguage(title, text);
+      if (syntax) pre.className = "syntax";
+      const tooltip = element("div", undefined, "code-tooltip");
+      tooltip.id = `code-tip-${commandBlock.sequence = (commandBlock.sequence || 0) + 1}`;
+      tooltip.setAttribute("role", "tooltip");
+      tooltip.hidden = true;
+      let annotated = false;
+      text.split("\n").forEach((line, index) => {
+        if (index) code.append(document.createTextNode("\n"));
+        const row = element("span", undefined, "code-line");
+        for (const token of codeTokens(line, syntax)) {
+          const part = token.kind ? element("span", undefined, `token-${token.kind}`) : document.createTextNode(token.text);
+          if (token.kind) part.textContent = token.text;
+          row.append(part);
+        }
+        const explanation = codeExplanation(line, syntax);
+        if (explanation) {
+          annotated = true;
+          row.className += " annotated";
+          row.tabIndex = 0;
+          row.setAttribute("aria-describedby", tooltip.id);
+          const show = () => {
+            tooltip.textContent = `${t("Line")} ${index + 1}: ${t(explanation)}`;
+            tooltip.hidden = false;
+          };
+          const hide = () => { tooltip.hidden = true; };
+          row.addEventListener("pointerenter", show);
+          row.addEventListener("pointerleave", () => { if (document.activeElement !== row) hide(); });
+          row.addEventListener("focus", show);
+          row.addEventListener("blur", hide);
+          row.addEventListener("click", show);
+          row.addEventListener("keydown", (event) => { if (event.key === "Escape") hide(); });
+        }
+        code.append(row);
+      });
+      pre.append(code);
       section.append(heading, pre);
+      if (annotated) section.append(element("p", "Dotted lines have explanations. Hover, tap or focus a line; press Escape to close.", "code-help"), tooltip);
       return section;
     }
     function connectionCommands(value) {
@@ -1760,8 +1860,8 @@
         actions.append(externalLink("Open SVG", module.diagram.svg, "secondary"),
           externalLink("Open PNG", module.diagram.png, "secondary"),
           externalLink("Editable draw.io source", module.diagram.editable, "secondary"));
-        figure.append(scroll, caption, actions,
-          disclosure("More detail: Mermaid source",
+        figure.append(scroll, caption, actions);
+        if (!staticSite) figure.append(disclosure("More detail: Mermaid source",
             element("p", "GitHub renders this Mermaid source. Here, the matching SVG preserves the verified icons and routing. Both come from the same draw.io source."),
             commandBlock("Mermaid diagram", module.diagramSource.content, "Copy diagram")));
         return figure;
@@ -1782,6 +1882,8 @@
           section.append(anchor);
           if (module.module === "06") section.append(element("p", "Core path: clean up"),
             link("Optional: explore other clients first", "#/module/07", "secondary"));
+          if (module.module === "07") section.append(
+            link("Go further: what is Agent 365?", "#/integration/9", "secondary"));
         }
         return section;
       }
@@ -1889,6 +1991,9 @@
       content.append(element("h1", "From open tools to governed access."),
         element("p", "Build one Model Context Protocol (MCP) server. Add identity, enforce permissions, then see who called what. Follow the modules in order, at your own pace.", "lead"));
       content.append(trackChoices());
+      if (state.documents.integration) content.append(
+        link("Animated architecture: reveal it step by step", "#/integration/1", "secondary"),
+        element("p", "Explore the module diagrams with Next and Previous. The same animations are available in both deployment tracks.", "field-message"));
       const brands = element("div", undefined, "brands");
       brands.append(element("span", "Technologies covered"));
       for (const [name, asset] of [["Microsoft", "microsoft"], ["Azure", "azure"], ["Microsoft Entra ID", "entra"]]) {
@@ -1900,7 +2005,8 @@
         architecture(state.modules.find((module) => module.module === "04")));
       if (state.modules.some((module) => module.guide === null)) content.append(notice("The workshop is being built.",
         "Modules without a published guide show their design outline, not runnable participant steps. Build status is shared repository evidence, not your personal completion."));
-      const next = state.modules.find((module) => module.status !== "validated" && module.module !== "07") || state.modules[0];
+      const next = staticSite ? state.modules[0] :
+        state.modules.find((module) => module.status !== "validated" && module.module !== "07") || state.modules[0];
       const start = moduleLink(next, "primary");
       start.textContent = `${language === "fr" ? "Consulter le module" : "Explore module"} ${next.module}`;
       const actions = element("div", undefined, "action-row");
@@ -1912,7 +2018,7 @@
       for (const module of state.modules) {
         const row = link("", `#/module/${module.module}`, "route-item");
         const title = element("span", module.title, "route-title");
-        title.append(element("span", module.module === "07" ? "Optional participant exercise" : module.module === "99" ? "Remove workshop-owned resources" : labels[module.status], "route-meta"));
+        title.append(element("span", module.module === "07" ? "Optional participant exercise" : module.module === "99" ? "Remove workshop-owned resources" : staticSite ? "Participant guide" : labels[module.status], "route-meta"));
         const requires = dependencies[module.module]?.requires ?? [];
         if (requires.length) {
           const meta = element("span", undefined, "route-meta");
@@ -1963,6 +2069,13 @@
         content.append(original);
       }
       const goTo = (target) => { target.scrollIntoView({ behavior: "smooth", block: "start" }); target.focus({ preventScroll: true }); };
+      const animation = module.animation ? revealDiagram(module.animation.content, module.animation.sourcePath) : null;
+      if (animation) content.append(
+        element("h2", "Understand before you start", "section-title"),
+        element("p", "Start with this diagram. Each step explains a component or control you will use in this module. Then follow the commands to check it in your own environment.", "module-animation-intro"),
+        animation);
+      const guide = module.animation && module.guide !== null ?
+        module.guide.replace(/^```reveal\r?\n[\s\S]*?\r?\n```\r?\n?/gm, "") : module.guide;
       const guideTitle = element("h2", "Follow the guide", "section-title");
       guideTitle.tabIndex = -1;
       const furtherTitle = element("h2", "Architecture and context (optional)", "section-title further-title");
@@ -1995,11 +2108,20 @@
         return block;
       } };
       // Module 00 checks the environment: no review questions there.
-      const items = module.guide !== null && module.module !== "00" ? collectQuestions(module.guide) : [];
+      const items = guide !== null && module.module !== "00" ? collectQuestions(guide) : [];
       let lesson = null;
       const review = items.length ? { render: (jump) => reviewList(items, module.sourcePath, jump,
         (original) => (original >= lesson.reviewIndex ? original + 2 : original + 1)) } : null;
-      lesson = guidedDocument(module.guide ?? module.outline, module.sourcePath, null, { validate, review });
+      lesson = guidedDocument(guide ?? module.outline, module.sourcePath, null, { validate, review });
+      if (animation) {
+        const continueToExercise = element("button", "Continue with this module's exercise", "primary animation-exercise");
+        continueToExercise.type = "button";
+        continueToExercise.addEventListener("click", () => {
+          lesson.goTo(0);
+          goTo(guideTitle);
+        });
+        content.append(continueToExercise);
+      }
       // A short map tells a first-time reader what to do on this page, in which order.
       const map = element("nav", undefined, "page-map");
       map.setAttribute("aria-label", t("How this page works"));
@@ -2007,6 +2129,7 @@
       const stops = element("ol");
       const stepWord = (number) => `${t("Step")} ${number}`;
       const cards = [[t("Follow the guide"), `${lesson.stepCount} ${t("steps")}`, () => { lesson.goTo(0); }]];
+      if (animation) cards.unshift([t("Animated diagram"), t("Understand this module one step at a time"), () => goTo(animation)]);
       if (lesson.exerciseIndex !== -1) cards.push([t("Your turn"), t("Server built and Inspector ready? Start the guided requests."), () => lesson.goTo(lesson.exerciseIndex)]);
       if (lesson.validateIndex !== -1) cards.push([t("Check your work"), `${stepWord(lesson.validateIndex + 1)}${language === "fr" ? " : " : ": "}${module.module === "00" ? t("Review your Azure context") : t("Run the validator: PASS or FAIL")}`, () => lesson.goTo(lesson.validateIndex)]);
       if (lesson.reviewIndex !== -1) cards.push([t("Review questions"), `${stepWord(lesson.reviewIndex + 1)}${language === "fr" ? " : " : ": "}${items.length} ${t(items.length === 1 ? "question, answer hidden" : "questions, answers hidden")}`, () => lesson.goTo(lesson.reviewIndex)]);
@@ -2032,10 +2155,17 @@
       concepts.append(element("summary", "Why this boundary matters"), markdown(module.learning, module.learningSourcePath),
         link("Read the full governance guide", "#/governance", "secondary"));
       content.append(concepts);
-      if (module.guide !== null) content.append(pdfAction(`${module.module} / ${module.title} / ${module.module === "01" ? t("Shared module: both tracks") : t(selectedTrack === "low-code" ? "Low-code / portal first" : "Terraform + PowerShell")}`, module.guide, module.sourcePath, () => servicesList(module)));
-      const source = element("p", undefined, "source");
-      source.append(document.createTextNode(language === "fr" ? "Fichier source : " : "Source: "), element("code", module.sourcePath));
-      content.append(source);
+      if (guide !== null) content.append(pdfAction(`${module.module} / ${module.title} / ${module.module === "01" ? t("Shared module: both tracks") : t(selectedTrack === "low-code" ? "Low-code / portal first" : "Terraform + PowerShell")}`, guide, module.sourcePath, () => {
+        const header = element("div");
+        header.append(servicesList(module));
+        if (module.animation) header.append(revealDiagram(module.animation.content, module.animation.sourcePath));
+        return header;
+      }));
+      if (!staticSite) {
+        const source = element("p", undefined, "source");
+        source.append(document.createTextNode(language === "fr" ? "Fichier source : " : "Source: "), element("code", module.sourcePath));
+        content.append(source);
+      }
       // Build status and evidence are for authors only: never shown on the published participant site.
       if (!staticSite) {
         const details = element("details");
@@ -2062,7 +2192,7 @@
       content.replaceChildren();
       const route = location.hash || "#/start";
       // "#/concepts/10" opens the guided concepts page directly on its numbered section 10.
-      const deep = /^#\/(concepts|governance|gettingStarted)\/(\d+)$/.exec(route);
+      const deep = /^#\/(concepts|governance|gettingStarted|integration)\/(\d+)$/.exec(route);
       const documentKey = deep ? deep[1] : route.slice(2);
       const module = state.modules.find((item) => route === `#/module/${item.module}`);
       if (["#/start", "#/start/devcontainer", "#/start/local", "#/start/codespaces"].includes(route)) showStart();
@@ -2088,7 +2218,7 @@
           link("Workshop overview", "#/overview", "primary"));
       }
       for (const anchor of document.querySelectorAll(".rail nav a")) {
-        if (anchor.getAttribute("href") === (deep ? `#/${deep[1]}` : route)) {
+        if (anchor.getAttribute("href") === route || (deep && anchor.getAttribute("href") === `#/${deep[1]}`)) {
           anchor.setAttribute("aria-current", "page");
           const group = anchor.closest(".nav-group");
           if (group) group.open = true;
@@ -2183,6 +2313,7 @@
       const starts = document.getElementById("start-nav");
       starts.replaceChildren(navLink("start", "Get started", "terminal"),
         navLink("concepts", "MCP and agent concepts", "book"), navLink("overview", "Workshop overview", "home"));
+      if (state?.documents.integration) starts.append(navLink("integration/1", "Animated architecture", "layers"));
       for (const code of ["en", "fr"]) document.getElementById(`language-${code}`).setAttribute("aria-pressed", String(language === code));
       for (const [group, nav, title, icon, entries] of [
         ["resource-group", "resource-nav", "Resources", "book", [
@@ -2201,6 +2332,11 @@
           ["hosting", "Publish or host the guides", "globe"],
         ]],
       ]) {
+        document.getElementById(group).hidden = staticSite && group === "author-group";
+        if (staticSite && group === "author-group") {
+          document.getElementById(nav).replaceChildren();
+          continue;
+        }
         const summary = document.querySelector(`#${group} > summary`);
         summary.replaceChildren(symbol(icon), element("span", title, "nav-text"));
         summary.title = t(title);
@@ -2216,10 +2352,12 @@
         anchor.append(element("span", module.module, "module-id"), element("span", module.title, "nav-title"));
         const note = module.module === "07" ? "Optional" : module.module === "99" ? "Always" : "";
         if (note) anchor.append(element("span", t(note), "badge"));
-        const dot = element("span", undefined, `dot ${module.status}`);
-        dot.setAttribute("aria-hidden", "true");
-        dot.title = t(labels[module.status]);
-        anchor.append(dot);
+        if (!staticSite) {
+          const dot = element("span", undefined, `dot ${module.status}`);
+          dot.setAttribute("aria-hidden", "true");
+          dot.title = t(labels[module.status]);
+          anchor.append(dot);
+        }
         nav.append(anchor);
       }
     }

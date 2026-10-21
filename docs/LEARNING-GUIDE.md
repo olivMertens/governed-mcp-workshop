@@ -147,8 +147,9 @@ it does not forward requests, authenticate callers or grant tool permission.
 > or exported Inspector transcripts. Optional Microsoft 365 inventory is **Preview** and facilitator-only.
 
 **Expected evidence:** a metadata-only call trace, useful denial queries and the governed endpoint in inventory.
-**Next:** module 99 stops costs. Module 07 is an optional facilitator branch, not a prerequisite.
+**Next:** module 99 stops costs. Module 07 is an optional exercise, not a prerequisite.
 
+<!-- author-only -->
 <details>
 <summary>Optional: Agent 365 + API Management — Preview, planned demo</summary>
 
@@ -172,6 +173,7 @@ These are documented expectations, not workshop validation evidence.
 Last verified: 2026-10-14.
 
 </details>
+<!-- /author-only -->
 
 **Deep dive:** [APIM telemetry](https://learn.microsoft.com/azure/api-management/api-management-howto-app-insights),
 [API Center registration](https://learn.microsoft.com/azure/api-center/register-discover-mcp-server),

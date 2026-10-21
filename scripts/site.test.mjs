@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { runInNewContext } from "node:vm";
-import { buildSite, authorOnlyDocuments } from "./build-site.mjs";
+import { buildSite, authorOnlyDocuments, participantContent } from "./build-site.mjs";
 import { screenshots } from "./portal-server.mjs";
 import { readJourney } from "../.github/extensions/workshop-build-board/journey.mjs";
 import { parseProgress } from "../.github/extensions/workshop-build-board/progress.mjs";
@@ -82,6 +82,65 @@ test("Git preserves SVG bytes and binary PNG provenance on Windows checkouts", (
     const attributes = readFileSync(join(root, ".gitattributes"), "utf8");
     assert.match(attributes, /^\*\.svg text eol=lf$/m);
     assert.match(attributes, /^\*\.png binary$/m);
+});
+
+test("both public bundles expose animation entry points and the sourced Agent 365 closing step", (t) => {
+    const temporary = mkdtempSync(join(tmpdir(), "workshop-animation-links-"));
+    t.after(() => rmSync(temporary, { recursive: true, force: true }));
+    buildSite(root, join(temporary, "site"));
+    const html = readFileSync(join(temporary, "site", "index.html"), "utf8");
+    assert.match(html, /navLink\("integration\/1", "Animated architecture", "layers"\)/);
+    assert.match(html, /link\("Animated architecture: reveal it step by step", "#\/integration\/1", "secondary"\)/);
+    assert.match(html, /link\("Go further: what is Agent 365\?", "#\/integration\/9", "secondary"\)/);
+    assert.match(html, /function codeTokens\(/);
+    assert.match(html, /tooltip\.setAttribute\("role", "tooltip"\)/);
+    const journey = JSON.parse(readFileSync(join(temporary, "site", "journey.json"), "utf8"));
+    for (const language of [journey, journey.translations.fr]) {
+        const integration = language.documents.integration.content;
+        assert.match(integration, /```reveal/);
+        assert.match(integration, /## 9\./);
+        assert.match(integration, /2026-05-01/);
+        assert.match(integration, /A365 MCP Gateway Policy Operator/);
+        assert.match(integration, /AI Gateway.*Preview/);
+        assert.match(integration, /HTTP 403/);
+        assert.match(integration, /https:\/\/learn\.microsoft\.com\/microsoft-agent-365\/overview/);
+        assert.match(integration, /https:\/\/learn\.microsoft\.com\/azure\/api-management\/agent-365/);
+        assert.match(integration, /2026-10-21/);
+        assert.ok(integration.indexOf("## 9.") > integration.indexOf("## 7."));
+        assert.ok(integration.indexOf("## Sources") > integration.indexOf("## 9."));
+        assert.equal([...integration.matchAll(/^```reveal\n/gm)].length, 7);
+        assert.doesNotMatch(integration, /For the presenter|Pour le présentateur|Ask the room|À montrer|Page présentateur|Presenter page/);
+        for (const module of language.modules.filter((item) => item.animation)) {
+            const label = language.language === "fr" ? `Mettre en pratique dans le module ${module.module}` : `Try it in module ${module.module}`;
+            const prefix = language.language === "fr" ? "../../" : "../";
+            assert.ok(integration.includes(`[${label}](${prefix}${module.sourcePath})`));
+        }
+    }
+});
+
+test("French animation wording is self-paced and does not depend on a morning presentation", () => {
+    const guide = readFileSync(join(root, "docs", "fr", "INTEGRATION-OPTIONS.md"), "utf8");
+    assert.match(guide, /## 1\. Du serveur local à une architecture sécurisée sur Azure/);
+    assert.match(guide, /Suivez le parcours d'un appel d'outil/);
+    assert.doesNotMatch(guide, /De ce matin à la porte d'entrée|serveur local de ce matin|Ouvrez la séquence avec|Révéler la suite|l'outil vivait/);
+    const french = runInNewContext(`${readFileSync(join(root, ".github", "extensions", "workshop-build-board", "locale-fr.js"), "utf8")}\nfrench;`);
+    assert.equal(french["Reveal next"], "Étape suivante");
+    assert.equal(french["Understand before you start"], "Comprendre avant de passer à la pratique");
+    assert.equal(french["Continue with this module's exercise"], "Passer à l'exercice du module");
+});
+
+test("participant content excludes explicit author blocks without editing literal code or safety limits", () => {
+    const code = "```powershell\n# <!-- author-only -->\nWrite-Output 'This is a talk track for the presenter, with no participant step.'\n# <!-- /author-only -->\n```";
+    const input = `Keep the safety warning.\n<!-- author-only -->\nInternal speaking notes.\n\`\`\`text\nHidden output\n\`\`\`\n<!-- /author-only -->\n${code}\nNot live-validated.`;
+    const actual = participantContent(input);
+    assert.match(actual, /Keep the safety warning/);
+    assert.match(actual, /Not live-validated/);
+    assert.doesNotMatch(actual, /Internal speaking notes|Hidden output/);
+    assert.ok(actual.includes(code));
+    assert.equal(participantContent(null), null);
+    assert.throws(() => participantContent("<!-- author-only -->\nMissing close"), /closing marker/);
+    assert.throws(() => participantContent("<!-- /author-only -->"), /Unexpected/);
+    assert.throws(() => participantContent("<!-- author-only -->\n<!-- author-only -->"), /Nested/);
 });
 
 test("PowerShell presentation removes bash alternatives before lesson splitting and PDF rendering without changing sources", () => {
@@ -219,32 +278,31 @@ test("public site exports only the allowlist, with no capability, root URLs, pri
         assert.equal((concepts.match(/^<summary>(?:Show answer|Afficher la réponse)<\/summary>$/gm) ?? []).length, 7);
         assert.doesNotMatch(concepts, /^\*\*(?:Answer|Réponse|Explain back|Expliquez|Predict|Prévoyez)\s?:\*\*/m);
         assert.match(concepts, /!\[[^\]]+\]\((?:\.\.\/)+assets\/architecture\/05\.(en|fr)\.svg\)/);
-        assert.match(language.documents.presenter.sourcePath, /PRESENTER\.md$/);
-        assert.match(language.documents.presenter.content, /\?lang=fr#\/start/);
-        assert.match(language.documents.presenter.content, /\?lang=en#\/start/);
-        assert.match(language.documents.gettingStarted.content, /PRESENTER\.md/);
+        assert.equal(language.documents.presenter, undefined);
+        assert.match(language.documents.integration.sourcePath, /ATTENDEE-ARCHITECTURE\.md$/);
+        assert.doesNotMatch(language.documents.gettingStarted.content, /PRESENTER\.md/);
         const local = language.modules.find((module) => module.module === "01");
-        assert.equal(local.status, "authored");
+        assert.equal(local.status, undefined);
         assert.match(local.guide, /get_service_health/);
         assert.match(local.guide, /isError: false/);
         assert.equal(local.validation.powershell, "modules/01-discover-mcp/validate.ps1");
         assert.equal(local.validation.bash, "modules/01-discover-mcp/validate.sh");
         const open = language.modules.find((module) => module.module === "02");
-        assert.equal(open.status, "validated");
+        assert.equal(open.status, undefined);
         assert.match(open.guide, /webhookAuthorizationLevel/);
         assert.match(open.guide, /create_ticket/);
         assert.match(open.guide, /HTTP 401/);
         assert.equal(open.validation.powershell, "modules/02-open-server/validate.ps1");
         assert.equal(open.validation.bash, "modules/02-open-server/validate.sh");
         const entra = language.modules.find((module) => module.module === "03");
-        assert.equal(entra.status, "validated");
+        assert.equal(entra.status, undefined);
         assert.match(entra.guide, /user_impersonation/);
         assert.match(entra.guide, /AADSTS50105/);
         assert.match(entra.guide, /HTTP 401/);
         assert.equal(entra.validation.powershell, "modules/03-entra-authentication/validate.ps1");
         assert.equal(entra.validation.bash, "modules/03-entra-authentication/validate.sh");
         const gateway = language.modules.find((module) => module.module === "04");
-        assert.equal(gateway.status, "validated");
+        assert.equal(gateway.status, undefined);
         assert.match(gateway.guide, /validate-azure-ad-token/);
         assert.match(gateway.guide, /Tools\.Write/);
         assert.match(gateway.guide, /HTTP 429/);
@@ -252,7 +310,7 @@ test("public site exports only the allowlist, with no capability, root URLs, pri
         assert.equal(gateway.validation.powershell, "modules/04-governed-gateway/validate.ps1");
         assert.equal(gateway.validation.bash, "modules/04-governed-gateway/validate.sh");
         const delegated = language.modules.find((module) => module.module === "05");
-        assert.equal(delegated.status, "validated");
+        assert.equal(delegated.status, undefined);
         assert.match(delegated.guide, /On-Behalf-Of/);
         assert.match(delegated.guide, /isError/);
         assert.match(delegated.guide, /api:\/\/AzureADTokenExchange/);
@@ -272,6 +330,17 @@ test("public site exports only the allowlist, with no capability, root URLs, pri
         const clients = language.modules.find((item) => item.module === "07").guide;
         for (const field of ["Client secret", "Manual", "stdio", "OBO", "scope"]) assert.ok(clients.includes(field));
         for (const module of language.modules) {
+            for (const key of ["notes", "evidence", "validatedOn", "outline", "status"]) {
+                assert.equal(Object.hasOwn(module, key), false, `${key} is author-only`);
+            }
+            if (/^0[1-7]$/.test(module.module)) {
+                assert.equal(JSON.parse(module.animation.content).audience, "attendee");
+                for (const track of ["low-code", "terraform"]) {
+                    assert.ok(module.guides[track].guide, `${module.module}/${track} keeps its exercise`);
+                    assert.ok(module.animation.content, `${module.module}/${track} shares its animation`);
+                }
+            }
+            assert.doesNotMatch(module.guide ?? "", /talk track for the presenter|from the presenter side/);
             if (["02", "03", "04", "05"].includes(module.module)) {
                 assert.match(module.guide, language.language === "fr" ?
                     /### Comprendre les résultats avec la documentation/ : /### Read alongside the demonstration/);
@@ -438,9 +507,9 @@ test("the guide card shows only the step count in English and French", () => {
     const french = runInNewContext(`${readFileSync(join(root, ".github", "extensions", "workshop-build-board", "locale-fr.js"), "utf8")}\nfrench;`);
     for (const language of ["en", "fr"]) {
         const jumps = [];
-        const cards = new Function("lesson", "t", `${source}; return cards;`)(
+        const cards = new Function("lesson", "t", "animation", `${source}; return cards;`)(
             { stepCount: 19, goTo: (index) => jumps.push(index) },
-            (key) => language === "fr" ? french[key] ?? key : key);
+            (key) => language === "fr" ? french[key] ?? key : key, null);
         assert.equal(cards[0][0], language === "fr" ? "Suivez le guide" : "Follow the guide");
         assert.equal(cards[0][1], language === "fr" ? "19 étapes" : "19 steps");
         cards[0][2]();

@@ -41,6 +41,30 @@ The landing route is `#/start`; French is `?lang=fr#/start`, English is `?lang=e
 Module links use hashes, so GitHub Pages does not need an application router or catch-all server.
 The site reads only its static JSON. Connection preparation stays in browser memory; actual calls stay in the client.
 
+### Find the animated diagrams
+
+Both GitHub Pages and the optional App Service copy use the same participant reader. Modules 01 to 07 show their
+animation above the lesson, in both tracks. Select **Animated diagram** in the module map to jump to it.
+The **Understand before you start** heading makes it the first learning activity. **Continue with this module's
+exercise** opens the first guide step. Each diagram in the full tour also links back to its module, keeping the selected track.
+Open **Animated architecture** in the start navigation (`#/integration/1`) for the complete participant tour.
+Use **Next**, **Previous**, the numbered steps or arrow keys.
+These are reveal.js-style fragments rendered locally, not a separate Reveal slide site. Some module lessons also
+have full static diagrams for reference.
+
+Presenter scripts, publishing instructions and internal build notes remain in the repository and local authoring
+board. They are excluded from public navigation and public journey data. Public modules keep their commands,
+prerequisites, costs, security warnings, expected results, validation limits and clean-up steps.
+The `<!-- module-animations -->` marker in the EN/FR participant architecture guide expands to the existing module
+animations during publication. `<!-- author-only -->` blocks are excluded from public prose; code fences stay literal.
+
+Code panels use a dark terminal palette: blue variables, amber commands, orange strings, green parameters and
+comments, and purple keywords. Dotted lines have contextual explanations on hover, tap or keyboard focus;
+Escape dismisses the explanation. Copy always keeps the original code, without annotations or line labels.
+The closing step of Session 2 (`#/integration/9`), also linked after module 07, explains Agent 365 and separates its
+availability from its Preview gateway integration.
+Changes appear on each hosted copy only after that copy is rebuilt and published.
+
 ## Publish with GitHub Pages
 
 The prepared workflow is `.github/workflows/workshop-pages.yml`. It follows the official GitHub Pages flow,

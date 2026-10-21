@@ -60,8 +60,8 @@ test("track selection changes the guide, source and questions without mutating s
         }
         assert.equal(JSON.stringify(localized.modules), before);
     }
-    assert.match(html, /collectQuestions\(module\.guide\)/);
-    assert.match(html, /pdfAction\([^\n]+module\.guide, module\.sourcePath/);
+    assert.match(html, /collectQuestions\(guide\)/);
+    assert.match(html, /pdfAction\([^\n]+guide, module\.sourcePath/);
     assert.match(html, /selectedTrack = readTrack\(location\.href\);[\s\S]*activateLanguage\(\);[\s\S]*render\(true\);/);
     assert.ok(/if \(!selectedTrack && module\.module !== "01"\)[\s\S]*content\.append\(trackChoices\(\)\);[\s\S]*return;/.test(html),
         "Deployment modules must ask for a track before rendering commands");

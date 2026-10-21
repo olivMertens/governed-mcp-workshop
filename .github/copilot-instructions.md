@@ -20,6 +20,18 @@ Build order, sources and expected results are in docs/BUILD-PLAN.md. Read it bef
 - Mark every preview feature "Preview" where it is used. Never present preview behaviour as generally available.
 - Every module README ends with "Sources": links plus a "last verified" date.
 
+## Published participant experience
+- GitHub Pages and the deployed workshop website are participant-facing views of the same content, in English
+  and French. Address the participant, never the presenter, in public module text, animations and PDF exports.
+- Keep the technical exercises: commands, code, prerequisites, cost warnings, security controls, expected results,
+  validation limits and clean-up. "Clean participant view" does not mean hiding technical or safety information.
+- Keep presenter scripts, speaking notes, authoring history, build reports and internal implementation notes in
+  repository/local authoring views only. Exclude them from public navigation and exported journey data, not just CSS.
+- Reuse each module's attendee animation in both deployment tracks. Make it directly accessible from the module;
+  do not require a presenter page, Terraform track or hidden disclosure to find it.
+- Preserve literal code and copied commands. Verify both public bundles, both languages and tracks, keyboard
+  animation controls and mobile layout. Never imply that reading an animation validates or deploys resources.
+
 ## French participant-facing writing
 - Write idiomatic French, not a sentence-by-sentence translation of English. Rewrite and reorder sentences
   when needed so the text reads as if it had originally been written in French.

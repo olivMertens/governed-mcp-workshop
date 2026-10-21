@@ -76,6 +76,10 @@ export function readJourney(root, progress) {
                 const original = readDocument(root, parts, true);
                 const translated = french ? readDocument(root, [...parts.slice(0, -1), "README.fr.md"], true) : original;
                 const guide = original === null ? null : translated;
+                const animations = [...(guide ?? "").matchAll(/^```reveal\r?\n([\s\S]*?)\r?\n```/gm)];
+                if (animations.length > 1 || (animations.length && JSON.parse(animations[0][1]).audience !== "attendee")) {
+                    throw new BoardError("invalid_document", `Module ${module.module} needs at most one attendee animation.`);
+                }
                 const lowCodeParts = [...parts.slice(0, -1), french ? "LOW-CODE.fr.md" : "LOW-CODE.md"];
                 const lowCode = readDocument(root, lowCodeParts, true);
                 const guides = {
@@ -86,6 +90,7 @@ export function readJourney(root, progress) {
                 };
                 return {
                     ...module, title: french ? titles.get(module.module) : module.title,
+                    animation: animations.length ? { content: animations[0][1], sourcePath: [...parts.slice(0, -1), french ? "README.fr.md" : "README.md"].join("/") } : null,
                     outline, guide, guides, hints: hint, learning: concept,
                     hintsSourcePath: [...base, "PRACTICE.md"].join("/"),
                     learningSourcePath: [...base, "LEARNING-GUIDE.md"].join("/"),
@@ -122,6 +127,9 @@ export function readJourney(root, progress) {
                     sourcePath: [...base, "LEARNING-GUIDE.md"].join("/"), content: learning },
                 deployment: document(french ? "Votre contexte Azure" : "Your Azure context", "DEPLOYMENT.md"),
                 hosting: document(french ? "Publier ou héberger les guides" : "Publish or host the guides", "HOSTING.md"),
+                ...(available([...base, "ATTENDEE-ARCHITECTURE.md"]) ? {
+                    attendeeArchitecture: document(french ? "Comprendre l'architecture en images" : "Explore the animated architecture", "ATTENDEE-ARCHITECTURE.md"),
+                } : {}),
                 ...(available([...base, "PRESENTER.md"]) ? {
                     presenter: document(french ? "Guide présentateur" : "Presenter guide", "PRESENTER.md"),
                     ...(available([...base, "INTEGRATION-OPTIONS.md"]) ? {

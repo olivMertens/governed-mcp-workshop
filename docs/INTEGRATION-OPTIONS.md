@@ -298,6 +298,39 @@ tenant; names pseudonymised, IDs replaced by zeros).
 **Bridge to the next session:** "We know where MCP servers live and how they are exposed. Next: who carries the rights
 on each call, one token per hop."
 
+## 9. Closing: what is Microsoft Agent 365?
+
+**Agent 365 is the control plane for agents, not another agent builder or an MCP server.**
+It helps administrators observe, govern and secure agents across the organisation, including agents built with
+different platforms. Its central registry brings together agent inventory, ownership and lifecycle management.
+It works with Microsoft Entra for identity and access, Microsoft Purview for data governance and Microsoft Defender
+for threat protection. Available features depend on licensing and configuration.
+
+Think of three separate responsibilities:
+
+| Component | Responsibility |
+|---|---|
+| Azure API Center | Catalog MCP servers so teams can find approved endpoints. It is not a runtime hop. |
+| Microsoft Agent 365 | Give administrators central visibility and governance decisions for agents and their tools. |
+| Azure API Management | Enforce the configured controls on actual calls through the gateway. |
+
+**Status:** Agent 365 is generally available for the Commercial segment since 2026-05-01.
+The **Agent 365 integration with API Management remains Preview**. On API Management v2, that integration supports
+MCP server inventory and whole-server blocking (HTTP 403). Tool-level blocking through Agent 365 requires the
+**AI Gateway tier (Preview)**; the workshop's v2 per-tool role policies are a separate control.
+
+This integration needs a tenant administrator's one-time consent for the **A365 MCP Gateway Policy Operator** role.
+That grant can read gateway resources and read/write API policies across the tenant's subscriptions.
+It is not a participant prerequisite: keep it an optional presenter discussion, with separate approval, licensing
+and a test tenant. Nothing on this page enables it.
+
+**Keep the boundary:** Agent 365 does not reroute clients through API Management, replace the gateway's audience
+and role checks, or replace human approval for write tools. Clients must still use the gateway URL, and direct
+backend access must remain blocked. This workshop logs metadata only, never prompts, arguments or results.
+
+**Takeaway:** API Center helps teams find the door; Agent 365 helps administrators decide what is allowed;
+API Management checks each call at the door.
+
 ## Sources
 
 - [About MCP servers in Azure API Management](https://learn.microsoft.com/azure/api-management/mcp-server-overview)
@@ -307,5 +340,7 @@ on each call, one token per hop."
 - [Choose an Azure service for your MCP server](https://learn.microsoft.com/azure/container-apps/mcp-choosing-azure-service)
 - [Register and discover MCP servers in Azure API Center](https://learn.microsoft.com/azure/api-center/register-discover-mcp-server)
 - [Create a private tool catalog in Foundry (preview)](https://learn.microsoft.com/azure/foundry/agents/how-to/private-tool-catalog)
+- [Microsoft Agent 365 overview and availability](https://learn.microsoft.com/microsoft-agent-365/overview)
+- [Govern tools with Agent 365 and API Management (Preview)](https://learn.microsoft.com/azure/api-management/agent-365)
 
-Last verified: 2026-10-20.
+Last verified: 2026-10-21.
