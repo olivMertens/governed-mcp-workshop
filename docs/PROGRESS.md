@@ -7,6 +7,36 @@ A module is `validated` only when its validate script passes live on a fresh sub
 The presenter cannot deploy into participants' tenants: live validation runs in each participant's own subscription,
 or in an approved author-owned non-production tenant.
 
+## Cross-module script hardening — 2026-10-21
+
+Scoped user-approved exception to one module per branch/session: correct the six audited cross-module defects on
+`fix/script-hardening`, without Azure/Entra changes, publication or deployment.
+Existing live module status and dates below are historical evidence and are unchanged by these offline fixes.
+
+- Shared cleanup accepts only F1 → B1, false → true for Always On, and the two existing non-secret portal hints.
+  Unknown planned values and other tiers are refused. Module 02/04 hint exceptions use the same guard.
+- Only cleanup callers opt into expired participant dates. The original suffix and state stay unchanged;
+  impossible dates, preflight and workload deployment remain blocked.
+- Module 07 distinguishes failed reads from successful absence checks, checks Terraform init/show and purge results,
+  saves account inventory before deleting the group, retains retry evidence on failure and verifies purge readback.
+  Missing ownership evidence or insufficient deleted-account permissions requires administrator review, not a wider role.
+- The launcher respects module 06/07 offline-only validator contracts and resolves Terraform roots from its own location.
+- Low-code policy inputs match Terraform's whole-number call/period, path and IPv4 bounds.
+  Microsoft Learn confirms the 300-second maximum and approximate v2 throttling; lower bounds and CIDR/count limits
+  are workshop choices. Inputs are validated before writing generated files.
+- Standalone setup now includes all distributable tracked files, with normalized text and exact binary bytes.
+  Hidden local overrides use committed content; private state stays excluded. Synchronization and export have regression
+  tests and a publication-workflow gate. Module 00's offline validator includes the new regression suites.
+
+Offline evidence: `PASS 81/81 script regression tests, 0 skipped` on an isolated distributable snapshot (avoids local MCP
+overrides and locked module 01 DLLs); `PASS 15/15 Entra + 53/53 workload mocked Terraform tests`;
+Terraform fmt/schema checks PASS; all 31 PowerShell files parse; modified runtime scripts have zero analyzer errors.
+Final targeted publication/export checks: `PASS 79/79, 0 skipped`; server regression: `PASS 42/42 .NET tests`;
+module 06, 07 and 99 offline validators PASS. These totals overlap the integrated script suite and are not additive.
+The final module 00 `-Offline` entry point also PASSes with the new hardening and scaffold suites wired in.
+Learn references and dates are in [sources](sources.md). No new live identity, API, deletion, purge or propagation result
+is implied. The private local MCP override is not changed.
+
 | Module | Title | Status | Validated on | Evidence (PASS lines or PR) | Notes |
 |---|---|---|---|---|---|
 | 00 | Prerequisites and environment | validated | 2026-10-14 | Live local-terminal validator: explicit context, region, Microsoft.Resources registration, required ARM grants and group capacity PASS; isolated offline suite 14/14 and Terraform tests 11/11 PASS. | Validated on the selected non-production local-terminal route without creating resources. The optional dev-container/Codespaces route remains unverified and is not implied by this result. |

@@ -387,6 +387,13 @@ une commande lancée avec `-Apply` peut bien supprimer les ressources prévues.
 
 ## Dépannage
 
+- **Les paramètres du participant ont expiré.** Le nettoyage accepte la date valide d'origine, le suffixe et l'état
+  existants, avec un avertissement. Ne modifiez pas la date et ne régénérez pas les noms pour supprimer les ressources.
+  Le déploiement et les contrôles préalables continuent d'exiger une date future.
+- **Le plan change la gamme du portail.** Seul le rétablissement exact F1 → B1 est accepté pendant le nettoyage.
+  Toute autre gamme, rétrogradation, valeur encore inconnue ou modification sans rapport doit bloquer le plan.
+- **La purge Foundry échoue.** Conservez l'inventaire privé du module 07. Faites vérifier la permission précise sur le
+  compte supprimé par l'administrateur, puis relancez le nettoyage. Un échec de lecture ou de purge n'est jamais une réussite.
 - **Une étape s'arrête avec un code d'erreur.** Le script s'arrête à la première erreur. Lisez le message, corrigez le problème, puis
   relancez le script. Grâce à leurs garde-fous, les étapes déjà appliquées ne refont rien.
 - **Un plan contient une modification inattendue.** Ne l'appliquez pas. Le garde-fou interrompt le script si une modification sort de la
@@ -422,4 +429,4 @@ Encadrés : [alertes GitHub](https://docs.github.com/en/get-started/writing-on-g
 Provenance du schéma : [sources de l'architecture](../../assets/architecture/README.fr.md).
 Toutes les sources Azure : [docs/sources.md](../../docs/sources.md).
 
-Dernière vérification : 2026-10-16.
+Dernière vérification : 2026-10-21 (garde-fous testés hors connexion ; aucune nouvelle suppression dans Azure).

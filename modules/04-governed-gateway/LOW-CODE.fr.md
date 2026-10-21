@@ -372,6 +372,12 @@ az account set --subscription $sub
 
 ## Dépannage
 
+- **Le générateur refuse les paramètres :** choisissez entre 5 et 1 000 appels sur une période de 10 à 300 secondes.
+  API Management impose le plafond de 300 secondes. L'atelier limite aussi la liste IP facultative à 10 plages IPv4
+  en notation CIDR, de `/8` à `/32`, sans zéros superflus dans les adresses. Une liste vide désactive seulement le filtre IP :
+  les contrôles du tenant, de l'audience, du client et des rôles restent actifs. Les identifiants vides et une liste
+  de clients vide sont refusés. Le débit reste approximatif : les passerelles v2 utilisent un mécanisme de jetons,
+  pas un compteur exact des requêtes.
 - **Liste d'outils vide :** partie A Source **MCP server**, backend `workshop-mcp-function` et `backendId`. Pas de mappage d'opérations REST pour ce serveur.
 - **502/backend inaccessible :** vérifiez intégration sortante, délégation et sécurité du sous-réseau, approbation du point privé, liens et enregistrements DNS. Ne rouvrez pas la Function.
 - **401 :** vérifiez tenant, audience, client autorisé et URL PRM de passerelle. Aucune clé d'abonnement ni jeton dans une URL.
@@ -411,6 +417,8 @@ et un appel accepté par la passerelle, mais refusé ensuite par Storage (erreur
 - [Stratégie de validation Entra](https://learn.microsoft.com/azure/api-management/validate-azure-ad-token-policy).
 - [API REST en MCP](https://learn.microsoft.com/azure/api-management/export-rest-mcp-server).
 - [Ateliers officiels AI Gateway](https://github.com/Azure-Samples/AI-Gateway).
+- [Limites de débit et fonctionnement des passerelles v2](https://learn.microsoft.com/azure/api-management/rate-limit-by-key-policy).
+- [Filtrage des adresses IP](https://learn.microsoft.com/azure/api-management/ip-filter-policy).
 
-Dernière vérification : 2026-10-20 (configuration existante et documentation).
+Dernière vérification : 2026-10-21 (limites relues dans Microsoft Learn et testées hors connexion).
 La validation de bout en bout de ce guide low-code reste à effectuer.

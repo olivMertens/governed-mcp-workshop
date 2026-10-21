@@ -7,7 +7,14 @@
 # to is removed. Every other attribute must be identical, so a clean-up can never hide a real portal change.
 function Test-WorkshopPortalTierRestore {
     param([Parameter(Mandatory)]$Change)
-    try { return Test-WorkshopPortalTierRestoreCore $Change } catch { return $false }
+    if ($Change -isnot [System.Collections.IDictionary] -or -not $Change.Contains('address') -or
+        -not $Change.Contains('change') -or $Change.change -isnot [System.Collections.IDictionary]) { return $false }
+    foreach ($name in @('actions', 'before', 'after')) { if (-not $Change.change.Contains($name)) { return $false } }
+    if ($Change.address -notin @('azurerm_service_plan.portal', 'azurerm_service_plan.portal[0]',
+        'azurerm_linux_web_app.portal', 'azurerm_linux_web_app.portal[0]')) { return $false }
+    if ($Change.change.Contains('after_unknown') -and
+        ($Change.change.after_unknown | ConvertTo-Json -Depth 100 -Compress) -match '\btrue\b') { return $false }
+    return Test-WorkshopPortalTierRestoreCore $Change
 }
 
 function Test-WorkshopPortalTierRestoreCore {
@@ -20,7 +27,7 @@ function Test-WorkshopPortalTierRestoreCore {
     $keys = @(@($before.Keys) + @($after.Keys) | Sort-Object -Unique)
     if ($address -eq 'azurerm_service_plan.portal') {
         foreach ($key in $keys) { if ($key -ne 'sku_name' -and (& $json $before[$key]) -ne (& $json $after[$key])) { return $false } }
-        return $before.sku_name -cne $after.sku_name
+        return $before.sku_name -ceq 'F1' -and $after.sku_name -ceq 'B1'
     }
     if ($address -eq 'azurerm_linux_web_app.portal') {
         $changed = $false
@@ -30,7 +37,7 @@ function Test-WorkshopPortalTierRestoreCore {
                 if ($bs -isnot [System.Collections.IDictionary] -or $as -isnot [System.Collections.IDictionary]) { if ((& $json $bs) -ne (& $json $as)) { return $false }; continue }
                 foreach ($name in @(@($bs.Keys) + @($as.Keys) | Sort-Object -Unique)) {
                     if ((& $json $bs[$name]) -eq (& $json $as[$name])) { continue }
-                    if ($name -notlike 'WORKSHOP_MCP_*') { return $false }
+                    if ($name -notin @('WORKSHOP_MCP_ENDPOINT', 'WORKSHOP_MCP_SCOPE')) { return $false }
                     $changed = $true
                 }
                 continue
@@ -40,7 +47,8 @@ function Test-WorkshopPortalTierRestoreCore {
             if ($b -isnot [System.Collections.IDictionary] -or $a -isnot [System.Collections.IDictionary]) { return $false }
             foreach ($name in @(@($b.Keys) + @($a.Keys) | Sort-Object -Unique)) {
                 if ((& $json $b[$name]) -eq (& $json $a[$name])) { continue }
-                if ($name -ne 'always_on') { return $false }
+                if ($name -ne 'always_on' -or $b[$name] -isnot [bool] -or $a[$name] -isnot [bool] -or
+                    $b[$name] -ne $false -or $a[$name] -ne $true) { return $false }
                 $changed = $true
             }
         }
@@ -82,14 +90,16 @@ function Assert-WorkshopInteractiveEnvironment {
 }
 
 function Invoke-WorkshopAzureJson {
-    param([Parameter(Mandatory)][string[]]$Arguments)
+    param([Parameter(Mandatory)][string[]]$Arguments, [switch]$AllowEmptyArray)
     $text = & az @Arguments --output json --only-show-errors 2>&1 | Out-String
     if ($LASTEXITCODE -ne 0) {
         throw "Azure CLI '$($Arguments[0])' read/check failed. Verify the selected context and exact scoped permissions privately; no resource was changed by this check."
     }
-    try { $value = ConvertFrom-Json -InputObject $text -AsHashtable -Depth 100 -ErrorAction Stop }
+    try { $value = ConvertFrom-Json -InputObject $text -AsHashtable -NoEnumerate -Depth 100 -ErrorAction Stop }
     catch [System.ArgumentException] { throw 'Azure CLI returned invalid JSON; the check cannot pass.' }
-    if ($null -eq $value) { throw 'Azure CLI returned no data; the check cannot pass.' }
+    if ($null -eq $value -or ($value -is [array] -and $value.Count -eq 0 -and -not $AllowEmptyArray)) {
+        throw 'Azure CLI returned no data; the check cannot pass.'
+    }
     return ,$value
 }
 
@@ -144,7 +154,7 @@ function Assert-WorkshopAzureContext {
 }
 
 function Read-WorkshopParameters {
-    param([Parameter(Mandatory)][string]$Path)
+    param([Parameter(Mandatory)][string]$Path, [switch]$AllowExpired)
     $item = Get-Item -LiteralPath $Path -Force -ErrorAction Stop
     $parent = Get-Item -LiteralPath $item.DirectoryName -Force -ErrorAction Stop
     if ($item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -or
@@ -169,8 +179,14 @@ function Read-WorkshopParameters {
     }
     $date = [datetime]::MinValue
     if (-not [datetime]::TryParseExact($value.expiry, 'yyyy-MM-dd', [Globalization.CultureInfo]::InvariantCulture,
-        [Globalization.DateTimeStyles]::None, [ref]$date) -or $date.Date -le [datetime]::UtcNow.Date) {
+        [Globalization.DateTimeStyles]::None, [ref]$date)) {
+        throw 'Participant expiry must be a real date in yyyy-MM-dd format.'
+    }
+    if ($date.Date -le [datetime]::UtcNow.Date -and -not $AllowExpired) {
         throw 'Participant expiry must be a real future date. Preserve the suffix and state when reviewing an expired deployment.'
+    }
+    if ($date.Date -le [datetime]::UtcNow.Date) {
+        Write-Warning 'Participant parameters have expired. Cleanup may proceed with the original suffix and state; deployment remains blocked.'
     }
     if (-not $value.Contains('existing_resource_group_name') -or ($null -ne $value.existing_resource_group_name -and
         ($value.existing_resource_group_name -isnot [string] -or

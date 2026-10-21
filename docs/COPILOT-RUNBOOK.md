@@ -30,7 +30,8 @@ From the folder containing `setup-workshop-mcp.ps1`, run PowerShell 7:
 pwsh -ExecutionPolicy Bypass -File .\setup-workshop-mcp.ps1
 ```
 
-The standalone bootstrap includes the scaffold, current P1 source assessment, and build board. It requires Git
+The standalone bootstrap includes the current tracked workshop files, including all modules, scripts, diagrams
+and the build board. It does not include ignored private parameters, credentials or Terraform state. It requires Git
 and GitHub CLI (`gh`) unless `-SkipGitHub` is used. If missing, install them with
 `winget install --id Git.Git -e` and `winget install --id GitHub.cli -e`, then reopen the terminal.
 Git identity must be configured. For publication, the script uses repository-local GitHub noreply identity,
@@ -48,9 +49,14 @@ against it. Initialize Git on the existing files, review the publication content
 repository only after explicit approval. Use a repository-local noreply Git identity and inspect the staged diff
 before the first commit. Keep publication audit terms and local scan reports outside the repository.
 
-The bootstrap contains embedded copies of the scaffold. When updating these files, update its embedded copies
-in the same change, and verify a `-SkipGitHub` run in a new, empty test destination. Never test publication by
-creating an extra public repository.
+The bootstrap contains a generated snapshot of tracked files. After source edits, run
+`node scripts/sync-scaffold.mjs`, then `node scripts/sync-scaffold.mjs --check` and
+`node --test scripts/scaffold.test.mjs`. Newly added source files must be known to Git first
+(use `git add --intent-to-add -- <specific-file>` after reviewing it).
+The synchronizer normalizes text line endings and preserves binary bytes. For hidden local Git overrides,
+it distributes the committed version, never the local override. The bootstrap copies itself separately to avoid
+a recursive payload. The publication workflow checks for drift.
+Verify a `-SkipGitHub` run in a new, empty test destination. Never test publication by creating an extra public repository.
 
 ## 2. How the build works
 

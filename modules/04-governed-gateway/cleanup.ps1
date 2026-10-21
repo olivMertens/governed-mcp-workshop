@@ -61,7 +61,7 @@ function Invoke-GuardedPhase([string]$Directory, [string[]]$Arguments, [hashtabl
                 ([Net.WebUtility]::HtmlDecode([string]$_.change.after.body.properties.value) -replace '\s', '')
             # Module 04 pointed the optional portal's non-secret WORKSHOP_MCP_ENDPOINT hint at the gateway; removing the
             # gateway points it back. Accept that update only when nothing else on the portal changes.
-            $portalHint = $address -eq 'azurerm_linux_web_app.portal' -and ($_.change.actions -join ',') -eq 'update' -and $(
+            $portalHint = (Test-WorkshopPortalTierRestore $_) -and $address -eq 'azurerm_linux_web_app.portal' -and ($_.change.actions -join ',') -eq 'update' -and $(
                 $before = $_.change.before; $after = $_.change.after; $only = $true
                 foreach ($name in $before.Keys) {
                     if ($name -eq 'app_settings') {
@@ -102,7 +102,7 @@ if (-not $ParametersPath) { $ParametersPath = Join-Path $private 'participant.tf
 if (-not $Module02VarFile) { $Module02VarFile = Join-Path $private 'module02.tfvars.json' }
 if (-not $Module03VarFile) { $Module03VarFile = Join-Path $private 'module03.tfvars.json' }
 if (-not $Module04VarFile) { $Module04VarFile = Join-Path $private 'module04.tfvars.json' }
-$parameters = Read-WorkshopParameters -Path $ParametersPath
+$parameters = Read-WorkshopParameters -Path $ParametersPath -AllowExpired
 foreach ($file in @($Module02VarFile, $Module03VarFile)) {
     if (-not (Test-Path -LiteralPath $file -PathType Leaf)) {
         throw 'FAIL module 02 or 03 opt-in file not found. Without both, the plan would also remove the server or its authentication; clean up module 04 first with the same files (expected HTTP N/A).'
