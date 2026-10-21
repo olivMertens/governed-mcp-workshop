@@ -284,6 +284,10 @@ az account set --subscription $sub
 
 ## Troubleshooting
 
+- **Policy inputs refused:** use 5–1,000 calls per 10–300 seconds. The 300-second ceiling is an API Management limit.
+  The workshop also limits the optional IP allow-list to 10 canonical IPv4 CIDR ranges from `/8` to `/32`.
+  An empty list omits the IP filter; tenant, audience, client and role checks remain active. Empty GUIDs and an empty
+  client allow-list are refused. Rate limiting is approximate and v2 gateways use a token bucket, not a precise request counter.
 - **Empty tools/list:** verify part A Source **MCP server**, backend `workshop-mcp-function` and `backendId`; do not turn it into REST operation mapping.
 - **502/backend unreachable:** verify APIM outbound integration, subnet delegation/security group, private-endpoint approval and DNS links/records. Do not reopen the Function.
 - **401:** verify tenant, audience, allowed client and PRM gateway URL. No subscription key or token in a URL.
@@ -316,5 +320,7 @@ Compare a gateway role refusal (HTTP 403) with module 05's downstream refusal in
 - [Entra token policy](https://learn.microsoft.com/azure/api-management/validate-azure-ad-token-policy).
 - [REST API as MCP](https://learn.microsoft.com/azure/api-management/export-rest-mcp-server).
 - [Official AI Gateway labs](https://github.com/Azure-Samples/AI-Gateway).
+- [Rate-limit-by-key limits and v2 behavior](https://learn.microsoft.com/azure/api-management/rate-limit-by-key-policy).
+- [IP filter policy](https://learn.microsoft.com/azure/api-management/ip-filter-policy).
 
-Last verified: 2026-10-20 (existing implementation and documentation; this separated guide not live-validated).
+Last verified: 2026-10-21 (policy limits checked against Microsoft Learn and tested offline; this separated guide not live-validated).

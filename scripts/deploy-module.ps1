@@ -48,7 +48,9 @@ function Write-Step([string]$text) { Write-Output ''; Write-Output "== $text =="
 
 if ($Module -in '00', '06') {
     Write-Output "Module $Module deploys nothing with Terraform. Run its validator:"
-    Write-Output "  & .\modules\$(Split-Path (Resolve-Path (Join-Path $repo "modules\$Module-*")) -Leaf)\validate.ps1 -TenantId `$env:ARM_TENANT_ID -SubscriptionId `$env:ARM_SUBSCRIPTION_ID"
+    $validationArgs = if ($Module -eq '06') { '-Offline' } else { '-TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID' }
+    Write-Output "  & .\modules\$(Split-Path (Resolve-Path (Join-Path $repo "modules\$Module-*")) -Leaf)\validate.ps1 $validationArgs"
+    if ($Module -eq '06') { Write-Output 'INFO -Offline checks the guide and queries only. Run the live inventory and telemetry checks in the module guide separately.' }
     return
 }
 if ($Root -eq 'entra' -and $Module -notin '03', '05', '07') { throw 'infra/entra changes only in modules 03, 05 and 07.' }
@@ -66,7 +68,7 @@ foreach ($entry in $catalog[$Root]) {
     if ((& $rank $entry.from) -gt (& $rank $Module)) { continue }
     $path = Join-Path $private $entry.file
     if (Test-Path -LiteralPath $path) {
-        $varArgs += "-var-file=..\..\.workshop\$($entry.file)"
+        $varArgs += "-var-file=$path"
         Write-Output "PASS $($entry.file)"
     } elseif ($entry.from -eq $Module -or -not $entry.ContainsKey('optionalAfter')) {
         throw "Missing .workshop\$($entry.file). Create it as shown in $($entry.guide), then run this script again."
@@ -75,12 +77,16 @@ foreach ($entry in $catalog[$Root]) {
     }
 }
 
+if ($Root -eq 'workload') {
+    $null = Read-WorkshopParameters -Path (Join-Path $private 'participant.tfvars.json')
+}
 $planName = if ($Root -eq 'entra') { "entra$Module.tfplan" } else { "module$Module.tfplan" }
-$plan = "..\..\.workshop\$planName"
+$plan = Join-Path $private $planName
+$terraformRoot = Join-Path $repo 'infra' $Root
 Write-Step "3. Terraform plan (read-only), saved to .workshop\$planName"
-& terraform "-chdir=infra\$Root" init -lockfile=readonly -input=false | Out-Null
+& terraform "-chdir=$terraformRoot" init -lockfile=readonly -input=false | Out-Null
 if ($LASTEXITCODE -ne 0) { throw 'terraform init failed. Run it alone to read the error.' }
-& terraform "-chdir=infra\$Root" plan -input=false @varArgs "-out=$plan"
+& terraform "-chdir=$terraformRoot" plan -input=false @varArgs "-out=$plan"
 if ($LASTEXITCODE -ne 0) { throw 'terraform plan failed. Nothing was changed.' }
 if ($PlanOnly) { Write-Output 'INFO -PlanOnly: nothing was applied.'; return }
 
@@ -88,7 +94,7 @@ Write-Step '4. Apply the saved plan, after your review'
 Write-Output 'Read the plan above: what is added, changed and, above all, destroyed. Compare it with the module guide.'
 $answer = Read-Host "Type yes to apply exactly this plan to your test subscription"
 if ($answer -cne 'yes') { Write-Output 'Stopped. Nothing was applied; the saved plan stays in .workshop.'; return }
-& terraform "-chdir=infra\$Root" apply -input=false $plan
+& terraform "-chdir=$terraformRoot" apply -input=false $plan
 if ($LASTEXITCODE -ne 0) { throw 'terraform apply failed. Read the error, fix the cause, then plan again.' }
 
 Write-Step '5. Validate'
@@ -98,4 +104,9 @@ if ($Root -eq 'entra') {
     return
 }
 $validator = if ($Module -eq '04b') { 'validate-rest-mcp.ps1' } else { 'validate.ps1' }
-& (Join-Path $repo "modules\$folder\$validator") -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID
+if ($Module -eq '07') {
+    & (Join-Path $repo "modules\$folder\$validator") -Offline
+    Write-Output 'INFO module 07 validation is offline only. Complete the live client and consent checks in the module guide separately.'
+} else {
+    & (Join-Path $repo "modules\$folder\$validator") -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID
+}

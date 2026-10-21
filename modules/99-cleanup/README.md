@@ -326,6 +326,12 @@ test makes sure nobody turns deletion into the default, so one wrong command can
 
 ## Troubleshooting
 
+- **Participant parameters have expired.** Cleanup accepts the original valid date, suffix and state, with a warning.
+  Do not change the date or regenerate names just to delete resources. Deployment and preflight still require a future date.
+- **The portal plan changes tier.** Only an exact F1 → B1 restoration is allowed alongside cleanup. Another tier, a downgrade,
+  unknown planned values or unrelated portal settings must stop the plan for review.
+- **Foundry purge fails.** Keep the module 07 private inventory. Check the exact deleted-account permission with the
+  administrator, then retry; a failed read or purge must never be reported as successful cleanup.
 - **A step stops with an exit code.** The script stops at the first failure and does not continue. Read the message, fix it,
   then run the script again. Steps that already applied are skipped by their own guards.
 - **A plan lists an unexpected change.** Do not apply it. The guard aborts when a change falls outside the allow-list, and
@@ -356,4 +362,4 @@ Callouts: [GitHub alerts](https://docs.github.com/en/get-started/writing-on-gith
 Diagram provenance: [architecture sources](../../assets/architecture/README.md).
 All Azure sources: [docs/sources.md](../../docs/sources.md).
 
-Last verified: 2026-10-16.
+Last verified: 2026-10-21 (cleanup guards tested offline; no new live deletion).

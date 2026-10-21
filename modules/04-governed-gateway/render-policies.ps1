@@ -13,11 +13,11 @@
 param(
     [Parameter(Mandatory)][guid]$TenantId,
     [Parameter(Mandatory)][guid]$ApiClientId,
-    [Parameter(Mandatory)][ValidatePattern('^[a-z0-9-]{1,50}$')][string]$GatewayName,
+    [Parameter(Mandatory)][ValidatePattern('^[a-zA-Z]([a-zA-Z0-9-]{0,48}[a-zA-Z0-9])?$')][string]$GatewayName,
     [guid[]]$AllowedClientIds = @('aebc6443-996d-45c2-90f0-388ff96faa56', '04b07795-8ddb-461a-bbee-02f9e1bf7b46'), # VS Code, Azure CLI
-    [ValidateRange(1, 1000)][int]$RateLimitCalls = 30,
-    [ValidateRange(1, 3600)][int]$RateLimitPeriod = 60,
-    [ValidatePattern('^[a-z0-9-]+$')][string]$McpPath = 'workshop-mcp',
+    [ValidateRange(5, 1000)][ValidateScript({ $_ -eq [math]::Floor($_) })][decimal]$RateLimitCalls = 30,
+    [ValidateRange(10, 300)][ValidateScript({ $_ -eq [math]::Floor($_) })][decimal]$RateLimitPeriod = 60,
+    [ValidatePattern('^[a-z][a-z0-9-]{2,39}$')][string]$McpPath = 'workshop-mcp',
     # Optional allow-list, for example '203.0.113.0/24'. Empty: no IP filter.
     [string[]]$AllowedIpRanges = @()
 )
@@ -25,6 +25,18 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 $out = Join-Path $root '.workshop'
+if ($TenantId -eq [guid]::Empty -or $ApiClientId -eq [guid]::Empty) { throw 'FAIL tenant and API client IDs must not be empty GUIDs.' }
+if ($AllowedClientIds.Count -eq 0 -or $AllowedClientIds -contains [guid]::Empty) { throw 'FAIL supply at least one non-empty allowed client ID.' }
+if ($AllowedIpRanges.Count -gt 10) { throw 'FAIL use at most 10 IPv4 CIDR ranges from /8 to /32.' }
+foreach ($cidr in $AllowedIpRanges) {
+    $address = $null
+    if ($cidr -cnotmatch '^(\d{1,3}(\.\d{1,3}){3})/(8|9|[12]\d|3[0-2])$' -or
+        -not [Net.IPAddress]::TryParse(($cidr -split '/')[0], [ref]$address) -or
+        $address.AddressFamily -ne [Net.Sockets.AddressFamily]::InterNetwork -or
+        $address.ToString() -cne ($cidr -split '/')[0]) {
+        throw 'FAIL use canonical IPv4 CIDR ranges from /8 to /32; IPv6, invalid addresses and /0 are refused.'
+    }
+}
 $null = New-Item -ItemType Directory -Force -Path $out
 
 $gateway = "https://$GatewayName.azure-api.net"

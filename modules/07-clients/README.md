@@ -435,6 +435,18 @@ Alice's read succeeds after approval, and Bob's approved write gets HTTP 403 fro
 Report first, then apply. The script restores the allowed applications through guarded Terraform plans, then deletes
 the Foundry resource group (only if tagged `module=07`) and the client app registration with its secret.
 
+An Azure or Microsoft Graph read failure stops cleanup; it is not treated as proof of absence.
+Before deleting the group, the script saves its account names and locations in the existing private inventory.
+It keeps that inventory if deletion or purge fails, so you can retry after the group has disappeared.
+Purge is permanent. It needs `Microsoft.CognitiveServices/locations/resourceGroups/deletedAccounts/delete`
+on the deleted-account scope; a role on the former resource group alone may not grant it.
+Reading the subscription's deleted-account list can also require permissions outside the former group.
+Ask the administrator to review that exact operation rather than granting yourself a broader role.
+If the group was deleted outside this script and an account has no saved ownership inventory, cleanup stops for
+administrator review. Do not discard the private files or claim cleanup succeeded.
+Azure listings can take time to reflect a purge; if confirmation fails, wait and rerun the same command.
+The hardened failure paths are tested offline; this is not a new live cleanup result.
+
 ```powershell
 pwsh ./modules/07-clients/cleanup.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID
 pwsh ./modules/07-clients/cleanup.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID -Apply
@@ -478,5 +490,8 @@ bash ./modules/07-clients/cleanup.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId 
 - MCP specification 2026-07-28 — `server/discover`: https://modelcontextprotocol.io/specification/2026-07-28/server/discover
 - Azure-Samples/azd-ai-starter-basic (MIT), verified at commit `5bf59a056c41ff37801dea334ba6a141e2dc5f67`: https://github.com/Azure-Samples/azd-ai-starter-basic
 - Microsoft Copilot Studio — Add an existing MCP server to an agent: https://learn.microsoft.com/microsoft-copilot-studio/mcp-add-existing-server-to-agent
+- Azure CLI — Group existence: https://learn.microsoft.com/cli/azure/group#az-group-exists
+- Foundry recovery, permanent purge and permissions: https://learn.microsoft.com/azure/ai-services/recover-purge-resources
+- Deleted accounts retain the original resource ID: https://learn.microsoft.com/rest/api/aiservices/accountmanagement/deleted-accounts/list?view=rest-aiservices-accountmanagement-2024-10-01
 
-Last verified: 2026-10-20.
+Last verified: 2026-10-21 (cleanup references and offline failure tests; no new live deployment).

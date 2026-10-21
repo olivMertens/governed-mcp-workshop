@@ -24,7 +24,7 @@ $private = Join-Path $root '.workshop'
 if (-not $ParametersPath) { $ParametersPath = Join-Path $private 'participant.tfvars.json' }
 . (Join-Path $root 'scripts' 'context-common.ps1')
 
-$null = Read-WorkshopParameters -Path $ParametersPath
+$null = Read-WorkshopParameters -Path $ParametersPath -AllowExpired
 Assert-WorkshopAzureContext -TenantId $TenantId -SubscriptionId $SubscriptionId
 Write-Output 'PASS explicit Azure context and private participant parameters (expected HTTP 200 from Azure Resource Manager).'
 
@@ -49,6 +49,7 @@ try {
     # The optional portal received the non-secret WORKSHOP_MCP_ENDPOINT hint with module 02. Removing exactly that key,
     # with every other portal attribute unchanged, is part of this cleanup. Any other portal change is refused.
     $portalHint = @($changes | Where-Object {
+        (Test-WorkshopPortalTierRestore $_) -and
         $_.address -eq 'azurerm_linux_web_app.portal[0]' -and ($_.change.actions -join ',') -eq 'update' -and
         $_.change.before.app_settings -is [System.Collections.IDictionary] -and $_.change.before.app_settings.Contains('WORKSHOP_MCP_ENDPOINT') -and
         $_.change.after.app_settings -is [System.Collections.IDictionary] -and $(

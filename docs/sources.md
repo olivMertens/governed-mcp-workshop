@@ -7,6 +7,33 @@ Module 01 now adapts the SDK bootstrap pattern; its provenance and complete upst
 Versions below are reproducible reference selections or compatibility-test candidates, not a promise that every
 combination has been tested together.
 
+## Script hardening and operational limits
+
+Last verified: 2026-10-21. Official references reread for the shared cleanup, launcher and low-code policy fixes:
+
+- [API Management rate-limit-by-key](https://learn.microsoft.com/azure/api-management/rate-limit-by-key-policy):
+  the maximum renewal period is 300 seconds. Rate limiting is approximate; v2 uses a token bucket.
+  The workshop's 5–1,000 calls, 10–300 seconds and at most 10 IPv4 `/8`–`/32` ranges are deliberately narrower
+  workshop bounds, not a claim that Microsoft imposes every lower bound or range count.
+- [IP filter policy](https://learn.microsoft.com/azure/api-management/ip-filter-policy):
+  `action="allow"` rejects addresses outside the rendered ranges. An omitted filter does not disable identity checks.
+- [Resource-group existence](https://learn.microsoft.com/cli/azure/group#az-group-exists):
+  check the successful Boolean result, not empty output from a failed `show`.
+- [Foundry recovery and purge](https://learn.microsoft.com/azure/ai-services/recover-purge-resources):
+  purge is permanent and requires the deleted-account operation. A role limited to the former group may not grant it.
+  The subscription's deleted-account listing can also require permissions beyond that group.
+  Never widen a participant role automatically; retain private inventory and involve the administrator.
+- [Deleted Accounts — List](https://learn.microsoft.com/rest/api/aiservices/accountmanagement/deleted-accounts/list?view=rest-aiservices-accountmanagement-2024-10-01):
+  the returned `id` is the original `/resourceGroups/.../providers/Microsoft.CognitiveServices/accounts/...` path,
+  not the special purge URL.
+- [Azure CLI account commands](https://learn.microsoft.com/cli/azure/cognitiveservices/account):
+  `list-deleted` and `purge` are separate operations. Read failures, nonzero exit codes and unconfirmed purges stop cleanup.
+
+The standalone setup now embeds a reproducible generated snapshot of distributable tracked files, including all current
+modules and dependencies. Ignored state is excluded. Hidden local Git overrides use their committed content.
+`node scripts/sync-scaffold.mjs --check` prevents stale embedded code; scaffold tests verify text and binary export
+without publication or Azure access. These are offline correctness changes, not new live validation of modules.
+
 ## Participant Azure CLI inspections and result captures
 
 Last verified: 2026-10-20. Official command references:

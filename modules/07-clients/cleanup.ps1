@@ -42,16 +42,25 @@ if (-not (Test-Path $stateFile) -and -not (Test-Path $workloadFile) -and -not (T
 Assert-WorkshopAzureContext -TenantId $TenantId -SubscriptionId $SubscriptionId
 Write-Output 'PASS explicit Azure context (expected HTTP 200 from Azure Resource Manager).'
 $state = if (Test-Path $stateFile) { Get-Content -Raw $stateFile | ConvertFrom-Json } else { $null }
+if (-not $state) { throw 'FAIL module07.private.json is missing or empty. Restore the original private inventory before cleanup; other module 07 files were kept.' }
 $clientId = if ($state) { [string]$state.foundry_client_app_id } else { '' }
+$parsedClientId = [guid]::Empty
+if (-not [guid]::TryParse($clientId, [ref]$parsedClientId) -or $parsedClientId -eq [guid]::Empty) {
+    throw 'FAIL the saved Foundry client app ID is invalid; nothing was deleted.'
+}
+$clientId = $parsedClientId.ToString()
 
 # Plans, accepts only the listed actions, reports or applies. A change is module 07 work only if it mentions the client ID.
 function Invoke-GuardedPhase([string]$Directory, [string[]]$Arguments, [hashtable]$Allowed, [string]$Label) {
     $plan = Join-Path $private "module07-cleanup-$([guid]::NewGuid().ToString('N')).tfplan"
     try {
         & terraform "-chdir=$Directory" init -lockfile=readonly -input=false -no-color | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "FAIL Terraform init for '$Label'; nothing was applied." }
         & terraform "-chdir=$Directory" plan -input=false -no-color @Arguments "-out=$plan" | Out-Null
         if ($LASTEXITCODE -ne 0) { throw "FAIL Terraform plan for '$Label' (expected HTTP 200)." }
-        $document = & terraform "-chdir=$Directory" show -json $plan | ConvertFrom-Json -AsHashtable -Depth 100
+        $planJson = & terraform "-chdir=$Directory" show -json $plan
+        if ($LASTEXITCODE -ne 0) { throw "FAIL Terraform show for '$Label'; the plan cannot be checked." }
+        $document = $planJson | ConvertFrom-Json -AsHashtable -Depth 100
         $all = if ($document.Contains('resource_changes') -and $null -ne $document.resource_changes) { @($document.resource_changes) } else { @() }
         $changes = @($all | Where-Object { $_.change.actions -notcontains 'no-op' -and $_.change.actions -notcontains 'read' })
         $foreign = @($changes | Where-Object {
@@ -90,17 +99,26 @@ Invoke-GuardedPhase (Join-Path $root 'infra' 'entra') $entra @{ 'azuread_applica
 # 3. Foundry resource group (tag-checked), then purge the soft-deleted account so the name and quota are released.
 if ($state -and $state.PSObject.Properties['foundry_resource_group'] -and $state.foundry_resource_group) {
     $group = [string]$state.foundry_resource_group
-    $tags = az group show -n $group --query tags -o json --only-show-errors 2>$null | ConvertFrom-Json
-    if (-not $tags) { Write-Output "PASS Foundry resource group already deleted (idempotent, expected HTTP 404 from Azure Resource Manager)." }
-    elseif ($tags.workshop -ne 'governed-mcp' -or $tags.module -ne '07') { throw "FAIL the Foundry resource group is not tagged workshop=governed-mcp and module=07; nothing was deleted (expected HTTP N/A)." }
-    else {
-        $accounts = @(az cognitiveservices account list -g $group --query "[].{name:name,location:location}" -o json --only-show-errors | ConvertFrom-Json)
+    if ($group -notmatch '^[a-zA-Z0-9_().-]{1,90}$' -or $group.EndsWith('.')) { throw 'FAIL invalid saved Foundry resource group name.' }
+    $exists = Invoke-WorkshopAzureJson -Arguments @('group', 'exists', '--name', $group)
+    if ($exists -isnot [bool]) { throw 'FAIL Azure did not return a Boolean resource-group existence result.' }
+    $accounts = if ($state.PSObject.Properties['foundry_cleanup_accounts']) { @($state.foundry_cleanup_accounts) } else { @() }
+    if ($exists) {
+        $tags = Invoke-WorkshopAzureJson -Arguments @('group', 'show', '--name', $group, '--query', 'tags')
+        if ($tags -isnot [System.Collections.IDictionary] -or -not $tags.Contains('workshop') -or -not $tags.Contains('module') -or
+            $tags.workshop -ne 'governed-mcp' -or $tags.module -ne '07') {
+            throw 'FAIL the Foundry resource group is not tagged workshop=governed-mcp and module=07; nothing was deleted.'
+        }
+        $accounts = Invoke-WorkshopAzureJson -Arguments @('cognitiveservices', 'account', 'list', '-g', $group, '--query', '[].{name:name,location:location}') -AllowEmptyArray
+        if ($accounts -isnot [array]) { throw 'FAIL Azure did not return an account inventory array.' }
         # Foundry creates one Microsoft Entra agent identity blueprint per agent, named <account>-<project>-<agent>-...;
         # deleting the resource group does not remove it (verified 2026-10-20).
         $graph = Get-WorkshopAccessToken -TenantId $TenantId -Resource 'https://graph.microsoft.com'
         if (-not $graph.Ok) { throw 'FAIL no Microsoft Graph token to find the Foundry agent identity blueprints (expected HTTP 200).' }
         $headers = @{ Authorization = "Bearer $($graph.Value)"; ConsistencyLevel = 'eventual' }
-        $projects = @(az resource list -g $group --resource-type Microsoft.CognitiveServices/accounts/projects --query "[].name" -o tsv --only-show-errors)
+        $projects = Invoke-WorkshopAzureJson -Arguments @('resource', 'list', '-g', $group, '--resource-type',
+            'Microsoft.CognitiveServices/accounts/projects', '--query', '[].name') -AllowEmptyArray
+        if ($projects -isnot [array]) { throw 'FAIL Azure did not return a Foundry project array.' }
         $blueprints = @(foreach ($a in $accounts) {
             foreach ($project in $projects) {
                 $prefix = "$($a.name)-$(($project -split '/')[-1])-"
@@ -110,6 +128,14 @@ if ($state -and $state.PSObject.Properties['foundry_resource_group'] -and $state
         })
         Write-Output "PLAN delete resource group (Foundry project, model deployment, monitoring), purge $($accounts.Count) Foundry account(s) and delete $($blueprints.Count) agent identity blueprint(s)"
         if ($Apply) {
+            $state | Add-Member -NotePropertyName foundry_cleanup_accounts -NotePropertyValue @($accounts) -Force
+            $pending = "$stateFile.$([guid]::NewGuid().ToString('N')).tmp"
+            try {
+                [IO.File]::WriteAllText($pending, ($state | ConvertTo-Json -Depth 50))
+                Move-Item -LiteralPath $pending -Destination $stateFile -Force
+            } finally {
+                if (Test-Path -LiteralPath $pending) { Remove-Item -LiteralPath $pending -Force }
+            }
             foreach ($b in $blueprints) {
                 $sps = @((Invoke-RestMethod -Uri "https://graph.microsoft.com/beta/servicePrincipals?`$filter=appId eq '$($b.appId)'&`$select=id" -Headers $headers).value)
                 foreach ($sp in $sps) { Invoke-RestMethod -Method Delete -Uri "https://graph.microsoft.com/beta/servicePrincipals/$($sp.id)" -Headers $headers | Out-Null }
@@ -118,17 +144,44 @@ if ($state -and $state.PSObject.Properties['foundry_resource_group'] -and $state
             if ($blueprints.Count) { Write-Output "PASS $($blueprints.Count) Foundry agent identity blueprint(s) deleted (expected HTTP 204 from Microsoft Graph)." }
             az group delete -n $group --yes --only-show-errors
             if ($LASTEXITCODE -ne 0) { throw 'FAIL resource group deletion. Rerun this script.' }
-            foreach ($a in $accounts) { az cognitiveservices account purge -g $group -n $a.name -l $a.location --only-show-errors 2>$null | Out-Null }
-            Write-Output 'PASS Foundry resource group deleted and accounts purged (expected HTTP 200 from Azure Resource Manager).'
+            Write-Output 'PASS Foundry resource group deleted (expected HTTP 200 from Azure Resource Manager).'
+        }
+    } else {
+        Write-Output 'PASS Foundry resource group is absent (successful Azure group exists check, expected HTTP 200).'
+    }
+    if (-not $exists -or $Apply) {
+        $deleted = Invoke-WorkshopAzureJson -Arguments @('cognitiveservices', 'account', 'list-deleted') -AllowEmptyArray
+        if ($deleted -isnot [array]) { throw 'FAIL Azure did not return a deleted-account inventory array.' }
+        $accountPath = '^/subscriptions/' + [regex]::Escape("$SubscriptionId") + '/resourceGroups/' +
+            [regex]::Escape($group) + '/providers/Microsoft\.CognitiveServices/accounts/[^/]+$'
+        $remaining = @($deleted | Where-Object { $_.id -match $accountPath })
+        foreach ($a in $remaining) {
+            $known = @($accounts | Where-Object { $_.name -eq $a.name -and $_.location -eq $a.location })
+            if ($known.Count -ne 1) {
+                throw 'FAIL a soft-deleted account has no matching saved ownership inventory. Verify it with the administrator; private files were kept.'
+            }
+            Write-Output 'PLAN purge one owned soft-deleted Foundry account (permanent deletion)'
+            if ($Apply) {
+                az cognitiveservices account purge -g $group -n $a.name -l $a.location --only-show-errors | Out-Null
+                if ($LASTEXITCODE -ne 0) { throw 'FAIL Foundry account purge. Keep the private inventory and rerun after the administrator checks the exact deleted-account permissions.' }
+            }
+        }
+        if ($Apply) {
+            $verified = Invoke-WorkshopAzureJson -Arguments @('cognitiveservices', 'account', 'list-deleted') -AllowEmptyArray
+            if ($verified -isnot [array] -or @($verified | Where-Object { $_.id -match $accountPath }).Count -gt 0) {
+                throw 'FAIL account purge is not yet confirmed by Azure. Private files were kept; wait for propagation, then rerun.'
+            }
+            Write-Output "PASS $($remaining.Count) owned soft-deleted Foundry account(s) purged; private inventory was available for retry (expected HTTP 200)."
         }
     }
 }
 
 # 4. Foundry client app registration (deleting it also deletes its short-lived secret).
 if ($clientId) {
-    $name = az ad app show --id $clientId --query displayName -o tsv --only-show-errors 2>$null
-    if (-not $name) { Write-Output 'PASS Foundry client app registration already deleted (idempotent, expected HTTP 404 from Microsoft Graph).' }
-    elseif ($name -notlike 'workshop-mcp-foundry-client-*') { throw 'FAIL the client app registration name does not start with workshop-mcp-foundry-client-; nothing was deleted (expected HTTP N/A).' }
+    $apps = Invoke-WorkshopAzureJson -Arguments @('ad', 'app', 'list', '--filter', "appId eq '$clientId'", '--query', '[].displayName') -AllowEmptyArray
+    if ($apps -isnot [array] -or $apps.Count -gt 1) { throw 'FAIL Microsoft Graph did not return an unambiguous client app lookup.' }
+    if ($apps.Count -eq 0) { Write-Output 'PASS Foundry client app registration is absent (successful filtered Microsoft Graph list, expected HTTP 200).' }
+    elseif ($apps[0] -notlike 'workshop-mcp-foundry-client-*') { throw 'FAIL the client app registration name does not start with workshop-mcp-foundry-client-; nothing was deleted (expected HTTP N/A).' }
     else {
         Write-Output 'PLAN delete the Foundry client app registration and its short-lived secret'
         if ($Apply) {
@@ -140,7 +193,9 @@ if ($clientId) {
 }
 
 if ($Apply) {
-    Remove-Item -LiteralPath $stateFile, $workloadFile, $entraFile -ErrorAction SilentlyContinue
+    foreach ($file in @($workloadFile, $entraFile, $stateFile)) {
+        if (Test-Path -LiteralPath $file) { Remove-Item -LiteralPath $file -ErrorAction Stop }
+    }
     Write-Output 'DONE module 07 part A removed. Private module 07 files deleted.'
 } else {
     Write-Output 'DONE report only. Nothing was changed. Rerun with -Apply after reviewing every PLAN line.'

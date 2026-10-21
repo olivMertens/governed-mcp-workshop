@@ -90,7 +90,7 @@ if ($Scope -eq 'Workload') {
     if (-not $Module04VarFile) { $Module04VarFile = Join-Path $private 'module04.tfvars.json' }
     if (-not $Module04bVarFile) { $Module04bVarFile = Join-Path $private 'module04b.tfvars.json' }
     if (-not $Module05VarFile) { $Module05VarFile = Join-Path $private 'module05.tfvars.json' }
-    $null = Read-WorkshopParameters -Path $ParametersPath
+    $null = Read-WorkshopParameters -Path $ParametersPath -AllowExpired
     foreach ($file in @($Module02VarFile, $Module03VarFile)) {
         if (-not (Test-Path -LiteralPath $file -PathType Leaf)) {
             throw 'FAIL module 02 or 03 opt-in file not found. Without both, the plan would also remove the server or its authentication (expected HTTP N/A).'

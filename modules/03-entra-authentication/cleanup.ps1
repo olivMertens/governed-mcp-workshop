@@ -83,7 +83,7 @@ if ($Scope -eq 'Workload') {
     if (-not $ParametersPath) { $ParametersPath = Join-Path $private 'participant.tfvars.json' }
     if (-not $Module02VarFile) { $Module02VarFile = Join-Path $private 'module02.tfvars.json' }
     if (-not $Module03VarFile) { $Module03VarFile = Join-Path $private 'module03.tfvars.json' }
-    $null = Read-WorkshopParameters -Path $ParametersPath
+    $null = Read-WorkshopParameters -Path $ParametersPath -AllowExpired
     if (-not (Test-Path -LiteralPath $Module02VarFile -PathType Leaf)) {
         throw 'FAIL module 02 opt-in file not found. Without it the plan would delete the server; use modules/02-open-server/cleanup.ps1 for that (expected HTTP N/A).'
     }

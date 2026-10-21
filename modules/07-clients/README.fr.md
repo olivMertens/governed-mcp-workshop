@@ -490,6 +490,19 @@ Le script rétablit les listes de clients autorisés à l'aide de plans Terrafor
 puis supprime le groupe de ressources Foundry (seulement s'il porte l'étiquette `module=07`) et l'inscription
 d'application cliente avec son secret.
 
+Un échec de lecture Azure ou Microsoft Graph arrête le nettoyage : il ne prouve pas qu'une ressource est absente.
+Avant de supprimer le groupe, le script enregistre les noms et les régions des comptes dans l'inventaire privé existant.
+Il conserve cet inventaire si une suppression ou une purge échoue, pour permettre une nouvelle tentative même après
+la disparition du groupe. La purge est définitive. Elle exige l'opération
+`Microsoft.CognitiveServices/locations/resourceGroups/deletedAccounts/delete` sur le périmètre du compte supprimé ;
+un rôle limité à l'ancien groupe de ressources peut ne pas suffire. Faites vérifier cette opération précise par
+l'administrateur, sans vous attribuer un rôle plus large.
+La lecture des comptes supprimés de l'abonnement peut aussi exiger des permissions au-delà de l'ancien groupe.
+Si le groupe a été supprimé hors du script et qu'un compte n'a pas d'inventaire de propriété enregistré, le nettoyage
+s'arrête pour vérification par l'administrateur. Ne jetez pas les fichiers privés et ne considérez pas le nettoyage comme terminé.
+Les listes Azure peuvent mettre du temps à refléter une purge : si la confirmation échoue, attendez puis relancez la même commande.
+Ces cas d'échec sont testés hors connexion ; ils ne constituent pas un nouveau résultat de nettoyage dans Azure.
+
 ```powershell
 pwsh ./modules/07-clients/cleanup.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID
 pwsh ./modules/07-clients/cleanup.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID -Apply
@@ -536,5 +549,8 @@ bash ./modules/07-clients/cleanup.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId 
 - Spécification MCP 2026-07-28 — `server/discover` : https://modelcontextprotocol.io/specification/2026-07-28/server/discover
 - Azure-Samples/azd-ai-starter-basic (MIT), vérifié au commit `5bf59a056c41ff37801dea334ba6a141e2dc5f67` : https://github.com/Azure-Samples/azd-ai-starter-basic
 - Microsoft Copilot Studio — Ajouter un serveur MCP existant à un agent : https://learn.microsoft.com/microsoft-copilot-studio/mcp-add-existing-server-to-agent
+- Azure CLI — Vérifier l'existence du groupe : https://learn.microsoft.com/cli/azure/group#az-group-exists
+- Restauration, purge définitive et permissions Foundry : https://learn.microsoft.com/azure/ai-services/recover-purge-resources
+- Les comptes supprimés conservent leur identifiant de ressource initial : https://learn.microsoft.com/rest/api/aiservices/accountmanagement/deleted-accounts/list?view=rest-aiservices-accountmanagement-2024-10-01
 
-Dernière vérification : 2026-10-20.
+Dernière vérification : 2026-10-21 (sources du nettoyage et tests d'erreur hors connexion ; aucun nouveau déploiement).
