@@ -52,6 +52,8 @@ Use **Next**, **Previous**, the numbered steps or arrow keys.
 These are reveal.js-style fragments rendered locally, not a separate Reveal slide site. Some module lessons also
 have full static diagrams for reference.
 
+The technical source register (`#/sources`) is also author-only. It is excluded from public data, so its direct URL shows "Page not found." Module source links remain available.
+
 Presenter scripts, publishing instructions and internal build notes remain in the repository and local authoring
 board. They are excluded from public navigation and public journey data. Public modules keep their commands,
 prerequisites, costs, security warnings, expected results, validation limits and clean-up steps.

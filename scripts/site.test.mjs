@@ -84,6 +84,17 @@ test("Git preserves SVG bytes and binary PNG provenance on Windows checkouts", (
     assert.match(attributes, /^\*\.png binary$/m);
 });
 
+test("the shared navigation omits the technical source register but keeps its authoring document", () => {
+    const html = readFileSync(join(root, ".github", "extensions", "workshop-build-board", "board.html"), "utf8");
+    const navigation = html.slice(html.indexOf('["resource-group",'), html.indexOf('["author-group",'));
+    assert.ok(navigation.includes('["practice", "Try your MCP", "terminal"]'));
+    assert.doesNotMatch(navigation, /"sources"|Verified sources/);
+    const journey = readJourney(root, parseProgress(readFileSync(join(root, "docs", "PROGRESS.md"), "utf8")));
+    for (const language of [journey, journey.translations.fr]) {
+        assert.ok(language.documents.sources.content.length > 0);
+    }
+});
+
 test("both public bundles expose animation entry points and the sourced Agent 365 closing step", (t) => {
     const temporary = mkdtempSync(join(tmpdir(), "workshop-animation-links-"));
     t.after(() => rmSync(temporary, { recursive: true, force: true }));
@@ -353,6 +364,7 @@ test("public site exports only the allowlist, with no capability, root URLs, pri
             }
             for (const key of authorOnlyDocuments) assert.ok(!Object.hasOwn(language.documents, key), `${key} must not be published`);
         }
+        assert.ok(!Object.hasOwn(language.documents, "sources"), "The technical source register must not be available through #/sources");
     }
     assert.ok(!Object.hasOwn(journey, "openDecisions"));
     assert.deepEqual(readdirSync(join(output, "assets")).sort(), ["architecture", "icons", "screenshots"]);
