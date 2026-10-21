@@ -1,6 +1,6 @@
 # Bien démarrer
 
-Ouvrez le site de l'atelier, choisissez EN/FR et votre parcours, puis commencez le module 00.
+Ouvrez le site de l'atelier sur GitHub Pages, choisissez EN/FR et votre parcours, puis commencez le module 00.
 Le portail ne demande pas de choisir un environnement. Exécutez les commandes dans votre terminal.
 Le site utilise PowerShell 7 partout, sous Windows, macOS et Linux. Aucun terminal de commande à choisir.
 Les alternatives bash restent dans les guides et scripts du dépôt, pas dans les leçons ni les exports PDF du site.
@@ -227,8 +227,6 @@ Le suffixe aléatoire n'est jamais raccourci.
 | Compte de stockage (prévu) | `st<court><suffixe>` | 3 à 24 lettres minuscules ou chiffres ; unique dans tout Azure |
 | Application Functions (prévue) | `func-mcp-<court>-<suffixe>` | Nom d'application unique dans tout Azure ; limité ici à 32 caractères pour préserver l'identifiant de l'hôte |
 | API Management (prévu) | `apim-mcp-<participant>-<suffixe>` | 1 à 50 lettres, chiffres ou traits d'union ; unique dans tout Azure |
-| Plan App Service facultatif | `plan-mcp-<participant>-<suffixe>-portal` | 1 à 60 caractères ; unique dans le groupe |
-| Application du portail facultatif | `web-mcp-<participant>-<suffixe>-portal` | 2 à 60 lettres, chiffres ou traits d'union ; nom d'application unique dans tout Azure |
 
 Les sorties Terraform sont des **noms prévus**, pas des serveurs déployés ni une réservation de noms.
 Le caractère aléatoire réduit le risque de collision sans le supprimer : vérifiez la disponibilité avant le déploiement.
@@ -260,12 +258,13 @@ Continuez avec le [module 00](../../modules/00-prerequisites/README.fr.md).
 active sa partie avec une variable (la Function App au module 02, l'authentification Entra au 03, API Management au 04,
 les accès délégué et applicatif au 05). `infra/entra` contient les objets Microsoft Entra ; un administrateur des
 identités le lance (ou vous-même, dans un tenant de test où vous avez ce rôle). Rien n'est déployé tant que vous
-n'appliquez pas un plan relu. Le portail App Service payant reste désactivé par défaut.
+n'appliquez pas un plan relu. Les instructions sont publiées sur GitHub Pages, sans application Azure supplémentaire ;
+voir le [guide d'hébergement](HOSTING.md).
 La section 5 ci-dessous (« Carte de déploiement ») liste ce que chaque module ajoute.
 Le parcours en terminal local a été validé sur la cible de préparation, sans créer de ressource.
 Chaque participant doit refaire ces contrôles pour sa propre cible ; le parcours conteneur/Codespaces n'a pas encore été vérifié.
 Vous pouvez déjà exécuter le [module 01 en local](../../modules/01-discover-mcp/README.fr.md) avec .NET 10 et PowerShell 7.
-Il ne demande ni connexion Azure, ni Terraform, ni portail du présentateur.
+Il ne demande ni connexion Azure, ni Terraform, ni site supplémentaire.
 Les contrôles SDK et Inspector réussissent en local ; l'approbation dans le client reste à vérifier à la main.
 Terminez le module 00 dans l'environnement réellement choisi avant les exercices cloud.
 

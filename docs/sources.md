@@ -7,6 +7,21 @@ Module 01 now adapts the SDK bootstrap pattern; its provenance and complete upst
 Versions below are reproducible reference selections or compatibility-test candidates, not a promise that every
 combination has been tested together.
 
+## Current documentation hosting — 2026-10-21
+
+GitHub Pages is now the only published documentation site. The optional Azure web app, dedicated App Service
+plan, ZIP packaging/deployment path and endpoint-prefill service have been removed. Presenter notes remain local
+or in the repository. Older hosting sections below are historical source decisions, not supported deployment instructions.
+
+- [GitHub Pages custom workflows](https://docs.github.com/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages):
+  verified 2026-10-21. The existing manual workflow publishes static participant content after its checks.
+- [App Service plans](https://learn.microsoft.com/azure/app-service/overview-hosting-plans):
+  verified 2026-10-21. Dedicated plan capacity is billed independently of whether the single web app is stopped.
+  Retirement must remove the dedicated plan as well as the portal app, after proving it is not shared.
+- [Terraform destroy and targeting](https://developer.hashicorp.com/terraform/cli/commands/destroy):
+  verified 2026-10-21. Use a saved, reviewed deletion-only plan with exact targets for exceptional retirement,
+  not a full workload destroy. Preserve state, parameters, MCP resources and the resource group.
+
 ## Script hardening and operational limits
 
 Last verified: 2026-10-21. Official references reread for the shared cleanup, launcher and low-code policy fixes:

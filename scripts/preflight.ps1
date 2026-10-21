@@ -3,7 +3,7 @@
 param(
     [Parameter(Mandatory)][guid]$TenantId,
     [Parameter(Mandatory)][guid]$SubscriptionId,
-    [ValidateSet('foundation', 'portal', 'mcp')][string]$Stage = 'foundation',
+    [ValidateSet('foundation', 'mcp')][string]$Stage = 'foundation',
     [ValidateSet('terraform', 'low-code')][string]$Track = 'terraform',
     [string]$ParametersPath = (Join-Path (Split-Path $PSScriptRoot -Parent) '.workshop/participant.tfvars.json'),
     [string]$CapacityReviewPath,
@@ -44,7 +44,6 @@ try {
 
     $requiredProviders = switch ($Stage) {
         'foundation' { @('Microsoft.Resources') }
-        'portal' { @('Microsoft.Resources', 'Microsoft.Web') }
         'mcp' { @('Microsoft.Resources', 'Microsoft.Web', 'Microsoft.App', 'Microsoft.Storage',
             'Microsoft.ManagedIdentity', 'Microsoft.Network', 'Microsoft.Insights',
             'Microsoft.OperationalInsights', 'Microsoft.ApiManagement', 'Microsoft.ApiCenter') }
@@ -80,15 +79,10 @@ try {
     if ($Stage -eq 'foundation' -and -not $parameters.existing_resource_group_name) {
         $requiredActions += 'Microsoft.Resources/subscriptions/resourceGroups/write', 'Microsoft.Resources/subscriptions/resourceGroups/delete'
     }
-    if ($Stage -in @('portal', 'mcp')) {
+    if ($Stage -eq 'mcp') {
         foreach ($resource in @('Microsoft.Web/serverfarms', 'Microsoft.Web/sites')) {
             foreach ($verb in @('read', 'write', 'delete')) { $requiredActions += "$resource/$verb" }
         }
-    }
-    if ($Stage -eq 'portal') {
-        $requiredActions += 'Microsoft.Web/sites/publish/Action', 'Microsoft.Web/serverfarms/join/action',
-            'Microsoft.Web/sites/config/read', 'Microsoft.Web/sites/config/write', 'Microsoft.Web/sites/config/list/action',
-            'Microsoft.Web/sites/basicPublishingCredentialsPolicies/read', 'Microsoft.Web/sites/basicPublishingCredentialsPolicies/write'
     }
     if ($Stage -eq 'mcp') {
         foreach ($resource in @('Microsoft.Storage/storageAccounts', 'Microsoft.ManagedIdentity/userAssignedIdentities',
@@ -122,14 +116,6 @@ try {
     } elseif ($Stage -eq 'foundation') {
         Write-Output 'PASS existing group mode (expected HTTP N/A; no new group quota required and group is not managed)'
     }
-    if ($Stage -eq 'portal') {
-        $regions = Invoke-WorkshopAzureJson -Arguments @('appservice', 'list-locations', '--sku', 'B1',
-            '--linux-workers-enabled', '--subscription', $subscription)
-        if (-not (@($regions) | Where-Object { ($_.name -replace ' ', '') -eq $parameters.location })) {
-            throw 'FAIL B1 Linux region (expected HTTP 200 and the selected region).'
-        }
-        Write-Output 'PASS B1 Linux region (expected HTTP 200; paid worker capacity is reviewed separately)'
-    }
     if ($Stage -eq 'mcp') {
         $regions = Invoke-WorkshopAzureJson -Arguments @('functionapp', 'list-flexconsumption-locations', '--subscription', $subscription)
         $runtimes = Invoke-WorkshopAzureJson -Arguments @('functionapp', 'list-flexconsumption-runtimes',
@@ -153,8 +139,8 @@ try {
         $review = Get-Content -LiteralPath $reviewItem.FullName -Raw | ConvertFrom-Json @jsonOptions
         $checked = [datetimeoffset]::MinValue
         $now = [datetimeoffset]::UtcNow
-        $required = if ($Stage -eq 'portal') { 1 } else { $FlexMemoryMB * $FlexMaximumInstances }
-        $unit = if ($Stage -eq 'portal') { 'workers' } else { 'MB' }
+        $required = $FlexMemoryMB * $FlexMaximumInstances
+        $unit = 'MB'
         if ($review.subscriptionId -ne $subscription -or $review.location -ne $parameters.location -or
             $review.stage -ne $Stage -or $review.unit -cne $unit -or $review.costApproved -isnot [bool] -or
             -not $review.costApproved -or ($review.availableUnits -isnot [long] -and $review.availableUnits -isnot [int]) -or

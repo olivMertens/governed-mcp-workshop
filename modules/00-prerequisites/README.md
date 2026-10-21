@@ -26,8 +26,8 @@ The diagram is a learning target, not proof that identities or resources have be
 
 The preflight deploys **nothing**. It reads context, regions, providers and effective permission grants.
 The shared Terraform root can create one isolated resource group, or read an existing approved group
-without managing it. [Optional public portal hosting](../../docs/HOSTING.md) adds a paid App Service plan
-and website only after an explicit opt-in. No Model Context Protocol (MCP) server exists yet.
+without managing it. [GitHub Pages](../../docs/HOSTING.md) hosts the guides; no Azure website is needed.
+No Model Context Protocol (MCP) server exists yet.
 
 ## Prerequisites and required roles
 
@@ -158,8 +158,11 @@ bash ./modules/00-prerequisites/validate.sh -Offline
 > **Expected result** — the same PASS lines as the PowerShell runs above (the wrappers call the same PowerShell scripts).
 > The `read` prompt waits for your cleanup date; `source` keeps the `ARM_*` variables in this shell.
 
-For a later billable stage, use `-Stage portal` or `-Stage mcp` and `-CapacityReviewPath` pointing to
-private evidence described in [hosting](../../docs/HOSTING.md). The `mcp` checks are a future baseline,
+For a later billable stage, use `-Stage mcp` and `-CapacityReviewPath` pointing to a private review:
+`subscriptionId`, `location`, `stage: "mcp"`, `unit: "MB"`, integer `availableUnits`, UTC `checkedAtUtc`
+in `yyyy-MM-ddTHH:mm:ssZ` format, and boolean `costApproved: true`. The review must be less than 24 hours old
+and cover `FlexMemoryMB * FlexMaximumInstances` for this subscription and region. Keep the real values private.
+The `mcp` checks are a future baseline,
 not a declaration that later Terraform modules, every nested operation or runtime checks already exist.
 That baseline includes role-assignment authority: arrange separate scoped administrator execution rather
 than giving every participant a wider role. Actual future modules must refine their required operations.
@@ -218,11 +221,11 @@ Move on to module 01 only when every check prints `PASS`.
 & .\modules\00-prerequisites\cleanup.ps1
 ```
 
-> **Real result** — authoring host, 2026-10-17.
+> **Expected result** — local checks only.
 >
 > ```text
 > PASS module 00 preflight cleanup (expected HTTP N/A): checks create no Azure or Entra resources.
-> PASS private parameters and state preserved (expected HTTP N/A). Optional paid portal cleanup requires the reviewed Terraform destroy flow in docs/HOSTING.md.
+> PASS private parameters and state preserved (expected HTTP N/A). Use module 99 to clean up deployed workshop resources.
 > ```
 >
 > **What it means for you:** there is nothing to delete for module 00, and your private parameters stay in place for later modules.
@@ -234,14 +237,14 @@ bash ./modules/00-prerequisites/cleanup.sh
 > **Expected result** — the same two PASS lines as the PowerShell run above.
 
 Preflight creates no resources. Cleanup preserves private parameters and state. If you separately applied
-the group/optional portal Terraform, use its [reviewed destroy flow](../../docs/HOSTING.md#clean-up).
-Stopping an App Service is not the same as deleting its paid plan. Never delete a shared group as a shortcut.
+the group foundation, use [module 99](../99-cleanup/README.md) to review its cleanup.
+Never delete a shared group as a shortcut.
 
 ## Go further
 
 Review [governance](../../docs/LEARNING-GUIDE.md), [identity ownership](../../docs/requests/identity-request.md)
 and the [planned architecture](../../assets/architecture/00.en.svg).
-The optional portal is public documentation only, not an authenticated internal site or cross-tenant control plane.
+The GitHub Pages website is documentation only, not a deployment control plane.
 
 ## Sources
 

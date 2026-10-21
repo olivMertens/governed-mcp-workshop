@@ -20,9 +20,7 @@ run "dedicated_group" {
   }
   assert {
     condition = (output.resource_names.function_app == "func-mcp-p01-0123456789" &&
-      output.resource_names.api_management == "apim-mcp-p01-0123456789" &&
-      output.resource_names.portal_plan == "plan-mcp-p01-0123456789-portal" &&
-    output.resource_names.portal_app == "web-mcp-p01-0123456789-portal")
+    output.resource_names.api_management == "apim-mcp-p01-0123456789")
     error_message = "Every legacy service name must remain byte-for-byte unchanged."
   }
   assert {
@@ -30,8 +28,8 @@ run "dedicated_group" {
     error_message = "Required ownership tags are missing."
   }
   assert {
-    condition     = length(azurerm_service_plan.portal) == 0 && length(azurerm_linux_web_app.portal) == 0 && output.public_portal_url == null
-    error_message = "Default mode must create no billable portal or pretend that a URL exists."
+    condition     = !contains(keys(output.resource_names), "portal_plan") && !contains(keys(output.resource_names), "portal_app")
+    error_message = "GitHub Pages hosting must not advertise Azure portal resources."
   }
 }
 
@@ -69,31 +67,11 @@ run "invalid_suffix" {
   expect_failures = [var.resource_suffix]
 }
 
-run "public_portal_opt_in" {
-  command = plan
-  variables {
-    public_portal_enabled = true
-  }
-  assert {
-    condition     = length(azurerm_service_plan.portal) == 1 && azurerm_service_plan.portal[0].sku_name == "B1" && azurerm_service_plan.portal[0].os_type == "Linux"
-    error_message = "An opt-in must provision exactly one B1 Linux plan."
-  }
-  assert {
-    condition     = azurerm_linux_web_app.portal[0].https_only && !azurerm_linux_web_app.portal[0].ftp_publish_basic_authentication_enabled && !azurerm_linux_web_app.portal[0].webdeploy_publish_basic_authentication_enabled
-    error_message = "Portal TLS and secretless publishing protections must remain enabled."
-  }
-  assert {
-    condition     = azurerm_linux_web_app.portal[0].site_config[0].ftps_state == "Disabled" && azurerm_linux_web_app.portal[0].site_config[0].application_stack[0].node_version == "22-lts" && azurerm_linux_web_app.portal[0].site_config[0].app_command_line == "node server.mjs"
-    error_message = "Use the selected supported runtime and read-only server; do not add FTP or implicit build/start behavior."
-  }
-}
-
 run "new_suffix_maximum_prefix" {
   command = plan
   variables {
-    participant_prefix    = "abcdefgh"
-    resource_suffix       = "0123456789abcdef"
-    public_portal_enabled = true
+    participant_prefix = "abcdefgh"
+    resource_suffix    = "0123456789abcdef"
   }
   assert {
     condition     = output.resource_names.storage == "stabcdef0123456789abcdef" && length(output.resource_names.storage) == 24 && can(regex("^[a-z0-9]{3,24}$", output.resource_names.storage))
@@ -109,14 +87,10 @@ run "new_suffix_maximum_prefix" {
   }
   assert {
     condition = alltrue([
-      for name in [output.resource_names.function_app, output.resource_names.api_management, output.resource_names.portal_plan, output.resource_names.portal_app] :
+      for name in [output.resource_names.function_app, output.resource_names.api_management] :
       length(name) <= 60 && can(regex("^[a-z][a-z0-9-]*[a-z0-9]$", name))
     ])
     error_message = "Service names must use valid DNS-compatible characters without trailing hyphens."
-  }
-  assert {
-    condition     = azurerm_linux_web_app.portal[0].name == output.resource_names.portal_app && azurerm_service_plan.portal[0].name == output.resource_names.portal_plan
-    error_message = "Actual portal resources must use the central names, not separate naming formulas."
   }
 }
 
@@ -138,7 +112,6 @@ run "shared_group_first_participant" {
     participant_prefix           = "abcdefgh"
     resource_suffix              = "0123456789abcdef"
     existing_resource_group_name = "rg-synthetic-shared"
-    public_portal_enabled        = true
   }
   assert {
     condition     = length(azurerm_resource_group.workshop) == 0 && output.resource_names.resource_group == "rg-synthetic-shared"
@@ -152,11 +125,10 @@ run "shared_group_second_participant" {
     participant_prefix           = "abcdefgh"
     resource_suffix              = "fedcba9876543210"
     existing_resource_group_name = "rg-synthetic-shared"
-    public_portal_enabled        = true
   }
   assert {
     condition = alltrue([
-      for key in ["storage", "function_app", "api_management", "portal_app", "portal_plan"] :
+      for key in ["storage", "function_app", "api_management"] :
       output.resource_names[key] != run.shared_group_first_participant.resource_names[key]
     ])
     error_message = "Identical participant labels in one shared group must still have different names for every service."

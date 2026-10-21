@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { readJourney } from "../.github/extensions/workshop-build-board/journey.mjs";
 import { parseProgress } from "../.github/extensions/workshop-build-board/progress.mjs";
-import { screenshots } from "./portal-server.mjs";
+import { screenshots } from "./build-site.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const html = readFileSync(join(root, ".github", "extensions", "workshop-build-board", "board.html"), "utf8");

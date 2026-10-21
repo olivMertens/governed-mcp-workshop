@@ -25,8 +25,8 @@ Le [plan technique en anglais](../BUILD-PLAN.md) s'adresse aux personnes qui con
 
 Le guide bilingue, les scripts de vérification en lecture seule et la demande Entra sont disponibles.
 Les versions des outils sont fixées et chaque participant conserve ses paramètres privés.
-Dans le parcours Terraform, les scripts préparent le groupe et peuvent créer un portail App Service B1 facultatif,
-payant et désactivé par défaut.
+Dans le parcours Terraform, les scripts préparent le groupe. Les guides sont publiés uniquement sur GitHub Pages ;
+l'ancien site documentaire Azure et son plan dédié ont été retirés le 2026-10-21.
 Les tests locaux ne remplacent ni un déploiement dans Azure ni un démarrage du conteneur.
 Le serveur MCP et la configuration Entra sont introduits dans les modules suivants.
 

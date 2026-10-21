@@ -1,6 +1,6 @@
 # Get started
 
-Open the workshop website, choose EN/FR and your deployment track, then start at module 00.
+Open the workshop website on GitHub Pages, choose EN/FR and your deployment track, then start at module 00.
 There is no workspace selection step in the portal. Run commands in your terminal.
 The site uses PowerShell 7 throughout, on Windows, macOS and Linux. There is no shell to choose.
 Bash alternatives remain in the repository guides and scripts, not in the site's lessons or PDF exports.
@@ -218,8 +218,6 @@ In the table, `participant` has 2-8 lowercase letters/digits, starting with a le
 | Storage account (planned) | `st<short><suffix>` | 3-24 lowercase letters/digits; globally unique |
 | Function App (planned) | `func-mcp-<short>-<suffix>` | Globally unique app name; kept within 32 characters to avoid host-ID truncation |
 | API Management (planned) | `apim-mcp-<participant>-<suffix>` | 1-50 letters/digits/hyphens; globally unique |
-| Optional App Service plan | `plan-mcp-<participant>-<suffix>-portal` | 1-60 characters; unique within the group |
-| Optional portal app | `web-mcp-<participant>-<suffix>-portal` | 2-60 letters/digits/hyphens; globally unique app name |
 
 The Terraform output contains **planned names**, not proof of deployment or a name reservation.
 Randomness makes accidental collisions unlikely, not impossible; check global availability before deployment.
@@ -237,8 +235,8 @@ Later identity and network modules still need their own isolation and address-sp
 `infra/workload` is the Terraform root for **your** resources: the resource-group foundation, then each module turns
 on its part with an opt-in variable (Function App in 02, Entra authentication in 03, API Management in 04, delegated and
 app-only access in 05). `infra/entra` holds the Microsoft Entra objects, run by an identity administrator (or by you
-in a test tenant where you have that role). Nothing is deployed until you apply a reviewed plan. The paid portal is
-disabled by default; [hosting](HOSTING.md) documents explicit persistent opt-in and deployment.
+in a test tenant where you have that role). Nothing is deployed until you apply a reviewed plan.
+The instructions are published on GitHub Pages, not on an Azure app; see [hosting](HOSTING.md).
 The [section 5 deployment map](#5-deployment-map-what-you-deploy-module-by-module) lists what each module adds.
 The [module 00 guide](../modules/00-prerequisites/README.md), read-only preflight and administrator request are available.
 Run its real environment checks before the foundation plan. The authoring evidence validates the local-terminal
@@ -312,7 +310,7 @@ Do not commit, upload to the board or share state, saved plans, CLI credentials 
 </details>
 
 The [module 01 local exercise](../modules/01-discover-mcp/README.md) is now runnable with .NET 10 and PowerShell 7,
-without Azure sign-in, Terraform or the presenter portal. Its validator and Inspector CLI checks pass locally;
+without Azure sign-in, Terraform or a separate website. Its validator and Inspector CLI checks pass locally;
 client approval remains manual. Complete module 00 on the workspace route you actually selected before cloud work.
 After paid stages, follow module 99. Review destroy against the same state; preserve existing groups and identities.
 Do not delete an entire group to bypass an incomplete Terraform cleanup.

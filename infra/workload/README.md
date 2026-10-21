@@ -1,7 +1,7 @@
 # Workload foundation
 
 By default this root manages one dedicated workshop resource group, or reads an approved existing group.
-An explicit persistent opt-in adds a public Linux App Service B1 portal; see [hosting](../../docs/HOSTING.md).
+The guides are hosted only on [GitHub Pages](../../docs/HOSTING.md); this root creates no documentation website.
 An explicit module 02 opt-in (`enable_mcp_server = true`, default false) adds the level 0 MCP server:
 Flex Consumption Function App, Storage with shared keys disabled, a `tickets` queue, Log Analytics,
 Application Insights and one user-assigned managed identity with three resource-scoped role assignments
@@ -72,26 +72,24 @@ terraform -chdir=infra/workload test
 ```
 
 The tests use a mock Azure provider and plan-only runs. They create no Azure resources.
-Eleven foundation runs cover new/existing groups, legacy compatibility, 64-bit names at minimum/maximum prefix lengths,
-shared-group isolation, invalid names, default-off hosting and the opt-in TLS/runtime settings.
+Foundation runs cover new/existing groups, legacy compatibility, 64-bit names at minimum/maximum prefix lengths,
+shared-group isolation, invalid names and the absence of Azure documentation-hosting names.
 Seven module 02 runs (`tests/mcp_server.tftest.hcl`) cover default-off, identity-only storage, no key or SAS in app settings,
 exact role scopes, the optional IPv4 allow-list, existing groups and rejected open/malformed ranges or unbounded scale.
 Eight module 03 runs (`tests/entra_auth.tftest.hcl`) cover default-off (module 02 unchanged), enforced authentication with
 one audience and allowed clients, no secret setting or token store, the two-stage key gate, and rejected incomplete or
 unsafe inputs.
-Ten module 04 runs (`tests/governed_gateway.tftest.hcl`, AzureRM and AzAPI mocks) cover default-off (module 03 unchanged), the
+Nine module 04 runs (`tests/governed_gateway.tftest.hcl`, AzureRM and AzAPI mocks) cover default-off (module 03 unchanged), the
 Standard v2 private path, the exact rendered policies (one audience, per-tool roles, per-oid rate limit, gateway PRM, no
-subscription key), zero body bytes at both diagnostic scopes, the stage 2 Function lock, the optional IP filter, the portal
-advertising only the gateway, and rejected unsafe inputs.
-Module 00's [offline validator](../../modules/00-prerequisites/README.md#validate) also covers local HTTP,
-bundle integrity, private-file exclusion, and synthetic preflight/deployment failures.
+subscription key), zero body bytes at both diagnostic scopes, the stage 2 Function lock, the optional IP filter
+and rejected unsafe inputs.
+Module 00's [offline validator](../../modules/00-prerequisites/README.md#validate) also covers the static export,
+private-file exclusion, safe participant parameters and synthetic preflight failures.
 
 ## Sources
 
 - [Azure naming rules](https://learn.microsoft.com/azure/azure-resource-manager/management/resource-name-rules).
 - [AzureRM group](https://registry.terraform.io/providers/hashicorp/azurerm/5.9.0/docs/resources/resource_group).
-- [Linux web app](https://registry.terraform.io/providers/hashicorp/azurerm/5.9.0/docs/resources/linux_web_app).
-- [App Service secretless deployment](https://learn.microsoft.com/azure/app-service/deploy-authentication-types).
 - [Terraform mocks](https://developer.hashicorp.com/terraform/language/tests/mocking).
 - [AzureRM 5.9.0 Flex Consumption](https://github.com/hashicorp/terraform-provider-azurerm/blob/v5.9.0/website/docs/r/function_app_flex_consumption.html.markdown).
 - [Flex Consumption plan](https://learn.microsoft.com/azure/azure-functions/flex-consumption-plan).

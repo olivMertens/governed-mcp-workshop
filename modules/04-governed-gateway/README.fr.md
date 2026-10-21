@@ -134,7 +134,7 @@ cette API REST (**Preview**) sur la même passerelle, avec les mêmes règles de
 ![Architecture du niveau 2](../../assets/architecture/04.fr.svg)
 
 L'URL client devient `https://apim-mcp-<prefix>-<suffix>.azure-api.net/workshop-mcp/mcp`. Les clients ne reçoivent
-jamais l'URL privée de la Function (le portail facultatif, lui aussi, ne préremplit que l'URL de la passerelle).
+jamais l'URL privée de la Function. Configurez votre client avec l'adresse de la passerelle fournie par votre déploiement.
 
 **Preview :** le type de ressource « serveur MCP » d'API Management et la version d'API `2025-09-01-preview` sont en **Preview**,
 comme les métadonnées de ressource protégée de la Function (module 03). La prise en charge des serveurs MCP est documentée
@@ -245,9 +245,8 @@ terraform '-chdir=infra\workload' apply '..\..\.workshop\module04.tfplan'
 >
 > **Comment lire votre plan :** attendez-vous à créer la passerelle, son chemin privé et les diagnostics sans contenu.
 > Le nombre d'ajouts dépend du réseau déjà créé au module 02. Les 17 ajouts de cet exemple réutilisent ce réseau.
-> Les **3** modifications concernent la Function App et le portail facultatif : retour du plan de service en B1
-> et mise à jour de `WORKSHOP_MCP_ENDPOINT` vers la passerelle. Sans portail, attendez-vous à 1 modification.
-> Consultez Dépannage si le plan de service du portail apparaît dans votre plan.
+> Les **3** modifications historiques concernaient la Function App et deux réglages d'hébergement des guides.
+> Cet hébergement Azure a été retiré le 2026-10-21 ; les plans actuels doivent afficher 1 modification.
 >
 > **Note sur l'exécution enregistrée :** la création de Standard v2 a pris environ 2 min 30 dans cet environnement.
 > Le premier `apply` a échoué sur `mcpProperties.endpoints` : le service **Preview** attend une table indexée par nom,
@@ -816,7 +815,7 @@ compare chaque réponse au statut attendu : un refus prévu est une réussite. C
 | Le `tools/list` d'Alice par la passerelle est vide (`{"tools":[]}`), alors que la Function liste cinq outils en direct | Le serveur MCP n'a pas d'entité backend : API Management le traite alors comme un serveur MCP construit à partir d'une API REST et répond lui-même à `tools/list`. `infra/workload/gateway.tf` crée `azapi_resource.mcp_backend` et renseigne `backendId` (API Preview ; la référence publiée ne montre que `serviceUrl`). Dans le portail, **MCP Servers** doit afficher **Source : MCP server** pour `workshop-mcp`. |
 | Le challenge 401 indique `.../workshop-mcp/.well-known/oauth-protected-resource/workshop-mcp/mcp` | Normal en mode passthrough : API Management réécrit l'URL des métadonnées sous le chemin du serveur MCP. La stratégie du serveur MCP répond à ce GET anonyme précis avec le même document de métadonnées ; l'URL à la racine fonctionne toujours. |
 | Foundry (module 07) reçoit `Access denied ... while enumerating tools (HTTP 403)` | Les clients récents appellent `server/discover` (MCP 2026-07-28) avant `initialize`. La stratégie l'accepte avec `Tools.Read` (lecture seule : versions et capacités, aucun outil ne s'exécute). Une ancienne copie de `policies/mcp-server.xml` renvoie 403 `unsupported-method`. |
-| Le plan affiche le plan de service du portail `F1` -> `B1` | La configuration du portail facultatif a été modifiée en dehors de Terraform, par exemple par une automatisation de réduction des coûts. Vérifiez l'origine de l'écart. N'approuvez le plan que si le retour en B1 est voulu et autorisé ; sinon, arrêtez-vous pour faire examiner cet écart. |
+| Le plan contient d'anciennes ressources d'hébergement des guides | Arrêtez-vous. Suivez séparément la [procédure de retrait](../../docs/fr/HOSTING.md#supprimer-une-ancienne-copie-azure). Ne mélangez pas cette migration et l'application d'un module. |
 
 ## Nettoyer
 
@@ -884,7 +883,7 @@ az apim deletedservice purge --service-name "apim-mcp-$($p.participant_prefix)-$
 > PASS the Function is back at level 1 (Entra only). Remove .workshop/module04.tfvars.json; use modules/03-entra-authentication/cleanup.ps1 next if you continue cleaning up.
 > ```
 >
-> Le nombre de `changed` inclut le retour du portail facultatif de l'atelier à son niveau de service validé (lignes `NOTE`, non montrées).
+> Le nombre historique de `changed` inclut l'hébergement des guides, retiré le 2026-10-21. Le nettoyage actuel refuse toute modification sans lien avec le module.
 >
 > Avec `-Apply` après l'étape 2 (attendu, d'après les messages du script) :
 >

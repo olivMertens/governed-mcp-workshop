@@ -515,8 +515,6 @@
       "azure-07-foundry-tool", "azure-07-foundry-approve", "azure-07-foundry-result", "terminal-07-foundry"];
     let state;
     let rawState;
-    let participant = null;
-    let participantChecked = false;
     let language = new URL(location.href).searchParams.get("lang") === "fr" ? "fr" : "en";
     function readTrack(url) {
       const track = new URL(url).searchParams.get("track");
@@ -1989,16 +1987,6 @@
       connection.append(label, input, feedback, commands,
         notice("Sign-in still needs the right client.",
           "Follow your module's sign-in instructions. An address alone does not grant access. Never enter a client secret here or turn off client approval."));
-      if (participant) {
-        input.value = participant.mcpEndpoint;
-        input.dispatchEvent(new Event("input"));
-        connection.insertBefore(element("p", "Prefilled from your own portal deployment. Check that it is your endpoint before connecting.", "field-message"), label);
-        if (typeof participant.mcpScope === "string") {
-          const scope = element("p", "Delegated scope to request at sign-in: ", "field-message");
-          scope.append(element("code", participant.mcpScope));
-          connection.insertBefore(scope, commands);
-        }
-      }
       connection.append(technical);
       content.append(connection, element("h2", "Prompts to paste into VS Code Copilot Chat"),
         element("p", "Use these only after connecting your server with Option A. Run them one at a time in Agent mode. If you chose Inspector, use List Tools and Call Tool instead."));
@@ -2406,17 +2394,6 @@
         if (!response.ok) throw new Error(result.error || `Content request failed (${response.status}).`);
         if (!result.translations?.fr) throw new Error("French workshop content is unavailable.");
         rawState = result;
-        if (staticSite && !participantChecked) {
-          participantChecked = true;
-          // Only a participant-owned portal serves this file; GitHub Pages returns 404 and the page stays manual.
-          try {
-            const hints = await fetch("participant.json", { cache: "no-store" });
-            if (hints.ok && hints.headers.get("content-type")?.startsWith("application/json")) {
-              const value = await hints.json();
-              if (typeof value?.mcpEndpoint === "string") participant = value;
-            }
-          } catch { participant = null; }
-        }
         activateLanguage();
         render();
         message.textContent = "";

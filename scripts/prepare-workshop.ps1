@@ -5,8 +5,7 @@ param(
     [Parameter(Mandatory)][ValidatePattern('^[a-z][a-z0-9]+$')][string]$Location,
     [Parameter(Mandatory)][ValidatePattern('^[a-z][a-z0-9-]{1,31}$')][string]$Owner,
     [Parameter(Mandatory)][string]$Expiry,
-    [ValidatePattern('^[a-zA-Z0-9_().-]{1,90}$')][string]$ExistingResourceGroupName,
-    [switch]$EnablePublicPortal
+    [ValidatePattern('^[a-zA-Z0-9_().-]{1,90}$')][string]$ExistingResourceGroupName
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -40,11 +39,13 @@ if (Test-Path -LiteralPath $path) {
     }
     $before = Get-Content -LiteralPath $path -Raw
     $existing = $before | ConvertFrom-Json -AsHashtable
-    $keys = @($configuration.Keys) + 'resource_suffix', 'public_portal_enabled'
-    $expectedCount = $configuration.Count + 1 + $(if ($existing.ContainsKey('public_portal_enabled')) { 1 } else { 0 })
+    if ($existing.ContainsKey('public_portal_enabled')) {
+        throw 'Azure portal hosting is retired. Follow docs/HOSTING.md to remove the old portal safely before removing public_portal_enabled from your private parameters. Keep the same suffix and state.'
+    }
+    $keys = @($configuration.Keys) + 'resource_suffix'
+    $expectedCount = $configuration.Count + 1
     if ($existing.Count -ne $expectedCount -or ($existing.Keys | Where-Object { $_ -notin $keys }) -or
-        $existing.resource_suffix -isnot [string] -or $existing.resource_suffix -cnotmatch '^([a-f0-9]{10}|[a-f0-9]{16})$' -or
-        ($existing.ContainsKey('public_portal_enabled') -and $existing.public_portal_enabled -isnot [bool])) {
+        $existing.resource_suffix -isnot [string] -or $existing.resource_suffix -cnotmatch '^([a-f0-9]{10}|[a-f0-9]{16})$') {
         throw 'Invalid participant file. Restore the original private parameters; do not regenerate names for deployed resources.'
     }
     foreach ($key in $configuration.Keys) {
@@ -52,16 +53,7 @@ if (Test-Path -LiteralPath $path) {
             throw "Participant setting '$key' differs. Refusing to overwrite parameters or silently replace resources."
         }
     }
-    if ($EnablePublicPortal -and (-not $existing.ContainsKey('public_portal_enabled') -or -not $existing.public_portal_enabled)) {
-        $existing.public_portal_enabled = $true
-        $temporary = Join-Path $directory "participant-$([guid]::NewGuid().ToString('N')).tmp"
-        [IO.File]::WriteAllText($temporary, ($existing | ConvertTo-Json) + "`n", [Text.UTF8Encoding]::new($false))
-        try {
-            if ([IO.File]::ReadAllText($path) -cne $before) { throw 'Participant parameters changed concurrently; no replacement was made.' }
-            [IO.File]::Move($temporary, $path, $true)
-        } finally { if ([IO.File]::Exists($temporary)) { [IO.File]::Delete($temporary) } }
-        Write-Output 'PASS public portal explicitly opted in; existing names and state preserved. Review the paid-resource plan before applying.'
-    } else { Write-Output 'PASS existing participant parameters reused unchanged.' }
+    Write-Output 'PASS existing participant parameters reused unchanged.'
 } else {
     $workload = Join-Path (Split-Path $PSScriptRoot -Parent) 'infra' 'workload'
     $statePaths = @(
@@ -75,7 +67,6 @@ if (Test-Path -LiteralPath $path) {
     if (($statePaths | Where-Object { Test-Path -LiteralPath $_ }) -or $savedPlans.Count -gt 0) {
         throw 'Participant parameters are missing but local state or saved plans exist. Restore the original private parameters; refusing to generate replacement names.'
     }
-    if ($EnablePublicPortal) { $configuration.public_portal_enabled = $true }
     $configuration.resource_suffix = [Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(8)).ToLowerInvariant()
     $bytes = [Text.UTF8Encoding]::new($false).GetBytes(($configuration | ConvertTo-Json) + "`n")
     $stream = [IO.File]::Open($path, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)

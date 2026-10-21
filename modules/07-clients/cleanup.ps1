@@ -65,11 +65,10 @@ function Invoke-GuardedPhase([string]$Directory, [string[]]$Arguments, [hashtabl
         $changes = @($all | Where-Object { $_.change.actions -notcontains 'no-op' -and $_.change.actions -notcontains 'read' })
         $foreign = @($changes | Where-Object {
             $address = $_.address -replace '\[[^\]]+\]$', ''
-            -not (Test-WorkshopPortalTierRestore $_) -and (-not $Allowed.ContainsKey($address) -or ($_.change.actions -join ',') -ne $Allowed[$address]) })
+            -not $Allowed.ContainsKey($address) -or ($_.change.actions -join ',') -ne $Allowed[$address] })
         if ($foreign.Count -gt 0) {
             throw "FAIL '$Label' plan contains $($foreign.Count) change(s) outside module 07; nothing was applied. Pass the same var files you deployed with (expected HTTP N/A)."
         }
-        Write-WorkshopPortalTierNotes $changes
         $work = @($changes | Where-Object { $clientId -and (($_.change.before | ConvertTo-Json -Depth 100 -Compress) -match [regex]::Escape($clientId)) })
         if ($work.Count -eq 0) { Write-Output "PASS '$Label': nothing to do in this state (idempotent, expected HTTP N/A)."; return }
         $work | ForEach-Object { Write-Output "PLAN $($_.change.actions -join ',') $($_.address) ($Label)" }

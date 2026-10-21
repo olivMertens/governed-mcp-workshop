@@ -1,29 +1,27 @@
-# Publier les guides et déployer les ressources séparément
+# Publier les guides sur GitHub Pages
 
-Ce guide s'adresse aux personnes qui hébergent l'atelier. Si vous souhaitez simplement le suivre,
-commencez par le [guide de démarrage](GETTING-STARTED.md) : vous n'avez pas besoin de publier le portail.
+[English](../HOSTING.md)
 
-Le portail public et les services Model Context Protocol (MCP) Azure sont deux déploiements distincts.
-Le portail aide à préparer l'environnement. Il ne collecte pas les identifiants Azure, n'accepte aucune clé
-de déploiement partagée et n'a aucun accès aux tenants des participants.
+**GitHub Pages est le seul site publié pour cet atelier.** Ne déployez pas de copie des guides sur
+Azure App Service ou Azure Container Apps. Les notes du présentateur et les outils de construction restent
+dans le dépôt et dans l'interface locale des auteurs.
 
-| Élément | Hébergement conseillé | Accès et responsabilités |
+Le site web et les ressources Model Context Protocol (MCP) ont des rôles différents :
+
+| Élément | Emplacement | Responsabilité |
 |---|---|---|
-| Guides EN/FR, schémas et choix d'environnement | GitHub Pages | Contenu statique public, sans connexion Azure ni droit de déploiement. |
-| Copie publique Azure facultative | App Service Linux B1 du participant, activé explicitement dans Terraform | Guides publics. Entra protège le déploiement, pas l'accès des visiteurs. |
-| Copie interne facultative | App Service **ou** Azure Container Apps désigné | Conception à part ; la connexion des visiteurs sans secret n'est pas implémentée ici. |
-| Ressources MCP du participant | Abonnement et groupe de test approuvés | Le participant lance Terraform depuis son terminal connecté à Azure, après examen du plan. |
+| Guides participants français et anglais, animations et instructions de test | GitHub Pages | Le responsable publie le contenu relu. Le site n'a aucun identifiant Azure ni droit de déploiement. |
+| Notes du présentateur et outils de construction | Dépôt et interface locale | Réservés aux auteurs ; exclus des données publiques du parcours. |
+| Serveur MCP, passerelle et services en aval | Abonnement Azure de test approuvé du participant | Chaque participant déploie, vérifie et supprime ses propres ressources. |
 
-App Service et Azure Container Apps (ACA) sont des services différents.
-Héberger le portail sur l'un d'eux ne déploie pas les services de l'atelier. L'architecture MCP reste Azure Functions derrière API Management ;
-elle ne devient pas automatiquement une application ACA.
+Le site n'exécute aucun test MCP. Les participants utilisent Visual Studio Code ou MCP Inspector sur leur
+ordinateur. Le champ d'adresse prépare seulement des commandes dans la mémoire du navigateur.
+Il n'est pas prérempli depuis Azure ; l'adresse n'est ni enregistrée ni envoyée au serveur.
+Consultez le [guide de test](PRACTICE.md).
 
-## Construire le portail
+## Construire le site localement
 
-<details>
-<summary>Publier sur GitHub Pages : préparation et étapes détaillées</summary>
-
-Depuis la racine du dépôt, avec Node.js 22.19+ :
+Depuis la racine du dépôt, avec Node.js 22.19.0 ou plus récent :
 
 ```powershell
 node --test scripts/site.test.mjs
@@ -36,309 +34,70 @@ if ($LASTEXITCODE -ne 0) { throw 'Site build failed.' }
 node --test scripts/site.test.mjs && node scripts/build-site.mjs
 ```
 
-Git ignore le dossier de sortie `site-dist`. Le script n'écrase jamais un dossier existant.
-Pour reconstruire, choisissez un nouveau dossier avec `--output` ; ne supprimez une ancienne sortie qu'après l'avoir inspectée.
-Servez le dossier avec un serveur HTTP, pas via `file://`.
-La sortie portable contient le HTML, la traduction JavaScript, le parcours public en JSON et seulement les icônes et schémas autorisés.
-Elle ne contient ni dépôt complet, ni `.git`, ni `.workshop`, ni identifiants, ni état Terraform, ni serveur canvas, ni accès au poste local.
-Les chemins relatifs fonctionnent aussi sous `/governed-mcp-workshop/`.
+Git ignore le dossier `site-dist`. Le script refuse d'écraser un dossier existant.
+Pour reconstruire, utilisez `--output` avec un nouveau dossier. Examinez une ancienne sortie avant de supprimer
+ce dossier précis. Prévisualisez le résultat avec un serveur HTTP local, pas avec une URL `file://`.
 
-Accueil : `#/start`. Français : `?lang=fr#/start`. Anglais : `?lang=en#/start`.
-La navigation repose sur le fragment d'URL (`#`) : ni serveur applicatif ni règle de réécriture sur GitHub Pages.
-Le site lit ses fichiers statiques. L'adresse saisie reste dans la mémoire de la page ; seuls vos outils de test appellent le serveur MCP.
+L'export ne contient que les fichiers statiques autorisés : HTML, libellés français, parcours public, schémas
+et captures. Il exclut les identifiants, les paramètres privés, l'état Terraform, l'API locale des auteurs
+et les documents de construction. Le registre technique des sources (`#/sources`) reste réservé aux auteurs :
+son URL publique affiche une page introuvable. Les liens vers les sources des modules, les consignes de sécurité,
+les commandes et les résultats attendus restent disponibles.
 
-### Retrouver les schémas animés
-
-GitHub Pages et la copie App Service facultative utilisent le même lecteur participant. Les modules 01 à 07 affichent
-leur animation au-dessus de la leçon, dans les deux parcours. Le raccourci **Schéma animé** du plan du module y mène directement.
-Le titre **Comprendre avant de passer à la pratique** en fait la première activité du module.
-Le bouton **Passer à l'exercice du module** ouvre ensuite la première étape du guide.
-Chaque schéma du parcours complet propose aussi un lien vers son module, sans changer de parcours de déploiement.
-Ouvrez **Schéma animé** dans la navigation de démarrage (`#/integration/1`) pour le parcours complet en images.
-Utilisez **Suivant**, **Précédent**, les étapes numérotées ou les flèches du clavier.
-Ce sont des fragments dans l'esprit de reveal.js, rendus localement, pas un site de diapositives Reveal distinct.
-Les modules proposent aussi les schémas statiques complets.
-
-Le registre technique des sources (`#/sources`) reste réservé aux auteurs. Il est exclu des données publiques : son URL directe affiche une page introuvable. Les liens vers les sources de chaque module restent disponibles.
-
-Les scripts de présentation, les instructions de publication et les notes internes restent dans le dépôt et dans
-le tableau de bord local. Ils sont exclus de la navigation publique et des données du parcours publié.
-Les modules publics conservent commandes, prérequis, coûts, avertissements de sécurité, résultats attendus,
-limites de validation et nettoyage.
-Le marqueur `<!-- module-animations -->` du guide d'architecture participant EN/FR est remplacé par les animations
-existantes à la publication. Les blocs `<!-- author-only -->` sont exclus du texte public ; le code reste intact.
-
-Les blocs de code utilisent une palette de terminal sombre : variables bleues, commandes jaunes, chaînes orange,
-paramètres et commentaires verts, mots-clés violets. Les lignes en pointillé ont une explication au survol, au toucher
-ou à la sélection au clavier ; Échap la ferme. La copie conserve le code original sans annotations ni numéros de ligne.
-La dernière étape de la séquence 2 (`#/integration/9`), également liée après le module 07, explique Agent 365
-et distingue sa disponibilité de son intégration Preview avec
-la passerelle. Chaque copie hébergée doit être reconstruite et publiée pour afficher les changements.
+Les deux langues et les deux parcours utilisent le même lecteur. Les modules 01 à 07 donnent un accès direct
+à leur schéma animé. Le marqueur `<!-- module-animations -->` est remplacé par ces animations.
+Les blocs `<!-- author-only -->` sont exclus du texte public ; le code reste intact.
 
 ## Publier sur GitHub Pages
 
-Le workflow `.github/workflows/workshop-pages.yml` suit la procédure GitHub officielle, épingle chaque action sur un commit
-et publie **uniquement `site-dist`**, jamais la racine du dépôt.
-Il n'utilise aucun identifiant Azure ni secret client. Son identité GitHub temporaire donne accès à Pages, pas à votre tenant Azure.
+1. Ajoutez les modifications à l'index Git, puis régénérez `setup-workshop-mcp.ps1` avec `node scripts/sync-scaffold.mjs`.
+   Incluez ce fichier dans le commit relu. Le workflow vérifie qu'il correspond aux fichiers suivis par Git.
+2. Fusionnez les changements relus dans `main`. Vérifiez que le dépôt est public et ne contient rien de privé.
+3. Ouvrez **Actions → Publish workshop guides → Run workflow**, sur `main`.
+4. Attendez la réussite des tâches **build** et **deploy**. La publication est manuelle, pas automatique après fusion.
+5. Vérifiez les pages françaises et anglaises, les deux parcours, les commandes copiées et les animations.
 
-1. Examinez le contenu public, les règles d'utilisation des images et les sources. Publiez d'abord les sources et tous les
-   scripts/configurations nécessaires sur la branche par défaut. Sinon, le clone et Codespaces pointent vers des
-   fichiers indisponibles : ne promettez pas de prérequis non publiés.
-2. Dans **Settings > Pages**, choisissez **GitHub Actions** comme source.
-   Le workflow ne change pas ce réglage à votre place.
-3. Définissez les branches autorisées et l'éventuel approbateur de l'environnement `github-pages`.
-4. Dans **Actions > Publish workshop guides > Run workflow**, choisissez la branche par défaut.
-   Déclenchement manuel uniquement : aucune publication automatique sur push ou pull request.
-5. Vérifiez le résultat et l'adresse affichée. Contrôlez l'accueil, les versions EN/FR, les schémas et la préparation du client
-   sur le site réel avant d'en partager l'adresse.
+- [Lien participant en français](https://olivmertens.github.io/governed-mcp-workshop/?lang=fr#/start)
+- [Lien participant en anglais](https://olivmertens.github.io/governed-mcp-workshop/?lang=en#/start)
 
-Pour ce dépôt, les guides sont en ligne à l'adresse `https://olivmertens.github.io/governed-mcp-workshop/`
-(Pages activé avec **GitHub Actions** comme source, workflow lancé sur `main` le 2026-10-20). Relancez le workflow après
-chaque fusion à publier : il ne publie jamais tout seul. Vérifiez les droits, la visibilité et les limites Pages/Actions de votre offre.
+Le workflow utilise une identité GitHub Pages de courte durée, sans compte Azure ni secret client.
+Dans **Settings → Pages → Source**, choisissez **GitHub Actions**. Vérifiez la visibilité autorisée,
+l'offre GitHub de votre organisation et ses limites d'utilisation ; toutes les offres ne sont pas gratuites.
 
-</details>
+## Supprimer une ancienne copie Azure
 
-## Héberger les guides dans un tenant
+L'hébergement Azure des guides a été retiré le 2026-10-21. Cette procédure de migration ne fait pas partie
+des exercices participants. Ne lancez pas une application Terraform ordinaire pour retirer un ancien portail :
+le même état peut contenir les ressources MCP.
 
-<details>
-<summary>Pour aller plus loin : hébergement interne et accès des visiteurs</summary>
+1. Conservez les paramètres privés, le suffixe et l'état d'origine. Sauvegardez l'état en privé.
+2. Retrouvez l'application web du portail et son plan App Service exacts dans cet état.
+   Vérifiez le propriétaire, l'abonnement, le groupe et l'absence d'autre application sur ce plan.
+3. Après approbation explicite de la suppression, préparez un plan de destruction ciblé et enregistré pour
+   `azurerm_linux_web_app.portal[0]` et `azurerm_service_plan.portal[0]` uniquement.
+   Le ciblage sert ici à une migration exceptionnelle, pas au déploiement habituel de l'atelier.
+4. Examinez ce plan en privé. Il doit supprimer uniquement les ressources approuvées du portail, sans ajout,
+   mise à jour, suppression de groupe ni changement MCP ou d'identité. Arrêtez-vous si le plan diffère.
+5. Faites approuver ce plan précis, appliquez le plan enregistré, puis vérifiez l'absence des deux ressources
+   dans Azure et des deux adresses dans l'état. Arrêter ou supprimer seulement le site ne retire pas un plan payant.
+6. Après vérification, retirez la clé obsolète `public_portal_enabled` des fichiers privés de paramètres.
+   Ne changez aucune autre valeur et ne régénérez pas les noms. Examinez les chemins exacts avant de supprimer
+   les anciens paquets et plans de déploiement. N'appliquez jamais un ancien plan du portail.
 
-La même sortie statique peut être servie par une application App Service ou ACA existante et approuvée.
-Avant le déploiement, précisez la ressource, l'abonnement, le groupe, l'environnement d'exécution ou l'image,
-les règles réseau, l'authentification, le propriétaire du contenu, les coûts et la procédure de retour arrière.
-Ne remplacez pas une application et ne créez ni accès,
-ni permission, ni configuration Entra sans approbation explicite. N'utilisez pas une application de production comme raccourci.
-
-Pour un portail privé, examinez l'authentification Entra intégrée prise en charge par le service choisi,
-les règles d'accès et les paramètres d'émetteur et d'audience limités à un seul tenant. Un écran de connexion ne suffit pas.
-Utilisez une identité managée pour l'accès applicatif autorisé, et la fédération OpenID Connect (OIDC) pour un pipeline approuvé.
-N'utilisez ni profil de publication copié, ni clé permanente, ni secret client.
-La référence ACA montre aussi une configuration avec secret client : ne l'exécutez pas.
-Aucun parcours de connexion sans secret n'est encore défini pour le portail privé : c'est un prérequis bloquant.
-Les identifiants réels et la résolution de cible restent dans la session privée de déploiement, pas dans ce dépôt public.
-Pendant cette préparation, l'auteur ne s'est pas connecté à Azure et n'a ni découvert ni modifié d'applications.
-
-</details>
-
-## Portail public facultatif sur App Service
-
-Cette option, déjà implémentée, héberge la **même application monopage (SPA) publique**, pas un site interne authentifié.
-Elle utilise App Service Linux Basic B1 et Node.js 22 LTS (version maintenue à long terme).
-Elle n'utilise ni registre de conteneurs, ni construction d'image, ni secret client, ni profil de publication, ni clé de déploiement.
-Cette version ne propose pas ACA. Suivez d'abord le
-[module 00](../../modules/00-prerequisites/README.fr.md).
-Tout passe par une seule racine, `infra/workload`, et un seul état. L'activation reste dans les paramètres privés ;
-un plan ultérieur ordinaire ne désactive pas le portail à votre insu.
-
-**Coût :** l'instance B1 dédiée est facturée en continu. Vérifiez les prix de la région et les règles de l'abonnement.
-Arrêter le site n'interrompt pas la facturation du plan. HTTPS et Transport Layer Security (TLS) 1.2+ sont imposés ;
-File Transfer Protocol (FTP) et la publication par authentification de base sont désactivés.
-Le serveur en lecture seule n'enregistre ni corps, ni paramètres de requête, ni identifiants, ni résultats.
-Il n'expose que 50 fichiers publics et `/health`, jamais l'API du canvas.
-GitHub Pages reste le choix le plus simple pour un atelier public.
-
-<details>
-<summary>Déployer le portail sur App Service : préparation, contrôles et approbations</summary>
-
-### Préparer et examiner localement
-
-Terminez d'abord le déploiement du **socle seul** du [guide de démarrage](GETTING-STARTED.md),
-avec le portail encore désactivé, ou utilisez le groupe fourni par l'administrateur.
-Examinez et approuvez séparément le plan sauvegardé avant de l'appliquer.
-Le script de vérification du portail exige que ce groupe existe.
-
-Relancez votre commande initiale `prepare-workshop.ps1`, avec **les mêmes** préfixe, région, propriétaire,
-date et l'éventuel groupe existant, en ajoutant `-EnablePublicPortal`.
-Cette activation explicite peut compléter le fichier de paramètres du socle, en conservant le suffixe et l'état.
-Ne régénérez pas les noms et ne changez pas de copie ou d'état.
-
-```powershell
-node scripts/build-portal.mjs
-if ($LASTEXITCODE -ne 0) { throw 'Public bundle build failed.' }
-node scripts/portal-server.mjs --verify portal-dist
-if ($LASTEXITCODE -ne 0) { throw 'Public bundle verification failed.' }
-node portal-dist/server.mjs
-```
-
-```bash
-node scripts/build-portal.mjs &&
-node scripts/portal-server.mjs --verify portal-dist &&
-node portal-dist/server.mjs
-```
-
-Le serveur local écoute sur l'adresse de bouclage (localhost), port 8080. Examinez les deux langues et les schémas ;
-arrêtez-le avec Ctrl+C. `portal-dist`, ignoré par Git, contient exactement 54 fichiers :
-les 50 éléments publics, le manifeste d'empreintes et le serveur sans dépendance externe.
-Le script de construction refuse un dossier existant ; choisissez un nouveau `--output` pour reconstruire.
-Sur App Service, le serveur lit `PORT` et n'accepte de connexions extérieures que si cette variable est définie.
-
-### Vérifier capacité et coût en privé
-
-Le groupe doit déjà exister pour les contrôles du portail : examinez et faites approuver le plan du
-[socle seul](GETTING-STARTED.md), **avant** d'activer le portail, qui nécessite sa propre approbation.
-Terraform ne crée ni n'importe un groupe fourni par l'administrateur.
-
-Si nécessaire, l'administrateur examine séparément l'inscription du fournisseur de ressources `Microsoft.Web`.
-Vérifiez la disponibilité de B1 Linux, le quota régional d'instances, les règles et le coût d'une instance.
-Pour le futur `-Stage mcp`, consultez **Diagnose and solve problems > Flex Consumption Quota** :
-la demande maximale en mémoire est partagée entre les participants. Les noms aléatoires ne changent pas les quotas.
-Le contrôle `mcp` vérifie les régions Flex et la prise en charge de .NET 10 en processus isolé.
-Il ne construit pas les modules suivants.
-
-Conservez la preuve dans `.workshop/capacity-review.json`, ignoré par Git, jamais dans le tableau de bord.
-Cet exemple **échoue volontairement** tant que l'abonnement, la capacité, l'heure UTC et le coût n'ont pas été vérifiés :
-
-```json
-{
-  "subscriptionId": "<abonnement prive approuve>",
-  "location": "<code de region approuve>",
-  "stage": "portal",
-  "unit": "workers",
-  "availableUnits": 0,
-  "checkedAtUtc": "<yyyy-MM-ddTHH:mm:ssZ>",
-  "costApproved": false
-}
-```
-
-Pour Flex, utilisez `stage: "mcp"` et `unit: "MB"`. Plafond par défaut : 2048 Mo × 10 instances.
-Adaptez `-FlexMemoryMB` et `-FlexMaximumInstances` dans l'appel à `scripts/preflight.ps1` si le plan diffère.
-La preuve doit correspondre à l'abonnement, à la région et à l'étape. Elle doit avoir moins de 24 heures et ne pas être datée dans le futur.
-C'est une **revue humaine du quota et du coût**, pas une lecture automatique du quota ni une réservation.
-La capacité d'API Management, du réseau et de la télémétrie, ainsi que les règles, seront vérifiées avec le plan réel de chaque module.
-
-### Planifier, approuver, déployer
-
-Ces commandes lisent la cible approuvée. Elles ne vous connectent pas, ne changent pas d'abonnement, n'inscrivent aucun fournisseur et n'attribuent aucun rôle.
-Gardez le contexte sélectionné dans ce même terminal, sans le partager.
-
-```powershell
-$ErrorActionPreference = 'Stop'
-& .\scripts\preflight.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID `
-    -Stage portal -CapacityReviewPath .\.workshop\capacity-review.json
-terraform -chdir=infra/workload init -lockfile=readonly
-if ($LASTEXITCODE -ne 0) { throw 'Terraform init failed.' }
-terraform '-chdir=infra\workload' plan '-var-file=..\..\.workshop\participant.tfvars.json' '-out=..\..\.workshop\portal.tfplan'
-if ($LASTEXITCODE -ne 0) { throw 'Terraform plan failed.' }
-terraform '-chdir=infra\workload' show '..\..\.workshop\portal.tfplan'
-if ($LASTEXITCODE -ne 0) { throw 'Terraform plan review failed.' }
-# STOP : obtenir l'approbation du plan exact, de la cible et du cout B1.
-# Seulement apres approbation :
-terraform '-chdir=infra\workload' apply '..\..\.workshop\portal.tfplan'
-if ($LASTEXITCODE -ne 0) { throw 'Terraform apply failed.' }
-& .\scripts\deploy-portal.ps1 -TenantId $env:ARM_TENANT_ID -SubscriptionId $env:ARM_SUBSCRIPTION_ID `
-    -CapacityReviewPath .\.workshop\capacity-review.json
-```
-
-```bash
-bash ./scripts/preflight.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId "$ARM_SUBSCRIPTION_ID" \
-  -Stage portal -CapacityReviewPath ./.workshop/capacity-review.json &&
-terraform -chdir=infra/workload init -lockfile=readonly &&
-terraform -chdir=infra/workload plan -var-file=../../.workshop/participant.tfvars.json -out=../../.workshop/portal.tfplan &&
-terraform -chdir=infra/workload show ../../.workshop/portal.tfplan
-# STOP : obtenir l'approbation distincte du plan exact, de la cible et du cout B1.
-# Seulement apres approbation :
-terraform -chdir=infra/workload apply ../../.workshop/portal.tfplan &&
-bash ./scripts/deploy-portal.sh -TenantId "$ARM_TENANT_ID" -SubscriptionId "$ARM_SUBSCRIPTION_ID" \
-  -CapacityReviewPath ./.workshop/capacity-review.json
-```
-
-Un plan sauvegardé s'applique sans nouvelle confirmation de Terraform : **ne collez pas le bloc entier avant approbation**.
-L'envoi du code demande une confirmation distincte avant de remplacer la documentation de l'application du participant, désignée par son nom.
-`-WhatIf` effectue les lectures, mais ne crée pas de ZIP et ne transfère rien.
-Le script vérifie la cible, les étiquettes, le plan, l'environnement d'exécution, TLS
-et la désactivation de la publication par authentification de base.
-Il crée ensuite un ZIP privé et utilise `az webapp deploy` avec Entra, sans récupérer d'identifiants de publication.
-Il refuse un ZIP existant : choisissez un nouveau `-PackagePath` privé lors d'une nouvelle publication.
-Pour revenir en arrière, utilisez les fichiers de la version approuvée précédente,
-avec un nouveau chemin ZIP et les mêmes contrôles.
-
-Vérifiez `terraform output public_portal_url`, `/health` en HTTPS (200 et `{"status":"ok"}`),
-l'accueil, les deux langues, les schémas et la préparation du client sur le site réel avant d'en partager l'adresse.
-Pendant la rédaction, l'auteur n'a lancé ni plan Azure réel, ni apply, ni transfert, ni contrôle du site déployé.
-Les preuves actuelles sont locales : schéma Terraform, plans simulés, serveur et déploiement synthétique.
-
-</details>
+Si la copie a été créée hors de cet état, demandez à son propriétaire de supprimer ces ressources précises.
+N'importez pas de plan partagé, ne supprimez pas de groupe, n'élargissez pas les droits et ne jetez pas l'état
+pour contourner un contrôle en échec.
 
 ## Nettoyer
 
-Les contrôles préalables ne créent rien. Si vous avez appliqué le code Terraform,
-examinez le plan de suppression avec les **mêmes paramètres et le même état**.
-Il retire toutes les ressources de l'atelier suivies dans cet état, pas seulement le portail.
-Si d'autres modules ont été ajoutés au même état, ne l'utilisez que pour une suppression complète volontaire.
-
-<details>
-<summary>Préparer un plan de suppression et le faire approuver</summary>
-
-```powershell
-terraform '-chdir=infra\workload' plan -destroy '-var-file=..\..\.workshop\participant.tfvars.json' '-out=..\..\.workshop\destroy.tfplan'
-if ($LASTEXITCODE -ne 0) { throw 'Destroy plan failed.' }
-terraform '-chdir=infra\workload' show '..\..\.workshop\destroy.tfplan'
-# STOP : examiner les suppressions et obtenir une approbation distincte.
-# Seulement apres approbation :
-terraform '-chdir=infra\workload' apply '..\..\.workshop\destroy.tfplan'
-if ($LASTEXITCODE -ne 0) { throw 'Destroy failed.' }
-```
-
-```bash
-terraform -chdir=infra/workload plan -destroy -var-file=../../.workshop/participant.tfvars.json -out=../../.workshop/destroy.tfplan &&
-terraform -chdir=infra/workload show ../../.workshop/destroy.tfplan
-# STOP : obtenir une approbation de suppression distincte avant d'appliquer ce plan.
-```
-
-Le groupe existant fourni par l'administrateur reste une source de données, jamais une cible de suppression.
-Le groupe dédié non vide reste protégé. Gardez les paramètres et l'état privés jusqu'à ce que la suppression soit vérifiée.
-Ne supprimez pas un groupe entier pour masquer des ressources non suivies.
-
-</details>
-
-## Portail participant facultatif lié à votre déploiement
-
-Le présentateur ne peut pas déployer dans le tenant des participants. Un participant qui souhaite un portail préconfiguré
-avec **son** point de terminaison déploie le même portail App Service dans **son** abonnement, avec le même état
-et les mêmes paramètres que son workload MCP, en suivant la procédure ci-dessus.
-
-Quand le portail et le serveur MCP partagent cet état Terraform, le plan ajoute au portail des paramètres non secrets :
-
-| Paramètre d'application | Origine | Quand |
-|---|---|---|
-| `WORKSHOP_MCP_ENDPOINT` | `mcp_endpoint` (URL HTTPS de la Function App) | `enable_mcp_server = true` (module 02) |
-| `WORKSHOP_MCP_SCOPE` | `mcp_auth_scope` (`api://…/user_impersonation`) | `enable_entra_auth = true` (module 03) |
-
-Le serveur du portail revérifie ces deux valeurs et n'expose qu'elles, sur `/participant.json`.
-La page **Essayer votre MCP** préremplit le point de terminaison et affiche le scope délégué. Rien n'est prérempli
-sur GitHub Pages : le participant saisit son adresse, qui reste dans la mémoire du navigateur.
-
-- Ne sont jamais ajoutés : la clé système du module 02, les jetons, les ID de tenant ou d'abonnement, les chaînes de connexion, les secrets client.
-- Le portail est public : il révèle le nom d'hôte et le scope, qui ne sont pas des secrets. Le point de terminaison reste
-  protégé par la clé système (niveau 0) ou Microsoft Entra (niveau 1). Ne diffusez pas le lien hors de votre groupe de test,
-  et supprimez le portail avec le workload.
-- Relancez le plan et le déploiement du portail après chaque nouveau module pour mettre à jour les valeurs préremplies.
-- Coût : un plan B1 par participant qui l'active. C'est facultatif ; les guides partagés sur GitHub Pages suffisent.
-
-## Ressources du participant
-
-Suivez [le choix d'environnement](GETTING-STARTED.md) puis [le contexte Azure](DEPLOYMENT.md).
-Le participant se connecte à son tenant dans son terminal ou dev container, conserve son suffixe aléatoire et son état privé,
-puis examine le plan destiné à son groupe. Les rôles Azure et le consentement Entra sont deux autorisations distinctes.
-Une automatisation propre au participant nécessite sa propre fédération à portée limitée et ses propres approbations ;
-le portail public ne devient pas une console de déploiement multi-tenant.
-
-Le socle Terraform (groupe) et l'App Service public facultatif sont désormais disponibles. Functions, identité, passerelle et observabilité
-ne sont pas encore implémentés ni validés. Il n'existe ni bouton « tout déployer », ni fausse sortie de clé ou d'adresse.
-La clé système temporaire du module 02 est saisie uniquement dans le client, à l'exécution :
-jamais dans le portail, une URL, le chat, une sortie publique ou une configuration sauvegardée.
+GitHub Pages ne nécessite aucune ressource Azure de l'atelier. Pour retirer le site, utilisez les paramètres Pages du dépôt.
+Pour les ressources MCP, suivez le [module 99](../../modules/99-cleanup/README.fr.md) avec les mêmes paramètres privés
+et le même état. Préservez les groupes et les identités fournis par l'administrateur.
 
 ## Sources
 
-- [Workflows Pages officiels](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
-- [Source de publication Pages](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site).
-- [OIDC GitHub vers Azure](https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/configuring-openid-connect-in-azure).
-- [Authentification App Service](https://learn.microsoft.com/azure/app-service/overview-authentication-authorization), [authentification ACA](https://learn.microsoft.com/azure/container-apps/authentication).
-- [Node.js App Service](https://learn.microsoft.com/azure/app-service/configure-language-nodejs).
-- [Déploiement ZIP avec Entra](https://learn.microsoft.com/azure/app-service/deploy-authentication-types).
-- [Exécution du package](https://learn.microsoft.com/azure/app-service/deploy-run-package).
-- [Prix App Service Linux](https://azure.microsoft.com/pricing/details/app-service/linux/).
-- [Capacité Flex](https://learn.microsoft.com/azure/azure-functions/flex-consumption-plan).
-- [Références](REFERENCES.md), [droits sur les images](../../assets/architecture/README.fr.md).
+- [Workflows GitHub Pages](https://docs.github.com/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
+- [Plans App Service et facturation](https://learn.microsoft.com/azure/app-service/overview-hosting-plans).
+- [Destruction Terraform et ciblage exceptionnel](https://developer.hashicorp.com/terraform/cli/commands/destroy).
 
-Dernière vérification : 2026-10-14. Préparation locale uniquement, sans publication ni déploiement Azure.
+Dernière vérification : 2026-10-21. Publier les guides ne valide pas le déploiement d'un participant.

@@ -37,7 +37,8 @@ Personas:
 - **Show:** preflight passes; the identity request is clear enough to send as is.
 - **Implementation now available:** EN/FR module 00 guide, read-only explicit-context preflight, administrator
   identity request, pinned workstation configuration and private stable participant parameters.
-  The shared root supports the group foundation and a default-off public B1 App Service.
+  The shared root supports the group foundation. Guides are published only on GitHub Pages;
+  the optional Azure documentation app and dedicated plan were retired on 2026-10-21.
   Offline schema/mock/script/server evidence is separate from container and fresh-subscription validation,
   which remain pending. (The MCP runtime and Entra root were later authored in modules 02 and 03.)
 

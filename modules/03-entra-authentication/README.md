@@ -290,13 +290,13 @@ terraform '-chdir=infra\workload' apply '..\..\.workshop\module03.tfplan'
 > ...
 > azurerm_function_app_flex_consumption.mcp[0]: Modifications complete after 53s [id=/subscriptions/<subscription-id>/resourceGroups/rg-mcp-p01-<suffix>/providers/Microsoft.Web/sites/func-mcp-p01-<suffix>]
 > ...
-> azurerm_linux_web_app.portal[0]: Modifications complete after 1m3s [id=/subscriptions/<subscription-id>/resourceGroups/rg-mcp-p01-<suffix>/providers/Microsoft.Web/sites/web-mcp-p01-<suffix>-portal]
+> ...
 > Apply complete! Resources: 0 added, 2 changed, 0 destroyed.
 > ```
 >
 > **What it means for you:** the server is updated in place, not replaced. The app restarts once. The author's run
-> changed **2** resources because the optional portal also received the `WORKSHOP_MCP_SCOPE` sign-in hint. Without a
-> portal, expect `Plan: 0 to add, 1 to change, 0 to destroy.` (the Function App only).
+> changed **2** resources because Azure documentation hosting still existed at the time; it was retired on 2026-10-21.
+> Current plans expect `Plan: 0 to add, 1 to change, 0 to destroy.` (the Function App only).
 
 Now a caller needs a token **and** the key: nothing is anonymous.
 

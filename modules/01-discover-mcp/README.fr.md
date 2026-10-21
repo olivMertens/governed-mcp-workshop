@@ -487,7 +487,7 @@ Expliquez la différence entre `degraded` avec `isError: false` et un service in
 Expliquez pourquoi une indication de lecture seule n'est pas un contrôle d'accès.
 Au [module 02](../02-open-server/README.fr.md), vous déploierez un serveur MCP à cinq outils dans Azure,
 protégé dans un premier temps par une clé partagée.
-Le portail facultatif de l'atelier affiche ces instructions ; il n'exécute aucune commande à votre place.
+Le site GitHub Pages affiche ces instructions ; il n'exécute aucune commande à votre place.
 
 ## Sources
 

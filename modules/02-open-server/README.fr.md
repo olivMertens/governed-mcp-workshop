@@ -204,16 +204,14 @@ if ($LASTEXITCODE -ne 0) { throw 'Terraform plan failed.' }
 > Plan: 11 to add, 1 to change, 0 to destroy.
 > ```
 >
-> La modification correspond au portail facultatif existant, qui reçoit `WORKSHOP_MCP_ENDPOINT`. Sans portail,
-> attendez-vous à `11 to add, 0 to change, 0 to destroy`.
+> La modification de cette capture historique concernait l'hébergement Azure des guides, retiré le 2026-10-21.
+> Les plans actuels doivent afficher `11 to add, 0 to change, 0 to destroy`.
 >
 > **Ce que cela signifie pour vous :** un plan décrit ce qui va changer, sans rien modifier. **Tout `to destroy` ici est un signal d'arrêt.**
 > Relisez les onze ajouts : trois attributions de rôle, chacune sur une ressource précise, et aucun secret client.
 
 Relisez le plan : attendez-vous à **onze nouvelles ressources du module 02**, sans remplacement ni suppression.
-Si le portail public facultatif existe déjà, prévoyez aussi une **mise à jour sur place de ses paramètres**
-pour ajouter `WORKSHOP_MCP_ENDPOINT`, son indication de connexion non secrète. Le portail peut redémarrer :
-approuvez séparément cette interruption. Cette mise à jour ne publie ni les nouveaux guides ni le code de la Function.
+Les guides sont hébergés sur GitHub Pages et ne nécessitent aucun changement de paramètres Azure.
 Arrêtez-vous et examinez toute autre modification. Passez les deux fichiers de variables
 à chaque nouveau plan ; sinon, Terraform proposera de supprimer le serveur.
 
@@ -556,8 +554,8 @@ anonyme. Si le serveur répondait 200, ce même contrôle afficherait `FAIL`.
 ## Nettoyer
 
 Lancez le nettoyage après l'exercice. Il établit un plan avec le module désactivé. Il refuse de continuer si ce plan contient autre chose
-que la suppression de ressources du module 02 (réseau de stockage privé facultatif compris) ou le seul retrait
-de l'indication `WORKSHOP_MCP_ENDPOINT` du portail. Lancez-le une première fois pour relire le plan, puis relancez-le avec `-Apply`.
+que la suppression de ressources du module 02 (réseau de stockage privé facultatif compris).
+Lancez-le une première fois pour relire le plan, puis relancez-le avec `-Apply`.
 Il est idempotent : s'il ne reste rien, il le dit et ne change rien.
 
 ```powershell
@@ -568,7 +566,7 @@ Remove-Item -LiteralPath .\.workshop\module02-publish -Recurse -ErrorAction Sile
 ```
 
 > **Résultat réel** — rapport de nettoyage (première commande, sans `-Apply`) dans l'abonnement de test de l'auteur, 2026-10-16,
-> avec `mcp_private_storage = true` et le portail facultatif. Noms et identifiants masqués.
+> avec `mcp_private_storage = true`. Les lignes historiques d'hébergement des guides sont omises. Noms et identifiants masqués.
 >
 > ```text
 > PASS explicit Azure context and private participant parameters (expected HTTP 200 from Azure Resource Manager).
@@ -592,11 +590,10 @@ Remove-Item -LiteralPath .\.workshop\module02-publish -Recurse -ErrorAction Sile
 > PLAN delete azurerm_subnet.mcp_integration[0]
 > PLAN delete azurerm_user_assigned_identity.mcp[0]
 > PLAN delete azurerm_virtual_network.gateway[0]
-> PLAN update azurerm_linux_web_app.portal[0]: remove only the WORKSHOP_MCP_ENDPOINT hint (portal may restart)
-> PASS cleanup plan deletes only 20 module 02 resource(s) and removes the portal endpoint hint. Review it, then rerun with -Apply.
+> ...
 > ```
 >
-> Sans stockage privé, attendez-vous à 11 suppressions du module 02 ; sans portail, à aucune ligne `PLAN update`.
+> Sans stockage privé, attendez-vous à 11 suppressions du module 02. Le nettoyage actuel refuse toute modification sans lien avec le module.
 > Avec `-Apply`, le script affiche la sortie de `terraform apply`, puis (messages du script, hors de cette capture)
 > `PASS module 02 resources deleted; the system key was deleted with the Function App (expected HTTP 200 from Azure Resource Manager).`
 > et `KEEP private participant parameters, Terraform state and the resource group for later modules.`

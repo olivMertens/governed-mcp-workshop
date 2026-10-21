@@ -194,16 +194,14 @@ if ($LASTEXITCODE -ne 0) { throw 'Terraform plan failed.' }
 > Plan: 11 to add, 1 to change, 0 to destroy.
 > ```
 >
-> The change is the existing optional portal receiving `WORKSHOP_MCP_ENDPOINT`. Without a portal, expect
-> `11 to add, 0 to change, 0 to destroy`.
+> The one update in this historical capture belonged to Azure documentation hosting, retired on 2026-10-21.
+> Current plans expect `11 to add, 0 to change, 0 to destroy`.
 >
 > **What it means for you:** a plan is a promise, not an action. **Any `to destroy` here is a stop signal.**
 > Read the eleven additions: three role assignments, each on one exact resource, and no client secret.
 
 Review the plan: expect **eleven new module 02 resources**, with no replacement or deletion.
-If the optional public portal already exists, also expect an **in-place app settings update** to add
-`WORKSHOP_MCP_ENDPOINT`, its non-secret connection hint. This can restart the portal; approve that interruption
-separately. It does not publish a new guide bundle or the Function code. Stop and investigate any other change.
+The guides are hosted on GitHub Pages and require no Azure app settings update. Stop and investigate any other change.
 Keep passing both var files in every later plan, otherwise Terraform proposes to delete the server.
 
 **Does your tenant force private Storage?** Some organizations assign an Azure Policy with a `modify` effect that sets
@@ -502,8 +500,8 @@ server answered 200 here, the same check would print `FAIL`.
 ## Clean up
 
 Run the clean-up after the exercise. It plans with the module disabled and refuses to continue unless every change
-is a deletion of a module 02 resource (including the optional private storage network), or the removal of only the
-portal's `WORKSHOP_MCP_ENDPOINT` hint. Run it once to review, then again with `-Apply`.
+is a deletion of a module 02 resource (including the optional private storage network).
+Run it once to review, then again with `-Apply`.
 It is idempotent: when nothing remains, it says so and changes nothing.
 
 ```powershell
@@ -514,7 +512,7 @@ Remove-Item -LiteralPath .\.workshop\module02-publish -Recurse -ErrorAction Sile
 ```
 
 > **Real result** — clean-up report (first command, without `-Apply`) in the author's test subscription, 2026-10-16,
-> with `mcp_private_storage = true` and the optional portal. Names and IDs withheld.
+> with `mcp_private_storage = true`. Historical documentation-hosting lines are omitted. Names and IDs withheld.
 >
 > ```text
 > PASS explicit Azure context and private participant parameters (expected HTTP 200 from Azure Resource Manager).
@@ -538,11 +536,10 @@ Remove-Item -LiteralPath .\.workshop\module02-publish -Recurse -ErrorAction Sile
 > PLAN delete azurerm_subnet.mcp_integration[0]
 > PLAN delete azurerm_user_assigned_identity.mcp[0]
 > PLAN delete azurerm_virtual_network.gateway[0]
-> PLAN update azurerm_linux_web_app.portal[0]: remove only the WORKSHOP_MCP_ENDPOINT hint (portal may restart)
-> PASS cleanup plan deletes only 20 module 02 resource(s) and removes the portal endpoint hint. Review it, then rerun with -Apply.
+> ...
 > ```
 >
-> Without private storage, expect 11 module 02 deletions; without the portal, no `PLAN update` line.
+> Without private storage, expect 11 module 02 deletions. Current cleanup refuses every unrelated update.
 > With `-Apply`, the script prints Terraform's apply output, then (script messages, not part of this capture)
 > `PASS module 02 resources deleted; the system key was deleted with the Function App (expected HTTP 200 from Azure Resource Manager).`
 > and `KEEP private participant parameters, Terraform state and the resource group for later modules.`

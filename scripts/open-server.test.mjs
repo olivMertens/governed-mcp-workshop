@@ -93,7 +93,7 @@ test("module 02 validator offline mode passes without Azure and states it is not
     assert.match(result.stdout, /Module 02 is NOT deployed or Azure-validated/);
 });
 
-test("module 02 cleanup deletes only module 02 resources, refuses foreign changes, allows only the portal hint removal and is idempotent (synthetic Terraform)", (t) => {
+test("module 02 cleanup deletes only module 02 resources, refuses all legacy portal changes and is idempotent (synthetic Terraform)", (t) => {
     const directory = mkdtempSync(join(tmpdir(), "workshop-open-cleanup-"));
     t.after(() => rmSync(directory, { recursive: true, force: true }));
     const parameters = join(directory, "participant.tfvars.json");
@@ -135,7 +135,6 @@ foreach ($global:scenario in @('report','apply','empty','foreign','update','hint
         'report' { if ($failed -or $global:applied -ne 0 -or $text -notmatch 'rerun with -Apply') { throw "report: $text" } }
         'apply' { if ($failed -or $global:applied -ne 1) { throw "apply: $text" } }
         'empty' { if ($failed -or $global:applied -ne 0 -or $text -notmatch 'nothing to delete') { throw "empty: $text" } }
-        'hint' { if ($failed -or $text -notmatch 'remove only the WORKSHOP_MCP_ENDPOINT hint' -or $text -notmatch 'deletes only 1 module 02') { throw "hint: $text" } }
         default { if (-not $failed -or $global:applied -ne 0) { throw "$global:scenario must refuse." } }
     }
     Write-Output "PASS synthetic cleanup $global:scenario"

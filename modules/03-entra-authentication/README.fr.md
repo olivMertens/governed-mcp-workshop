@@ -324,8 +324,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Plan impossible. Ne continuez pas.' }
 
 **STOP — relisez le plan avant de l'appliquer.** Vous devez retrouver l'authentification obligatoire sur la Function,
 la réponse `Return401`, votre tenant et l'audience MCP. Le serveur n'est ni remplacé ni supprimé.
-Si vous avez déployé le portail facultatif, son indication de connexion peut aussi être mise à jour.
-Le nombre total de changements n'est donc pas le critère de réussite.
+Les guides GitHub Pages ne nécessitent aucune mise à jour Azure. Le plan doit concerner la Function uniquement.
 Arrêtez-vous si le plan supprime une protection ou modifie une ressource sans lien avec cette étape.
 
 Après approbation :

@@ -166,8 +166,8 @@ Then run the module's own validation to test access.
 1. Complete module 00's published prerequisite/permission checks, then module 01's local MCP exercise.
    Context selection alone does not validate either module.
 2. Prepare the private participant file using the start guide. Keep its random suffix and the same Terraform state.
-   `infra/workload` manages a dedicated group or reads an approved existing group; the public portal is an explicit paid opt-in.
-   Neither creates an MCP server.
+   `infra/workload` manages a dedicated group or reads an approved existing group. Guides are hosted on GitHub Pages,
+   not on an Azure documentation app. The foundation alone creates no MCP server.
    Wait for each runtime module's real guide, validation and cleanup. There is no enabled Deploy button in the board.
 3. In the same terminal, review the actual `infra/workload` provider configuration and its subscription/tenant.
    Check AzureRM and AzAPI target the selected subscription, and AzureAD targets the approved tenant.
